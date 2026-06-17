@@ -11,7 +11,7 @@ Strato gives you an FTP root with (at least) one web-exposed folder. The mapping
     └── logs/        ← must be writable by PHP
 ```
 
-The `public/` and `data/` directories are siblings on the server, which matches how the router resolves `__DIR__ . '/../data/...'` from `public/index.php`.
+The `public/` and `data/` directories are siblings on the server, which matches how `ReleaseRepository`, `Auth`, and `DownloadLogger` resolve `dirname(__DIR__, 3) . '/data/...'` from inside `src/NeuroSYS/Service/`.
 
 If your account only has one folder and there's no "outside webroot" option, `data/.htaccess` (`Require all denied`) is there as a fallback — just ensure it actually uploads (some FTP clients hide dotfiles).
 
@@ -52,10 +52,8 @@ Or: `gh repo create neurosys --private --source=. --push`
 
 1. Open the **Remote Host** tool window in PHPStorm (or any FTP client).
 2. Create a `data/` folder next to `htdocs/` on the server.
-3. Upload `data/.htaccess` and `data/admin.php` into it.
+3. Upload `data/.htaccess`, `data/admin.php`, and `data/releases.php` into it.
 4. Create `data/logs/` inside it, ensure it's writable (`chmod 755` if needed).
-
-`data/releases.php` also goes here — upload it along with `admin.php`.
 
 ### 5. Set stats password
 
@@ -72,7 +70,3 @@ Paste the output into `data/admin.php` as `pass_hash`, then upload that file.
 Right-click `public/` → **Deployment → Upload to Strato (neurosys.gg)**.
 
 When `data/releases.php` changes (new release, new HiDrive URL): upload it manually to `data/` on the server via the Remote Host panel.
-
-## Cover art
-
-Drop `{slug}-cover.jpg` (1400×1400 min, square) into `public/assets/img/` and deploy. The release template falls back to `cover-placeholder.svg` automatically until the file exists.

@@ -8,24 +8,29 @@ Music release site for neuro.SYS at `neurosys.gg`. Plain PHP/HTML/CSS — no fra
 neurosys/
 ├── public/              ← webroot (maps to htdocs/ on Strato)
 │   ├── .htaccess        ← rewrites all requests to index.php
-│   ├── index.php        ← router
+│   ├── index.php        ← front controller (9 lines)
 │   └── assets/
 │       ├── css/style.css
 │       ├── js/nav.js    ← SPA navigation (~20 lines, no framework)
-│       └── img/         ← cover art goes here ({slug}-cover.jpg)
+│       └── img/         ← static images (logo, placeholder SVG, etc.)
 │
-├── templates/           ← HTML fragments, above webroot
-│   ├── shell.php        ← persistent nav + logo
-│   ├── home.php         ← /
-│   ├── releases.php     ← /releases
-│   ├── release.php      ← /releases/{slug}(/index)
-│   ├── stats.php        ← /admin/stats
-│   └── 404.php
+├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
+│   ├── Controller/      ← one class per route group
+│   ├── Http/            ← Request, Response types, HttpStatusCode
+│   ├── Model/           ← Release, Format, MusicalKey, ReleaseFormat
+│   ├── Service/         ← Auth, ReleaseRepository, DownloadLogger, DownloadLogEntry
+│   ├── Support/         ← Collection<T>, SearchableCollection<T>, JsonDeserializable
+│   ├── View/            ← one View class per page; HTML lives here as heredoc strings
+│   ├── Layout.php       ← full HTML shell (nav, footer, scripts)
+│   └── Router.php       ← URL → Controller mapper
 │
 ├── data/                ← above webroot, never web-accessible
-│   ├── releases.php     ← release catalogue + HiDrive download URLs
-│   ├── admin.php        ← stats page credentials
-│   └── logs/            ← downloads.log (auto-created on first hit)
+│   ├── releases.php     ← release catalogue (typed Release objects)
+│   ├── admin.php        ← stats page credentials (bcrypt hash)
+│   └── logs/            ← downloads.log (auto-created on first download hit)
+│
+├── test/
+│   └── basic_test.sh    ← smoke tests (PHP CLI + curl)
 │
 └── docs/                ← you are here
 ```
@@ -36,7 +41,7 @@ neurosys/
 |-----|-------------|
 | `/` | home page |
 | `/releases` | release catalogue |
-| `/releases/{slug}(/index)` | release landing page |
+| `/releases/{slug}` | release landing page |
 | `/releases/{slug}/flac` | HTTP 303 → HiDrive FLAC link |
 | `/releases/{slug}/mp3` | HTTP 303 → HiDrive MP3 link |
 | `/releases/{slug}/stems` | HTTP 303 → HiDrive stems link |
@@ -45,9 +50,10 @@ neurosys/
 ## How it works
 
 - All non-asset requests hit `index.php` via `.htaccess` rewrite.
-- The router parses the URL, dispatches to the right template, and on download routes logs the hit then issues a 303 to the HiDrive direct-download link.
+- `Router` maps URL segments to a `Controller`; the controller fetches its own data, builds a `View`, and returns a `Response`.
+- Download routes log the hit then issue a 303 to the HiDrive direct-download link — no file passes through PHP.
 - Navigation is SPA-style: `nav.js` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
-- Download URLs and release metadata live in `data/releases.php`. That's the only file you edit to add a release.
+- Release metadata lives in `data/releases.php` as typed `Release` objects. That's the only file you edit to add a release.
 
 ## Further reading
 
