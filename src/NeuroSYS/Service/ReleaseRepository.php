@@ -29,7 +29,10 @@ class ReleaseRepository
         $this->dataFile = $dataFile ?? dirname(__DIR__, 3) . '/data/releases.php';
     }
 
-    /** Returns all releases as a typed, slug-keyed collection. */
+    /**
+     * Returns all releases as a typed, slug-keyed collection.
+     * @return SearchableCollection<Release>
+     */
     public function all(): SearchableCollection
     {
         return $this->collection ??= $this->load();
@@ -41,7 +44,10 @@ class ReleaseRepository
         return $this->all()->find($slug);
     }
 
-    /** Loads and converts the releases data file into a {@link SearchableCollection}. */
+    /**
+     * Loads and converts the releases data file into a {@link SearchableCollection}.
+     * @return SearchableCollection<Release>
+     */
     private function load(): SearchableCollection
     {
         /** @var array<string, Release> $data */
