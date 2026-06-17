@@ -1,0 +1,8 @@
+# Logs — operational data, don't commit
+data/logs/
+
+# OS junk
+.DS_Store
+
+# JetBrains (PHPStorm/IntelliJ) — can contain deployment hostnames/credentials
+.idea/
