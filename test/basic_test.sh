@@ -55,12 +55,17 @@ check_status() {
     fi
 }
 
-# Assert that an AJAX request returns a fragment (no <html> tag).
+# Assert that an AJAX request returns a 200 fragment (no <html> tag).
 check_spa_fragment() {
     local desc="$1"; local url="$2"
-    local body
-    body=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" "$url") || true
-    if echo "$body" | grep -qi "<html"; then
+    local tmp status body
+    tmp=$(mktemp)
+    status=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" \
+        -o "$tmp" -w "%{http_code}" "$url" 2>/dev/null) || true
+    body=$(cat "$tmp"); rm -f "$tmp"
+    if [[ "$status" != "200" ]]; then
+        fail "$desc (expected 200, got $status)"
+    elif echo "$body" | grep -qi "<html"; then
         fail "$desc (AJAX response contains <html>)"
     else
         pass "$desc"
@@ -141,8 +146,16 @@ php -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
 SERVER_PID=$!
 trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
 
-# Brief pause for the server to bind.
-sleep 0.4
+# Poll until the server is accepting connections (max ~3s).
+started=0
+for i in $(seq 1 15); do
+    curl -s --max-time 0.5 -o /dev/null "$BASE/" && { started=1; break; }
+    sleep 0.2
+done
+if [[ $started -eq 0 ]]; then
+    echo "ERROR: PHP dev server did not start on port $PORT — aborting HTTP checks."
+    exit 1
+fi
 
 check_status "GET /                              → 200" "$BASE/"                                200
 check_status "GET /releases                      → 200" "$BASE/releases"                       200
