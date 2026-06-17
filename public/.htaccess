@@ -1,7 +1,11 @@
-Options -Indexes
 DirectoryIndex index.php
 
+<FilesMatch "\.(css|js|svg|png|jpg|gif|ico|woff2?)$">
+    SetHandler default-handler
+</FilesMatch>
+
 RewriteEngine On
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
 # Pass real files and directories through (assets, etc.)
 RewriteCond %{REQUEST_FILENAME} !-f

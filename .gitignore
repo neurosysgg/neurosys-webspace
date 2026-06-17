@@ -6,3 +6,9 @@ data/logs/
 
 # JetBrains (PHPStorm/IntelliJ) — can contain deployment hostnames/credentials
 .idea/
+
+# Deploy script contains credentials
+deploy.sh
+
+# Pre-public site auth (remove file to disable)
+data/site_auth.php

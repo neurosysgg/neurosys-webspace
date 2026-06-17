@@ -2,9 +2,16 @@
   const content = document.getElementById('content');
 
   function navigate(url) {
-    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
-      .then(function (response) { return response.text(); })
+    fetch(url, {
+      credentials: 'same-origin',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+      .then(function (response) {
+        if (!response.ok) { location.assign(url); return null; }
+        return response.text();
+      })
       .then(function (html) {
+        if (html === null) return;
         const matches = html.match(/<title>([\s\S]*?)<\/title>/);
         if (matches) document.title = matches[1];
         else console.warn('No title found in HTML response');

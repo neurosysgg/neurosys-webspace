@@ -1,6 +1,25 @@
 <?php
 declare(strict_types=1);
 
+$_authFile = __DIR__ . '/../data/site_auth.php';
+if (is_file($_authFile)) {
+    if (!isset($_SERVER['PHP_AUTH_USER']) && isset($_SERVER['HTTP_AUTHORIZATION'])
+        && str_starts_with($_SERVER['HTTP_AUTHORIZATION'], 'Basic ')) {
+        [, $_b64] = explode(' ', $_SERVER['HTTP_AUTHORIZATION'], 2);
+        [$_SERVER['PHP_AUTH_USER'], $_SERVER['PHP_AUTH_PW']] =
+            explode(':', base64_decode($_b64), 2) + ['', ''];
+    }
+    $_auth = require $_authFile;
+    $_ok   = ($_SERVER['PHP_AUTH_USER'] ?? '') === $_auth['user']
+          && password_verify($_SERVER['PHP_AUTH_PW'] ?? '', $_auth['pass_hash']);
+    if (!$_ok) {
+        header('WWW-Authenticate: Basic realm="neuro.SYS"');
+        http_response_code(401);
+        exit;
+    }
+    unset($_authFile, $_auth, $_ok);
+}
+
 $path     = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
 $path     = rtrim($path, '/') ?: '/';
 $segments =
