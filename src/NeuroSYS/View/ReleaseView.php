@@ -50,10 +50,10 @@ class ReleaseView extends View
                 </div>
                 <div class="terminal-body">
                   <p><span class="prompt">\$</span> ./release --track "$title"</p>
-                  <p class="out"><span class="key">artist</span>  neuro.SYS</p>
-                  <p class="out"><span class="key">bpm</span>     $bpm</p>
-                  <p class="out"><span class="key">key</span>     $key</p>
-                  <p class="out"><span class="key">status</span>  <span class="ok">ready</span></p>
+                  <p class="out"><span class="key">artist</span>neuro.SYS</p>
+                  <p class="out"><span class="key">bpm</span>$bpm</p>
+                  <p class="out"><span class="key">key</span>$key</p>
+                  <p class="out"><span class="key">status</span><span class="ok">ready</span></p>
                   <p><span class="prompt">\$</span> <span class="cursor">_</span></p>
                 </div>
               </div>
@@ -72,7 +72,7 @@ class ReleaseView extends View
     /** Builds the release info section with player and download cards. */
     private function infoSection(): string
     {
-        $title    = htmlspecialchars($this->release->title);
+        $title    = rtrim(htmlspecialchars($this->release->title), '!');
         $desc     = htmlspecialchars($this->release->description);
         $player   = $this->release->soundcloudEmbedHtml !== ''
                         ? '<div class="player">' . $this->release->soundcloudEmbedHtml . '</div>'

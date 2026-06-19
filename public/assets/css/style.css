@@ -129,7 +129,6 @@ a:hover, a:focus-visible { text-decoration: underline; }
   font-size: 0.85rem;
   color: var(--muted);
   letter-spacing: 0.08em;
-  text-transform: lowercase;
   margin: 0 0 0.5rem;
 }
 
@@ -162,7 +161,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
    Releases catalogue
    ---------------------------------------------------------------- */
 
-.release-card {
+.release-card, .dl-card {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -225,6 +224,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 .terminal-bar {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.4rem;
@@ -237,11 +237,15 @@ a:hover, a:focus-visible { text-decoration: underline; }
   width: 0.6rem;
   height: 0.6rem;
   border-radius: 50%;
-  background: var(--border);
 }
+.dot:nth-child(1) { background: #FF5F57; }
+.dot:nth-child(2) { background: #FEBC2E; }
+.dot:nth-child(3) { background: #28C840; }
 
 .terminal-title {
-  margin-left: 0.5rem;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   color: var(--muted);
   font-size: 0.75rem;
 }
@@ -260,7 +264,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .out { color: var(--muted); padding-left: 1.1rem; }
 .out .key {
   display: inline-block;
-  min-width: 4.5rem;
+  min-width: 8ch;
   color: var(--fg);
 }
 
@@ -312,7 +316,6 @@ a:hover, a:focus-visible { text-decoration: underline; }
   color: var(--muted);
   font-family: var(--mono), monospace;
   font-size: 0.85rem;
-  text-transform: lowercase;
   letter-spacing: 0.04em;
 }
 
@@ -332,18 +335,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
   margin: 0 0 0.9rem;
 }
 
-.dl-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.9rem 1.1rem;
-  margin-bottom: 0.6rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--fg);
-  transition: border-color 0.15s ease, background 0.15s ease;
-}
+
 .dl-card:hover, .dl-card:focus-visible {
   border-color: var(--accent);
   background: var(--surface-2);
