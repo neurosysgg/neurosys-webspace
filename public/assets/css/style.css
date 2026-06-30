@@ -322,6 +322,21 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .player { margin-bottom: 2.5rem; }
 .player iframe { border-radius: 8px; display: block; }
 
+.player-consent {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  height: 300px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  text-align: center;
+  padding: 2rem;
+}
+.player-consent-label { color: var(--fg); margin: 0; }
+.player-consent-hint  { font-size: 0.8rem; color: var(--muted); margin: 0; }
+
 /* ---------------------------------------------------------------
    Downloads
    ---------------------------------------------------------------- */

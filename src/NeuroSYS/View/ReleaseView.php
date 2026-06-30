@@ -74,9 +74,7 @@ class ReleaseView extends View
     {
         $title    = rtrim(htmlspecialchars($this->release->title), '!');
         $desc     = htmlspecialchars($this->release->description);
-        $player   = $this->release->soundcloudEmbedHtml !== ''
-                        ? '<div class="player">' . $this->release->soundcloudEmbedHtml . '</div>'
-                        : '';
+        $player   = $this->playerHtml();
         $dlCards  = $this->downloadCards();
 
         return <<<HTML
@@ -90,6 +88,22 @@ class ReleaseView extends View
                 $dlCards
               </div>
             </section>
+            HTML;
+    }
+
+    /** Builds the click-to-load SoundCloud consent placeholder. */
+    private function playerHtml(): string
+    {
+        if ($this->release->soundcloudEmbedHtml === '') return '';
+        $embed = htmlspecialchars($this->release->soundcloudEmbedHtml);
+        return <<<HTML
+            <div class="player">
+              <div class="player-consent" data-embed="$embed">
+                <p class="player-consent-label">SoundCloud player</p>
+                <button class="btn-primary player-consent-btn">Load player</button>
+                <p class="player-consent-hint">Third-party content — clicking connects you to SoundCloud&rsquo;s servers.</p>
+              </div>
+            </div>
             HTML;
     }
 

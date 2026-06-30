@@ -45,10 +45,11 @@ class Layout
               </main>
 
               <footer class="site-footer">
-                <p>neuro.SYS &middot; <a href="mailto:neuro.sys@neurosys.gg">neuro.sys@neurosys.gg</a></p>
+                <p>neuro.SYS &middot; <a href="mailto:neuro.sys@neurosys.gg">neuro.sys@neurosys.gg</a> &middot; <a href="/imprint">imprint</a> &middot; <a href="/privacy">privacy policy</a></p>
               </footer>
 
               <script src="/assets/js/nav.js"></script>
+              <script src="/assets/js/player.js"></script>
             </body>
             </html>
             HTML;

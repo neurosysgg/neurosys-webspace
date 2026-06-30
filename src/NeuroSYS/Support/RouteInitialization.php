@@ -6,6 +6,8 @@ namespace NeuroSYS\Support;
 use Closure;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
+use NeuroSYS\Controller\ImprintController;
+use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
@@ -30,6 +32,8 @@ class RouteInitialization
             ->addRoute('/releases/{slug}', fn($slug) => new ReleaseController($slug))
             ->addRoute('/releases/{slug}/{format}', fn($slug, $format) => new DownloadController($slug, $format))
             ->addRoute('/admin/stats', fn() => new StatsController())
+            ->addRoute('/imprint', fn() => new ImprintController())
+            ->addRoute('/privacy', fn() => new PrivacyController())
             ->collection;
     }
 

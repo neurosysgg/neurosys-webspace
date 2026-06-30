@@ -16,6 +16,7 @@
         if (matches) document.title = matches[1];
         else console.warn('No title found in HTML response');
         content.innerHTML = html.replace(/<title>[\s\S]*?<\/title>/, '');
+        document.dispatchEvent(new Event('neurosys:navigate'));
         window.scrollTo(0, 0);
       });
   }
