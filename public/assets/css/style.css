@@ -2,6 +2,10 @@
    neuro.SYS
    accent   = purple (#6a00ff) — interactive highlights
    accent-2 = pink   (#ff2eab) — emphasis / the logo dot
+
+   Native CSS nesting throughout: a component's internals live inside it, so the
+   file reads in the same order the markup does. Nesting also scopes them — .out
+   and .dot only mean anything inside a <terminal-window>, and now only match there.
    ---------------------------------------------------------------- */
 
 :root {
@@ -17,6 +21,10 @@
   --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
+
+/* ---------------------------------------------------------------
+   Base
+   ---------------------------------------------------------------- */
 
 * { box-sizing: border-box; }
 
@@ -34,8 +42,10 @@ body {
 a {
   color: var(--accent);
   text-decoration: none;
+
+  &:hover,
+  &:focus-visible { text-decoration: underline; }
 }
-a:hover, a:focus-visible { text-decoration: underline; }
 
 :focus-visible {
   outline: 2px solid var(--accent);
@@ -43,7 +53,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 /* ---------------------------------------------------------------
-   Shell — header / nav
+   Shell — header / main / footer
    ---------------------------------------------------------------- */
 
 .site-header {
@@ -54,33 +64,37 @@ a:hover, a:focus-visible { text-decoration: underline; }
   padding: 1.5rem 1.5rem 0;
   max-width: 960px;
   margin: 0 auto;
+
+  .logo {
+    font-family: var(--mono);
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--fg);
+    letter-spacing: 0.02em;
+
+    &:hover,
+    &:focus-visible { text-decoration: none; }
+  }
+
+  .site-nav {
+    display: flex;
+    gap: 1.5rem;
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    text-transform: lowercase;
+    letter-spacing: 0.06em;
+
+    a {
+      color: var(--muted);
+
+      &:hover,
+      &:focus-visible { color: var(--fg); text-decoration: none; }
+    }
+  }
 }
 
-.logo {
-  font-family: var(--mono);
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--fg);
-  letter-spacing: 0.02em;
-}
-.logo:hover, .logo:focus-visible { text-decoration: none; }
-
+/* Not nested: the logo dot is also the accent in HomeView's eyebrow. */
 .logo-dot { color: var(--accent-2); }
-
-.site-nav {
-  display: flex;
-  gap: 1.5rem;
-  font-family: var(--mono);
-  font-size: 0.8rem;
-  text-transform: lowercase;
-  letter-spacing: 0.06em;
-}
-.site-nav a { color: var(--muted); }
-.site-nav a:hover, .site-nav a:focus-visible { color: var(--fg); text-decoration: none; }
-
-/* ---------------------------------------------------------------
-   Shell — main / footer
-   ---------------------------------------------------------------- */
 
 #content {
   max-width: 960px;
@@ -88,6 +102,8 @@ a:hover, a:focus-visible { text-decoration: underline; }
   padding: 1.5rem 1.5rem 4rem;
 }
 
+/* Locally vendored brand assets only. Hot-linking a platform's own CDN would
+   transfer visitor data on page load, before any click (CJEU C-40/17). */
 .site-footer {
   max-width: 960px;
   margin: 0 auto;
@@ -95,15 +111,38 @@ a:hover, a:focus-visible { text-decoration: underline; }
   color: var(--muted);
   font-family: var(--mono);
   font-size: 0.8rem;
+
+  .profile-links {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.1rem;
+    margin-bottom: 1rem;
+  }
+
+  .profile-link {
+    display: inline-flex;
+    align-items: center;
+    opacity: 0.75;
+    transition: opacity 0.15s ease;
+
+    &:hover,
+    &:focus-visible { opacity: 1; }
+
+    img {
+      display: block;
+      width: auto;
+    }
+  }
 }
 
 /* ---------------------------------------------------------------
    Shared utilities
    ---------------------------------------------------------------- */
 
-.muted      { color: var(--muted); }
-.accent-2   { color: var(--accent-2); }
-.bang       { color: var(--accent-2); }
+.muted    { color: var(--muted); }
+.accent-2 { color: var(--accent-2); }
+.bang     { color: var(--accent-2); }
 
 .page-section { margin: 1.5rem 0; }
 
@@ -116,31 +155,6 @@ a:hover, a:focus-visible { text-decoration: underline; }
   margin: 0 0 1rem;
 }
 
-/* ---------------------------------------------------------------
-   Home
-   ---------------------------------------------------------------- */
-
-.home-hero {
-  padding: 4rem 0 2rem;
-}
-
-.home-eyebrow {
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  color: var(--muted);
-  letter-spacing: 0.08em;
-  margin: 0 0 0.5rem;
-}
-
-.home-title {
-  font-family: var(--mono);
-  font-size: clamp(2rem, 7vw, 3.5rem);
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  margin: 0 0 2rem;
-  line-height: 1.1;
-}
-
 .btn-primary {
   display: inline-block;
   font-family: var(--mono);
@@ -150,22 +164,52 @@ a:hover, a:focus-visible { text-decoration: underline; }
   padding: 0.55rem 1.1rem;
   border-radius: 6px;
   transition: background 0.15s ease, color 0.15s ease;
-}
-.btn-primary:hover, .btn-primary:focus-visible {
-  background: var(--accent);
-  color: var(--bg);
-  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--accent);
+    color: var(--bg);
+    text-decoration: none;
+  }
 }
 
 /* ---------------------------------------------------------------
-   Releases catalogue
+   Home
    ---------------------------------------------------------------- */
 
-/* Custom elements default to display: inline, and these two exist only to name the fragment —
-   the anchor inside is still the card. display: contents keeps them out of the layout entirely. */
-release-card, download-card { display: contents; }
+.home-hero {
+  padding: 4rem 0 2rem;
 
-.release-card, .dl-card {
+  .home-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
+  }
+
+  .home-title {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 7vw, 3.5rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 2rem;
+    line-height: 1.1;
+  }
+}
+
+/* ---------------------------------------------------------------
+   Cards — the catalogue entry and the download entry share a look
+
+   <release-card> and <download-card> name the fragment and nothing else; the
+   anchor inside is still the card, so they are display: contents and add no box.
+   ---------------------------------------------------------------- */
+
+release-card,
+download-card { display: contents; }
+
+.release-card,
+.dl-card {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
@@ -176,44 +220,42 @@ release-card, download-card { display: contents; }
   border-radius: 8px;
   color: var(--fg);
   transition: border-color 0.15s ease, background 0.15s ease;
-}
-.release-card:hover, .release-card:focus-visible {
-  border-color: var(--accent);
-  background: var(--surface-2);
-  text-decoration: none;
-}
 
-.release-title {
-  font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-
-.release-meta {
-  font-size: 0.8rem;
-  color: var(--muted);
-}
-
-/* ---------------------------------------------------------------
-   Release page — hero grid
-   ---------------------------------------------------------------- */
-
-.hero {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 1.5rem;
-  margin: 1.5rem 0 2.5rem;
-}
-
-@media (min-width: 800px) {
-  .hero {
-    grid-template-columns: 1.1fr 1fr;
-    align-items: stretch;
+  &:hover,
+  &:focus-visible {
+    border-color: var(--accent);
+    background: var(--surface-2);
+    text-decoration: none;
   }
 }
 
+.release-card {
+  .release-title {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.95rem;
+  }
+
+  .release-meta {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+}
+
+.dl-card {
+  .dl-label {
+    font-family: var(--mono);
+    font-weight: 500;
+    font-size: 0.95rem;
+
+    &::before { content: "↓ "; color: var(--accent); }
+  }
+
+  .dl-meta { font-size: 0.8rem; color: var(--muted); }
+}
+
 /* ---------------------------------------------------------------
-   Terminal card
+   Terminal card — ReleaseView and NotFoundView
    ---------------------------------------------------------------- */
 
 terminal-window {
@@ -225,66 +267,88 @@ terminal-window {
   font-size: 0.875rem;
   display: flex;
   flex-direction: column;
+
+  &[narrow] { max-width: 480px; }
+
+  .terminal-bar {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.8rem;
+    background: var(--surface-2);
+    border-bottom: 1px solid var(--border);
+
+    .dot {
+      width: 0.6rem;
+      height: 0.6rem;
+      border-radius: 50%;
+
+      &:nth-child(1) { background: #FF5F57; }
+      &:nth-child(2) { background: #FEBC2E; }
+      &:nth-child(3) { background: #28C840; }
+    }
+
+    .terminal-title {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      color: var(--muted);
+      font-size: 0.75rem;
+    }
+  }
+
+  .terminal-body {
+    padding: 1rem 1.1rem;
+    flex: 1;
+
+    p {
+      margin: 0 0 0.45rem;
+      white-space: pre-wrap;
+    }
+
+    .prompt { color: var(--accent-2); }
+
+    .out {
+      color: var(--muted);
+      padding-left: 1.1rem;
+
+      .key {
+        display: inline-block;
+        min-width: 8ch;
+        color: var(--fg);
+      }
+    }
+
+    .ok { color: var(--accent); }
+
+    .cursor {
+      display: inline-block;
+      color: var(--accent);
+      animation: blink 1s steps(1) infinite;
+
+      @media (prefers-reduced-motion: reduce) { animation: none; }
+    }
+  }
 }
 
-.terminal-bar {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.6rem 0.8rem;
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-}
-
-.dot {
-  width: 0.6rem;
-  height: 0.6rem;
-  border-radius: 50%;
-}
-.dot:nth-child(1) { background: #FF5F57; }
-.dot:nth-child(2) { background: #FEBC2E; }
-.dot:nth-child(3) { background: #28C840; }
-
-.terminal-title {
-  position: absolute;
-  left: 50%;
-  transform: translateX(-50%);
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.terminal-body {
-  padding: 1rem 1.1rem;
-  flex: 1;
-}
-.terminal-body p {
-  margin: 0 0 0.45rem;
-  white-space: pre-wrap;
-}
-
-.prompt { color: var(--accent-2); }
-
-.out { color: var(--muted); padding-left: 1.1rem; }
-.out .key {
-  display: inline-block;
-  min-width: 8ch;
-  color: var(--fg);
-}
-
-.ok { color: var(--accent); }
-
-.cursor {
-  display: inline-block;
-  color: var(--accent);
-  animation: blink 1s steps(1) infinite;
-}
 @keyframes blink { 50% { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
 
 /* ---------------------------------------------------------------
-   Cover art
+   Release page
    ---------------------------------------------------------------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+  margin: 1.5rem 0 2.5rem;
+
+  @media (min-width: 800px) {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: stretch;
+  }
+}
 
 cover-art {
   background: var(--surface);
@@ -295,36 +359,38 @@ cover-art {
   align-items: center;
   justify-content: center;
   min-height: 220px;
-}
-cover-art img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
 
-/* ---------------------------------------------------------------
-   Release info
-   ---------------------------------------------------------------- */
-
-.release-info h1 {
-  font-family: var(--mono);
-  font-size: clamp(2rem, 6vw, 3.25rem);
-  font-weight: 600;
-  margin: 0;
-  letter-spacing: -0.01em;
+  img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
 }
 
-.tagline {
-  margin: 0.25rem 0 1.75rem;
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  letter-spacing: 0.04em;
+.release-info {
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 6vw, 3.25rem);
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .tagline {
+    margin: 0.25rem 0 1.75rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+  }
 }
 
-.player { margin-bottom: 2.5rem; }
-.player iframe { border-radius: 8px; display: block; }
+.player {
+  margin-bottom: 2.5rem;
+
+  iframe { border-radius: 8px; display: block; }
+}
 
 player-consent {
   display: flex;
@@ -339,41 +405,23 @@ player-consent {
   border-radius: 8px;
   text-align: center;
   padding: 2rem;
-}
-.player-consent-label { color: var(--fg); margin: 0; }
-.player-consent-hint  { font-size: 0.8rem; color: var(--muted); margin: 0; }
 
-/* ---------------------------------------------------------------
-   Downloads
-   ---------------------------------------------------------------- */
-
-.downloads h2 {
-  font-family: var(--mono);
-  font-size: 0.85rem;
-  text-transform: lowercase;
-  letter-spacing: 0.08em;
-  color: var(--muted);
-  margin: 0 0 0.9rem;
+  .player-consent-label { color: var(--fg); margin: 0; }
+  .player-consent-hint  { font-size: 0.8rem; color: var(--muted); margin: 0; }
 }
 
-
-.dl-card:hover, .dl-card:focus-visible {
-  border-color: var(--accent);
-  background: var(--surface-2);
-  text-decoration: none;
+.downloads {
+  h2 {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    text-transform: lowercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.9rem;
+  }
 }
 
-.dl-label {
-  font-family: var(--mono);
-  font-weight: 500;
-  font-size: 0.95rem;
-}
-.dl-label::before { content: "↓ "; color: var(--accent); }
-
-.dl-meta { font-size: 0.8rem; color: var(--muted); }
-
-terminal-window[narrow] { max-width: 480px; }
-.back-home       { margin-top: 1.5rem; }
+.back-home { margin-top: 1.5rem; }
 
 /* ---------------------------------------------------------------
    Stats
@@ -394,41 +442,19 @@ terminal-window[narrow] { max-width: 480px; }
   font-size: 0.85rem;
   width: 100%;
   max-width: 480px;
+
+  td {
+    padding: 0.3rem 0.6rem 0.3rem 0;
+    color: var(--fg);
+    border-bottom: 1px solid var(--border);
+  }
 }
-.stats-table td {
-  padding: 0.3rem 0.6rem 0.3rem 0;
-  color: var(--fg);
-  border-bottom: 1px solid var(--border);
-}
+
+/* Deliberately not nested inside .stats-table: `.stats-table td` already outweighs
+   this rule, and scoping it would flip that — a rendering change, not a cleanup.
+   The !important below is the existing workaround for the same collision. */
 .stats-count {
   text-align: right;
   color: var(--accent);
   padding-right: 0 !important;
-}
-
-/* ---------------------------------------------------------------
-   Footer profile links — locally vendored brand assets only.
-   Hot-linking a platform's own CDN would transfer visitor data on
-   page load, before any click (CJEU C-40/17, "Fashion ID").
-   ---------------------------------------------------------------- */
-
-.profile-links {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1.1rem;
-  margin-bottom: 1rem;
-}
-
-.profile-link {
-  display: inline-flex;
-  align-items: center;
-  opacity: 0.75;
-  transition: opacity 0.15s ease;
-}
-.profile-link:hover, .profile-link:focus-visible { opacity: 1; }
-
-.profile-link img {
-  display: block;
-  width: auto;
 }
