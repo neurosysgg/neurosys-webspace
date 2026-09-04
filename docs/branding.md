@@ -1,7 +1,7 @@
 # Brand assets and profile links
 
 Profile links live in the footer. They are **plain hyperlinks to locally vendored icons** — nothing is requested from
-Spotify, Apple, YouTube, X or GitHub until a visitor actually clicks.
+SoundCloud, Spotify, Apple, YouTube, X or GitHub until a visitor actually clicks.
 
 ## Why the icons are vendored
 
@@ -45,6 +45,9 @@ from our own origin, so a hostile SVG would run in our security context.
 
 ## Per-platform rules that constrain the design
 
+- **SoundCloud** — the primary presence, so it renders first in the footer. Use the official mark from SoundCloud's press
+  resources, unmodified; take a monochrome/white variant for our dark background. Note this is a *profile* link and is
+  unrelated to the embedded player, which stays behind its own consent gate in `ReleaseView::playerHtml()`.
 - **Spotify** — icon never below 21px (full logo never below 70px). The green mark is permitted **only** on black or
   white; on any other background use monochrome, white on dark. Our `--bg` is `#0b0c10`, not black, so the **white**
   variant is the correct one. Rendered at 24px.
@@ -56,21 +59,22 @@ from our own origin, so a hostile SVG would run in our security context.
   redrawn. On our `--bg` that means the white variant. Don't substitute the old bird mark.
 - **GitHub** — permissive for linking; use the official mark unmodified in shape.
 
-## Outstanding: YouTube and X
+## Outstanding: SoundCloud, YouTube and X
 
-Both have their profile URL set in `data/profiles.php` already, but **neither icon is vendored**, so
+All three have their profile URL set in `data/profiles.php` already, but **none of their icons is vendored**, so
 `ProfileRepository::all()` skips them and nothing renders broken. Each needs the same two steps:
 
 | Platform | Get the asset from | Save as | Then |
 |---|---|---|---|
+| SoundCloud | <https://soundcloud.com/press> | `public/assets/img/brand/soundcloud.svg` | fill in `Platform::SoundCloud`'s `iconSrc()` |
 | YouTube | <https://brand.youtube/> — JS app, not fetchable programmatically | `public/assets/img/brand/youtube.svg` | fill in `Platform::YouTube`'s `iconSrc()` |
 | X | <https://about.x.com/en/who-we-are/brand-toolkit> | `public/assets/img/brand/x.svg` | fill in `Platform::X`'s `iconSrc()` |
 
-Take the **white** variant of each — our `--bg` is dark, and both sets of guidelines restrict recolouring. Check the file
-for `<script>`, event handlers and external references before committing, as with every other vendored asset. The links
-appear in the footer the moment `iconSrc()` returns a path.
+Take the **white** variant of each — our `--bg` is dark, and all three sets of guidelines restrict recolouring. Check the
+file for `<script>`, event handlers and external references before committing, as with every other vendored asset. The
+links appear in the footer the moment `iconSrc()` returns a path.
 
-Until then the footer shows GitHub only (Spotify and Apple Music are waiting on DistroKid delivery).
+Until then the footer shows **GitHub only** (Spotify and Apple Music are waiting on DistroKid delivery).
 
 ## Not covered here
 

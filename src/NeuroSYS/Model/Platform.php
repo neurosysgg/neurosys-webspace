@@ -11,6 +11,7 @@ namespace NeuroSYS\Model;
  */
 enum Platform: string
 {
+    case SoundCloud = 'soundcloud';
     case Spotify    = 'spotify';
     case AppleMusic = 'apple-music';
     case YouTube    = 'youtube';
@@ -21,6 +22,7 @@ enum Platform: string
     public function label(): string
     {
         return match ($this) {
+            self::SoundCloud => 'Listen on SoundCloud',
             self::Spotify    => 'Listen on Spotify',
             self::AppleMusic => 'Listen on Apple Music',
             self::YouTube    => 'Watch on YouTube',
@@ -36,6 +38,7 @@ enum Platform: string
             self::Spotify    => '/assets/img/brand/spotify.svg',
             self::AppleMusic => '/assets/img/brand/apple-music-badge.svg',
             self::GitHub     => '/assets/img/brand/github.svg',
+            self::SoundCloud => '', // not vendored — see docs/branding.md
             self::YouTube    => '', // not vendored — see docs/branding.md
             self::X          => '', // not vendored — see docs/branding.md
         };

@@ -11,10 +11,11 @@ use NeuroSYS\Model\Platform;
  * and the profile exists.
  *
  * A platform whose icon isn't vendored yet is skipped even with a URL set, so
- * YouTube and X are configured here but stay hidden until their brand assets
- * land in public/assets/img/brand/. See docs/branding.md.
+ * SoundCloud, YouTube and X are configured here but stay hidden until their
+ * brand assets land in public/assets/img/brand/. See docs/branding.md.
  */
 return [
+    Platform::SoundCloud->value => 'https://soundcloud.com/neurosysgg',
     Platform::Spotify->value    => '',
     Platform::AppleMusic->value => '',
     Platform::YouTube->value    => 'https://www.youtube.com/@neurosysgg',
