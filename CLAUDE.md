@@ -4,11 +4,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-Plain PHP 8.5 / HTML / CSS — no framework, no build step, and **no runtime dependencies**. The pipe
-operator (`|>`) is used in `autoload.php` and requires PHP ≥ 8.5.
+Plain PHP 8.5 / HTML / CSS, no framework, **no runtime dependencies**. The pipe operator (`|>`) is
+used in `autoload.php` and requires PHP ≥ 8.5.
 
-Composer is used for dev tooling only (PHPUnit, phpcs, php-cs-fixer). `vendor/` is gitignored and
-`deploy.sh` never uploads it — what runs on the server is still plain PHP with a hand-rolled autoloader.
+Nothing on the PHP side is built or transpiled. The front end is TypeScript and does compile — see
+[Front end](#front-end) — but the output is committed, so what lands on the server is still plain
+files served statically.
+
+Composer and npm are dev tooling only (PHPUnit, phpcs, php-cs-fixer; TypeScript). `vendor/` and
+`node_modules/` are both gitignored and `deploy.sh` uploads neither — what runs on the server is
+still plain PHP with a hand-rolled autoloader.
 
 ## Local dev
 
@@ -16,7 +21,8 @@ Composer is used for dev tooling only (PHPUnit, phpcs, php-cs-fixer). `vendor/` 
 php -S localhost:8080 -t public
 ```
 
-No build, no transpile. `composer install` only if you want to run the tests or linters.
+`composer install` if you want to run the tests or linters, `npm install` if you are going to touch
+the TypeScript. Neither is needed just to serve the site.
 
 ## Tests
 
@@ -30,6 +36,10 @@ composer lint      # phpcs + php-cs-fixer, read-only
 Two suites that cover different things — `test/unit/` for logic and edge cases, `test/basic_test.sh`
 for the real autoloader, real HTTP, `exit`-ing auth code and repo hygiene. See `docs/testing.md` for
 the split and for the invariants that exist to stop specific mistakes recurring.
+
+The verify script also type-checks `assets/ts/` and asserts the committed JS is current with it. Both
+are skipped with a printed NOTE when `npm install` has never been run, so `composer test` still works
+on a bare clone.
 
 ## Architecture
 
@@ -86,9 +96,42 @@ makes no download-tracking claim, so amend it first. Note the old failure mode i
 creates the log file but not its directory, and `data/logs/` is excluded from `deploy.sh`, so a freshly enabled logger writes
 nothing on the server until that directory exists.
 
-## SPA navigation
+## Front end
 
-`public/assets/js/nav.js` intercepts internal link clicks, fetches the content fragment via XHR (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Download links carry `data-no-spa` to bypass this and trigger real navigation (otherwise the 303 is consumed silently by fetch).
+TypeScript, compiled to browser-native ES modules. No bundler, no framework.
+
+```
+assets/ts/          ← sources; outside public/, so they are neither web-served nor deployed
+├── main.ts         ← entry point, the only <script> Layout.php loads
+├── nav.ts          ← SPA navigation
+├── player.ts       ← consent gate + cover-art fallback
+└── dom.ts          ← shared typed helpers, and the navigate event
+      ↓ npm run build
+public/assets/js/   ← generated, committed, deployed
+```
+
+**Never hand-edit `public/assets/js/`** — it is build output and the next `npm run build` overwrites it.
+`npm run watch` rebuilds on save; `npm run check` type-checks without emitting. The verify script fails
+if the committed output has drifted from the sources: `deploy.sh` rsyncs `public/` straight from the
+working tree, so a forgotten rebuild would ship stale JS and nothing else would notice.
+
+Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), so DevTools shows
+`nav.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
+500s any static file it has no `SetHandler` for.
+
+`tsconfig.json` runs `strict` plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`, and
+`module: nodenext` makes an extensionless relative import a compile error — a specifier the browser
+would 404 on cannot ship. Same instinct as `CspHost` refusing anything but a bare origin.
+
+### SPA navigation
+
+`nav.ts` intercepts internal link clicks, fetches the content fragment via XHR (`X-Requested-With:
+XMLHttpRequest`), and swaps `#content`. Download links carry `data-no-spa` to bypass this and trigger
+real navigation (otherwise the 303 is consumed silently by fetch).
+
+After a swap `main.ts` re-runs `initPlayer()`, so the replaced markup gets wired again. The two sides
+talk through `dispatchNavigate()` / `onNavigate()` in `dom.ts` instead of a shared event-name string,
+so a typo on one side cannot silently stop the player re-initialising on the other.
 
 ## Adding a release
 

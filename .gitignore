@@ -19,5 +19,14 @@ data/.site_auth.php
 .phpunit.cache/
 .php-cs-fixer.cache
 
+# npm dev dependencies (TypeScript) — same deal, dev-only and never deployed. The *compiled*
+# JS in public/assets/js/ is committed on purpose: deploy.sh rsyncs public/ straight from the
+# working tree, so a gitignored build output would deploy a site with no JS.
+/node_modules/
+*.tsbuildinfo
+
+# Scratch outDir for the verify script's "compiled output is current" check
+/.tscheck/
+
 # phpactor writes this on first attach; editor state, not project config
 .phpactor.json

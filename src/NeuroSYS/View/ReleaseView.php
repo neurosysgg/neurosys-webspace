@@ -123,7 +123,7 @@ class ReleaseView extends View
      * Builds the click-to-load consent placeholder for the release's embed.
      *
      * The markup never reaches the page directly — it is escaped into a data attribute
-     * and only swapped in by player.js once the visitor clicks, so nothing is requested
+     * and only swapped in by player.ts once the visitor clicks, so nothing is requested
      * from the provider until then. The provider is named from the embed rather than
      * hardcoded, so a non-SoundCloud embed needs no change here.
      */

@@ -1,0 +1,44 @@
+{
+  // Sources live outside public/ so they are neither web-served nor deployed — deploy.sh only
+  // ships public/, src/, autoload.php and data/. The emitted .js is committed; see docs/testing.md
+  // for the check that keeps it in step with these sources.
+  "include": ["assets/ts/**/*.ts"],
+
+  "compilerOptions": {
+    "rootDir": "assets/ts",
+    "outDir": "public/assets/js",
+
+    // Plain browser ES modules, no bundler. nodenext + "type": "module" in package.json makes an
+    // extensionless relative import a compile error, so a specifier the browser would 404 on
+    // cannot ship — the same instinct as CspHost rejecting anything but a bare origin.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // A type error must never leave stale or half-written JS sitting in public/ waiting to deploy.
+    "noEmitOnError": true,
+
+    // The comments explain *why* (CSP, entity decoding, layout jump). Keeping them means the file
+    // that ships still reads like the hand-written one it replaced.
+    "removeComments": false,
+    "newLine": "lf",
+
+    // inlineSources embeds the TypeScript in the map's sourcesContent, so DevTools shows nav.ts without
+    // anything having to serve assets/ts/ — sources stay out of the webroot. Maps are only fetched with
+    // DevTools open. public/.htaccess needs a "map" handler or Strato 500s them.
+    "sourceMap": true,
+    "inlineSources": true
+  }
+}

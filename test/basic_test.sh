@@ -226,6 +226,33 @@ else
     fail "public/.htaccess is missing SetHandler for:$missing_types"
 fi
 
+# public/assets/js/ is generated from assets/ts/ and committed, because deploy.sh rsyncs public/
+# straight from the working tree. Both checks need the npm dev tooling; without it they are skipped
+# rather than failed, so `composer test` still runs on a clone that has never seen `npm install`.
+TSC="$REPO/node_modules/.bin/tsc"
+if [[ -x "$TSC" ]]; then
+    if (cd "$REPO" && "$TSC" --noEmit >/dev/null 2>&1); then
+        pass "assets/ts/ type-checks"
+    else
+        fail "assets/ts/ has type errors (run: npm run check)"
+    fi
+
+    # Editing a .ts and forgetting to rebuild would deploy stale JS, and nothing else would notice.
+    # The scratch outDir has to sit exactly as deep as public/assets/js/ — three levels below the
+    # repo root — or every .map's "sources" path differs and the diff fails for the wrong reason.
+    TSOUT="$REPO/.tscheck/assets/js"
+    rm -rf "$REPO/.tscheck"
+    if (cd "$REPO" && "$TSC" --outDir "$TSOUT" >/dev/null 2>&1) \
+       && diff -r "$TSOUT" "$REPO/public/assets/js" >/dev/null 2>&1; then
+        pass "public/assets/js/ is current with assets/ts/"
+    else
+        fail "public/assets/js/ is stale or diverged (run: npm run build)"
+    fi
+    rm -rf "$REPO/.tscheck"
+else
+    echo "  SKIP assets/ts/ checks — no node_modules (run: npm install)"
+fi
+
 
 echo ""
 echo "=== HTTP routes ==="
@@ -267,7 +294,7 @@ check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"   
 echo ""
 echo "=== Rendered output ==="
 
-# Download links must bypass nav.js, or the 303 is consumed by fetch and nothing downloads.
+# Download links must bypass nav.ts, or the 303 is consumed by fetch and nothing downloads.
 check_body "download cards carry data-no-spa"        "$BASE/releases/ill"  'data-no-spa'
 # Nothing may be requested from SoundCloud before the visitor clicks the consent gate.
 check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<iframe'   absent

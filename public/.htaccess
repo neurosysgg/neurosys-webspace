@@ -2,7 +2,7 @@ DirectoryIndex index.php
 
 # Strato runs everything under cgi-bin/ as CGI, which 500s static files without this.
 # Any new asset type must be added here or it will 500 in production while working locally.
-<FilesMatch "\.(css|js|svg|png|jpe?g|gif|ico|webp|avif|woff2?)$">
+<FilesMatch "\.(css|js|map|svg|png|jpe?g|gif|ico|webp|avif|woff2?)$">
     SetHandler default-handler
 </FilesMatch>
 

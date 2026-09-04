@@ -1,6 +1,7 @@
 # neuro.SYS — site
 
-Music release site for neuro.SYS at `neurosys.gg`. Plain PHP/HTML/CSS — no framework, no build step.
+Music release site for neuro.SYS at `neurosys.gg`. Plain PHP/HTML/CSS, no framework. The front end
+is TypeScript compiled to ES modules; the output is committed, so the server still gets plain files.
 
 ## Structure
 
@@ -11,9 +12,14 @@ neurosys/
 │   ├── index.php        ← front controller (4 statements)
 │   └── assets/
 │       ├── css/style.css
-│       ├── js/nav.js    ← SPA navigation (~45 lines, no framework)
-│       ├── js/player.js ← click-to-load consent gate for the embed
-│       └── img/         ← static images + brand/ (vendored platform icons)
+│       ├── js/           ← GENERATED from assets/ts/ — never hand-edit
+│       └── img/          ← static images + brand/ (vendored platform icons)
+│
+├── assets/ts/           ← front-end sources; outside public/, never deployed
+│   ├── main.ts          ← entry point, the only <script> the layout loads
+│   ├── nav.ts           ← SPA navigation
+│   ├── player.ts        ← click-to-load consent gate + cover-art fallback
+│   └── dom.ts           ← shared typed helpers, and the navigate event
 │
 ├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
 │   ├── Controller/      ← one class per route group
@@ -61,7 +67,8 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 - All non-asset requests hit `index.php` via `.htaccess` rewrite.
 - `Router` maps URL segments to a `Controller`; the controller fetches its own data, builds a `View`, and returns a `Response`.
 - Download routes issue a 303 to the HiDrive direct-download link — no file passes through PHP.
-- Navigation is SPA-style: `nav.js` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
+- Navigation is SPA-style: `nav.ts` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
+- The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`). The output is committed because `deploy.sh` rsyncs `public/` from the working tree; the verify script fails if it has gone stale. See `CLAUDE.md` for the full picture.
 - Release metadata lives in `data/releases.php` as typed `Release` objects. That's the only file you edit to add a release.
 
 ## Download logging
@@ -78,5 +85,6 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 
 - [deployment.md](deployment.md) — Strato setup and the deploy workflow
 - [releases.md](releases.md) — adding and updating releases
+- [testing.md](testing.md) — the two test suites and the invariants they protect
 - [branding.md](branding.md) — vendored brand assets and profile links
 - [testing.md](testing.md) — unit tests and the verify script

@@ -78,5 +78,9 @@ and lock `/admin/stats` out. Upload those two by hand when they actually change.
 The PHPStorm route still works if the mount isn't up: right-click `public/` → **Deployment → Upload to
 Strato (neurosys.gg)**, then upload `data/releases.php` manually via the Remote Host panel.
 
-`vendor/` is dev-only tooling and is not in the list above — nothing Composer installs ever reaches the
-server.
+**Run `npm run build` first if you touched anything under `assets/ts/`.** `public/assets/js/` is
+compiled output that is committed and rsynced as-is, so an unbuilt source edit deploys the previous
+JS without a word. `composer verify` catches it — it fails when the committed output has drifted.
+
+`vendor/` and `node_modules/` are dev-only tooling and are not in the list above — nothing Composer or
+npm installs ever reaches the server.

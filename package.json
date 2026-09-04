@@ -1,0 +1,14 @@
+{
+    "name": "neurosys",
+    "private": true,
+    "type": "module",
+    "description": "Front-end sources for neurosys.gg. Compiles assets/ts/ to public/assets/js/.",
+    "scripts": {
+        "build": "tsc",
+        "watch": "tsc --watch",
+        "check": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "typescript": "^7.0.2"
+    }
+}

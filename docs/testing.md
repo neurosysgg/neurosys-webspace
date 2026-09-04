@@ -13,6 +13,7 @@ runs both — unit tests first, then the verify script. Or separately:
 composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
 composer lint      # phpcs + php-cs-fixer, read-only
+npm run check      # tsc --noEmit, the front end on its own
 ```
 
 ## The split
@@ -35,6 +36,9 @@ The division matters in a few concrete places:
   through its optional `ReleaseRepository` parameter — that argument exists purely as this seam.
 - **Escaping** is unit-tested because it needs hostile inputs (`<script>`, `&`, quotes, multibyte)
   that the real catalogue will never contain.
+- **The front end is compiled**, so the verify script owns it: PHPUnit never sees `assets/ts/`. Both
+  front-end checks are skipped with a printed NOTE when `node_modules/` is absent, so `composer test`
+  still runs end to end on a clone that has only ever seen `composer install`.
 
 ## Adding a unit test
 
@@ -54,7 +58,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   (CJEU C-40/17) — see [branding.md](branding.md).
 - **Download logging stays off.** `ServiceTest` asserts `DownloadLogger::ENABLED === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
-- **Download cards carry `data-no-spa`.** Without it `nav.js` fetches the 303 and swallows it, and
+- **Download cards carry `data-no-spa`.** Without it `nav.ts` fetches the 303 and swallows it, and
   downloads silently stop working while every page still looks fine.
 - **The consent gate reserves the player's height.** `Embed::height()` feeds `--player-height`, so the
   placeholder and the real iframe are the same size and the page doesn't jump.
@@ -70,6 +74,15 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   checks the policy against it, so the two can't drift apart silently.
 - **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
   into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
+- **The committed JS is current with `assets/ts/`.** `deploy.sh` rsyncs `public/` straight from the
+  working tree, so editing a `.ts` and forgetting `npm run build` would deploy the previous JS in
+  silence. The check rebuilds into a scratch `outDir` and diffs. That scratch directory has to sit
+  exactly three levels below the repo root, like `public/assets/js/` does, or every source map's
+  `sources` path differs and the diff fails for a reason that has nothing to do with staleness.
+- **`assets/ts/` type-checks.** `tsc --noEmit`, with the same config the build uses — `strict`,
+  `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. This is the front end's equivalent of the
+  typed value objects on the PHP side: the point is that a `data-` attribute rename becomes a compile
+  error instead of the literal text `undefined` appearing on the page.
 
 ## Linting
 
@@ -88,6 +101,10 @@ Editor note: nvim's stock `nvim-lint` phpcs resolves `vendor/bin/phpcs` and its 
 cwd, so opening a file from outside the project silently lints it as bare PSR-12 and flags both exemptions
 above. `~/.config/nvim/lua/plugins/php.lua` overrides that to resolve from the buffer's own project root.
 
-`vendor/` is gitignored and never deployed — `deploy.sh` only ships `public/`, `src/`, `autoload.php`
-and `data/`. The "no package manager" rule in `CLAUDE.md` is about what runs on the server, and that
-is still true.
+`vendor/` and `node_modules/` are gitignored and never deployed — `deploy.sh` only ships `public/`,
+`src/`, `autoload.php` and `data/`. The "no package manager" rule in `CLAUDE.md` is about what runs on
+the server, and that is still true: TypeScript compiles here, and the server receives the plain `.js`
+it produced.
+
+There is no linter for the TypeScript — `tsc` under `strict` is the whole check. Adding ESLint would
+mean a second toolchain for four small files.

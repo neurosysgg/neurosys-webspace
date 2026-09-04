@@ -193,7 +193,7 @@ final class ViewTest extends TestCase
     /**
      * The gate reserves the player's own height so the page doesn't jump on load. Carried as
      * a data attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for
-     * our own markup — player.js turns it into --player-height.
+     * our own markup — player.ts turns it into --player-height.
      */
     #[DataProvider('playerHeightProvider')]
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
@@ -214,7 +214,7 @@ final class ViewTest extends TestCase
     // ───────────────────────────── downloads ─────────────────────────────
 
     /**
-     * Without data-no-spa the 303 is swallowed by nav.js's fetch and downloads
+     * Without data-no-spa the 303 is swallowed by nav.ts's fetch and downloads
      * silently stop working.
      */
     public function testEveryDownloadCardBypassesTheSpaRouter(): void
