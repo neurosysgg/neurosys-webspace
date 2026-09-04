@@ -19,7 +19,7 @@ return [
         genre:       Genre::Dubstep,
         description: 'second single',
         cover:       new HiDriveLink('J2FXbB70A'),
-        formats: new Collection(Format::class)->add(
+        formats: new Collection(Format::class)->with(
             new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
             new Format(ReleaseFormat::WAV,   new HiDriveLink('RVg8LBS4A')),
             new Format(ReleaseFormat::MP3,   new HiDriveLink('CPJy7AVIu')),
@@ -38,7 +38,7 @@ return [
         genre:       Genre::FutureBass,
         description: 'debut single',
         cover:       new HiDriveLink('PFGaSOmtM'),
-        formats: new Collection(Format::class)->add(
+        formats: new Collection(Format::class)->with(
             new Format(ReleaseFormat::FLAC,  new HiDriveLink('ebiFGBt52')),
             new Format(ReleaseFormat::WAV,   new HiDriveLink('QX98AVCDz')),
             new Format(ReleaseFormat::MP3,   new HiDriveLink('GATvNadI8')),

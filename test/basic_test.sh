@@ -167,8 +167,8 @@ php_ok "data/releases.php loads and every Release constructs" \
     "(new NeuroSYS\Service\ReleaseRepository())->all()->count() > 0 or exit(1);"
 
 php_ok "data/profiles.php loads and every link is https" \
-    "foreach ((new NeuroSYS\Service\ProfileRepository())->all() as \$l) {
-         str_starts_with(\$l['url'], 'https://') or exit(1);
+    "foreach ((new NeuroSYS\Service\ProfileRepository())->all() as \$p) {
+         str_starts_with(\$p->url, 'https://') or exit(1);
      }"
 
 php_ok "data/admin.php is shaped the way Auth expects" \

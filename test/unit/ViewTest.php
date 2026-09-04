@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Layout;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Platform;
@@ -20,6 +21,9 @@ use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
 use NeuroSYS\View\StatsView;
+use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalField;
+use NeuroSYS\View\Terminal\TerminalTone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -29,6 +33,8 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(NotFoundView::class)]
 #[CoversClass(StatsView::class)]
 #[CoversClass(Layout::class)]
+#[CoversClass(Terminal::class)]
+#[CoversClass(TerminalField::class)]
 final class ViewTest extends TestCase
 {
     /** @param list<Format> $formats */
@@ -45,7 +51,7 @@ final class ViewTest extends TestCase
             genre:       Genre::Dubstep,
             description: 'second single',
             cover:       $cover,
-            formats:     new Collection(Format::class)->add(...$formats),
+            formats:     new Collection(Format::class)->with(...$formats),
             embed:       $embed,
         );
     }
@@ -123,7 +129,7 @@ final class ViewTest extends TestCase
     public function testTheReleaseCardMetadataIsEscaped(): void
     {
         $releases = new SearchableCollection(Release::class)
-            ->add('x', $this->release(title: 'a & b'));
+            ->with('x', $this->release(title: 'a & b'));
 
         self::assertStringContainsString('a &amp; b', new ReleasesView($releases)->content());
     }
@@ -210,6 +216,45 @@ final class ViewTest extends TestCase
         yield [SoundCloudPlayerStyle::Classic, 166];
     }
 
+    // ───────────────────────────── Terminal ─────────────────────────────
+
+    /**
+     * A generic's element type is the one thing PHP cannot enforce, so it is the one thing left to
+     * check by hand — a Collection of the wrong class is still a Collection to the signature. The
+     * items themselves are Collection::with()'s problem, and it throws a TypeError for them.
+     */
+    public function testATerminalRejectsACollectionOfSomethingElse(): void
+    {
+        $this->expectException(ReleaseVerificationException::class);
+
+        new Terminal('release.log', './x', new Collection(Format::class));
+    }
+
+    public function testATerminalWithNoRowsRendersAnEmptyFieldList(): void
+    {
+        self::assertStringContainsString(
+            'fields="[]"',
+            new Terminal('error.log', 'find /x')->toElement(),
+        );
+    }
+
+    /** The rows cross as JSON in an attribute, so quotes in one must not end the attribute. */
+    public function testATerminalRowCannotBreakOutOfTheFieldsAttribute(): void
+    {
+        $html = new Terminal(
+            label:   'release.log',
+            command: './x',
+            fields:  new Collection(TerminalField::class)
+                ->with(new TerminalField('title', '" onload="alert(1)', TerminalTone::Ok)),
+        )->toElement();
+
+        // JSON escapes the quote, htmlspecialchars then escapes that — belt and braces, in that order.
+        self::assertStringContainsString('\\&quot; onload=\\&quot;alert(1)', $html);
+        // The escaped text still reads as ` onload=`; what matters is that no raw quote closes the
+        // attribute around it, so the payload never becomes one.
+        self::assertStringNotContainsString('" onload="', $html);
+    }
+
     /**
      * A custom element the browser has never heard of renders as an inert inline box with no
      * error anywhere, so a typo in a tag name is invisible. This pins the set: adding an element
@@ -229,7 +274,7 @@ final class ViewTest extends TestCase
             ),
             'ill',
         )->content()
-            . new ReleasesView(new SearchableCollection(Release::class)->add('ill', $this->release()))->content()
+            . new ReleasesView(new SearchableCollection(Release::class)->with('ill', $this->release()))->content()
             . new NotFoundView('/x')->content();
 
         preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $m);

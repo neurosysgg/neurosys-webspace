@@ -8,6 +8,7 @@ use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Service\DownloadLogEntry;
 use NeuroSYS\Service\DownloadLogger;
+use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Service\ReleaseRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -94,17 +95,17 @@ final class ServiceTest extends TestCase
         $links = new ProfileRepository($file)->all();
 
         self::assertCount(1, $links);
-        self::assertSame(Platform::GitHub, $links[0]['platform']);
+        self::assertSame(Platform::GitHub, $links->all()[0]->platform);
     }
 
     public function testReturnsNothingWhenNoProfilesAreConfigured(): void
     {
-        self::assertSame([], new ProfileRepository($this->dataFile('[]'))->all());
+        self::assertCount(0, new ProfileRepository($this->dataFile('[]'))->all());
     }
 
     public function testReturnsNothingWhenTheDataFileIsMissing(): void
     {
-        self::assertSame([], new ProfileRepository('/nonexistent/profiles.php')->all());
+        self::assertCount(0, new ProfileRepository('/nonexistent/profiles.php')->all());
     }
 
     /** SoundCloud is the primary presence and renders first — that is enum declaration order. */
@@ -115,8 +116,8 @@ final class ServiceTest extends TestCase
         );
 
         $order = array_map(
-            static fn(array $l) => $l['platform'],
-            new ProfileRepository($file)->all(),
+            static fn(Profile $p): Platform => $p->platform,
+            new ProfileRepository($file)->all()->all(),
         );
 
         self::assertSame([Platform::SoundCloud, Platform::YouTube, Platform::GitHub], $order);
@@ -126,13 +127,13 @@ final class ServiceTest extends TestCase
     {
         $file = $this->dataFile("['myspace' => 'https://myspace.com/x']");
 
-        self::assertSame([], new ProfileRepository($file)->all());
+        self::assertCount(0, new ProfileRepository($file)->all());
     }
 
     public function testTheConfiguredCatalogueOnlyLinksHttpsUrls(): void
     {
-        foreach (new ProfileRepository()->all() as ['url' => $url]) {
-            self::assertStringStartsWith('https://', $url);
+        foreach (new ProfileRepository()->all() as $profile) {
+            self::assertStringStartsWith('https://', $profile->url);
         }
     }
 

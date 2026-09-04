@@ -59,11 +59,11 @@ src/NeuroSYS/
 ├── Controller/     ← one class per route group; fetches its own data, returns a Response
 ├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse, HttpStatusCode
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
-├── Model/          ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
+├── Model/          ← Release, Format, Profile, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
-├── Support/        ← Collection<T>, SearchableCollection<T>, Route, RouteInitialization, JsonDeserializable
+├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization, JsonDeserializable
 ├── View/           ← View abstract base + one concrete per page; HTML via heredoc, no template files
 ├── Layout.php      ← static wrap(View): string — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
@@ -84,6 +84,26 @@ SoundCloud's attribution markup, and `<soundcloud-player>` sets those properties
 instead — same styling, nothing for the allowance to cover.
 
 The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405 and `Allow: GET, HEAD`.
+
+## Collections, and why they are immutable
+
+`Collection<T>` and `SearchableCollection<T>` are the only shapes a group of objects takes. A bare
+`array` with a `foreach`-and-`instanceof` check in a constructor is the thing they replace — that
+loop existed three times, in `Release`, `Terminal` and `SoundCloudEmbed`, and it is now
+`Collection::with()`'s single `TypeError`. What is left to check by hand is the *element type*, the
+one thing a PHP generic cannot say: `$this->fields->type !== TerminalField::class`.
+
+**`with()` copies; it does not append.** That is what makes a collection safe to hold inside a
+`readonly` value object: `readonly` protects the reference, not what it points at, so a mutable
+collection would leave every `Release`, `Terminal` and `SoundCloudEmbed` appendable by anyone
+holding one. The name is deliberate too — a discarded `$c->add(…)` reads as correct, a discarded
+`$c->with(…)` reads as wrong. Same shape as `ContentSecurityPolicy::allow()`.
+
+Not everything with a `list<…>` in its docblock wants one. `PermissionsPolicy::$denied` and
+`ContentSecurityPolicy::$directives` are private, never escape, and are built only through a
+variadic — `PermissionsPolicyFeature ...$features` — which PHP already enforces at the boundary. A
+collection there adds indirection and no guarantee. The rule is: **a collection replaces a
+hand-rolled type check on data crossing a public boundary; it does not replace a variadic.**
 
 ## How the router works
 
@@ -269,7 +289,7 @@ Edit `data/releases.php` — that's the only file. Each entry is a typed `Releas
     genre:       Genre::Dubstep,            // see Genre enum
     description: 'debut single',
     cover:       new HiDriveLink('J2FXbB70A'),   // id from Share → Direct download link
-    formats: new Collection(Format::class)->add(
+    formats: new Collection(Format::class)->with(
         new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
         new Format(ReleaseFormat::MP3,   new HiDriveLink('CPJy7AVIu')),
         new Format(ReleaseFormat::STEMS, new HiDriveLink('D2PUDjoII')),

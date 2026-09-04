@@ -40,7 +40,8 @@ class RouteInitialization
 
     private function addRoute(string $pattern, Closure $factory): static
     {
-        $this->collection->add(new Route($pattern, $factory));
+        // Collection::with() copies rather than appends, so the result has to be kept.
+        $this->collection = $this->collection->with(new Route($pattern, $factory));
         return $this;
     }
 }

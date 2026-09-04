@@ -223,7 +223,7 @@ final class ResponseTest extends TestCase
             use NeuroSYS\Support\Collection;
             return ['staged' => new Release(
                 'staged.', 140, MusicalKey::CMajor, Genre::Dubstep, 'unreleased', null,
-                new Collection(Format::class)->add(new Format(ReleaseFormat::FLAC)),
+                new Collection(Format::class)->with(new Format(ReleaseFormat::FLAC)),
             )];
             PHP);
 

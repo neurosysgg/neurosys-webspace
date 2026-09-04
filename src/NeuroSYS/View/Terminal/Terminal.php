@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Terminal;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Support\Collection;
 
 /**
  * The Terminal class. A terminal window declared as typed values.
@@ -21,27 +22,25 @@ final readonly class Terminal
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string              $label   The window's title, shown in its bar.
-     * @param string              $command The command line above the output.
-     * @param list<TerminalField> $fields  The output rows, in order.
-     * @param bool                $narrow  Constrain the window's width.
+     * @param string                    $label   The window's title, shown in its bar.
+     * @param string                    $command The command line above the output.
+     * @param Collection<TerminalField> $fields  The output rows, in order.
+     * @param bool                      $narrow  Constrain the window's width.
      *
-     * @throws ReleaseVerificationException if constructed with something that is not a field.
+     * @throws ReleaseVerificationException if the collection holds something else.
      */
     public function __construct(
-        public string $label,
-        public string $command,
-        public array  $fields  = [],
-        public bool   $narrow  = false,
+        public string     $label,
+        public string     $command,
+        public Collection $fields = new Collection(TerminalField::class),
+        public bool       $narrow = false,
     ) {
-        foreach ($this->fields as $field) {
-            if (!$field instanceof TerminalField) {
-                throw new ReleaseVerificationException(sprintf(
-                    'Terminal::fields must contain only %s, got %s.',
-                    TerminalField::class,
-                    get_debug_type($field),
-                ));
-            }
+        // Collection::with() rejects the wrong item; only its element type is left to check, which
+        // is the one thing a PHP generic cannot say. Same guard as Release::verify().
+        if ($this->fields->type !== TerminalField::class) {
+            throw new ReleaseVerificationException(
+                'Terminal::fields must be a Collection of \TerminalField.'
+            );
         }
     }
 
@@ -49,7 +48,7 @@ final readonly class Terminal
     public function toElement(): string
     {
         $fields = json_encode(
-            array_map(static fn (TerminalField $f): array => $f->toArray(), $this->fields),
+            array_map(static fn (TerminalField $f): array => $f->toArray(), $this->fields->all()),
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
         );
 

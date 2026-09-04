@@ -16,6 +16,8 @@ use TypeError;
  * Complements {@link Collection} (which is integer-indexed) with key-based storage
  * and lookup. Use when items must be retrievable by a named key (e.g. a URL slug).
  *
+ * Immutable for the same reason and in the same way — see {@link Collection}.
+ *
  * @template T of object
  * @implements IteratorAggregate<string, T>
  */
@@ -32,13 +34,13 @@ class SearchableCollection implements Countable, IteratorAggregate
     public function __construct(public readonly string $type) {}
 
     /**
-     * Adds an item under the given key.
+     * Returns a copy of this collection with $item stored under $key.
      *
      * @param string $key  The key to store the item under.
      * @param T      $item The item to store.
      * @throws TypeError if $item is not an instance of the declared type.
      */
-    public function add(string $key, mixed $item): static
+    public function with(string $key, mixed $item): static
     {
         if (!($item instanceof $this->type)) {
             throw new TypeError(sprintf(
@@ -48,8 +50,11 @@ class SearchableCollection implements Countable, IteratorAggregate
                 get_debug_type($item),
             ));
         }
-        $this->items[$key] = $item;
-        return $this;
+
+        $copy               = clone $this;
+        $copy->items[$key]  = $item;
+
+        return $copy;
     }
 
     /**

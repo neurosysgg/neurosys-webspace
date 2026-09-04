@@ -6,6 +6,11 @@ namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
 use DateTime;
+use NeuroSYS\Model\Format;
+use NeuroSYS\Model\Genre;
+use NeuroSYS\Model\MusicalKey;
+use NeuroSYS\Model\Release;
+use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -32,49 +37,87 @@ final class SupportTest extends TestCase
         $a = new stdClass();
         $b = new stdClass();
 
-        $collection = new Collection(stdClass::class)->add($a, $b);
+        $collection = new Collection(stdClass::class)->with($a, $b);
 
         self::assertCount(2, $collection);
         self::assertSame([$a, $b], $collection->all());
     }
 
-    public function testAddIsChainable(): void
+    public function testWithReturnsACopyAndLeavesTheOriginalEmpty(): void
     {
         $collection = new Collection(stdClass::class);
+        $extended   = $collection->with(new stdClass());
 
-        self::assertSame($collection, $collection->add(new stdClass()));
+        self::assertNotSame($collection, $extended);
+        self::assertCount(0, $collection);
+        self::assertCount(1, $extended);
+    }
+
+    /**
+     * The reason the collections are immutable: readonly protects the reference, not what it points
+     * at. A mutable collection would make every readonly value object holding one appendable by
+     * anyone who can reach it — Release::$formats, Terminal::$fields, SoundCloudEmbed::$options.
+     */
+    public function testACollectionInsideAReadonlyObjectCannotBeAppendedTo(): void
+    {
+        $release = new Release(
+            title:       'ill.',
+            bpm:         140,
+            key:         MusicalKey::FSharpMajor,
+            genre:       Genre::Dubstep,
+            description: 'debut single',
+            cover:       null,
+            formats:     new Collection(Format::class)->with(new Format(ReleaseFormat::FLAC)),
+        );
+
+        $release->formats->with(new Format(ReleaseFormat::MP3));
+
+        self::assertCount(1, $release->formats);
     }
 
     public function testIsIterable(): void
     {
         $items = [new stdClass(), new stdClass()];
 
-        self::assertSame($items, iterator_to_array(new Collection(stdClass::class)->add(...$items)));
+        self::assertSame($items, iterator_to_array(new Collection(stdClass::class)->with(...$items)));
     }
 
     public function testRejectsAnItemOfTheWrongType(): void
     {
         $this->expectException(TypeError::class);
-        new Collection(DateTime::class)->add(new stdClass());
+        new Collection(DateTime::class)->with(new stdClass());
     }
 
     public function testRejectsAScalar(): void
     {
         $this->expectException(TypeError::class);
-        new Collection(stdClass::class)->add('not an object');
+        new Collection(stdClass::class)->with('not an object');
     }
 
-    /** A rejected batch must not leave the earlier items behind. */
     public function testTheTypeErrorNamesBothTypes(): void
     {
         $this->expectException(TypeError::class);
         $this->expectExceptionMessage(DateTime::class);
-        new Collection(DateTime::class)->add(new stdClass());
+        new Collection(DateTime::class)->with(new stdClass());
+    }
+
+    /** The copy is discarded with the exception, so the good items in a bad batch go with it. */
+    public function testARejectedBatchLeavesTheOriginalUntouched(): void
+    {
+        $collection = new Collection(stdClass::class)->with(new stdClass());
+
+        try {
+            $collection->with(new stdClass(), 'not an object');
+        } catch (TypeError) {
+            // expected
+        }
+
+        self::assertCount(1, $collection);
     }
 
     public function testAcceptsSubclassesOfTheDeclaredType(): void
     {
-        $collection = new Collection(ArrayObject::class)->add(new class () extends ArrayObject {});
+        $collection = new Collection(ArrayObject::class)->with(new class () extends ArrayObject {});
 
         self::assertCount(1, $collection);
     }
@@ -95,7 +138,7 @@ final class SupportTest extends TestCase
     {
         $item = new stdClass();
 
-        self::assertSame($item, new SearchableCollection(stdClass::class)->add('k', $item)->find('k'));
+        self::assertSame($item, new SearchableCollection(stdClass::class)->with('k', $item)->find('k'));
     }
 
     public function testAddingTheSameKeyTwiceReplacesTheItem(): void
@@ -103,8 +146,8 @@ final class SupportTest extends TestCase
         $second = new stdClass();
 
         $collection = new SearchableCollection(stdClass::class)
-            ->add('k', new stdClass())
-            ->add('k', $second);
+            ->with('k', new stdClass())
+            ->with('k', $second);
 
         self::assertCount(1, $collection);
         self::assertSame($second, $collection->find('k'));
@@ -115,7 +158,7 @@ final class SupportTest extends TestCase
         $a = new stdClass();
         $b = new stdClass();
 
-        $collection = new SearchableCollection(stdClass::class)->add('a', $a)->add('b', $b);
+        $collection = new SearchableCollection(stdClass::class)->with('a', $a)->with('b', $b);
 
         self::assertSame(['a' => $a, 'b' => $b], iterator_to_array($collection));
     }
@@ -123,14 +166,14 @@ final class SupportTest extends TestCase
     public function testSearchableRejectsAnItemOfTheWrongType(): void
     {
         $this->expectException(TypeError::class);
-        new SearchableCollection(DateTime::class)->add('k', new stdClass());
+        new SearchableCollection(DateTime::class)->with('k', new stdClass());
     }
 
     public function testKeysWithSlashesAndDotsAreJustKeys(): void
     {
         $item = new stdClass();
 
-        $collection = new SearchableCollection(stdClass::class)->add('../../etc/passwd', $item);
+        $collection = new SearchableCollection(stdClass::class)->with('../../etc/passwd', $item);
 
         self::assertSame($item, $collection->find('../../etc/passwd'));
         self::assertNull($collection->find('etc/passwd'));

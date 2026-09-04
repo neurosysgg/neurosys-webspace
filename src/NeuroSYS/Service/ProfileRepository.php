@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\Model\Platform;
+use NeuroSYS\Model\Profile;
+use NeuroSYS\Support\Collection;
 
 /**
  * The ProfileRepository class. Loads the site's external profile links.
@@ -31,17 +33,16 @@ class ProfileRepository
     }
 
     /**
-     * Returns the linked platforms paired with their URLs, in enum declaration
-     * order. Platforms with no URL are skipped, so an unclaimed profile simply
-     * doesn't render.
+     * Returns the linked profiles, in enum declaration order. Platforms with no
+     * URL are skipped, so an unclaimed profile simply doesn't render.
      *
-     * @return array<array{platform: Platform, url: string}>
+     * @return Collection<Profile>
      */
-    public function all(): array
+    public function all(): Collection
     {
         $this->links ??= is_file($this->dataFile) ? require $this->dataFile : [];
 
-        $linked = [];
+        $linked = new Collection(Profile::class);
 
         foreach (Platform::cases() as $platform) {
             $url = $this->links[$platform->value] ?? '';
@@ -50,7 +51,7 @@ class ProfileRepository
                 continue;
             }
 
-            $linked[] = ['platform' => $platform, 'url' => $url];
+            $linked = $linked->with(new Profile($platform, $url));
         }
 
         return $linked;

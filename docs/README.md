@@ -29,7 +29,7 @@ neurosys/
 │   │   ├── Embed/       ← Embed interface + SoundCloudEmbed (+ style/option enums)
 │   │   └── Link/        ← FileLink interface + HiDriveLink
 │   ├── Service/         ← Auth, ReleaseRepository, ProfileRepository, DownloadLogger…
-│   ├── Support/         ← Collection<T>, SearchableCollection<T>, Route, JsonDeserializable
+│   ├── Support/         ← Collection<T>, SearchableCollection<T> (immutable), Route, JsonDeserializable
 │   ├── View/            ← one View class per page; HTML lives here as heredoc strings
 │   │   └── Terminal/    ← Terminal, TerminalField, TerminalTone — declared, not written out
 │   ├── Layout.php       ← full HTML shell (nav, footer, scripts)

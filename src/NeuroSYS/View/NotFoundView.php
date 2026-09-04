@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
@@ -27,7 +28,8 @@ class NotFoundView extends View
         $terminal = new Terminal(
             label:   'error.log',
             command: 'find ' . $this->path,
-            fields:  [new TerminalField('error', '404 — not found', TerminalTone::Error)],
+            fields:  new Collection(TerminalField::class)
+                ->with(new TerminalField('error', '404 — not found', TerminalTone::Error)),
             narrow:  true,
         )->toElement();
 

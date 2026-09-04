@@ -56,7 +56,7 @@ class ReleaseRepository
         $collection = new SearchableCollection(Release::class);
 
         foreach ($data as $slug => $release) {
-            $collection->add($slug, $release);
+            $collection = $collection->with($slug, $release);
         }
 
         return $collection;

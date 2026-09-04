@@ -9,9 +9,11 @@ use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Embed\SoundCloudOption;
 use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
 use NeuroSYS\Model\Platform;
+use NeuroSYS\Support\Collection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use TypeError;
 
 #[CoversClass(SoundCloudEmbed::class)]
 #[CoversClass(SoundCloudOption::class)]
@@ -21,6 +23,12 @@ final class EmbedTest extends TestCase
     private function embed(mixed ...$args): SoundCloudEmbed
     {
         return new SoundCloudEmbed(...['trackId' => 2394077313, 'permalink' => 'ill', ...$args]);
+    }
+
+    /** @return Collection<SoundCloudOption> */
+    private function options(SoundCloudOption ...$options): Collection
+    {
+        return new Collection(SoundCloudOption::class)->with(...$options);
     }
 
     public function testReportsItsPlatform(): void
@@ -76,7 +84,7 @@ final class EmbedTest extends TestCase
     {
         self::assertStringContainsString(
             'options="show_comments"',
-            $this->embed(options: [SoundCloudOption::ShowComments])->toElement('t'),
+            $this->embed(options: $this->options(SoundCloudOption::ShowComments))->toElement('t'),
         );
     }
 
@@ -90,13 +98,24 @@ final class EmbedTest extends TestCase
 
     public function testAnEmptyOptionListSendsAnEmptyAttribute(): void
     {
-        self::assertStringContainsString('options=""', $this->embed(options: [])->toElement('t'));
+        self::assertStringContainsString('options=""', $this->embed(options: $this->options())->toElement('t'));
     }
 
+    /** The collection refuses it before the embed ever sees it, which is the point of holding one. */
     public function testRejectsSomethingThatIsNotASoundCloudOption(): void
     {
+        $this->expectException(TypeError::class);
+        $this->options()->with('show_user');
+    }
+
+    /**
+     * A generic's element type is the one thing PHP cannot enforce, so it is the one thing left to
+     * check by hand — a Collection of the wrong class is still a Collection to the signature.
+     */
+    public function testRejectsACollectionOfSomethingElse(): void
+    {
         $this->expectException(ReleaseVerificationException::class);
-        $this->embed(options: ['show_user']);
+        $this->embed(options: new Collection(SoundCloudPlayerStyle::class));
     }
 
     // ───────────────────────────── validation ─────────────────────────────

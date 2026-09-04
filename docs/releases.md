@@ -14,7 +14,7 @@ Add a new entry to the array in `data/releases.php`. Each entry is a typed `Rele
     genre:       Genre::Dubstep,
     description: 'debut single',         // shown on the release card + page
     cover:       new HiDriveLink('J2FXbB70A'),   // share id, see below
-    formats: new Collection(Format::class)->add(
+    formats: new Collection(Format::class)->with(
         new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
         new Format(ReleaseFormat::MP3,   new HiDriveLink('CPJy7AVIu')),
         new Format(ReleaseFormat::STEMS, new HiDriveLink('D2PUDjoII')),

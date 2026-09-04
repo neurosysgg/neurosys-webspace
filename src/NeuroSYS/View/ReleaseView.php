@@ -6,6 +6,7 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
@@ -46,13 +47,13 @@ class ReleaseView extends View
         $terminal = new Terminal(
             label:   'release.log',
             command: './release --track "' . $release->title . '"',
-            fields:  [
+            fields:  new Collection(TerminalField::class)->with(
                 new TerminalField('artist', 'neuro.SYS'),
                 new TerminalField('bpm', (string) $release->bpm),
                 new TerminalField('key', $release->key->value),
                 new TerminalField('genre', $release->genre->value),
                 new TerminalField('status', 'ready', TerminalTone::Ok),
-            ],
+            ),
         )->toElement();
 
         $coverSrc    = htmlspecialchars($release->cover?->url() ?? self::COVER_PLACEHOLDER);

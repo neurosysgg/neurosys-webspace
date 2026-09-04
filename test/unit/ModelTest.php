@@ -35,7 +35,7 @@ final class ModelTest extends TestCase
             genre:       Genre::Dubstep,
             description: 'second single',
             cover:       null,
-            formats:     new Collection(Format::class)->add(...$formats),
+            formats:     new Collection(Format::class)->with(...$formats),
         );
     }
 

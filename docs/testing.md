@@ -67,6 +67,10 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   stylesheet `href` in the layout is same-origin, and that no `<iframe>` reaches a release page before
   the consent gate is clicked. Breaking either makes us a joint controller for the transfer
   (CJEU C-40/17) — see [branding.md](branding.md).
+- **A collection inside a `readonly` object cannot be appended to.** `readonly` protects the
+  reference, not what it points at, so `Collection::with()` returning a copy is what actually makes
+  `Release::$formats`, `Terminal::$fields` and `SoundCloudEmbed::$options` immutable. `SupportTest`
+  builds a `Release`, calls `with()` on its formats and asserts the release still has one.
 - **Download logging stays off.** `ServiceTest` asserts `DownloadLogger::ENABLED === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
 - **Download cards carry `data-no-spa`.** Without it `Navigation` fetches the 303 and swallows it, and

@@ -69,17 +69,18 @@ class Layout
     {
         $links = new ProfileRepository()->all();
 
-        if ($links === []) {
+        if ($links->count() === 0) {
             return '';
         }
 
         $items = '';
 
-        foreach ($links as ['platform' => $platform, 'url' => $url]) {
-            $href   = htmlspecialchars($url);
-            $label  = htmlspecialchars($platform->label());
-            $src    = htmlspecialchars($platform->iconSrc());
-            $height = $platform->iconHeight();
+        foreach ($links as $profile) {
+            $platform = $profile->platform;
+            $href     = htmlspecialchars($profile->url);
+            $label    = htmlspecialchars($platform->label());
+            $src      = htmlspecialchars($platform->iconSrc());
+            $height   = $platform->iconHeight();
 
             $items .= <<<HTML
                         <a class="profile-link" href="$href" title="$label"

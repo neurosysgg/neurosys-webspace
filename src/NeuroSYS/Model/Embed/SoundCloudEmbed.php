@@ -6,6 +6,7 @@ namespace NeuroSYS\Model\Embed;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Platform;
+use NeuroSYS\Support\Collection;
 
 /**
  * The SoundCloudEmbed class. A SoundCloud player declared as typed parameters.
@@ -22,19 +23,14 @@ use NeuroSYS\Model\Platform;
 final readonly class SoundCloudEmbed implements Embed
 {
     /**
-     * The player configuration every release uses unless it says otherwise.
+     * The toggles this player enables. Every case not listed is emitted as false.
      *
-     * Autoplay is deliberate: the iframe only exists once the visitor has clicked
-     * through the consent gate, so loading it *is* the request to play.
+     * Not promoted, because the default is a method call and a parameter default has to be a
+     * constant expression — {@link self::defaultOptions()} builds it instead.
      *
-     * @var list<SoundCloudOption>
+     * @var Collection<SoundCloudOption>
      */
-    public const array DEFAULT_OPTIONS = [
-        SoundCloudOption::AutoPlay,
-        SoundCloudOption::ShowComments,
-        SoundCloudOption::ShowUser,
-        SoundCloudOption::ShowTeaser,
-    ];
+    public Collection $options;
 
     /**
      * Constructs an instance of {@link self}.
@@ -44,8 +40,8 @@ final readonly class SoundCloudEmbed implements Embed
      * @param string                $secretToken Share token for a private or scheduled track
      *                                           ('s-…'), or empty for a plain public track.
      * @param SoundCloudPlayerStyle $style       Player layout; also fixes the iframe height.
-     * @param list<SoundCloudOption> $options    The toggles to enable. Every case not listed
-     *                                           is emitted as false.
+     * @param Collection<SoundCloudOption>|null $options The toggles to enable, or null for
+     *                                           {@link self::defaultOptions()}.
      *
      * @throws ReleaseVerificationException if constructed with invalid data.
      */
@@ -54,9 +50,28 @@ final readonly class SoundCloudEmbed implements Embed
         public string                $permalink,
         public string                $secretToken = '',
         public SoundCloudPlayerStyle $style       = SoundCloudPlayerStyle::Visual,
-        public array                 $options     = self::DEFAULT_OPTIONS,
+        ?Collection                  $options     = null,
     ) {
+        $this->options = $options ?? self::defaultOptions();
         $this->verify();
+    }
+
+    /**
+     * The player configuration every release uses unless it says otherwise.
+     *
+     * Autoplay is deliberate: the iframe only exists once the visitor has clicked
+     * through the consent gate, so loading it *is* the request to play.
+     *
+     * @return Collection<SoundCloudOption>
+     */
+    public static function defaultOptions(): Collection
+    {
+        return new Collection(SoundCloudOption::class)->with(
+            SoundCloudOption::AutoPlay,
+            SoundCloudOption::ShowComments,
+            SoundCloudOption::ShowUser,
+            SoundCloudOption::ShowTeaser,
+        );
     }
 
     public function platform(): Platform
@@ -73,7 +88,7 @@ final readonly class SoundCloudEmbed implements Embed
     {
         $options = implode(' ', array_map(
             static fn (SoundCloudOption $option): string => $option->value,
-            $this->options,
+            $this->options->all(),
         ));
 
         return '<soundcloud-player'
@@ -110,14 +125,12 @@ final readonly class SoundCloudEmbed implements Embed
                 'SoundCloudEmbed::permalink must not be empty.'
             );
         }
-        foreach ($this->options as $option) {
-            if (!$option instanceof SoundCloudOption) {
-                throw new ReleaseVerificationException(sprintf(
-                    'SoundCloudEmbed::options must contain only %s, got %s.',
-                    SoundCloudOption::class,
-                    get_debug_type($option),
-                ));
-            }
+        // Collection::with() rejects the wrong item; only its element type is left to check, which
+        // is the one thing a PHP generic cannot say. Same guard as Release::verify().
+        if ($this->options->type !== SoundCloudOption::class) {
+            throw new ReleaseVerificationException(
+                'SoundCloudEmbed::options must be a Collection of \SoundCloudOption.'
+            );
         }
     }
 }
