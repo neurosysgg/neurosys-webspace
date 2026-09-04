@@ -1,5 +1,4 @@
-import { TerminalTone } from '../model/TerminalTone.js';
-import { NestedElement } from './NestedElement.js';
+import { TerminalTone } from '../../model/TerminalTone.js';
 
 /** One output row, as Terminal::toElement() serialises it. */
 interface TerminalFieldData {
@@ -14,6 +13,9 @@ interface TerminalFieldData {
  * Builds its whole subtree. A view declares a Terminal — a label, a command line and typed rows —
  * and every node below this element is made here: the command, each row, the trailing cursor. The
  * title bar and its three lights are CSS, and the `$` sigil and blinking underscore are too.
+ *
+ * The tags it builds are its neighbours in this directory, one class per file, the way
+ * src/NeuroSYS/View/Terminal/ is laid out on the other side of the same feature.
  *
  * With no JS the window is empty. The rows are the release's metadata and the 404's error line, so
  * that is a real cost and not only a cosmetic one — see CLAUDE.md.
@@ -87,34 +89,4 @@ export class TerminalWindow extends HTMLElement {
   }
 }
 
-/** The command line above the output. CSS draws the `$` in front of it. */
-export class TerminalCommand extends NestedElement {
-  protected parent(): CustomElementConstructor { return TerminalWindow; }
-}
-
-/** One key/value row. `tone` says how it reads — see TerminalTone. */
-export class TerminalField extends NestedElement {
-  protected parent(): CustomElementConstructor { return TerminalWindow; }
-}
-
-/** The row's label, in the fixed-width first column. */
-export class TerminalKey extends NestedElement {
-  protected parent(): CustomElementConstructor { return TerminalField; }
-}
-
-/** The row's value. */
-export class TerminalValue extends NestedElement {
-  protected parent(): CustomElementConstructor { return TerminalField; }
-}
-
-/** The trailing prompt. CSS draws both the `$` and the blinking underscore. */
-export class TerminalCursor extends NestedElement {
-  protected parent(): CustomElementConstructor { return TerminalWindow; }
-}
-
 customElements.define('terminal-window', TerminalWindow);
-customElements.define('terminal-command', TerminalCommand);
-customElements.define('terminal-field', TerminalField);
-customElements.define('terminal-key', TerminalKey);
-customElements.define('terminal-value', TerminalValue);
-customElements.define('terminal-cursor', TerminalCursor);

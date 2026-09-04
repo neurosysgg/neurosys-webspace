@@ -6,15 +6,7 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
-
 import { uncaughtErrors } from './dom.mjs';
-
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-
-await import(`${ROOT}/public/assets/js/elements/TerminalWindow.js`);
-await import(`${ROOT}/public/assets/js/elements/DownloadList.js`);
 
 /** Builds a terminal the way Terminal::toElement() writes one. */
 function terminal({ label = 'release.log', command = './release --track "ill."', fields = [] } = {}) {

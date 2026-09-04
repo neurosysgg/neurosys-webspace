@@ -325,7 +325,7 @@ check_body "the player element is rendered"          "$BASE/releases/ill"  '<sou
 # every custom tag the server actually serves has to be one assets/ts/elements/ defines. The reverse
 # would fail on the terminal's own tags, which are registered but built by <terminal-window> rather
 # than written out by any view.
-registered=$(grep -ho "customElements.define('[a-z][a-z0-9-]*'" "$REPO"/assets/ts/elements/*.ts \
+registered=$(grep -rho "customElements.define('[a-z][a-z0-9-]*'" "$REPO/assets/ts/elements" \
              | sed "s/.*'\(.*\)'/\1/" | sort -u)
 served=$(curl "${CURL_ARGS[@]}" "$BASE/releases" "$BASE/releases/ill" "$BASE/nope" 2>/dev/null \
          | grep -oE '<[a-z][a-z0-9]*-[a-z0-9-]+' | tr -d '<' | sort -u)

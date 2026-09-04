@@ -5,10 +5,19 @@
  * loads — not the TypeScript. That way the test exercises what actually ships, and a build that
  * never ran is a failing test rather than a passing one.
  *
- * The globals have to exist before the element modules are imported, because each one calls
- * customElements.define at import time.
+ * What gets loaded is main.js — the whole vocabulary through the same entry point the browser
+ * uses, rather than a hand-picked module per test. A tag missing from main.ts's import list is then
+ * missing here too, which is what test/js/vocabulary.test.mjs asserts.
+ *
+ * The globals have to exist before that import runs, because every element module calls
+ * customElements.define at import time — hence the dynamic import at the bottom rather than a
+ * static one, which the engine would hoist above the assignments below.
  */
 import { JSDOM } from 'jsdom';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://neurosys.gg/' });
 
@@ -40,4 +49,6 @@ export function uncaughtErrors(fn) {
   return errors;
 }
 
-export { dom };
+export { dom, ROOT };
+
+await import(`${ROOT}/public/assets/js/main.js`);

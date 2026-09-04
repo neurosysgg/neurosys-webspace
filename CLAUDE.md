@@ -112,11 +112,16 @@ TypeScript, compiled to browser-native ES modules. No bundler, no framework.
 
 ```
 assets/ts/                    ← sources; outside public/, neither web-served nor deployed
-├── main.ts                   ← entry point, the only <script> Layout.php loads
+├── main.ts                   ← entry point, the only <script> Layout.php loads; imports every element
 ├── Navigation.ts             ← class Navigation — SPA navigation
-└── elements/
-    ├── PlayerConsent.ts      ← class PlayerConsent — <player-consent>
-    └── CoverArt.ts           ← class CoverArt — <cover-art>
+├── model/                    ← the mirrored enums — Platform, SoundCloudOption, …
+└── elements/                 ← one class per file, named for the class, grouped like src/NeuroSYS/
+    ├── NestedElement.ts      ← abstract — the parent guard every content tag inherits
+    ├── CoverArt.ts
+    ├── embed/                ← ConsentGatedEmbed, SoundCloudPlayer      (cf. Model/Embed/)
+    ├── terminal/             ← TerminalWindow + its five content tags   (cf. View/Terminal/)
+    ├── download/             ← DownloadList, DownloadCard, …
+    └── release/              ← ReleaseList, ReleaseCard, …
       ↓ npm run build
 public/assets/js/             ← generated, committed, deployed
 ```
@@ -130,10 +135,17 @@ Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), s
 `Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
 500s any static file it has no `SetHandler` for.
 
-One component per file, named for its root element, the way `src/NeuroSYS/` is one class per file.
-A component's content tags are declared alongside their parent rather than scattered — `<terminal-cursor>`
-lives in `TerminalWindow.ts`. Nothing is a loose exported function: it is `Navigation.onNavigate()` or
-a method on an element, so a call site says where it came from.
+**One class per file, named for the class**, the way `src/NeuroSYS/` is — `<terminal-cursor>` is
+`TerminalCursor` in `terminal/TerminalCursor.ts`, and the directory it sits in is the component, not
+the file. That mirrors the PHP side twice over: the split is the same, and `elements/terminal/` and
+`elements/embed/` sit opposite `View/Terminal/` and `Model/Embed/`. Nothing is a loose exported
+function: it is `Navigation.onNavigate()` or a method on an element, so a call site says where it
+came from.
+
+Because a module registers its tag as a side effect of being imported, `main.ts` imports every one
+of them, and that list is the whole vocabulary. `test/js/vocabulary.test.mjs` pins it — a tag the
+sources register but `main.ts` never imports fails there, which matters most for the tags an element
+builds itself, since those appear in no server response for the verify script to check.
 
 `tsconfig.json` runs `strict` plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`, and
 `module: nodenext` makes an extensionless relative import a compile error — a specifier the browser
@@ -144,19 +156,26 @@ would 404 on cannot ship. Same instinct as `CspHost` refusing anything but a bar
 A view's output is its own vocabulary. The tags that carry behaviour are self-contained — they build
 everything they show, so a view emits the tag and its attributes and nothing else:
 
-Every tag a view may emit is registered, one module per component, named for its root element. The
-ones with no behaviour are bare `HTMLElement` subclasses — CSS does their work — but they are declared
-all the same, so the vocabulary has one place to look rather than existing only as a CSS selector.
+Every tag a view may emit is registered, and so is every tag an element builds. The ones with no
+behaviour of their own are `NestedElement` subclasses — CSS does their styling, the guard is what
+they add — but they are declared all the same, so the vocabulary has one place to look rather than
+existing only as a CSS selector.
 
-| Module | Tags | Does |
+| Module | Tag | Does |
 |---|---|---|
-| `ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Mirrors the `Embed` interface |
-| `SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client |
-| `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
-| `TerminalWindow.ts` | `<terminal-window label command fields [narrow]>` and the `<terminal-command>` `<terminal-field tone>` `<terminal-key>` `<terminal-value>` `<terminal-cursor>` it builds | builds its whole subtree from a declared `Terminal` |
-| `DownloadList.ts` | `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | nesting guards only |
-| `ReleaseCard.ts` | `<release-list>` `<release-card slug>` `<release-title>` `<release-meta>` | nesting guards only |
 | `NestedElement.ts` | — (abstract) | refuses to connect outside the element it belongs inside |
+| `embed/ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Mirrors the `Embed` interface |
+| `embed/SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client |
+| `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
+| `terminal/TerminalWindow.ts` | `<terminal-window label command fields [narrow]>` | builds its whole subtree from a declared `Terminal` — the command, every row, the cursor |
+| `terminal/TerminalCommand.ts` | `<terminal-command>` | guard; CSS draws the `$` |
+| `terminal/TerminalField.ts` | `<terminal-field tone>` | guard; `tone` decides which half the stylesheet accents |
+| `terminal/TerminalKey.ts` `TerminalValue.ts` | `<terminal-key>` `<terminal-value>` | guards, inside a row |
+| `terminal/TerminalCursor.ts` | `<terminal-cursor>` | guard; CSS draws the `$` and the blink |
+| `download/DownloadList.ts` | `<download-list>` | nothing, deliberately — see below |
+| `download/DownloadCard.ts` … | `<download-card format>` `<download-label>` `<download-meta>` | guards only |
+| `release/ReleaseList.ts` | `<release-list>` | nothing, deliberately — see below |
+| `release/ReleaseCard.ts` … | `<release-card slug>` `<release-title>` `<release-meta>` | guards only |
 
 What stays native is what carries meaning or behaviour the browser provides: `<a>`, `<button>`,
 `<h1>`/`<h2>`, `<img>`, `<p>`, `<section>`. The card tags wrap their anchors rather than replacing
@@ -222,9 +241,10 @@ iterating the cases. Add a case on one side only, rename one, retype a backing v
 and it fails.
 
 Adding an element means adding it to `ViewTest::testTheViewsEmitOnlyKnownCustomElements`, which pins
-the set: a misspelled tag renders as an inert inline box with no error otherwise. The verify script
-checks the other direction, that every tag `assets/ts/elements/` registers appears in the markup of
-the catalogue or a release page — between them they carry the whole vocabulary.
+the set a view may emit: a misspelled tag renders as an inert inline box with no error otherwise. The
+verify script checks the served direction, that every custom tag in a real response is one
+`assets/ts/elements/` defines, and `vocabulary.test.mjs` checks the registration direction. Between
+the three they carry the whole vocabulary.
 
 ### SPA navigation
 

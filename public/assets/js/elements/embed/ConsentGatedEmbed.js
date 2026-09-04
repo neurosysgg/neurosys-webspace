@@ -1,4 +1,4 @@
-import { Platform, displayName } from '../model/Platform.js';
+import { Platform, displayName } from '../../model/Platform.js';
 /**
  * Base for a player that loads from someone else's servers.
  *

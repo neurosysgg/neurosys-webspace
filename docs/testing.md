@@ -26,7 +26,8 @@ npm run check      # tsc --noEmit, the front end on its own
 | **Blind to** | anything that calls `exit`, `header()`, or needs a server | real layout, real CSS, real network | anything with no observable output |
 
 `test/js/` runs the *built* files rather than the TypeScript, so a stale build fails there as well as
-in the drift check. Two of its cases reach back into PHP through `php -r` — the enum parity ones, and
+in the drift check. It loads them through `main.js`, the same entry point the browser uses, so the
+elements under test are registered the same way and by the same list. Two of its cases reach back into PHP through `php -r` — the enum parity ones, and
 the Permissions-Policy check — because the fact they guard spans both sides.
 
 The division matters in a few concrete places:
@@ -82,6 +83,12 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **Every custom tag served is registered.** Checked in that direction, not the reverse: the
   terminal's own tags are registered but built by `<terminal-window>`, so no view emits one and
   asking for them in the markup would fail for the wrong reason.
+- **Every tag the sources register is one `main.ts` imports.** The other half of the same invariant,
+  and the half the verify script structurally cannot see: registration is a side effect of importing
+  the module, and a tag an element builds itself — `<terminal-cursor>` — never appears in a response.
+  `vocabulary.test.mjs` reads the tags out of `assets/ts/elements/` and asserts each one is
+  registered once the real `main.js` has loaded. It also pins the file layout: one
+  `customElements.define` per module, and a module named for the class it exports.
 - **A tag outside the element it belongs inside says so.** `NestedElement` is what the otherwise
   behaviourless classes do; `terminal-window.test.mjs` asserts both that it fires and that it looks
   through the card anchors rather than only at the direct parent.

@@ -1,6 +1,6 @@
-import { Platform, displayName } from '../model/Platform.js';
-import { SoundCloudOption } from '../model/SoundCloudOption.js';
-import { SoundCloudPlayerStyle, isVisual } from '../model/SoundCloudPlayerStyle.js';
+import { Platform, displayName } from '../../model/Platform.js';
+import { SoundCloudOption } from '../../model/SoundCloudOption.js';
+import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
 /**
  * <soundcloud-player track-id permalink secret-token player-style options track-title height>

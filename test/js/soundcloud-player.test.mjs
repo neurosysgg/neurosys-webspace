@@ -14,8 +14,6 @@ import './dom.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-await import(`${ROOT}/public/assets/js/elements/SoundCloudPlayer.js`);
-
 const DEFAULTS = {
   'track-id':     '2394077313',
   permalink:      'ill',

@@ -1,6 +1,6 @@
-import { Platform, displayName } from '../model/Platform.js';
-import { SoundCloudOption } from '../model/SoundCloudOption.js';
-import { SoundCloudPlayerStyle, isVisual } from '../model/SoundCloudPlayerStyle.js';
+import { Platform, displayName } from '../../model/Platform.js';
+import { SoundCloudOption } from '../../model/SoundCloudOption.js';
+import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
 
 /**
