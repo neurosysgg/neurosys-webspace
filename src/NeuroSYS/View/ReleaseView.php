@@ -38,6 +38,7 @@ class ReleaseView extends View
         $title    = htmlspecialchars($this->release->title);
         $bpm      = $this->release->bpm;
         $key      = htmlspecialchars($this->release->key->value);
+        $genre    = htmlspecialchars($this->release->genre->value);
         $coverSrc = htmlspecialchars($this->release->coverSrc);
         $alt      = htmlspecialchars($this->release->title . ' cover art');
 
@@ -53,6 +54,7 @@ class ReleaseView extends View
                   <p class="out"><span class="key">artist</span>neuro.SYS</p>
                   <p class="out"><span class="key">bpm</span>$bpm</p>
                   <p class="out"><span class="key">key</span>$key</p>
+                  <p class="out"><span class="key">genre</span>$genre</p>
                   <p class="out"><span class="key">status</span><span class="ok">ready</span></p>
                   <p><span class="prompt">\$</span> <span class="cursor">_</span></p>
                 </div>
@@ -72,7 +74,7 @@ class ReleaseView extends View
     /** Builds the release info section with player and download cards. */
     private function infoSection(): string
     {
-        $title    = rtrim(htmlspecialchars($this->release->title), '!');
+        $title    = $this->titleHtml();
         $desc     = htmlspecialchars($this->release->description);
         $player   = $this->playerHtml();
         $dlCards  = $this->downloadCards();
@@ -80,7 +82,7 @@ class ReleaseView extends View
         return <<<HTML
 
             <section class="release-info">
-              <h1>$title<span class="bang">!</span></h1>
+              <h1>$title</h1>
               <p class="tagline">neuro.SYS &mdash; $desc</p>
               $player
               <div class="downloads">
@@ -89,6 +91,27 @@ class ReleaseView extends View
               </div>
             </section>
             HTML;
+    }
+
+    /**
+     * Renders the release title, splitting a trailing punctuation mark off so it can
+     * carry the accent colour — 'hello world!' and 'ill.' both read as name + mark.
+     */
+    private function titleHtml(): string
+    {
+        $title = $this->release->title;
+        $mark  = '';
+
+        if (preg_match('/[!.?]$/', $title, $matches)) {
+            $mark  = $matches[0];
+            $title = substr($title, 0, -1);
+        }
+
+        $title = htmlspecialchars($title);
+
+        return $mark === ''
+            ? $title
+            : $title . '<span class="bang">' . htmlspecialchars($mark) . '</span>';
     }
 
     /** Builds the click-to-load SoundCloud consent placeholder. */

@@ -27,11 +27,12 @@ class ReleasesView extends View
             $title = htmlspecialchars($release->title);
             $bpm   = $release->bpm;
             $key   = htmlspecialchars($release->key->value);
+            $genre = htmlspecialchars($release->genre->value);
             $desc  = htmlspecialchars($release->description);
             $cards .= <<<HTML
                   <a class="release-card" href="$href">
                     <span class="release-title">$title</span>
-                    <span class="release-meta">$bpm bpm &middot; $key &middot; $desc</span>
+                    <span class="release-meta">$bpm bpm &middot; $key &middot; $genre &middot; $desc</span>
                   </a>
 
                 HTML;

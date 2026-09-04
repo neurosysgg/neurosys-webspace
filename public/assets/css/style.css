@@ -396,3 +396,30 @@ a:hover, a:focus-visible { text-decoration: underline; }
   color: var(--accent);
   padding-right: 0 !important;
 }
+
+/* ---------------------------------------------------------------
+   Footer profile links — locally vendored brand assets only.
+   Hot-linking a platform's own CDN would transfer visitor data on
+   page load, before any click (CJEU C-40/17, "Fashion ID").
+   ---------------------------------------------------------------- */
+
+.profile-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.1rem;
+  margin-bottom: 1rem;
+}
+
+.profile-link {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0.75;
+  transition: opacity 0.15s ease;
+}
+.profile-link:hover, .profile-link:focus-visible { opacity: 1; }
+
+.profile-link img {
+  display: block;
+  width: auto;
+}

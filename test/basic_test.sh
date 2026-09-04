@@ -161,6 +161,8 @@ check_status "GET /                              → 200" "$BASE/"              
 check_status "GET /releases                      → 200" "$BASE/releases"                       200
 check_status "GET /releases/hello-world          → 200" "$BASE/releases/hello-world"           200
 check_status "GET /releases/hello-world/flac     → 303" "$BASE/releases/hello-world/flac"      303
+check_status "GET /releases/ill                  → 200" "$BASE/releases/ill"                   200
+check_status "GET /releases/ill/flac             → 303" "$BASE/releases/ill/flac"              303
 check_status "GET /releases/no-such-slug         → 404" "$BASE/releases/no-such-slug"          404
 check_status "GET /releases/hello-world/badformat→ 404" "$BASE/releases/hello-world/badformat" 404
 check_status "GET /notfound                      → 404" "$BASE/notfound"                       404

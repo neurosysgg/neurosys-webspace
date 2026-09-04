@@ -16,6 +16,7 @@ class Release
      * @param string     $title              The release title.
      * @param int        $bpm                Beats per minute (must be > 0).
      * @param MusicalKey $key                The musical key.
+     * @param Genre      $genre              The musical genre.
      * @param string     $description        A short description shown in release listings.
      * @param string     $soundcloudEmbedHtml Full SoundCloud embed HTML, or empty to hide the player.
      * @param string     $coverSrc           Direct URL to the cover art image.
@@ -27,6 +28,7 @@ class Release
         public string $title,
         public int $bpm,
         public MusicalKey $key,
+        public Genre $genre,
         public string $description,
         public string $soundcloudEmbedHtml,
         public string $coverSrc,
