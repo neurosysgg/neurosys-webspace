@@ -311,9 +311,15 @@ check_body "the consent gate is rendered"            "$BASE/releases/ill"  'play
 # so a tag name and its registration drifting apart is invisible. ViewTest pins the tag set from the
 # markup side; this checks the registrations from the other — every element assets/ts/ registers has
 # to actually appear in the page that is supposed to carry it.
+# The catalogue and a release page carry the whole vocabulary between them, so both are fetched.
+vocabulary=$(curl "${CURL_ARGS[@]}" "$BASE/releases" "$BASE/releases/ill" 2>/dev/null)
 for tag in $(grep -ho "customElements.define('[a-z][a-z0-9-]*'" "$REPO"/assets/ts/elements/*.ts \
              | sed "s/.*'\(.*\)'/\1/" | sort -u); do
-    check_body "<$tag> is registered and emitted"     "$BASE/releases/ill"  "<$tag"
+    if [[ "$vocabulary" == *"<$tag"* ]]; then
+        pass "<$tag> is registered and emitted"
+    else
+        fail "<$tag> is registered but no page emits it"
+    fi
 done
 # A PHP notice or warning leaking into the page means something is broken upstream.
 check_body "no PHP errors leak into the home page"   "$BASE/"              'Warning'   absent

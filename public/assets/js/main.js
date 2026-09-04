@@ -5,7 +5,10 @@
 // all it takes — the browser then upgrades every instance it parses, including markup the swap below
 // brings in, so there is nothing to re-run after a navigation.
 import './elements/CoverArt.js';
+import './elements/DownloadList.js';
 import './elements/PlayerConsent.js';
+import './elements/ReleaseCard.js';
+import './elements/TerminalWindow.js';
 import { Navigation } from './Navigation.js';
 Navigation.forDocument()?.start();
 //# sourceMappingURL=main.js.map

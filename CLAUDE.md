@@ -120,9 +120,10 @@ Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), s
 `Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
 500s any static file it has no `SetHandler` for.
 
-One class per file, named for the class, the way `src/NeuroSYS/` is. Nothing is a loose exported
-function any more: it is `Navigation.onNavigate()` or a method on an element, so a call site says
-where it came from.
+One component per file, named for its root element, the way `src/NeuroSYS/` is one class per file.
+A component's content tags are declared alongside their parent rather than scattered — `<terminal-cursor>`
+lives in `TerminalWindow.ts`. Nothing is a loose exported function: it is `Navigation.onNavigate()` or
+a method on an element, so a call site says where it came from.
 
 `tsconfig.json` runs `strict` plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`, and
 `module: nodenext` makes an extensionless relative import a compile error — a specifier the browser
@@ -133,14 +134,17 @@ would 404 on cannot ship. Same instinct as `CspHost` refusing anything but a bar
 A view's output is its own vocabulary. The tags that carry behaviour are self-contained — they build
 everything they show, so a view emits the tag and its attributes and nothing else:
 
-| Tag | Registered | Does |
+Every tag a view may emit is registered, one module per component, named for its root element. The
+ones with no behaviour are bare `HTMLElement` subclasses — CSS does their work — but they are declared
+all the same, so the vocabulary has one place to look rather than existing only as a CSS selector.
+
+| Module | Tags | Does |
 |---|---|---|
-| `<player-consent provider height embed>` | yes | builds the gate, reserves the player's height, then hosts the embed in place on click |
-| `<cover-art src fallback alt>` | yes | builds its `<img>`, falls back to the placeholder when the file host 404s |
-| `<terminal-window label [narrow]>` | no | the terminal frame; the title bar and its three lights are one CSS pseudo-element |
-| `<terminal-command>` `<terminal-field>` `<terminal-key [error]>` `<terminal-ok>` `<terminal-cursor>` | no | terminal content; the `$` sigil and the cursor glyph are drawn by CSS |
-| `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | no | the download group and its entries |
-| `<release-card slug>` `<release-title>` `<release-meta>` | no | a catalogue entry |
+| `PlayerConsent.ts` | `<player-consent provider height embed>` | builds the gate, reserves the player's height, then hosts the embed in place on click |
+| `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
+| `TerminalWindow.ts` | `<terminal-window label [narrow]>` `<terminal-command>` `<terminal-field>` `<terminal-key [error]>` `<terminal-ok>` `<terminal-cursor>` | none — the title bar and its three lights, the `$` sigil and the cursor glyph are all CSS |
+| `DownloadList.ts` | `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | none — each card wraps a real `<a data-no-spa>` |
+| `ReleaseCard.ts` | `<release-card slug>` `<release-title>` `<release-meta>` | none — the card wraps a real `<a>` |
 
 What stays native is what carries meaning or behaviour the browser provides: `<a>`, `<button>`,
 `<h1>`/`<h2>`, `<img>`, `<p>`, `<section>`. The card tags wrap their anchors rather than replacing
@@ -160,8 +164,8 @@ Two consequences of self-containment worth knowing:
 
 Adding an element means adding it to `ViewTest::testTheViewsEmitOnlyKnownCustomElements`, which pins
 the set: a misspelled tag renders as an inert inline box with no error otherwise. The verify script
-checks the other direction, that everything `assets/ts/elements/` registers appears in the served
-markup.
+checks the other direction, that every tag `assets/ts/elements/` registers appears in the markup of
+the catalogue or a release page — between them they carry the whole vocabulary.
 
 ### SPA navigation
 
