@@ -38,22 +38,33 @@ enum Platform: string
             self::Spotify    => '/assets/img/brand/spotify.svg',
             self::AppleMusic => '/assets/img/brand/apple-music-badge.svg',
             self::GitHub     => '/assets/img/brand/github.svg',
-            self::SoundCloud => '', // not vendored — see docs/branding.md
-            self::YouTube    => '', // not vendored — see docs/branding.md
-            self::X          => '', // not vendored — see docs/branding.md
+            self::SoundCloud => '/assets/img/brand/soundcloud.webp',
+            self::YouTube    => '/assets/img/brand/youtube.png',
+            self::X          => '/assets/img/brand/x.svg',
         };
     }
 
     /**
-     * Returns the rendered icon height in px.
+     * Returns the rendered icon height in px — the height of the *file*, which is
+     * not the same as the height of the mark inside it.
      *
      * Apple supplies a wide "Listen on Apple Music" lockup rather than a square
      * mark, so it sits slightly taller to read at the same optical weight.
      * Spotify's floor is 21px, so 24 clears it.
+     *
+     * YouTube's and SoundCloud's official files bake their required clear space
+     * into the canvas — the mark fills only 54% and 32% of the file height
+     * respectively. Both are therefore scaled up so the *visible* mark lands at
+     * roughly 20px and 18px, rather than the 13px and 8px a flat 24 would give.
+     * The files stay byte-for-byte unmodified and their clear space scales with
+     * them, which is what both guidelines ask for. Wide marks are set slightly
+     * shorter than square ones so they don't dominate the row.
      */
     public function iconHeight(): int
     {
         return match ($this) {
+            self::SoundCloud => 56,
+            self::YouTube    => 37,
             self::AppleMusic => 30,
             default          => 24,
         };

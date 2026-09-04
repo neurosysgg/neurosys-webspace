@@ -36,12 +36,27 @@ To add a platform: add a case to `src/NeuroSYS/Model/Platform.php` (label, icon 
 | `spotify.svg` | `2024-spotify-logo-icon.zip` → `Primary_Logo_White_RGB.svg`, from [developer.spotify.com/documentation/design](https://developer.spotify.com/documentation/design) | Spotify brand guidelines |
 | `apple-music-badge.svg` | "Listen on Apple Music" badge (black), [Apple Services Marketing Toolbox](https://toolbox.marketingtools.apple.com/en-us/apple-music) | [Apple Music Identity Guidelines](https://apple.com/itunes/marketing-on-music/identity-guidelines.html) |
 | `github.svg` | `mark-github-24.svg` from [primer/octicons](https://github.com/primer/octicons) | MIT |
+| `soundcloud.webp` | white cloud mark, [soundcloud.com/press](https://soundcloud.com/press) | SoundCloud brand guidelines |
+| `youtube.png` | white icon, [brand.youtube](https://brand.youtube/) | YouTube brand guidelines |
+| `x.svg` | white X mark, [X brand toolkit](https://about.x.com/en/who-we-are/brand-toolkit) | X brand guidelines |
 
 Spotify's and Apple's files are committed **byte-for-byte unmodified** — both sets of terms forbid altering the marks.
 Only the GitHub octicon is recoloured (to `#e8e8f0`), which its MIT licence permits.
 
+SoundCloud and YouTube only offered raster downloads (WebP and PNG), which is fine — the `<img>` doesn't care, both are
+far above the rendered size, and a raster file can't carry a script the way an SVG can. `x.svg` was checked and is a
+single `<path fill="white">` with no scripts, handlers or external references.
+
 Every vendored SVG is checked for `<script>`, event handlers and external references before committing. They are served
 from our own origin, so a hostile SVG would run in our security context.
+
+### Clear space is baked into the files — mind `iconHeight()`
+
+The YouTube and SoundCloud downloads carry their required clear space as transparent margin, so the mark fills only part
+of the canvas: 54% of the height for YouTube, **32%** for SoundCloud. A flat `height: 24px` would render the SoundCloud
+mark about 8px tall. `Platform::iconHeight()` scales the *file* (56px and 37px) so the *visible* marks land near 18px and
+20px, matching GitHub's 24px square optically. The files stay byte-for-byte unmodified and their clear space scales with
+them. Don't "fix" this by trimming the transparent margin — that's the clear space the guidelines require.
 
 ## Per-platform rules that constrain the design
 
@@ -59,22 +74,12 @@ from our own origin, so a hostile SVG would run in our security context.
   redrawn. On our `--bg` that means the white variant. Don't substitute the old bird mark.
 - **GitHub** — permissive for linking; use the official mark unmodified in shape.
 
-## Outstanding: SoundCloud, YouTube and X
+## Outstanding: Spotify and Apple Music
 
-All three have their profile URL set in `data/profiles.php` already, but **none of their icons is vendored**, so
-`ProfileRepository::all()` skips them and nothing renders broken. Each needs the same two steps:
+Both are waiting on DistroKid delivery — their icons are vendored, but `data/profiles.php` has no URL for them yet, so
+`ProfileRepository::all()` skips them. Paste the profile URLs once the profiles exist and they appear.
 
-| Platform | Get the asset from | Save as | Then |
-|---|---|---|---|
-| SoundCloud | <https://soundcloud.com/press> | `public/assets/img/brand/soundcloud.svg` | fill in `Platform::SoundCloud`'s `iconSrc()` |
-| YouTube | <https://brand.youtube/> — JS app, not fetchable programmatically | `public/assets/img/brand/youtube.svg` | fill in `Platform::YouTube`'s `iconSrc()` |
-| X | <https://about.x.com/en/who-we-are/brand-toolkit> | `public/assets/img/brand/x.svg` | fill in `Platform::X`'s `iconSrc()` |
-
-Take the **white** variant of each — our `--bg` is dark, and all three sets of guidelines restrict recolouring. Check the
-file for `<script>`, event handlers and external references before committing, as with every other vendored asset. The
-links appear in the footer the moment `iconSrc()` returns a path.
-
-Until then the footer shows **GitHub only** (Spotify and Apple Music are waiting on DistroKid delivery).
+The footer currently shows **SoundCloud, YouTube, X and GitHub**.
 
 ## Not covered here
 
