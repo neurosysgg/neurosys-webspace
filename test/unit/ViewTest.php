@@ -20,8 +20,12 @@ use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
+use NeuroSYS\View\Html\CoverArtAttribute;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\StatsView;
 use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalAttribute;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -33,6 +37,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(NotFoundView::class)]
 #[CoversClass(StatsView::class)]
 #[CoversClass(Layout::class)]
+#[CoversClass(Element::class)]
 #[CoversClass(Terminal::class)]
 #[CoversClass(TerminalField::class)]
 final class ViewTest extends TestCase
@@ -216,6 +221,83 @@ final class ViewTest extends TestCase
         yield [SoundCloudPlayerStyle::Classic, 166];
     }
 
+    // ───────────────────────────── Element ─────────────────────────────
+
+    public function testAnElementRendersItsTagAndAttributes(): void
+    {
+        self::assertSame(
+            '<cover-art src="/a.png" alt="a"></cover-art>',
+            new Element(Tag::CoverArt)
+                ->with(CoverArtAttribute::Src, '/a.png')
+                ->with(CoverArtAttribute::Alt, 'a')
+                ->render(),
+        );
+    }
+
+    /**
+     * The reason this class exists. Escaping used to be a htmlspecialchars() call per attribute at
+     * every call site, and forgetting one is an injection — so it happens here, once, or not at all.
+     */
+    public function testAnAttributeValueCannotBreakOutOfItsAttribute(): void
+    {
+        $html = new Element(Tag::CoverArt)
+            ->with(CoverArtAttribute::Alt, '" onload="alert(1)')
+            ->render();
+
+        self::assertSame('<cover-art alt="&quot; onload=&quot;alert(1)"></cover-art>', $html);
+    }
+
+    /** A boolean attribute and an empty value are different things, and render differently. */
+    public function testABooleanAttributeIsBareAndAnEmptyValueIsNot(): void
+    {
+        self::assertSame(
+            '<terminal-window command="" narrow></terminal-window>',
+            new Element(Tag::TerminalWindow)
+                ->with(TerminalAttribute::Command, '')
+                ->withFlag(TerminalAttribute::Narrow)
+                ->render(),
+        );
+    }
+
+    public function testAFlagThatIsNotSetIsLeftOffEntirely(): void
+    {
+        self::assertSame(
+            '<terminal-window></terminal-window>',
+            new Element(Tag::TerminalWindow)->withFlag(TerminalAttribute::Narrow, false)->render(),
+        );
+    }
+
+    /** `secret-token=""` is not the same thing to the client as no token, so it is left off. */
+    public function testAnOptionalAttributeIsOmittedWhenEmptyAndKeptWhenNot(): void
+    {
+        $bare = new Element(Tag::CoverArt)->withOptional(CoverArtAttribute::Fallback, '')->render();
+        $set  = new Element(Tag::CoverArt)->withOptional(CoverArtAttribute::Fallback, '/f.svg')->render();
+
+        self::assertSame('<cover-art></cover-art>', $bare);
+        self::assertSame('<cover-art fallback="/f.svg"></cover-art>', $set);
+    }
+
+    /** Immutable like the policies and the collections — every builder method returns a copy. */
+    public function testBuildingDoesNotMutateTheElementBuiltFrom(): void
+    {
+        $empty = new Element(Tag::CoverArt);
+        $empty->with(CoverArtAttribute::Src, '/a.png');
+
+        self::assertSame('<cover-art></cover-art>', $empty->render());
+    }
+
+    public function testTheSameAttributeTwiceKeepsTheLastValueAndItsPosition(): void
+    {
+        self::assertSame(
+            '<cover-art src="/b.png" alt="a"></cover-art>',
+            new Element(Tag::CoverArt)
+                ->with(CoverArtAttribute::Src, '/a.png')
+                ->with(CoverArtAttribute::Alt, 'a')
+                ->with(CoverArtAttribute::Src, '/b.png')
+                ->render(),
+        );
+    }
+
     // ───────────────────────────── Terminal ─────────────────────────────
 
     /**
@@ -282,7 +364,10 @@ final class ViewTest extends TestCase
         $tags = array_values(array_unique($m[1]));
         sort($tags);
 
+        $known = array_map(static fn(Tag $tag): string => $tag->value, Tag::cases());
+
         self::assertNotEmpty($tags);
+        self::assertSame([], array_values(array_diff($tags, $known)));
         self::assertSame(
             [
                 'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
@@ -290,6 +375,38 @@ final class ViewTest extends TestCase
                 'soundcloud-player', 'terminal-window',
             ],
             $tags,
+        );
+    }
+
+    /**
+     * The other direction, and the one that catches a rename: a case added to {@link Tag} that no
+     * view emits and no element builds is a tag nothing has. The five the terminal builds on the
+     * client are the expected exceptions, and naming them here is the point — the list says which
+     * tags exist only after the script runs, which is the same list CLAUDE.md's no-JS note is about.
+     */
+    public function testEveryTagIsEitherServedOrBuiltByAnElement(): void
+    {
+        $html = new ReleaseView(
+            $this->release(
+                embed:   new SoundCloudEmbed(trackId: 1, permalink: 'x'),
+                formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+            ),
+            'ill',
+        )->content()
+            . new ReleasesView(new SearchableCollection(Release::class)->with('ill', $this->release()))->content()
+            . new NotFoundView('/x')->content();
+
+        $unserved = array_values(array_filter(
+            Tag::cases(),
+            static fn(Tag $tag): bool => !str_contains($html, '<' . $tag->value),
+        ));
+
+        self::assertSame(
+            [
+                Tag::TerminalCommand, Tag::TerminalField, Tag::TerminalKey,
+                Tag::TerminalValue, Tag::TerminalCursor,
+            ],
+            $unserved,
         );
     }
 

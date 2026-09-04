@@ -7,6 +7,8 @@ namespace NeuroSYS\Model\Embed;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Tag;
 
 /**
  * The SoundCloudEmbed class. A SoundCloud player declared as typed parameters.
@@ -91,23 +93,16 @@ final readonly class SoundCloudEmbed implements Embed
             $this->options->all(),
         ));
 
-        return '<soundcloud-player'
-            . ' track-id="' . $this->trackId . '"'
-            . ' permalink="' . htmlspecialchars($this->permalink) . '"'
-            . $this->secretTokenAttribute()
-            . ' player-style="' . $this->style->value . '"'
-            . ' options="' . htmlspecialchars($options) . '"'
-            . ' track-title="' . htmlspecialchars($title) . '"'
-            . ' height="' . $this->height() . '"'
-            . '></soundcloud-player>';
-    }
-
-    /** A public track carries no token, so the attribute is left off rather than sent empty. */
-    private function secretTokenAttribute(): string
-    {
-        return $this->secretToken === ''
-            ? ''
-            : ' secret-token="' . htmlspecialchars($this->secretToken) . '"';
+        return new Element(Tag::SoundCloudPlayer)
+            ->with(SoundCloudPlayerAttribute::TrackId, $this->trackId)
+            ->with(SoundCloudPlayerAttribute::Permalink, $this->permalink)
+            // A public track carries no token, so the attribute is left off rather than sent empty.
+            ->withOptional(SoundCloudPlayerAttribute::SecretToken, $this->secretToken)
+            ->with(SoundCloudPlayerAttribute::PlayerStyle, $this->style->value)
+            ->with(SoundCloudPlayerAttribute::Options, $options)
+            ->with(SoundCloudPlayerAttribute::TrackTitle, $title)
+            ->with(SoundCloudPlayerAttribute::Height, $this->height())
+            ->render();
     }
 
     /**

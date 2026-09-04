@@ -7,6 +7,11 @@ namespace NeuroSYS\View;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\View\Html\CardAttribute;
+use NeuroSYS\View\Html\CoverArtAttribute;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\LinkAttribute;
+use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
@@ -56,14 +61,16 @@ class ReleaseView extends View
             ),
         )->toElement();
 
-        $coverSrc    = htmlspecialchars($release->cover?->url() ?? self::COVER_PLACEHOLDER);
-        $alt         = htmlspecialchars($release->title . ' cover art');
-        $placeholder = self::COVER_PLACEHOLDER;
+        $cover = new Element(Tag::CoverArt)
+            ->with(CoverArtAttribute::Src, $release->cover?->url() ?? self::COVER_PLACEHOLDER)
+            ->with(CoverArtAttribute::Fallback, self::COVER_PLACEHOLDER)
+            ->with(CoverArtAttribute::Alt, $release->title . ' cover art')
+            ->render();
 
         return <<<HTML
             <section class="hero">
               $terminal
-              <cover-art src="$coverSrc" fallback="$placeholder" alt="$alt"></cover-art>
+              $cover
             </section>
             HTML;
     }
@@ -114,11 +121,10 @@ class ReleaseView extends View
     /**
      * Builds the click-to-load consent placeholder for the release's embed.
      *
-     * The markup never reaches the page directly — it is escaped into the element's `embed`
-     * attribute and only swapped in by <player-consent> once the visitor clicks, so nothing
-     * is requested from the provider until then. The element builds the gate itself, including
-     * the notice naming the provider; all this has to emit is the tag. The provider comes from
-     * the embed rather than being hardcoded, so a non-SoundCloud embed needs no change here.
+     * Nothing reaches the page but the tag and its attributes: <soundcloud-player> builds the gate,
+     * and only builds the iframe once the visitor clicks it, so nothing is requested from the
+     * provider before then. The provider comes from the embed rather than being hardcoded, so a
+     * non-SoundCloud embed needs no change here.
      */
     private function playerHtml(): string
     {
@@ -131,28 +137,38 @@ class ReleaseView extends View
         return $embed->toElement($this->release->title);
     }
 
-    /** Builds the download card links for all formats on this release. */
+    /**
+     * Builds the download card links for all formats on this release.
+     *
+     * The `<a>` inside stays server-rendered and stays native: downloads have to work without JS,
+     * and `data-no-spa` has to land on a real link or the SPA router fetches the 303 and swallows
+     * it. That is why the card wraps the anchor rather than replacing it.
+     */
     private function downloadCards(): string
     {
         $cards = '';
         $slug  = htmlspecialchars($this->slug);
+        $noSpa = LinkAttribute::NoSpa->attribute();
 
         foreach ($this->release->formats->all() as $format) {
             $type  = $format->type->value;
             $label = htmlspecialchars($format->type->label());
             $meta  = htmlspecialchars($this->formatMeta($format->type));
-            $cards .= <<<HTML
-                    <download-card format="$type">
-                      <a data-no-spa href="/releases/$slug/$type">
-                        <download-label>$label</download-label>
-                        <download-meta>$meta</download-meta>
-                      </a>
-                    </download-card>
 
-                HTML;
+            $cards .= new Element(Tag::DownloadCard)
+                ->with(CardAttribute::Format, $type)
+                ->containing(<<<HTML
+
+                          <a $noSpa href="/releases/$slug/$type">
+                            <download-label>$label</download-label>
+                            <download-meta>$meta</download-meta>
+                          </a>
+
+                        HTML)
+                ->render() . "\n";
         }
 
-        return $cards;
+        return self::indent(rtrim($cards), 4);
     }
 
     /**

@@ -6,6 +6,8 @@ namespace NeuroSYS\View\Terminal;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Tag;
 
 /**
  * The Terminal class. A terminal window declared as typed values.
@@ -52,11 +54,11 @@ final readonly class Terminal
             JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
         );
 
-        return '<terminal-window'
-            . ' label="' . htmlspecialchars($this->label) . '"'
-            . ' command="' . htmlspecialchars($this->command) . '"'
-            . ' fields="' . htmlspecialchars($fields) . '"'
-            . ($this->narrow ? ' narrow' : '')
-            . '></terminal-window>';
+        return new Element(Tag::TerminalWindow)
+            ->with(TerminalAttribute::Label, $this->label)
+            ->with(TerminalAttribute::Command, $this->command)
+            ->with(TerminalAttribute::Fields, $fields)
+            ->withFlag(TerminalAttribute::Narrow, $this->narrow)
+            ->render();
     }
 }
