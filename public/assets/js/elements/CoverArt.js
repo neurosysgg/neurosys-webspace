@@ -24,4 +24,4 @@ export class CoverArt extends HTMLElement {
     }
 }
 customElements.define('cover-art', CoverArt);
-//# sourceMappingURL=cover-art.js.map
+//# sourceMappingURL=CoverArt.js.map

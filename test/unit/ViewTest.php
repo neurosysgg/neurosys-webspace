@@ -244,7 +244,7 @@ final class ViewTest extends TestCase
     // ───────────────────────────── downloads ─────────────────────────────
 
     /**
-     * Without data-no-spa the 303 is swallowed by nav.ts's fetch and downloads
+     * Without data-no-spa the 303 is swallowed by Navigation's fetch and downloads
      * silently stop working.
      */
     public function testEveryDownloadCardBypassesTheSpaRouter(): void

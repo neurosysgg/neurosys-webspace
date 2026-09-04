@@ -84,7 +84,7 @@ final class ResponseTest extends TestCase
         self::assertStringContainsString('site-footer', $html);
     }
 
-    /** nav.ts swaps this straight into #content, so a full document here would nest one. */
+    /** Navigation swaps this straight into #content, so a full document here would nest one. */
     public function testAnAjaxRequestGetsAFragmentWithNoDocumentShell(): void
     {
         $html = $this->render(new ViewResponse(new HomeView()), $this->request('/', ajax: true));
@@ -105,7 +105,7 @@ final class ResponseTest extends TestCase
     }
 
     /**
-     * nav.ts HTML-decodes this before assigning document.title. The two have to agree:
+     * Navigation HTML-decodes this before assigning document.title. The two have to agree:
      * the fragment escapes, the client decodes.
      */
     public function testTheAjaxTitleIsEscapedSoTheClientCanDecodeIt(): void

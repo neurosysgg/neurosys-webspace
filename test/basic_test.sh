@@ -301,7 +301,7 @@ check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"   
 echo ""
 echo "=== Rendered output ==="
 
-# Download links must bypass nav.ts, or the 303 is consumed by fetch and nothing downloads.
+# Download links must bypass Navigation, or the 303 is consumed by fetch and nothing downloads.
 check_body "download cards carry data-no-spa"        "$BASE/releases/ill"  'data-no-spa'
 # Nothing may be requested from SoundCloud before the visitor clicks the consent gate.
 check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<iframe'   absent

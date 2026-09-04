@@ -3,11 +3,11 @@
  */
 
 // Imported for the side effect: each module registers its element with the browser. Registration is
-// all it takes — the browser then upgrades every instance it parses, including markup nav.ts swaps
-// into #content, so there is nothing to re-run after a navigation.
-import './elements/cover-art.js';
-import './elements/player-consent.js';
+// all it takes — the browser then upgrades every instance it parses, including markup the swap below
+// brings in, so there is nothing to re-run after a navigation.
+import './elements/CoverArt.js';
+import './elements/PlayerConsent.js';
 
-import { initNav } from './nav.js';
+import { Navigation } from './Navigation.js';
 
-initNav();
+Navigation.forDocument()?.start();

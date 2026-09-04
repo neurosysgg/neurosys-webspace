@@ -7,7 +7,7 @@
  *
  * The gate's own content is server-rendered, so it reads correctly with no JS; all this class adds
  * is the height reservation and the click. Being an element rather than a `querySelectorAll` sweep
- * means the browser upgrades it on its own when nav.ts swaps #content — there is nothing to re-run.
+ * means the browser upgrades it on its own when Navigation swaps #content — there is nothing to re-run.
  */
 export class PlayerConsent extends HTMLElement {
   private wired = false;

@@ -58,7 +58,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   (CJEU C-40/17) — see [branding.md](branding.md).
 - **Download logging stays off.** `ServiceTest` asserts `DownloadLogger::ENABLED === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
-- **Download cards carry `data-no-spa`.** Without it `nav.ts` fetches the 303 and swallows it, and
+- **Download cards carry `data-no-spa`.** Without it `Navigation` fetches the 303 and swallows it, and
   downloads silently stop working while every page still looks fine.
 - **The set of custom elements is closed.** An element the browser has never heard of renders as an
   inert inline box with no error, so a misspelled tag is invisible. `ViewTest` pins the tag set the

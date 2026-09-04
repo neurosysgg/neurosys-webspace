@@ -103,11 +103,10 @@ TypeScript, compiled to browser-native ES modules. No bundler, no framework.
 ```
 assets/ts/                    ← sources; outside public/, neither web-served nor deployed
 ├── main.ts                   ← entry point, the only <script> Layout.php loads
-├── nav.ts                    ← SPA navigation
-├── dom.ts                    ← shared typed helpers, and the navigate event
+├── Navigation.ts             ← class Navigation — SPA navigation
 └── elements/
-    ├── player-consent.ts     ← <player-consent>
-    └── cover-art.ts          ← <cover-art>
+    ├── PlayerConsent.ts      ← class PlayerConsent — <player-consent>
+    └── CoverArt.ts           ← class CoverArt — <cover-art>
       ↓ npm run build
 public/assets/js/             ← generated, committed, deployed
 ```
@@ -118,8 +117,12 @@ if the committed output has drifted from the sources: `deploy.sh` rsyncs `public
 working tree, so a forgotten rebuild would ship stale JS and nothing else would notice.
 
 Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), so DevTools shows
-`nav.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
+`Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
 500s any static file it has no `SetHandler` for.
+
+One class per file, named for the class, the way `src/NeuroSYS/` is. Nothing is a loose exported
+function any more: it is `Navigation.onNavigate()` or a method on an element, so a call site says
+where it came from.
 
 `tsconfig.json` runs `strict` plus `noUncheckedIndexedAccess` and `exactOptionalPropertyTypes`, and
 `module: nodenext` makes an extensionless relative import a compile error — a specifier the browser
@@ -150,14 +153,14 @@ appears in the served markup.
 
 ### SPA navigation
 
-`nav.ts` intercepts internal link clicks, fetches the content fragment via XHR (`X-Requested-With:
+`Navigation` intercepts internal link clicks, fetches the content fragment via XHR (`X-Requested-With:
 XMLHttpRequest`), and swaps `#content`. Download links carry `data-no-spa` to bypass this and trigger
 real navigation (otherwise the 303 is consumed silently by fetch).
 
 Nothing re-runs after a swap. The browser upgrades any custom element it parses, including markup
-assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. `nav.ts` still
-fires a `neurosys:navigate` event on `document` — reach it through `onNavigate()` in `dom.ts` rather
-than the string — for anything that is not an element and does need to know.
+assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. `Navigation`
+still fires a `neurosys:navigate` event on `document` — subscribe with `Navigation.onNavigate()`
+rather than the string — for anything that is not an element and does need to know.
 
 ## Adding a release
 
