@@ -190,14 +190,19 @@ final class ViewTest extends TestCase
         self::assertStringNotContainsString('player-consent', $html);
     }
 
-    /** The gate reserves the player's own height so the page doesn't jump on load. */
+    /**
+     * The gate reserves the player's own height so the page doesn't jump on load. Carried as
+     * a data attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for
+     * our own markup — player.js turns it into --player-height.
+     */
     #[DataProvider('playerHeightProvider')]
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
     {
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x', style: $style);
         $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
 
-        self::assertStringContainsString("--player-height:{$height}px", $html);
+        self::assertStringContainsString('data-player-height="' . $height . '"', $html);
+        self::assertStringNotContainsString('style="', $html);
     }
 
     public static function playerHeightProvider(): iterable

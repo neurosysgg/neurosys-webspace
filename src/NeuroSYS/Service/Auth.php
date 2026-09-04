@@ -47,7 +47,7 @@ class Auth
         $creds = require dirname(__DIR__, 3) . '/data/admin.php';
 
         $ok = $creds['pass_hash'] !== ''
-           && $request->authUser() === $creds['user']
+           && hash_equals($creds['user'], $request->authUser())
            && password_verify($request->authPassword(), $creds['pass_hash']);
 
         if (!$ok) {

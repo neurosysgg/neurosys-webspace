@@ -64,6 +64,32 @@ check_body() {
     fi
 }
 
+# Assert that a response header matches a pattern. header() is a no-op under CLI, so this
+# is the only place the headers can actually be observed.
+check_header() {
+    local desc="$1"; local url="$2"; local pattern="$3"; local method="${4:-HEAD}"
+    local headers
+    # -D dumps headers for any method; -I would force HEAD, which the 405 gate allows.
+    headers=$(curl "${CURL_ARGS[@]}" -X "$method" -o /dev/null -D - "$url" 2>/dev/null | tr -d '\r') || true
+    if echo "$headers" | grep -qi -- "$pattern"; then
+        pass "$desc"
+    else
+        fail "$desc (no header matching '$pattern')"
+    fi
+}
+
+# Assert an HTTP status code for a given method.
+check_method() {
+    local desc="$1"; local method="$2"; local url="$3"; local expected="$4"
+    local actual
+    actual=$(curl "${CURL_ARGS[@]}" -X "$method" -o /dev/null -w "%{http_code}" "$url") || true
+    if [[ "$actual" == "$expected" ]]; then
+        pass "$desc ($actual)"
+    else
+        fail "$desc (expected $expected, got $actual)"
+    fi
+}
+
 # Assert that an AJAX request returns a 200 fragment (no <html> tag).
 check_spa_fragment() {
     local desc="$1"; local url="$2"
@@ -253,6 +279,36 @@ check_body "the privacy policy is served"            "$BASE/privacy"       'Date
 # HiDrive receives the visitor's IP on a download, so the policy has to say so.
 check_body "the privacy policy names HiDrive"        "$BASE/privacy"       'HiDrive'
 check_body "the imprint carries a legal name"        "$BASE/imprint"       'Niclas Ahl'
+
+
+echo ""
+echo "=== Security headers ==="
+# Sent from index.php before dispatch, so they cover every response the app produces.
+
+check_header "Content-Security-Policy is sent"        "$BASE/"             "^content-security-policy:"
+check_header "  script-src is strict"                 "$BASE/"             "script-src 'self'"
+check_header "  only HiDrive may serve images"        "$BASE/"             "img-src 'self' data: https://my.hidrive.com"
+check_header "  only SoundCloud may be framed"        "$BASE/"             "frame-src https://w.soundcloud.com"
+check_header "  the site may not be framed"           "$BASE/"             "frame-ancestors 'none'"
+check_header "Referrer-Policy is set"                 "$BASE/"             "^referrer-policy: strict-origin-when-cross-origin"
+check_header "X-Content-Type-Options is set"          "$BASE/"             "^x-content-type-options: nosniff"
+check_header "Permissions-Policy is set"              "$BASE/"             "^permissions-policy:"
+# A download redirect is where the Referer would otherwise leak to the file host.
+check_header "headers reach a 303 too"                "$BASE/releases/ill/flac" "^referrer-policy:"
+check_header "headers reach a 404 too"                "$BASE/nope"         "^content-security-policy:"
+
+
+echo ""
+echo "=== Read-only method gate ==="
+# Every route is a read; a write method must not be silently treated as a GET.
+
+check_method "POST   /                    → 405" POST   "$BASE/"                           405
+check_method "POST   /releases/ill/flac   → 405" POST   "$BASE/releases/ill/flac"          405
+check_method "DELETE /releases/ill/flac   → 405" DELETE "$BASE/releases/ill/flac"          405
+check_method "PUT    /admin/stats         → 405" PUT    "$BASE/admin/stats"                405
+check_method "HEAD   /                    → 200" HEAD   "$BASE/"                           200
+check_header "the 405 names the allowed methods" "$BASE/" "^allow: GET, HEAD" POST
+
 
 # AJAX requests should return a page fragment, not a full HTML document.
 check_spa_fragment "AJAX /         returns fragment only" "$BASE/"

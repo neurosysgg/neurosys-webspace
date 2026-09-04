@@ -58,6 +58,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   downloads silently stop working while every page still looks fine.
 - **The consent gate reserves the player's height.** `Embed::height()` feeds `--player-height`, so the
   placeholder and the real iframe are the same size and the page doesn't jump.
+- **No view emits an inline style or event handler.** The CSP's `style-src` allowance exists only for the
+  SoundCloud attribution markup we reproduce verbatim; a test keeps that allowance from quietly covering
+  our own markup too.
+- **The CSP names no host but HiDrive and SoundCloud.** A CDN sneaking into a future edit fails the test
+  rather than shipping.
 - **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
   into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
 

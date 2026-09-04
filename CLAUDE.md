@@ -49,7 +49,16 @@ src/NeuroSYS/
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
 
-`public/index.php` is four statements: parse request → site auth check → `Router::dispatch()` → send.
+`public/index.php` is five statements: security headers → parse request → site auth check →
+`Router::dispatch()` → send.
+
+`SecurityHeaders::send()` runs before anything else, so the CSP and `Referrer-Policy` cover every response
+including the 401 `Auth` exits with and the 303 a download redirects with. The CSP allows images only from
+HiDrive and frames only from SoundCloud; `script-src` is strict, and no view emits an inline style or event
+handler (a test enforces that). `style-src` keeps `'unsafe-inline'` solely because `SoundCloudEmbed`
+reproduces SoundCloud's attribution markup verbatim.
+
+The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405 and `Allow: GET, HEAD`.
 
 ## How the router works
 

@@ -329,7 +329,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
   justify-content: center;
   gap: 0.75rem;
   /* Matches the iframe that replaces it, so the page doesn't jump on load.
-     ReleaseView sets --player-height from SoundCloudPlayerStyle::height(). */
+     player.js sets --player-height from the embed's own data-player-height. */
   height: var(--player-height, 300px);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -367,6 +367,9 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .dl-label::before { content: "↓ "; color: var(--accent); }
 
 .dl-meta { font-size: 0.8rem; color: var(--muted); }
+
+.terminal-narrow { max-width: 480px; }
+.back-home       { margin-top: 1.5rem; }
 
 /* ---------------------------------------------------------------
    Stats

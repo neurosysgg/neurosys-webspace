@@ -68,7 +68,7 @@ class ReleaseView extends View
               <div class="cover-art">
                 <img
                   src="$coverSrc"
-                  onerror="this.src='$placeholder';this.onerror=null"
+                  data-fallback="$placeholder"
                   alt="$alt"
                 />
               </div>
@@ -141,7 +141,7 @@ class ReleaseView extends View
 
         return <<<HTML
             <div class="player">
-              <div class="player-consent" style="--player-height:{$height}px" data-embed="$markup">
+              <div class="player-consent" data-player-height="$height" data-embed="$markup">
                 <p class="player-consent-label">$provider player</p>
                 <button class="btn-primary player-consent-btn">Load player</button>
                 <p class="player-consent-hint">Third-party content — clicking connects you to $provider&rsquo;s servers.</p>

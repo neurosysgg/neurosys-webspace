@@ -18,3 +18,6 @@ data/.site_auth.php
 /vendor/
 .phpunit.cache/
 .php-cs-fixer.cache
+
+# phpactor writes this on first attach; editor state, not project config
+.phpactor.json

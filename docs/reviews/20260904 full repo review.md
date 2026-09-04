@@ -143,29 +143,40 @@ comment complained about. See `docs/testing.md`.
 
 ## noted, not recommending action
 
+*(the first four were done anyway, in a follow-up commit — see the outcomes)*
+
 - **no security headers at all** — no `Referrer-Policy`, `X-Content-Type-Options`, `CSP`. The one I'd actually
   consider is `Referrer-Policy: strict-origin-when-cross-origin`: once the consent gate is clicked, the
   SoundCloud iframe currently gets the full release URL as `Referer`. CSP is a bigger job — the `onerror=` inline
   handler on the cover `<img>` ([ReleaseView.php:70](src/NeuroSYS/View/ReleaseView.php:70)) would have to go first.
-  → **STILL OPEN — deliberately. Worth doing `Referrer-Policy` on its own sometime; CSP needs the inline `onerror=` gone first.**
+  → **FIXED — all of them, via a new `Http\SecurityHeaders` sent from `index.php` before dispatch, so they
+  cover the 401, the 303 and the 404 too. The inline `onerror=` and both `NotFoundView` inline styles are
+  gone, so `script-src 'self'` is strict. `style-src` keeps `'unsafe-inline'` on purpose: `SoundCloudEmbed`
+  reproduces SoundCloud's attribution markup verbatim, inline styles and all, and that is the point of the
+  class. A test asserts our own views emit no inline style or handler, so that allowance stays scoped to
+  the reproduced block. Verified in-browser: zero CSP violations, player still loads after consent.**
 - **no HTTP method check anywhere** — `POST`/`PUT`/`DELETE /releases/ill/flac` all 303 like a GET (verified).
   Harmless on a read-only site; `Route` would need a method field to fix, which isn't worth it yet.
-  → **STILL OPEN — deliberately, as noted.**
+  → **FIXED — `Request::isReadOnly()` plus a gate in `Router::dispatch()`; anything but GET/HEAD gets a 405
+  with `Allow: GET, HEAD`. `PlainTextResponse` gained a `$headers` parameter to carry it.**
 - **`StatsController::parseLog()` would fatal if `file()` returned false** (unreadable-but-existing log). Currently
   unreachable — `ENABLED` is false so `parseLog()` never runs. Worth remembering if logging is ever switched on,
   alongside the missing-`data/logs/` note already in `CLAUDE.md`.
-  → **STILL OPEN — unreachable while logging is off.**
+  → **FIXED — `file(...) ?: []`. Still unreachable today, but it no longer becomes a bug the moment logging
+  is switched on.**
 - **`Route::matches()` doesn't `preg_quote()` the pattern** ([Route.php:28](src/NeuroSYS/Support/Route.php:28)).
   Fine while all seven patterns are hardcoded and metacharacter-free; a future pattern with a `.` in it would
   quietly become a wildcard.
   → **MITIGATED — a unit test now asserts every registered pattern is metacharacter-free, so this can't silently start biting.**
 - **`Auth` compares usernames with `!==`, not `hash_equals`** — timing side channel on a username, which is
   `admin`. Not worth the change.
-  → **STILL OPEN — deliberately, as noted.**
+  → **FIXED — `hash_equals` in both gates. Cheap enough that "not worth it" stopped being true once the
+  file was open anyway.**
 - **percent-encoded slugs 404** (`/releases/hello%2Dworld`). Arguably correct — one canonical URL per release.
 - **assets bypass site auth** — `.htaccess` passes real files through before `index.php` runs, so during pre-launch
   the CSS/JS/brand icons are public. Irrelevant for what's in there.
 - `data/privacy.html` mentions "Kontaktformular" once in the boilerplate intro; there is no contact form.
+  → **FIXED — both languages now say we don't operate one, and point at email instead.**
 - `data/.site_auth.php` gets uploaded by `deploy.sh` (rsync copies dotfiles). Inert — `Auth` looks for
   `site_auth.php` without the dot — but the preview password does end up sitting on the server.
   → **FIXED — `deploy.sh` now excludes it along with the other credential files.**

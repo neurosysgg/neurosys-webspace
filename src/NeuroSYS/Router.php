@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS;
 
 use NeuroSYS\Controller\NotFoundController;
+use NeuroSYS\Http\HttpStatusCode;
+use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Support\Collection;
@@ -26,6 +28,16 @@ readonly class Router
      */
     public function dispatch(Request $request): Response
     {
+        // Every route is a read. Without this, POST/PUT/DELETE to a download route
+        // would 303 exactly like a GET.
+        if (!$request->isReadOnly()) {
+            return new PlainTextResponse(
+                HttpStatusCode::MethodNotAllowed,
+                "This site is read-only.\n",
+                ['Allow: GET, HEAD'],
+            );
+        }
+
         foreach ($this->routes as $route) {
             if (($params = $route->matches($request->path())) !== false) {
                 return $route->createController($params)->handle($request);

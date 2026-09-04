@@ -57,7 +57,8 @@ class StatsController implements Controller
         $byDay    = [];
         $total    = 0;
 
-        foreach (file($this->logFile) as $rawLine) {
+        // file() returns false on a log that exists but can't be read; foreach would TypeError.
+        foreach (file($this->logFile) ?: [] as $rawLine) {
             $entry = DownloadLogEntry::fromJson(trim($rawLine));
             if ($entry === null) {
                 continue;
