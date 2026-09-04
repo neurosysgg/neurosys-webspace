@@ -1,4 +1,6 @@
+import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { Platform, displayName } from '../../model/Platform.js';
+import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 
 /**
  * Base for a player that loads from someone else's servers.
@@ -36,7 +38,7 @@ export abstract class ConsentGatedEmbed extends HTMLElement {
    * CSP needs no 'unsafe-inline' for our own markup.
    */
   private reserveHeight(): void {
-    const height = this.getAttribute('height');
+    const height = this.getAttribute(SoundCloudPlayerAttribute.Height);
 
     // The stylesheet carries its own fallback, so bailing out here is safe — an empty attribute
     // would otherwise set --player-height to "undefinedpx", which CSS drops.
@@ -65,6 +67,6 @@ export abstract class ConsentGatedEmbed extends HTMLElement {
   /** Swaps the gate for the real player, in place. The `loaded` attribute restyles the box. */
   private load(): void {
     this.replaceChildren(this.buildEmbed());
-    this.setAttribute('loaded', '');
+    this.setAttribute(EmbedAttribute.Loaded, '');
   }
 }

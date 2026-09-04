@@ -96,6 +96,14 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **A tag outside the element it belongs inside says so.** `NestedElement` is what the otherwise
   behaviourless classes do; `terminal-window.test.mjs` asserts both that it fires and that it looks
   through the card anchors rather than only at the direct parent.
+- **No attribute value reaches the markup unescaped.** `Element` escapes once, in one place, rather
+  than a `htmlspecialchars()` call per attribute at every call site — forgetting one of those is an
+  injection. `ViewTest` asserts a value carrying `" onload="` comes back fully escaped, and that a
+  boolean attribute and an empty value stay distinguishable (`narrow` vs `options=""`).
+- **The tag and attribute names match their PHP originals.**  The same parity test as the value
+  enums, but they fail differently: a wrong value usually shows, a wrong name shows as nothing —
+  `getAttribute` returns null, or the browser lays out an inert inline box. `tone` and `loaded` are
+  the two with no PHP side, read only by the stylesheet, and no test can follow them.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.

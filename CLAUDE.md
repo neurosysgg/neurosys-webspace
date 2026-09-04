@@ -65,6 +65,8 @@ src/NeuroSYS/
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization, JsonDeserializable
 ├── View/           ← View abstract base + one concrete per page; HTML via heredoc, no template files
+│   ├── Html/       ← Tag, HtmlAttribute + Element; every custom element is built from these
+│   └── Terminal/   ← Terminal, TerminalField + the enums they compose
 ├── Layout.php      ← static wrap(View): string — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
@@ -249,10 +251,22 @@ subclass, and nothing else.
 That means the server's output carries no SoundCloud address at all, which is a stronger version of
 the old guarantee: there is nothing for a browser to preconnect or prefetch before the visitor agrees.
 
-Building the URL client-side needs the query keys client-side, so `assets/ts/model/` mirrors four
-enums — `Platform` (with `displayName()`), `SoundCloudOption`, `SoundCloudPlayerStyle` (with
-`isVisual()`) and `TerminalTone`. Only what is read here: nothing client-side touches `Genre`,
-`MusicalKey` or `ReleaseFormat`, and a mirror with no reader is just something to keep in sync.
+Building the URL client-side needs the query keys client-side, so `assets/ts/model/` mirrors what
+the client reads: four value enums — `Platform` (with `displayName()`), `SoundCloudOption`,
+`SoundCloudPlayerStyle` (with `isVisual()`) and `TerminalTone` — and five name enums, `Tag` plus the
+attribute enums for the player, the terminal, the cover and the `<a>`. Only what is read here:
+nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`, and a mirror with no reader is
+just something to keep in sync.
+
+The two kinds fail differently, which is worth knowing before renaming either. A wrong **value**
+usually shows: a broken widget URL, a tone that does not colour. A wrong **name** shows as nothing —
+`getAttribute` returns null and the element falls back, or the browser meets a tag it has never heard
+of and lays out an inert inline box. Neither reaches a console.
+
+Two attribute names have no PHP side at all and so no parity test: `tone` on `<terminal-field>` and
+`loaded` on a loaded embed are written by an element and read only by the stylesheet.
+`TerminalFieldAttribute` and `EmbedAttribute` name them anyway, because the stylesheet is exactly the
+kind of reader that fails in silence.
 
 **A mirror is a second copy of a fact, so it is tested.** `test/js/enum-parity.test.mjs` compares each
 one against its PHP original — name, backing value, and the accessors the client mirrors — in
@@ -260,11 +274,12 @@ declaration order, because `SoundCloudEmbed` and `SoundCloudPlayer` both build t
 iterating the cases. Add a case on one side only, rename one, retype a backing value or reorder two,
 and it fails.
 
-Adding an element means adding it to `ViewTest::testTheViewsEmitOnlyKnownCustomElements`, which pins
-the set a view may emit: a misspelled tag renders as an inert inline box with no error otherwise. The
-verify script checks the served direction, that every custom tag in a real response is one
-`assets/ts/elements/` defines, and `vocabulary.test.mjs` checks the registration direction. Between
-the three they carry the whole vocabulary.
+Adding an element means a `Tag` case, a module named for its class, and an import in `main.ts`. Three
+checks cover it from three directions: `ViewTest` pins the set a view may emit *and* names the five
+tags no view emits because `<terminal-window>` builds them; the verify script checks that every
+custom tag in a real response is a `Tag` case; and `vocabulary.test.mjs` checks that every `Tag` case
+is actually registered once `main.js` has run — the direction that catches a forgotten import for a
+tag no response contains.
 
 ### SPA navigation
 

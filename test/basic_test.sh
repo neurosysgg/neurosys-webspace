@@ -322,11 +322,15 @@ check_body "the player element is rendered"          "$BASE/releases/ill"  '<sou
 
 # An element the browser has never heard of renders as an inert inline box with no error anywhere,
 # so a tag reaching a page with no registration behind it is invisible. Checked in that direction:
-# every custom tag the server actually serves has to be one assets/ts/elements/ defines. The reverse
-# would fail on the terminal's own tags, which are registered but built by <terminal-window> rather
-# than written out by any view.
-registered=$(grep -rho "customElements.define('[a-z][a-z0-9-]*'" "$REPO/assets/ts/elements" \
-             | sed "s/.*'\(.*\)'/\1/" | sort -u)
+# every custom tag the server actually serves has to be one the Tag enum names. The reverse is
+# ViewTest's and vocabulary.test.mjs's — it would fail here on the terminal's own tags, which are
+# registered but built by <terminal-window> rather than written out by any view.
+#
+# Read from the enum rather than grepped out of the TypeScript: the tag names stopped being string
+# literals when Tag arrived, and the parity test is what ties this list to the client's copy.
+registered=$(php -r "require '$REPO/autoload.php';
+                     foreach (NeuroSYS\View\Html\Tag::cases() as \$t) echo \$t->value, PHP_EOL;" \
+             | sort -u)
 served=$(curl "${CURL_ARGS[@]}" "$BASE/releases" "$BASE/releases/ill" "$BASE/nope" 2>/dev/null \
          | grep -oE '<[a-z][a-z0-9]*-[a-z0-9-]+' | tr -d '<' | sort -u)
 unregistered=""

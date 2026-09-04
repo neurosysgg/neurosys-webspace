@@ -1,3 +1,6 @@
+import { Tag } from '../../model/Tag.js';
+import { TerminalAttribute } from '../../model/TerminalAttribute.js';
+import { TerminalFieldAttribute } from '../../model/TerminalFieldAttribute.js';
 import { TerminalTone } from '../../model/TerminalTone.js';
 
 /** One output row, as Terminal::toElement() serialises it. */
@@ -31,27 +34,27 @@ export class TerminalWindow extends HTMLElement {
     this.replaceChildren(
       this.buildCommand(),
       ...this.fields().map((field) => TerminalWindow.buildField(field)),
-      document.createElement('terminal-cursor'),
+      document.createElement(Tag.TerminalCursor),
     );
   }
 
   private buildCommand(): HTMLElement {
-    const command = document.createElement('terminal-command');
-    command.textContent = this.getAttribute('command') ?? '';
+    const command = document.createElement(Tag.TerminalCommand);
+    command.textContent = this.getAttribute(TerminalAttribute.Command) ?? '';
 
     return command;
   }
 
   private static buildField(data: TerminalFieldData): HTMLElement {
-    const field = document.createElement('terminal-field');
-    const key   = document.createElement('terminal-key');
-    const value = document.createElement('terminal-value');
+    const field = document.createElement(Tag.TerminalField);
+    const key   = document.createElement(Tag.TerminalKey);
+    const value = document.createElement(Tag.TerminalValue);
 
     key.textContent   = data.key;
     value.textContent = data.value;
 
     // The tone goes on the row; the stylesheet decides which half of it takes the accent.
-    if (data.tone !== TerminalTone.Plain) field.setAttribute('tone', data.tone);
+    if (data.tone !== TerminalTone.Plain) field.setAttribute(TerminalFieldAttribute.Tone, data.tone);
 
     field.append(key, value);
 
@@ -65,7 +68,7 @@ export class TerminalWindow extends HTMLElement {
    * our own server, so a bad one is a bug worth hearing about, not input worth tolerating.
    */
   private fields(): TerminalFieldData[] {
-    const raw = this.getAttribute('fields');
+    const raw = this.getAttribute(TerminalAttribute.Fields);
 
     if (raw === null || raw === '') return [];
 
@@ -89,4 +92,4 @@ export class TerminalWindow extends HTMLElement {
   }
 }
 
-customElements.define('terminal-window', TerminalWindow);
+customElements.define(Tag.TerminalWindow, TerminalWindow);

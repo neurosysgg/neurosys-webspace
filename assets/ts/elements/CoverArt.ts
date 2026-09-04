@@ -1,3 +1,6 @@
+import { CoverArtAttribute } from '../model/CoverArtAttribute.js';
+import { Tag } from '../model/Tag.js';
+
 /**
  * <cover-art src="…" fallback="/assets/img/cover-placeholder.svg" alt="…"></cover-art>
  *
@@ -15,14 +18,14 @@ export class CoverArt extends HTMLElement {
     if (this.wired) return;
     this.wired = true;
 
-    const src = this.getAttribute('src');
+    const src = this.getAttribute(CoverArtAttribute.Src);
 
     if (src === null || src === '') return;
 
     const img      = document.createElement('img');
-    const fallback = this.getAttribute('fallback');
+    const fallback = this.getAttribute(CoverArtAttribute.Fallback);
 
-    img.alt = this.getAttribute('alt') ?? '';
+    img.alt = this.getAttribute(CoverArtAttribute.Alt) ?? '';
 
     // once: true, so a fallback that is itself missing fails quietly instead of looping.
     if (fallback !== null && fallback !== '') {
@@ -34,4 +37,4 @@ export class CoverArt extends HTMLElement {
   }
 }
 
-customElements.define('cover-art', CoverArt);
+customElements.define(Tag.CoverArt, CoverArt);

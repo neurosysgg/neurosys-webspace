@@ -19,6 +19,11 @@ import { Platform, displayName } from '../../public/assets/js/model/Platform.js'
 import { SoundCloudOption } from '../../public/assets/js/model/SoundCloudOption.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../public/assets/js/model/SoundCloudPlayerStyle.js';
 import { TerminalTone } from '../../public/assets/js/model/TerminalTone.js';
+import { Tag } from '../../public/assets/js/model/Tag.js';
+import { SoundCloudPlayerAttribute } from '../../public/assets/js/model/SoundCloudPlayerAttribute.js';
+import { TerminalAttribute } from '../../public/assets/js/model/TerminalAttribute.js';
+import { CoverArtAttribute } from '../../public/assets/js/model/CoverArtAttribute.js';
+import { LinkAttribute } from '../../public/assets/js/model/LinkAttribute.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -73,3 +78,32 @@ test('TerminalTone mirrors NeuroSYS\\View\\Terminal\\TerminalTone', () => {
     ));`),
   );
 });
+
+/**
+ * The tag and attribute names, which are the same fact stated in two languages.
+ *
+ * These matter differently from the value enums above. A wrong *value* usually shows up — a broken
+ * widget URL, a tone that does not colour. A wrong *name* shows up as nothing at all: getAttribute
+ * returns null and the element carries on with its fallback, or the browser meets a tag it has
+ * never heard of and renders an inert inline box. Neither reaches a console.
+ *
+ * Not covered here, and worth knowing: `tone` and `loaded` are written by an element and read only
+ * by the stylesheet, so they have no PHP side and no test can follow them. See
+ * TerminalFieldAttribute and EmbedAttribute.
+ */
+const MIRRORED_NAMES = [
+  ['Tag', Tag, 'NeuroSYS\\View\\Html\\Tag'],
+  ['SoundCloudPlayerAttribute', SoundCloudPlayerAttribute, 'NeuroSYS\\Model\\Embed\\SoundCloudPlayerAttribute'],
+  ['TerminalAttribute', TerminalAttribute, 'NeuroSYS\\View\\Terminal\\TerminalAttribute'],
+  ['CoverArtAttribute', CoverArtAttribute, 'NeuroSYS\\View\\Html\\CoverArtAttribute'],
+  ['LinkAttribute', LinkAttribute, 'NeuroSYS\\View\\Html\\LinkAttribute'],
+];
+
+for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {
+  test(`${name} mirrors ${phpEnum.replaceAll('\\\\', '\\')}`, () => {
+    assert.deepEqual(
+      cases(mirror),
+      php(`echo json_encode(array_map(fn ($c) => [$c->name, $c->value], ${phpEnum}::cases()));`),
+    );
+  });
+}

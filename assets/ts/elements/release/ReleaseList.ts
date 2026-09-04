@@ -1,3 +1,5 @@
+import { Tag } from '../../model/Tag.js';
+
 /**
  * <release-list> — the catalogue.
  *
@@ -7,4 +9,4 @@
  */
 export class ReleaseList extends HTMLElement {}
 
-customElements.define('release-list', ReleaseList);
+customElements.define(Tag.ReleaseList, ReleaseList);

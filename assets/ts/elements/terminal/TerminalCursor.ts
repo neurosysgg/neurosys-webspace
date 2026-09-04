@@ -1,3 +1,4 @@
+import { Tag } from '../../model/Tag.js';
 import { NestedElement } from '../NestedElement.js';
 import { TerminalWindow } from './TerminalWindow.js';
 
@@ -6,4 +7,4 @@ export class TerminalCursor extends NestedElement {
   protected parent(): CustomElementConstructor { return TerminalWindow; }
 }
 
-customElements.define('terminal-cursor', TerminalCursor);
+customElements.define(Tag.TerminalCursor, TerminalCursor);

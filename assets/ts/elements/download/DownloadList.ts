@@ -1,3 +1,5 @@
+import { Tag } from '../../model/Tag.js';
+
 /**
  * <download-list> — the download group on a release page.
  *
@@ -9,4 +11,4 @@
  */
 export class DownloadList extends HTMLElement {}
 
-customElements.define('download-list', DownloadList);
+customElements.define(Tag.DownloadList, DownloadList);

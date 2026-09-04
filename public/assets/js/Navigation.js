@@ -1,3 +1,4 @@
+import { LinkAttribute } from './model/LinkAttribute.js';
 /**
  * SPA navigation: intercept internal link clicks, fetch the page as a content fragment, and swap it
  * into #content. Every link is a real href, so direct loads and no-JS behave identically.
@@ -43,7 +44,7 @@ export class Navigation {
             return;
         // The selector is what makes the anchor type true.
         const link = e.target.closest('a[href^="/"]');
-        if (link === null || link.hasAttribute('data-no-spa'))
+        if (link === null || link.hasAttribute(LinkAttribute.NoSpa))
             return;
         e.preventDefault();
         history.pushState({}, '', link.href);

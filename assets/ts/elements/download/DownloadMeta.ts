@@ -1,3 +1,4 @@
+import { Tag } from '../../model/Tag.js';
 import { NestedElement } from '../NestedElement.js';
 import { DownloadCard } from './DownloadCard.js';
 
@@ -6,4 +7,4 @@ export class DownloadMeta extends NestedElement {
   protected parent(): CustomElementConstructor { return DownloadCard; }
 }
 
-customElements.define('download-meta', DownloadMeta);
+customElements.define(Tag.DownloadMeta, DownloadMeta);

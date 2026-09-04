@@ -1,6 +1,8 @@
 import { Platform, displayName } from '../../model/Platform.js';
 import { SoundCloudOption } from '../../model/SoundCloudOption.js';
+import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
+import { Tag } from '../../model/Tag.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
 /**
  * <soundcloud-player track-id permalink secret-token player-style options track-title height>
@@ -60,7 +62,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
     buildIframe() {
         const iframe = document.createElement('iframe');
         iframe.width = '100%';
-        iframe.height = this.getAttribute('height') ?? '';
+        iframe.height = this.getAttribute(SoundCloudPlayerAttribute.Height) ?? '';
         iframe.title = `${this.trackTitle()} on ${displayName(this.platform())}`;
         iframe.src = this.playerUrl();
         // allow, scrolling and frameborder are set as attributes rather than properties: the last two
@@ -96,7 +98,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
     /** Builds the widget URL the iframe loads, with every option resolved to true/false. */
     playerUrl() {
         const params = new URLSearchParams();
-        const enabled = (this.getAttribute('options') ?? '').split(/\s+/);
+        const enabled = (this.getAttribute(SoundCloudPlayerAttribute.Options) ?? '').split(/\s+/);
         params.set('url', this.trackUrl());
         params.set('color', SoundCloudPlayer.ACCENT);
         // Every case, in declaration order — the ones not listed go out as false rather than being
@@ -114,27 +116,27 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
      * unusual, but it is what the live embeds use, so it is reproduced as-is.
      */
     trackUrl() {
-        const url = `https://api.soundcloud.com/tracks/soundcloud:tracks:${this.getAttribute('track-id') ?? ''}`;
+        const url = `https://api.soundcloud.com/tracks/soundcloud:tracks:${this.getAttribute(SoundCloudPlayerAttribute.TrackId) ?? ''}`;
         const token = this.secretToken();
         return token === '' ? url : `${url}?secret_token=${token}`;
     }
     /** Returns the public track page the attribution links to. */
     trackPermalink() {
-        const url = `https://soundcloud.com/${SoundCloudPlayer.ARTIST_HANDLE}/${this.getAttribute('permalink') ?? ''}`;
+        const url = `https://soundcloud.com/${SoundCloudPlayer.ARTIST_HANDLE}/${this.getAttribute(SoundCloudPlayerAttribute.Permalink) ?? ''}`;
         const token = this.secretToken();
         return token === '' ? url : `${url}/${token}`;
     }
     secretToken() {
-        return this.getAttribute('secret-token') ?? '';
+        return this.getAttribute(SoundCloudPlayerAttribute.SecretToken) ?? '';
     }
     trackTitle() {
-        return this.getAttribute('track-title') ?? '';
+        return this.getAttribute(SoundCloudPlayerAttribute.TrackTitle) ?? '';
     }
     playerStyle() {
-        return this.getAttribute('player-style') === SoundCloudPlayerStyle.Classic
+        return this.getAttribute(SoundCloudPlayerAttribute.PlayerStyle) === SoundCloudPlayerStyle.Classic
             ? SoundCloudPlayerStyle.Classic
             : SoundCloudPlayerStyle.Visual;
     }
 }
-customElements.define('soundcloud-player', SoundCloudPlayer);
+customElements.define(Tag.SoundCloudPlayer, SoundCloudPlayer);
 //# sourceMappingURL=SoundCloudPlayer.js.map

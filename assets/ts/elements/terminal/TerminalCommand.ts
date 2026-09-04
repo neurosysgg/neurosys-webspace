@@ -1,3 +1,4 @@
+import { Tag } from '../../model/Tag.js';
 import { NestedElement } from '../NestedElement.js';
 import { TerminalWindow } from './TerminalWindow.js';
 
@@ -11,4 +12,4 @@ export class TerminalCommand extends NestedElement {
   protected parent(): CustomElementConstructor { return TerminalWindow; }
 }
 
-customElements.define('terminal-command', TerminalCommand);
+customElements.define(Tag.TerminalCommand, TerminalCommand);

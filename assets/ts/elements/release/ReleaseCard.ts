@@ -1,3 +1,4 @@
+import { Tag } from '../../model/Tag.js';
 import { NestedElement } from '../NestedElement.js';
 import { ReleaseList } from './ReleaseList.js';
 
@@ -6,4 +7,4 @@ export class ReleaseCard extends NestedElement {
   protected parent(): CustomElementConstructor { return ReleaseList; }
 }
 
-customElements.define('release-card', ReleaseCard);
+customElements.define(Tag.ReleaseCard, ReleaseCard);
