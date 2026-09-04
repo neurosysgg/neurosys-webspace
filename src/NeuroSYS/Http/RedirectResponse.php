@@ -25,7 +25,7 @@ readonly class RedirectResponse implements Response
     #[NoReturn]
     public function send(Request $request): never
     {
-        header('Location: ' . $this->url, true, $this->status->value);
+        header(new Header(ResponseHeader::Location, $this->url)->line(), true, $this->status->value);
         exit;
     }
 }

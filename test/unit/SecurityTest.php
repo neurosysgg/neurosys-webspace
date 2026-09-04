@@ -10,6 +10,8 @@ use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
+use NeuroSYS\Http\Header;
+use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
@@ -78,14 +80,33 @@ final class SecurityTest extends TestCase
 
     public function testTheMethodIsUpperCased(): void
     {
-        self::assertSame('GET', $this->request('get')->method());
+        self::assertSame(HttpMethod::Get, $this->request('get')->method());
+    }
+
+    /** An unrecognised method is null rather than a guess, and null is not read-only. */
+    public function testAnUnknownMethodIsNotAMethod(): void
+    {
+        self::assertNull($this->request('WHATEVER')->method());
+        self::assertFalse($this->request('WHATEVER')->isReadOnly());
+    }
+
+    /** The Allow header is derived from the gate, so the two cannot say different things. */
+    public function testTheAllowedMethodsAreExactlyTheReadOnlyOnes(): void
+    {
+        $readOnly = array_values(array_filter(
+            HttpMethod::cases(),
+            static fn(HttpMethod $m): bool => $m->isReadOnly(),
+        ));
+
+        self::assertSame([HttpMethod::Get, HttpMethod::Head], $readOnly);
+        self::assertSame('GET, HEAD', HttpMethod::allowed());
     }
 
     public function testAMissingRequestMethodDefaultsToGet(): void
     {
         $_SERVER = ['REQUEST_URI' => '/'];
 
-        self::assertSame('GET', Request::fromGlobals()->method());
+        self::assertSame(HttpMethod::Get, Request::fromGlobals()->method());
     }
 
     /** Before this, POST /releases/ill/flac 303'd to HiDrive exactly like a GET. */
@@ -118,7 +139,10 @@ final class SecurityTest extends TestCase
 
         $headers = new ReflectionProperty($response, 'headers')->getValue($response);
 
-        self::assertContains('Allow: GET, HEAD', $headers);
+        self::assertSame(
+            ['Allow: GET, HEAD'],
+            array_map(static fn(Header $h): string => $h->line(), $headers),
+        );
     }
 
     public function testAGetStillDispatchesNormally(): void

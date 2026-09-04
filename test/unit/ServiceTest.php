@@ -9,6 +9,7 @@ use NeuroSYS\Model\Release;
 use NeuroSYS\Service\DownloadLogEntry;
 use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\Model\Profile;
+use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Service\ReleaseRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -153,7 +154,7 @@ final class ServiceTest extends TestCase
         $log = NEUROSYS_ROOT . '/data/logs/downloads.log';
         $before = is_file($log) ? filesize($log) : -1;
 
-        new DownloadLogger()->log('test-slug', 'flac');
+        new DownloadLogger()->log('test-slug', ReleaseFormat::FLAC);
 
         clearstatcache();
         self::assertSame($before, is_file($log) ? filesize($log) : -1);
@@ -164,7 +165,7 @@ final class ServiceTest extends TestCase
     {
         $_SERVER['HTTP_REFERER'] = 'https://example.invalid/leak';
 
-        new DownloadLogger()->log('test-slug', 'flac');
+        new DownloadLogger()->log('test-slug', ReleaseFormat::FLAC);
 
         $log = NEUROSYS_ROOT . '/data/logs/downloads.log';
         self::assertFalse(

@@ -117,6 +117,10 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   case to `PermissionsPolicyFeature` denies that feature everywhere — including inside the SoundCloud
   iframe, which requests `autoplay; encrypted-media`. The test reads the iframe's own `allow` attribute and
   checks the policy against it, so the two can't drift apart silently.
+- **The `Allow` header says what the gate does.** It is derived from `HttpMethod::isReadOnly()`
+  rather than written out, and `SecurityTest` asserts both halves — that the read-only cases are
+  exactly GET and HEAD, and that a refused request's header matches. Marking a method read-only used
+  to mean remembering to edit a string in `Router` too.
 - **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
   into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
 - **The committed JS is current with `assets/ts/`.** `deploy.sh` rsyncs `public/` straight from the

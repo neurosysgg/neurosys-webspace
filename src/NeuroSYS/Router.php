@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace NeuroSYS;
 
 use NeuroSYS\Controller\NotFoundController;
+use NeuroSYS\Http\Header;
+use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
+use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Route;
 
@@ -34,7 +37,7 @@ readonly class Router
             return new PlainTextResponse(
                 HttpStatusCode::MethodNotAllowed,
                 "This site is read-only.\n",
-                ['Allow: GET, HEAD'],
+                [new Header(ResponseHeader::Allow, HttpMethod::allowed())],
             );
         }
 

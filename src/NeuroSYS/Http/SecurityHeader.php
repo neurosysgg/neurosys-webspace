@@ -9,8 +9,12 @@ namespace NeuroSYS\Http;
  *
  * Backed by the literal header name, so the wire format lives here rather than in a string
  * scattered through a `header()` call.
+ *
+ * Deliberately exhaustive: {@link SecurityHeaders::headers()} sends exactly these cases and a test
+ * asserts it, so a case added without being sent — or a header sent without a case — fails. Every
+ * other response header is a {@link ResponseHeader}; see {@link HeaderName}.
  */
-enum SecurityHeader: string
+enum SecurityHeader: string implements HeaderName
 {
     /** Restricts where the page may load anything from. */
     case ContentSecurityPolicy = 'Content-Security-Policy';
@@ -24,9 +28,8 @@ enum SecurityHeader: string
     /** Switches off browser features the site never uses. */
     case PermissionsPolicy = 'Permissions-Policy';
 
-    /** Formats the header for {@link \header()}: `Name: value`. */
-    public function line(string $value): string
+    public function headerName(): string
     {
-        return $this->value . ': ' . $value;
+        return $this->value;
     }
 }

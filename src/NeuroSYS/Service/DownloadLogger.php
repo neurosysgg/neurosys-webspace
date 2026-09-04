@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Model\ReleaseFormat;
+
 /**
  * The DownloadLogger class. Appends a JSON log entry to the downloads log for each download.
  */
@@ -29,10 +31,10 @@ class DownloadLogger
     /**
      * Logs a download event.
      *
-     * @param string $slug   The release slug.
-     * @param string $format The format identifier (e.g. 'flac', 'mp3').
+     * @param string        $slug   The release slug.
+     * @param ReleaseFormat  $format The format that was downloaded.
      */
-    public function log(string $slug, string $format): void
+    public function log(string $slug, ReleaseFormat $format): void
     {
         if (!self::ENABLED) {
             return;
@@ -41,7 +43,7 @@ class DownloadLogger
         $entry = new DownloadLogEntry(
             time:     date('c'),
             slug:     $slug,
-            format:   $format,
+            format:   $format->value,
             referrer: $_SERVER['HTTP_REFERER'] ?? '',
         );
 

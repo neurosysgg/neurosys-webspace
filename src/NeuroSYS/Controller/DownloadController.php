@@ -11,6 +11,7 @@ use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\DownloadLogger;
+use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\NotFoundView;
 
@@ -26,7 +27,8 @@ readonly class DownloadController implements Controller
      * Constructs an instance of {@link self}.
      *
      * @param string $slug       The release slug.
-     * @param string $formatType The format type value (e.g. 'flac', 'mp3').
+     * @param string $formatType The format segment from the URL, which is whatever was requested
+     *                           and not necessarily a {@link ReleaseFormat}.
      * @param ReleaseRepository|null $releases The catalogue to read, or null for the
      *                                         canonical one. Only tests pass this — it
      *                                         is the seam for exercising the staged
@@ -46,7 +48,8 @@ readonly class DownloadController implements Controller
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);
         }
 
-        $format = $release->findFormat($this->formatType);
+        $type   = ReleaseFormat::tryFrom($this->formatType);
+        $format = $type === null ? null : $release->findFormat($type);
 
         if ($format === null) {
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);
@@ -59,7 +62,7 @@ readonly class DownloadController implements Controller
             );
         }
 
-        new DownloadLogger()->log($this->slug, $this->formatType);
+        new DownloadLogger()->log($this->slug, $type);
 
         return new RedirectResponse($format->link->url());
     }

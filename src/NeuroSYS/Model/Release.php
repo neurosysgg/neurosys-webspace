@@ -42,15 +42,18 @@ readonly class Release
     }
 
     /**
-     * Finds a download format by its type value (e.g. 'flac', 'mp3').
+     * Finds a download format on this release.
      *
-     * @param string $type The {@link ReleaseFormat} value to look up.
+     * Takes the enum rather than its value: the string came from a URL segment, and turning it into
+     * a {@link ReleaseFormat} is the caller's job — an unknown segment is then a null before it gets
+     * here, rather than a comparison that quietly matches nothing.
+     *
      * @return Format|null The matching format, or null if not available on this release.
      */
-    public function findFormat(string $type): ?Format
+    public function findFormat(ReleaseFormat $type): ?Format
     {
         foreach ($this->formats as $format) {
-            if ($format->type->value === $type) {
+            if ($format->type === $type) {
                 return $format;
             }
         }

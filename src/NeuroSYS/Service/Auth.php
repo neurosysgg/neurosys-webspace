@@ -4,14 +4,24 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\ResponseHeader;
 
 /**
  * The Auth class. Provides HTTP Basic Authentication gates for the site.
  */
 class Auth
 {
+    /**
+     * The Basic Auth realm both gates challenge with.
+     *
+     * One constant rather than the same quoted string twice: the browser keys stored credentials by
+     * realm, so two that differ by a character are two separate prompts to the visitor.
+     */
+    private const string CHALLENGE = 'Basic realm="neuro.SYS"';
+
     /**
      * Enforces site-wide pre-launch authentication if a credentials file exists.
      *
@@ -31,7 +41,7 @@ class Auth
             $request->authUser() !== $creds['user']
             || !password_verify($request->authPassword(), $creds['pass_hash'])
         ) {
-            header('WWW-Authenticate: Basic realm="neuro.SYS"');
+            header(new Header(ResponseHeader::WwwAuthenticate, self::CHALLENGE)->line());
             http_response_code(HttpStatusCode::Unauthorized->value);
             exit;
         }
@@ -51,7 +61,7 @@ class Auth
            && password_verify($request->authPassword(), $creds['pass_hash']);
 
         if (!$ok) {
-            header('WWW-Authenticate: Basic realm="neuro.SYS"');
+            header(new Header(ResponseHeader::WwwAuthenticate, self::CHALLENGE)->line());
             http_response_code(HttpStatusCode::Unauthorized->value);
             exit;
         }

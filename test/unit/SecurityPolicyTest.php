@@ -13,6 +13,9 @@ use NeuroSYS\Http\Security\CspScheme;
 use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
+use NeuroSYS\Http\Header;
+use NeuroSYS\Http\HttpMethod;
+use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\SecurityHeader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -208,11 +211,20 @@ final class SecurityPolicyTest extends TestCase
 
     // ───────────────────────── SecurityHeader ─────────────────────────
 
-    public function testTheHeaderEnumFormatsAHeaderLine(): void
+    public function testAHeaderFormatsItsOwnLine(): void
     {
         self::assertSame(
             'X-Content-Type-Options: nosniff',
-            SecurityHeader::ContentTypeOptions->line('nosniff'),
+            new Header(SecurityHeader::ContentTypeOptions, 'nosniff')->line(),
+        );
+    }
+
+    /** Header takes any HeaderName, which is the whole reason the interface exists. */
+    public function testAHeaderFormatsAResponseHeaderTheSameWay(): void
+    {
+        self::assertSame(
+            'Allow: GET, HEAD',
+            new Header(ResponseHeader::Allow, HttpMethod::allowed())->line(),
         );
     }
 

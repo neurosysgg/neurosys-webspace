@@ -15,7 +15,7 @@ readonly class Request
      * Constructs an instance of {@link self}.
      */
     private function __construct(
-        private string $method,
+        private ?HttpMethod $method,
         private string $path,
         private bool   $ajax,
         private string $authUser,
@@ -30,7 +30,9 @@ readonly class Request
      */
     public static function fromGlobals(): static
     {
-        $method   = strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET');
+        // tryFrom, not from: REQUEST_METHOD is whatever the client sent, and an unrecognised one
+        // has to be refused rather than throw. Null is not read-only, which is the safe default.
+        $method   = HttpMethod::tryFrom(strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET'));
         $path     = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
         $path     = rtrim($path, '/') ?: '/';
 
@@ -52,13 +54,13 @@ readonly class Request
         return new static($method, $path, $ajax, $user, $pass);
     }
 
-    /** Returns the HTTP method, upper-cased; defaults to GET. */
-    public function method(): string       { return $this->method; }
+    /** Returns the HTTP method, or null if it is not one {@link HttpMethod} recognises. */
+    public function method(): ?HttpMethod  { return $this->method; }
     /**
      * Returns true if the method only reads. The whole site is read-only, so everything
      * else is refused with a 405 rather than silently treated as a GET.
      */
-    public function isReadOnly(): bool     { return $this->method === 'GET' || $this->method === 'HEAD'; }
+    public function isReadOnly(): bool     { return $this->method?->isReadOnly() ?? false; }
     /** Returns the normalized request path without trailing slash. */
     public function path(): string         { return $this->path; }
     /** Returns true if the request was made via XMLHttpRequest. */

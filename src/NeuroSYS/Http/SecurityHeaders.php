@@ -46,7 +46,7 @@ final class SecurityHeaders
     public static function send(): void
     {
         foreach (self::headers() as $name => $value) {
-            header(SecurityHeader::from($name)->line($value));
+            header(new Header(SecurityHeader::from($name), $value)->line());
         }
     }
 

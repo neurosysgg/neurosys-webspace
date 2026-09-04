@@ -179,7 +179,7 @@ php_ok "download logging is switched off and writes nothing" \
     "use NeuroSYS\Service\DownloadLogger;
      \$f = '$REPO/data/logs/downloads.log';
      \$before = is_file(\$f) ? filesize(\$f) : -1;
-     new DownloadLogger()->log('test-slug', 'flac');
+     new DownloadLogger()->log('test-slug', NeuroSYS\Model\ReleaseFormat::FLAC);
      clearstatcache();
      \$after = is_file(\$f) ? filesize(\$f) : -1;
      (DownloadLogger::ENABLED === false && \$after === \$before) or exit(1);"

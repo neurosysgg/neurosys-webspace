@@ -48,17 +48,21 @@ final class ModelTest extends TestCase
             new Format(ReleaseFormat::MP3, new HiDriveLink('CPJy7AVIu')),
         );
 
-        self::assertSame(ReleaseFormat::MP3, $release->findFormat('mp3')?->type);
+        self::assertSame(ReleaseFormat::MP3, $release->findFormat(ReleaseFormat::MP3)?->type);
     }
 
     public function testFindFormatReturnsNullForAFormatThisReleaseDoesNotHave(): void
     {
-        self::assertNull($this->release(new Format(ReleaseFormat::FLAC))->findFormat('ogg'));
+        self::assertNull($this->release(new Format(ReleaseFormat::FLAC))->findFormat(ReleaseFormat::OGG));
     }
 
-    public function testFindFormatReturnsNullForAFormatThatIsNotAFormatAtAll(): void
+    /**
+     * The segment never reaches findFormat() as a string any more: DownloadController resolves it
+     * with ReleaseFormat::tryFrom() first, so a path like this is a null before the lookup happens.
+     */
+    public function testAUrlSegmentThatIsNotAFormatResolvesToNothing(): void
     {
-        self::assertNull($this->release(new Format(ReleaseFormat::FLAC))->findFormat('../../etc/passwd'));
+        self::assertNull(ReleaseFormat::tryFrom('../../etc/passwd'));
     }
 
     public function testRejectsANonPositiveBpm(): void
@@ -82,7 +86,7 @@ final class ModelTest extends TestCase
      */
     public function testAFormatDeclaredWithoutALinkHasANullLink(): void
     {
-        self::assertNull($this->release(new Format(ReleaseFormat::FLAC))->findFormat('flac')?->link);
+        self::assertNull($this->release(new Format(ReleaseFormat::FLAC))->findFormat(ReleaseFormat::FLAC)?->link);
     }
 
     // ─────────────────────────── ReleaseFormat ───────────────────────────

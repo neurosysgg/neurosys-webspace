@@ -57,7 +57,8 @@ MVC, all plain PHP classes — no template files, no `extract()`, no inline echo
 ```
 src/NeuroSYS/
 ├── Controller/     ← one class per route group; fetches its own data, returns a Response
-├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse, HttpStatusCode
+├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse
+│                     + HttpStatusCode, HttpMethod, Header/HeaderName and the two header-name enums
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, Profile, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
@@ -85,7 +86,14 @@ handler (a test enforces that). `style-src` is strict too: it carried `'unsafe-i
 SoundCloud's attribution markup, and `<soundcloud-player>` sets those properties through the CSSOM
 instead — same styling, nothing for the allowance to cover.
 
-The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405 and `Allow: GET, HEAD`.
+The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405. The `Allow`
+header is built from `HttpMethod::allowed()`, which filters the cases by `isReadOnly()` — so the
+header cannot claim something the gate does not do, which a hand-written `'Allow: GET, HEAD'` could.
+An unrecognised method is `null` rather than a guess, and null is not read-only.
+
+Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
+place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
+purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
 
 ## Collections, and why they are immutable
 
