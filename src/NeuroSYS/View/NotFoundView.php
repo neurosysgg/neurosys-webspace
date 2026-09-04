@@ -24,16 +24,10 @@ class NotFoundView extends View
 
         return <<<HTML
             <section class="page-section">
-              <terminal-window narrow>
-                <div class="terminal-bar">
-                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                  <span class="terminal-title">error.log</span>
-                </div>
-                <div class="terminal-body">
-                  <p><span class="prompt">\$</span> find $path</p>
-                  <p class="out"><span class="accent-2">error</span>  404 — not found</p>
-                  <p><span class="prompt">\$</span> <span class="cursor">_</span></p>
-                </div>
+              <terminal-window label="error.log" narrow>
+                <terminal-command>find $path</terminal-command>
+                <terminal-field><terminal-key error>error</terminal-key>404 — not found</terminal-field>
+                <terminal-cursor></terminal-cursor>
               </terminal-window>
               <p class="back-home"><a href="/">← home</a></p>
             </section>

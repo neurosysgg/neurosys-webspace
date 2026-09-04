@@ -1,9 +1,12 @@
 /**
- * <cover-art fallback="/assets/img/cover-placeholder.svg"><img src="…" alt="…"></cover-art>
+ * <cover-art src="…" fallback="/assets/img/cover-placeholder.svg" alt="…"></cover-art>
  *
- * Falls back to the placeholder when the file host 404s. The <img> is server-rendered rather than
- * built here, so the cover still shows with no JS; this class only wires the error path. It was an
- * inline onerror= attribute once — as a listener it survives a strict script-src.
+ * The release cover, and its fallback when the file host 404s. It builds its own <img>, so
+ * ReleaseView emits one tag rather than a wrapper around an image it also has to describe.
+ *
+ * The error listener is attached before src is assigned, so a response that fails immediately
+ * cannot beat it — which is what the old complete && naturalWidth check was working around.
+ * The fallback was an inline onerror= attribute once; as a listener it survives a strict script-src.
  */
 export class CoverArt extends HTMLElement {
   private wired = false;
@@ -12,17 +15,22 @@ export class CoverArt extends HTMLElement {
     if (this.wired) return;
     this.wired = true;
 
-    const img      = this.querySelector('img');
+    const src = this.getAttribute('src');
+
+    if (src === null || src === '') return;
+
+    const img      = document.createElement('img');
     const fallback = this.getAttribute('fallback');
 
-    // An empty fallback would set src="undefined" and 404 a second time.
-    if (img === null || fallback === null || fallback === '') return;
+    img.alt = this.getAttribute('alt') ?? '';
 
     // once: true, so a fallback that is itself missing fails quietly instead of looping.
-    img.addEventListener('error', () => { img.src = fallback; }, { once: true });
+    if (fallback !== null && fallback !== '') {
+      img.addEventListener('error', () => { img.src = fallback; }, { once: true });
+    }
 
-    // A broken image may have finished failing before this element upgraded.
-    if (img.complete && img.naturalWidth === 0) img.src = fallback;
+    img.src = src;
+    this.replaceChildren(img);
   }
 }
 

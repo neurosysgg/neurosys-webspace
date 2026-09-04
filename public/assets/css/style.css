@@ -140,9 +140,8 @@ a {
    Shared utilities
    ---------------------------------------------------------------- */
 
-.muted    { color: var(--muted); }
-.accent-2 { color: var(--accent-2); }
-.bang     { color: var(--accent-2); }
+.muted { color: var(--muted); }
+.bang  { color: var(--accent-2); }
 
 .page-section { margin: 1.5rem 0; }
 
@@ -205,132 +204,125 @@ a {
    anchor inside is still the card, so they are display: contents and add no box.
    ---------------------------------------------------------------- */
 
+/* The wrappers name the fragment and nothing else; the anchor inside is still the
+   card, so they are display: contents and add no box of their own. */
 release-card,
-download-card { display: contents; }
+download-card {
+  display: contents;
 
-.release-card,
-.dl-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  padding: 0.9rem 1.1rem;
-  margin-bottom: 0.6rem;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--fg);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--fg);
+    transition: border-color 0.15s ease, background 0.15s ease;
 
-  &:hover,
-  &:focus-visible {
-    border-color: var(--accent);
-    background: var(--surface-2);
-    text-decoration: none;
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent);
+      background: var(--surface-2);
+      text-decoration: none;
+    }
   }
 }
 
-.release-card {
-  .release-title {
-    font-family: var(--mono);
-    font-weight: 500;
-    font-size: 0.95rem;
-  }
-
-  .release-meta {
-    font-size: 0.8rem;
-    color: var(--muted);
-  }
+release-title,
+download-label {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.95rem;
 }
 
-.dl-card {
-  .dl-label {
-    font-family: var(--mono);
-    font-weight: 500;
-    font-size: 0.95rem;
+download-label::before { content: "↓ "; color: var(--accent); }
 
-    &::before { content: "↓ "; color: var(--accent); }
-  }
-
-  .dl-meta { font-size: 0.8rem; color: var(--muted); }
+release-meta,
+download-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
 }
 
 /* ---------------------------------------------------------------
-   Terminal card — ReleaseView and NotFoundView
+   Terminal — ReleaseView and NotFoundView
    ---------------------------------------------------------------- */
 
 terminal-window {
+  position: relative;
+  display: block;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
   font-family: var(--mono);
   font-size: 0.875rem;
-  display: flex;
-  flex-direction: column;
+  /* top clears the title bar below (1.8rem tall + its 1px rule), then the body's own padding */
+  padding: calc(1.8rem + 1px + 1rem) 1.1rem 1rem;
 
   &[narrow] { max-width: 480px; }
 
-  .terminal-bar {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+  /* The whole title bar is one pseudo-element: the label from the attribute, and the three
+     traffic lights as gradients at fixed offsets. Decoration belongs in CSS, not in markup
+     the server has to emit — <terminal-window> needs no children but its content. */
+  &::before {
+    content: attr(label);
+    position: absolute;
+    inset: 0 0 auto 0;
+    box-sizing: content-box;
+    height: 0.6rem;
     padding: 0.6rem 0.8rem;
-    background: var(--surface-2);
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    background-color: var(--surface-2);
+    background-repeat: no-repeat;
+    background-image:
+      radial-gradient(circle at 1.1rem 0.9rem, #FF5F57 0.3rem, #0000 0),
+      radial-gradient(circle at 2.1rem 0.9rem, #FEBC2E 0.3rem, #0000 0),
+      radial-gradient(circle at 3.1rem 0.9rem, #28C840 0.3rem, #0000 0);
     border-bottom: 1px solid var(--border);
-
-    .dot {
-      width: 0.6rem;
-      height: 0.6rem;
-      border-radius: 50%;
-
-      &:nth-child(1) { background: #FF5F57; }
-      &:nth-child(2) { background: #FEBC2E; }
-      &:nth-child(3) { background: #28C840; }
-    }
-
-    .terminal-title {
-      position: absolute;
-      left: 50%;
-      transform: translateX(-50%);
-      color: var(--muted);
-      font-size: 0.75rem;
-    }
-  }
-
-  .terminal-body {
-    padding: 1rem 1.1rem;
-    flex: 1;
-
-    p {
-      margin: 0 0 0.45rem;
-      white-space: pre-wrap;
-    }
-
-    .prompt { color: var(--accent-2); }
-
-    .out {
-      color: var(--muted);
-      padding-left: 1.1rem;
-
-      .key {
-        display: inline-block;
-        min-width: 8ch;
-        color: var(--fg);
-      }
-    }
-
-    .ok { color: var(--accent); }
-
-    .cursor {
-      display: inline-block;
-      color: var(--accent);
-      animation: blink 1s steps(1) infinite;
-
-      @media (prefers-reduced-motion: reduce) { animation: none; }
-    }
   }
 }
+
+terminal-command,
+terminal-field,
+terminal-cursor {
+  display: block;
+  margin: 0 0 0.45rem;
+  white-space: pre-wrap;
+}
+
+/* The $ sigil is decoration, so it is drawn rather than written out seven times. */
+terminal-command::before,
+terminal-cursor::before { content: "$ "; color: var(--accent-2); }
+
+terminal-cursor::after {
+  content: "_";
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 1s steps(1) infinite;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+
+terminal-field {
+  color: var(--muted);
+  padding-left: 1.1rem;
+}
+
+terminal-key {
+  display: inline-block;
+  min-width: 8ch;
+  color: var(--fg);
+
+  &[error] { color: var(--accent-2); }
+}
+
+terminal-ok { color: var(--accent); }
 
 @keyframes blink { 50% { opacity: 0; } }
 
@@ -386,18 +378,16 @@ cover-art {
   }
 }
 
-.player {
-  margin-bottom: 2.5rem;
-
-  iframe { border-radius: 8px; display: block; }
-}
-
+/* The element builds the gate itself and then replaces it with the embed in place, so there
+   is no wrapper div and no server-rendered innards. With no JS it stays empty — the reserved
+   height below still holds the space, so nothing reflows when the script lands. */
 player-consent {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
+  margin-bottom: 2.5rem;
   /* Matches the iframe that replaces it, so the page doesn't jump on load.
      <player-consent> sets --player-height from its own height attribute. */
   height: var(--player-height, 300px);
@@ -406,11 +396,23 @@ player-consent {
   text-align: center;
   padding: 2rem;
 
-  .player-consent-label { color: var(--fg); margin: 0; }
-  .player-consent-hint  { font-size: 0.8rem; color: var(--muted); margin: 0; }
+  p     { color: var(--fg); margin: 0; }
+  small { font-size: 0.8rem; color: var(--muted); }
+
+  /* Set once the embed is in: the box stops being a gate and just holds the player. */
+  &[loaded] {
+    display: block;
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
+
+  iframe { border-radius: 8px; display: block; }
 }
 
-.downloads {
+download-list {
+  display: block;
+
   h2 {
     font-family: var(--mono);
     font-size: 0.85rem;

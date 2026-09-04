@@ -130,26 +130,38 @@ would 404 on cannot ship. Same instinct as `CspHost` refusing anything but a bar
 
 ### Custom elements
 
-The fragments with behaviour are custom elements rather than classes hunting through the document
-for a selector. Their content is always server-rendered, so the page reads correctly with no JS and
-the element only enhances what is already there.
+A view's output is its own vocabulary. The tags that carry behaviour are self-contained — they build
+everything they show, so a view emits the tag and its attributes and nothing else:
 
 | Tag | Registered | Does |
 |---|---|---|
-| `<player-consent height embed>` | yes | reserves the player's height, swaps itself for the embed on click |
-| `<cover-art fallback>` | yes | falls back to the placeholder when the file host 404s |
-| `<terminal-window [narrow]>` | no | the terminal frame, used by `ReleaseView` and `NotFoundView` |
-| `<download-card format>` | no | names a download fragment; the `<a data-no-spa>` inside is still the card |
-| `<release-card slug>` | no | names a release fragment; the `<a>` inside is still the card |
+| `<player-consent provider height embed>` | yes | builds the gate, reserves the player's height, then hosts the embed in place on click |
+| `<cover-art src fallback alt>` | yes | builds its `<img>`, falls back to the placeholder when the file host 404s |
+| `<terminal-window label [narrow]>` | no | the terminal frame; the title bar and its three lights are one CSS pseudo-element |
+| `<terminal-command>` `<terminal-field>` `<terminal-key [error]>` `<terminal-ok>` `<terminal-cursor>` | no | terminal content; the `$` sigil and the cursor glyph are drawn by CSS |
+| `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | no | the download group and its entries |
+| `<release-card slug>` `<release-title>` `<release-meta>` | no | a catalogue entry |
 
-The unregistered three exist to name a fragment and are styled by tag; they wrap rather than replace
-their anchors, so link semantics, keyboard access and `data-no-spa` all survive. Both wrappers are
-`display: contents`, so they add no box — the anchor is still the card as far as layout is concerned.
+What stays native is what carries meaning or behaviour the browser provides: `<a>`, `<button>`,
+`<h1>`/`<h2>`, `<img>`, `<p>`, `<section>`. The card tags wrap their anchors rather than replacing
+them, so links keep working without JS, keyboard access is unchanged, and `data-no-spa` still lands on
+a real `<a>`; both wrappers are `display: contents`, so the anchor is still the card to layout.
 
-Adding an element means adding it to the table in `ViewTest::testTheViewsEmitOnlyKnownCustomElements`,
-which pins the set: a misspelled tag renders as an inert inline box with no error otherwise. The
-verify script checks the other direction, that everything `assets/ts/elements/` registers actually
-appears in the served markup.
+Two consequences of self-containment worth knowing:
+
+- **With JS off, `<cover-art>` and `<player-consent>` are empty.** The CSS still reserves both boxes,
+  so nothing reflows when the script lands, but a no-JS visitor gets no cover image and an empty
+  player frame. Everything else — links, navigation, downloads, all text — works as before. Put a
+  `<noscript><img …></noscript>` inside `<cover-art>` if that trade is not worth it.
+- **The consent notice is written by the element**, not the server. That is still sound: the transfer
+  it warns about can only be triggered by a click, a click needs the script, and the script writes the
+  notice. `ReleaseView` supplies the `provider` name and a unit test pins it, because getting it wrong
+  means a notice naming the wrong company.
+
+Adding an element means adding it to `ViewTest::testTheViewsEmitOnlyKnownCustomElements`, which pins
+the set: a misspelled tag renders as an inert inline box with no error otherwise. The verify script
+checks the other direction, that everything `assets/ts/elements/` registers appears in the served
+markup.
 
 ### SPA navigation
 

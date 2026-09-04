@@ -67,7 +67,7 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 - `Router` maps URL segments to a `Controller`; the controller fetches its own data, builds a `View`, and returns a `Response`.
 - Download routes issue a 303 to the HiDrive direct-download link — no file passes through PHP.
 - Navigation is SPA-style: `Navigation` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
-- Fragments with behaviour are custom elements, server-rendered and enhanced in place, so they upgrade themselves when `Navigation` swaps `#content` — nothing re-initialises after a navigation.
+- Views emit their own tag vocabulary — `<terminal-window>`, `<cover-art>`, `<player-consent>`, `<download-card>` — rather than divs and classes. The two with behaviour build their own contents, so a view emits the tag and its attributes and nothing else. They upgrade themselves when `Navigation` swaps `#content`, so nothing re-initialises after a navigation. See `CLAUDE.md` for the full set and the no-JS trade-off.
 - The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`). The output is committed because `deploy.sh` rsyncs `public/` from the working tree; the verify script fails if it has gone stale. See `CLAUDE.md` for the full picture.
 - Release metadata lives in `data/releases.php` as typed `Release` objects. That's the only file you edit to add a release.
 

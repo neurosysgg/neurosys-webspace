@@ -162,6 +162,12 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('player-consent', $html);
     }
 
+    /**
+     * <player-consent> writes its own label and its own notice, so the wording is no longer in the
+     * server's output — what has to be here is the provider name it writes them from. Getting this
+     * wrong means a consent notice naming the wrong company, so it is worth pinning on both sides:
+     * the wording itself is asserted against the rendered gate in the browser.
+     */
     public function testTheGateNamesTheProvider(): void
     {
         $html = new ReleaseView(
@@ -169,8 +175,7 @@ final class ViewTest extends TestCase
             'x',
         )->content();
 
-        self::assertStringContainsString('SoundCloud player', $html);
-        self::assertStringContainsString('connects you to SoundCloud', $html);
+        self::assertStringContainsString('provider="SoundCloud"', $html);
     }
 
     public function testTheEscapedMarkupDecodesBackToTheRealPlayer(): void
@@ -234,10 +239,18 @@ final class ViewTest extends TestCase
 
         preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $m);
 
-        self::assertNotEmpty($m[1]);
+        $tags = array_values(array_unique($m[1]));
+        sort($tags);
+
+        self::assertNotEmpty($tags);
         self::assertSame(
-            ['cover-art', 'download-card', 'player-consent', 'release-card', 'terminal-window'],
-            array_values(array_unique((function (array $t) { sort($t); return $t; })($m[1]))),
+            [
+                'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
+                'player-consent', 'release-card', 'release-meta', 'release-title',
+                'terminal-command', 'terminal-cursor', 'terminal-field', 'terminal-key',
+                'terminal-ok', 'terminal-window',
+            ],
+            $tags,
         );
     }
 
@@ -253,7 +266,7 @@ final class ViewTest extends TestCase
             formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
         ), 'ill')->content();
 
-        preg_match_all('/<a class="dl-card"([^>]*)>/', $html, $m);
+        preg_match_all('/<download-card[^>]*>\s*<a([^>]*)>/', $html, $m);
 
         self::assertNotEmpty($m[1]);
         foreach ($m[1] as $attrs) {

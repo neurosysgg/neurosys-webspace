@@ -33,9 +33,9 @@ class ReleasesView extends View
             $desc  = htmlspecialchars($release->description);
             $cards .= <<<HTML
                   <release-card slug="$slugAttr">
-                    <a class="release-card" href="$href">
-                      <span class="release-title">$title</span>
-                      <span class="release-meta">$bpm bpm &middot; $key &middot; $genre &middot; $desc</span>
+                    <a href="$href">
+                      <release-title>$title</release-title>
+                      <release-meta>$bpm bpm &middot; $key &middot; $genre &middot; $desc</release-meta>
                     </a>
                   </release-card>
 

@@ -49,25 +49,17 @@ class ReleaseView extends View
 
         return <<<HTML
             <section class="hero">
-              <terminal-window>
-                <div class="terminal-bar">
-                  <span class="dot"></span><span class="dot"></span><span class="dot"></span>
-                  <span class="terminal-title">release.log</span>
-                </div>
-                <div class="terminal-body">
-                  <p><span class="prompt">\$</span> ./release --track "$title"</p>
-                  <p class="out"><span class="key">artist</span>neuro.SYS</p>
-                  <p class="out"><span class="key">bpm</span>$bpm</p>
-                  <p class="out"><span class="key">key</span>$key</p>
-                  <p class="out"><span class="key">genre</span>$genre</p>
-                  <p class="out"><span class="key">status</span><span class="ok">ready</span></p>
-                  <p><span class="prompt">\$</span> <span class="cursor">_</span></p>
-                </div>
+              <terminal-window label="release.log">
+                <terminal-command>./release --track "$title"</terminal-command>
+                <terminal-field><terminal-key>artist</terminal-key>neuro.SYS</terminal-field>
+                <terminal-field><terminal-key>bpm</terminal-key>$bpm</terminal-field>
+                <terminal-field><terminal-key>key</terminal-key>$key</terminal-field>
+                <terminal-field><terminal-key>genre</terminal-key>$genre</terminal-field>
+                <terminal-field><terminal-key>status</terminal-key><terminal-ok>ready</terminal-ok></terminal-field>
+                <terminal-cursor></terminal-cursor>
               </terminal-window>
 
-              <cover-art fallback="$placeholder">
-                <img src="$coverSrc" alt="$alt" />
-              </cover-art>
+              <cover-art src="$coverSrc" fallback="$placeholder" alt="$alt"></cover-art>
             </section>
             HTML;
     }
@@ -86,10 +78,10 @@ class ReleaseView extends View
               <h1>$title</h1>
               <p class="tagline">neuro.SYS &mdash; $desc</p>
               $player
-              <div class="downloads">
+              <download-list>
                 <h2>downloads</h2>
                 $dlCards
-              </div>
+              </download-list>
             </section>
             HTML;
     }
@@ -120,8 +112,9 @@ class ReleaseView extends View
      *
      * The markup never reaches the page directly — it is escaped into the element's `embed`
      * attribute and only swapped in by <player-consent> once the visitor clicks, so nothing
-     * is requested from the provider until then. The provider is named from the embed rather
-     * than hardcoded, so a non-SoundCloud embed needs no change here.
+     * is requested from the provider until then. The element builds the gate itself, including
+     * the notice naming the provider; all this has to emit is the tag. The provider comes from
+     * the embed rather than being hardcoded, so a non-SoundCloud embed needs no change here.
      */
     private function playerHtml(): string
     {
@@ -135,15 +128,8 @@ class ReleaseView extends View
         $provider = htmlspecialchars($embed->platform()->displayName());
         $height   = $embed->height();
 
-        return <<<HTML
-            <div class="player">
-              <player-consent height="$height" embed="$markup">
-                <p class="player-consent-label">$provider player</p>
-                <button class="btn-primary">Load player</button>
-                <p class="player-consent-hint">Third-party content — clicking connects you to $provider&rsquo;s servers.</p>
-              </player-consent>
-            </div>
-            HTML;
+        return '<player-consent provider="' . $provider . '" height="' . $height
+             . '" embed="' . $markup . '"></player-consent>';
     }
 
     /** Builds the download card links for all formats on this release. */
@@ -158,9 +144,9 @@ class ReleaseView extends View
             $meta  = htmlspecialchars($this->formatMeta($format->type));
             $cards .= <<<HTML
                     <download-card format="$type">
-                      <a class="dl-card" data-no-spa href="/releases/$slug/$type">
-                        <span class="dl-label">$label</span>
-                        <span class="dl-meta">$meta</span>
+                      <a data-no-spa href="/releases/$slug/$type">
+                        <download-label>$label</download-label>
+                        <download-meta>$meta</download-meta>
                       </a>
                     </download-card>
 

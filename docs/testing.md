@@ -98,8 +98,9 @@ house style:
   `SoundCloudEmbed`, `new Format(ReleaseFormat::FLAC,  new HiDriveLink(…))` in `data/releases.php`
 - **one-line accessors** — `public function all(): array { return $this->items; }`
 
-Two long-line warnings remain in `Layout.php` and `ReleaseView.php`; both are HTML inside a heredoc that
-can't wrap without changing the output, and warnings don't fail the build.
+One long-line warning remains, in `Layout.php`; it is HTML inside a heredoc that can't wrap without
+changing the output, and warnings don't fail the build. (`ReleaseView.php`'s went away when the consent
+gate's wording moved into `<player-consent>`.)
 
 Editor note: nvim's stock `nvim-lint` phpcs resolves `vendor/bin/phpcs` and its ruleset against *Neovim's*
 cwd, so opening a file from outside the project silently lints it as bare PSR-12 and flags both exemptions
