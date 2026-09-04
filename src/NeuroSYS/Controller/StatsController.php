@@ -8,6 +8,7 @@ use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadLogEntry;
+use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\View\StatsView;
 
 /**
@@ -29,9 +30,14 @@ class StatsController implements Controller
     {
         Auth::requireAdminAuth($request);
 
+        // Logging off means the log is not read at all, not even a stale one left over from a previous machine.
+        if (!DownloadLogger::ENABLED) {
+            return new ViewResponse(new StatsView(0, [], [], false));
+        }
+
         [$total, $byFormat, $byDay] = $this->parseLog();
 
-        return new ViewResponse(new StatsView($total, $byFormat, $byDay));
+        return new ViewResponse(new StatsView($total, $byFormat, $byDay, true));
     }
 
     /**

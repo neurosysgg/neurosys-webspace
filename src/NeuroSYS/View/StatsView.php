@@ -14,17 +14,25 @@ class StatsView extends View
      * @param int                    $total    Total number of logged downloads.
      * @param array<string, int>     $byFormat Download counts keyed by "slug/format".
      * @param array<string, int>     $byDay    Download counts keyed by date (YYYY-MM-DD).
+     * @param bool                   $loggingEnabled Whether download logging is switched on at all.
      */
     public function __construct(
         private readonly int   $total,
         private readonly array $byFormat,
         private readonly array $byDay,
+        private readonly bool  $loggingEnabled = false,
     ) {}
 
     public function pageTitle(): string { return 'stats — neuro.SYS'; }
 
     public function content(): string
     {
+        // Distinguish "switched off" from "on, but nothing yet" — otherwise an empty page reads as a bug.
+        if (!$this->loggingEnabled) {
+            return '<section class="page-section"><p class="muted">Download logging is switched off — '
+                 . 'nothing is recorded.</p></section>';
+        }
+
         if ($this->total === 0) {
             return '<section class="page-section"><p class="muted">No downloads logged yet.</p></section>';
         }

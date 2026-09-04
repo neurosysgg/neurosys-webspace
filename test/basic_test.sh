@@ -120,6 +120,18 @@ php_ok "DownloadLogEntry::fromJson returns null for invalid JSON" \
     "use NeuroSYS\Service\DownloadLogEntry;
      DownloadLogEntry::fromJson('not json') === null or exit(1);"
 
+# --- DownloadLogger ---
+
+# Download logging is deliberately switched off (legal). Guard against it being turned back on by accident.
+php_ok "DownloadLogger is switched off and writes nothing" \
+    "use NeuroSYS\Service\DownloadLogger;
+     \$f = '$REPO/data/logs/downloads.log';
+     \$before = is_file(\$f) ? filesize(\$f) : -1;
+     new DownloadLogger()->log('test-slug', 'flac');
+     clearstatcache();
+     \$after = is_file(\$f) ? filesize(\$f) : -1;
+     (DownloadLogger::ENABLED === false && \$after === \$before) or exit(1);"
+
 # --- ReleaseRepository ---
 
 php_ok "ReleaseRepository loads at least one release" \

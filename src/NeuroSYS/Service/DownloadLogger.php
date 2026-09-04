@@ -8,6 +8,15 @@ namespace NeuroSYS\Service;
  */
 class DownloadLogger
 {
+    /**
+     * Master switch for download logging. **Deliberately off — nothing about a download is recorded.**
+     *
+     * The early return in {@link self::log()} happens before the {@link DownloadLogEntry} is built, so the
+     * referrer is never even read. Turning this on is a privacy-policy decision before it is a code one:
+     * `data/privacy.html` makes no download-tracking claim, so it would have to be amended first. See CLAUDE.md.
+     */
+    public const bool ENABLED = false;
+
     private string $logFile;
 
     /** Constructs an instance of {@link self}. */
@@ -24,6 +33,10 @@ class DownloadLogger
      */
     public function log(string $slug, string $format): void
     {
+        if (!self::ENABLED) {
+            return;
+        }
+
         $entry = new DownloadLogEntry(
             time:     date('c'),
             slug:     $slug,
