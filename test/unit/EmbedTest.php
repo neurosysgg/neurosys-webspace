@@ -28,66 +28,69 @@ final class EmbedTest extends TestCase
         self::assertSame(Platform::SoundCloud, $this->embed()->platform());
     }
 
-    public function testRendersAnIframeForTheGivenTrack(): void
+    public function testRendersTheElementForTheGivenTrack(): void
     {
-        $html = $this->embed()->toHtml('ill.');
+        $html = $this->embed()->toElement('ill.');
 
-        self::assertStringContainsString('<iframe', $html);
-        self::assertStringContainsString('soundcloud%3Atracks%3A2394077313', $html);
+        self::assertStringContainsString('<soundcloud-player', $html);
+        self::assertStringContainsString('track-id="2394077313"', $html);
+        self::assertStringContainsString('permalink="ill"', $html);
     }
 
-    public function testTheSecretTokenIsCarriedIntoThePlayerUrl(): void
+    public function testTheSecretTokenIsPassedToTheElement(): void
     {
-        $html = $this->embed(secretToken: 's-dIMAqki109G')->toHtml('ill.');
-
-        self::assertStringContainsString('secret_token', $html);
-        self::assertStringContainsString('s-dIMAqki109G', $html);
+        self::assertStringContainsString(
+            'secret-token="s-dIMAqki109G"',
+            $this->embed(secretToken: 's-dIMAqki109G')->toElement('ill.'),
+        );
     }
 
-    public function testAPublicTrackHasNoSecretToken(): void
+    /** A public track carries no token, so the attribute is left off rather than sent empty. */
+    public function testAPublicTrackSendsNoSecretTokenAttribute(): void
     {
-        self::assertStringNotContainsString('secret_token', $this->embed()->toHtml('ill.'));
+        self::assertStringNotContainsString('secret-token', $this->embed()->toElement('ill.'));
+    }
+
+    /**
+     * The whole reason the markup moved client-side is that none of it may exist before a click.
+     * The server's output is the element and its attributes — no iframe, and no SoundCloud URL for
+     * a browser to preconnect, prefetch or otherwise act on.
+     */
+    public function testTheServerEmitsNoSoundCloudUrlAtAll(): void
+    {
+        $html = $this->embed(secretToken: 's-dIMAqki109G')->toElement('ill.');
+
+        self::assertStringNotContainsString('<iframe', $html);
+        self::assertStringNotContainsString('soundcloud.com', $html);
+        self::assertStringNotContainsString('https://', $html);
     }
 
     // ───────────────────────────── options ─────────────────────────────
 
-    /** Listed means true, unlisted means an explicit false — never omitted. */
-    public function testEveryOptionIsEmittedExplicitly(): void
+    /**
+     * The element resolves every case to true or false; what crosses the boundary is the list of
+     * the ones that are on. EmbedTest used to assert the query string here — that assertion lives
+     * in test/js/soundcloud-player.test.mjs now, where the query string is actually built.
+     */
+    public function testTheEnabledOptionsAreListedInTheAttribute(): void
     {
-        $html = $this->embed(options: [SoundCloudOption::ShowComments])->toHtml('t');
-
-        foreach (SoundCloudOption::cases() as $option) {
-            $expected = $option === SoundCloudOption::ShowComments ? 'true' : 'false';
-            self::assertStringContainsString("{$option->value}={$expected}", $html);
-        }
+        self::assertStringContainsString(
+            'options="show_comments"',
+            $this->embed(options: [SoundCloudOption::ShowComments])->toElement('t'),
+        );
     }
 
     public function testTheDefaultOptionSetIsTheOneSoundCloudsDialogProduces(): void
     {
-        $html = $this->embed()->toHtml('t');
-
-        $on = [
-            SoundCloudOption::AutoPlay,
-            SoundCloudOption::ShowComments,
-            SoundCloudOption::ShowUser,
-            SoundCloudOption::ShowTeaser,
-        ];
-
-        foreach ($on as $option) {
-            self::assertStringContainsString("{$option->value}=true", $html);
-        }
-        foreach ([SoundCloudOption::HideRelated, SoundCloudOption::ShowReposts] as $off) {
-            self::assertStringContainsString("{$off->value}=false", $html);
-        }
+        self::assertStringContainsString(
+            'options="auto_play show_comments show_user show_teaser"',
+            $this->embed()->toElement('t'),
+        );
     }
 
-    public function testAnEmptyOptionListTurnsEverythingOff(): void
+    public function testAnEmptyOptionListSendsAnEmptyAttribute(): void
     {
-        $html = $this->embed(options: [])->toHtml('t');
-
-        foreach (SoundCloudOption::cases() as $option) {
-            self::assertStringContainsString("{$option->value}=false", $html);
-        }
+        self::assertStringContainsString('options=""', $this->embed(options: [])->toElement('t'));
     }
 
     public function testRejectsSomethingThatIsNotASoundCloudOption(): void
@@ -114,81 +117,57 @@ final class EmbedTest extends TestCase
 
     public static function styleProvider(): iterable
     {
-        yield [SoundCloudPlayerStyle::Visual, 300, 'true'];
-        yield [SoundCloudPlayerStyle::Classic, 166, 'false'];
+        yield [SoundCloudPlayerStyle::Visual, 300];
+        yield [SoundCloudPlayerStyle::Classic, 166];
     }
 
     #[DataProvider('styleProvider')]
-    public function testStyleFixesTheHeightAndTheVisualFlag(
+    public function testStyleFixesTheHeightAndIsNamedInTheAttribute(
         SoundCloudPlayerStyle $style,
         int $height,
-        string $visual,
     ): void {
         $embed = $this->embed(style: $style);
+        $html  = $embed->toElement('t');
 
         self::assertSame($height, $embed->height());
-        self::assertStringContainsString('height="' . $height . '"', $embed->toHtml('t'));
-        self::assertStringContainsString('visual=' . $visual, $embed->toHtml('t'));
+        self::assertStringContainsString('player-style="' . $style->value . '"', $html);
+        self::assertStringContainsString('height="' . $height . '"', $html);
     }
 
-    /** The consent gate reserves height() worth of space, so it has to match the iframe. */
-    public function testHeightMatchesTheRenderedIframeHeight(): void
+    /** The gate reserves height() worth of space, so the attribute has to carry exactly that. */
+    public function testHeightMatchesWhatTheElementIsToldToReserve(): void
     {
         foreach (SoundCloudPlayerStyle::cases() as $style) {
             $embed = $this->embed(style: $style);
-            self::assertStringContainsString('height="' . $embed->height() . '"', $embed->toHtml('t'));
+            self::assertStringContainsString(
+                'height="' . $embed->height() . '"',
+                $embed->toElement('t'),
+            );
         }
     }
 
-    // ───────────────────────────── attribution ─────────────────────────────
+    // ───────────────────────────── escaping ─────────────────────────────
 
-    public function testCreditsTheTitleItIsGiven(): void
+    public function testTheTitleIsCarriedIntoTheElementEscaped(): void
     {
-        self::assertStringContainsString('>my track!</a>', $this->embed()->toHtml('my track!'));
-    }
+        $html = $this->embed()->toElement('rock & <roll>');
 
-    public function testTheAttributionEscapesTheTitle(): void
-    {
-        $html = $this->embed()->toHtml('rock & <roll>');
-
-        self::assertStringContainsString('rock &amp; &lt;roll&gt;', $html);
+        self::assertStringContainsString('track-title="rock &amp; &lt;roll&gt;"', $html);
         self::assertStringNotContainsString('<roll>', $html);
     }
 
-    public function testTheIframeTitleEscapesTheReleaseTitle(): void
+    public function testATitleWithQuotesCannotBreakOutOfTheAttribute(): void
     {
-        $html = $this->embed()->toHtml('a "quoted" title');
+        $html = $this->embed()->toElement('a "quoted" title');
 
-        self::assertStringNotContainsString('title="a "quoted" title', $html);
+        self::assertStringNotContainsString('track-title="a "quoted" title', $html);
         self::assertStringContainsString('&quot;quoted&quot;', $html);
     }
 
-    public function testAttributionLinksToTheArtistAndTheTrack(): void
+    public function testThePermalinkIsEscapedToo(): void
     {
-        $html = $this->embed()->toHtml('ill.');
+        $html = new SoundCloudEmbed(trackId: 1, permalink: 'a"b')->toElement('t');
 
-        self::assertStringContainsString('https://soundcloud.com/neurosysgg"', $html);
-        self::assertStringContainsString('https://soundcloud.com/neurosysgg/ill', $html);
-    }
-
-    public function testAPrivateTrackPermalinkCarriesTheToken(): void
-    {
-        $html = $this->embed(secretToken: 's-dIMAqki109G')->toHtml('ill.');
-
-        self::assertStringContainsString('https://soundcloud.com/neurosysgg/ill/s-dIMAqki109G', $html);
-    }
-
-    /** Nothing may point at a SoundCloud asset that would load without a click. */
-    public function testTheMarkupOnlyEverReferencesSoundCloudHosts(): void
-    {
-        preg_match_all('/(?:src|href)="([^"]+)"/', $this->embed()->toHtml('t'), $m);
-
-        self::assertNotEmpty($m[1]);
-        foreach ($m[1] as $url) {
-            self::assertMatchesRegularExpression(
-                '#^https://(w\.soundcloud\.com|soundcloud\.com)/#',
-                html_entity_decode($url),
-            );
-        }
+        self::assertStringContainsString('permalink="a&quot;b"', $html);
     }
 }

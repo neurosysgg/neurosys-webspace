@@ -18,7 +18,8 @@ neurosys/
 ├── assets/ts/           ← front-end sources; outside public/, never deployed
 │   ├── main.ts          ← entry point, the only <script> the layout loads
 │   ├── Navigation.ts    ← SPA navigation
-│   └── elements/        ← PlayerConsent, CoverArt (one class per file)
+│   ├── model/           ← enums mirrored from src/NeuroSYS/Model/ (parity-tested)
+│   └── elements/        ← one module per component, named for its root element
 │
 ├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
 │   ├── Controller/      ← one class per route group
@@ -42,7 +43,8 @@ neurosys/
 │
 ├── test/
 │   ├── basic_test.sh    ← end-to-end verify script (PHP CLI + curl)
-│   └── unit/            ← PHPUnit unit tests
+│   ├── unit/            ← PHPUnit unit tests
+│   └── js/              ← node --test: the elements, and the enum mirrors
 │
 └── docs/                ← you are here
 ```

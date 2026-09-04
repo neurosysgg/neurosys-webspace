@@ -124,12 +124,7 @@ class ReleaseView extends View
             return '';
         }
 
-        $markup   = htmlspecialchars($embed->toHtml($this->release->title));
-        $provider = htmlspecialchars($embed->platform()->displayName());
-        $height   = $embed->height();
-
-        return '<player-consent provider="' . $provider . '" height="' . $height
-             . '" embed="' . $markup . '"></player-consent>';
+        return $embed->toElement($this->release->title);
     }
 
     /** Builds the download card links for all formats on this release. */

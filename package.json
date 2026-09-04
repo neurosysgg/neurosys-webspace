@@ -6,9 +6,11 @@
     "scripts": {
         "build": "tsc",
         "watch": "tsc --watch",
-        "check": "tsc --noEmit"
+        "check": "tsc --noEmit",
+        "test": "node --test"
     },
     "devDependencies": {
+        "jsdom": "^30.0.1",
         "typescript": "^7.0.2"
     }
 }

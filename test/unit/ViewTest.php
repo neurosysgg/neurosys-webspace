@@ -6,6 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Layout;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
+use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Genre;
@@ -147,10 +148,11 @@ final class ViewTest extends TestCase
     // ─────────────────────────── the consent gate ───────────────────────────
 
     /**
-     * The whole point of the gate: nothing may reach the page as a live element. The markup
-     * exists only escaped inside the element's embed attribute until the visitor clicks.
+     * The whole point of the gate: nothing may reach the page as a live element. Since the widget
+     * URL is built by <soundcloud-player>, the server's output carries no SoundCloud address at
+     * all — nothing for a browser to preconnect or prefetch before the visitor has agreed to it.
      */
-    public function testNoIframeReachesThePageBeforeConsent(): void
+    public function testNothingReachesThePageThatCouldLoadFromSoundCloud(): void
     {
         $html = new ReleaseView(
             $this->release(embed: new SoundCloudEmbed(trackId: 1, permalink: 'x')),
@@ -158,47 +160,36 @@ final class ViewTest extends TestCase
         )->content();
 
         self::assertStringNotContainsString('<iframe', $html);
-        self::assertStringContainsString('embed="', $html);
-        self::assertStringContainsString('player-consent', $html);
+        self::assertStringNotContainsString('soundcloud.com', $html);
+        self::assertStringContainsString('<soundcloud-player', $html);
     }
 
     /**
-     * <player-consent> writes its own label and its own notice, so the wording is no longer in the
-     * server's output — what has to be here is the provider name it writes them from. Getting this
-     * wrong means a consent notice naming the wrong company, so it is worth pinning on both sides:
-     * the wording itself is asserted against the rendered gate in the browser.
+     * The provider is the element, not an attribute on a generic one: <soundcloud-player> knows it
+     * is SoundCloud and words its own notice from that. Getting it wrong would mean a consent
+     * notice naming the wrong company, so the wording is asserted where it is written —
+     * test/js/soundcloud-player.test.mjs. What belongs here is that the view picks the right tag.
      */
-    public function testTheGateNamesTheProvider(): void
-    {
-        $html = new ReleaseView(
-            $this->release(embed: new SoundCloudEmbed(trackId: 1, permalink: 'x')),
-            'x',
-        )->content();
-
-        self::assertStringContainsString('provider="SoundCloud"', $html);
-    }
-
-    public function testTheEscapedMarkupDecodesBackToTheRealPlayer(): void
+    public function testTheViewEmitsTheProvidersOwnElement(): void
     {
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x');
         $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
 
-        preg_match('/embed="([^"]*)"/', $html, $m);
-
-        self::assertSame($embed->toHtml('ill.'), html_entity_decode($m[1], ENT_QUOTES));
+        self::assertSame(Platform::SoundCloud, $embed->platform());
+        self::assertStringContainsString('<soundcloud-player', $html);
     }
 
     public function testThereIsNoPlayerAtAllWithoutAnEmbed(): void
     {
         $html = new ReleaseView($this->release(), 'x')->content();
 
-        self::assertStringNotContainsString('player-consent', $html);
+        self::assertStringNotContainsString('soundcloud-player', $html);
     }
 
     /**
-     * The gate reserves the player's own height so the page doesn't jump on load. Carried as
-     * an attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for our
-     * own markup — <player-consent> turns it into --player-height.
+     * The gate reserves the player's own height so the page doesn't jump on load. Carried as an
+     * attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for our own
+     * markup — ConsentGatedEmbed turns it into --player-height.
      */
     #[DataProvider('playerHeightProvider')]
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
@@ -207,7 +198,10 @@ final class ViewTest extends TestCase
         $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
 
         self::assertStringContainsString('height="' . $height . '"', $html);
-        self::assertStringNotContainsString('style="', $html);
+
+        // Matched with a leading space on purpose: player-style="visual" contains style=" as a
+        // substring, and a plain contains-check reads that as an inline style attribute.
+        self::assertDoesNotMatchRegularExpression('/\sstyle="/', $html);
     }
 
     public static function playerHeightProvider(): iterable
@@ -221,9 +215,8 @@ final class ViewTest extends TestCase
      * error anywhere, so a typo in a tag name is invisible. This pins the set: adding an element
      * means adding it here, and misspelling one fails.
      *
-     * <player-consent> and <cover-art> carry behaviour and are registered in assets/ts/elements/;
-     * the rest exist to name a fragment, and the verify script checks the registered two against
-     * the served markup from the other direction.
+     * Every tag is registered in assets/ts/elements/; the verify script checks the other
+     * direction, that each registered one appears in the markup of a page that should carry it.
      */
     public function testTheViewsEmitOnlyKnownCustomElements(): void
     {
@@ -246,7 +239,7 @@ final class ViewTest extends TestCase
         self::assertSame(
             [
                 'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
-                'player-consent', 'release-card', 'release-meta', 'release-title',
+                'release-card', 'release-meta', 'release-title', 'soundcloud-player',
                 'terminal-command', 'terminal-cursor', 'terminal-field', 'terminal-key',
                 'terminal-ok', 'terminal-window',
             ],

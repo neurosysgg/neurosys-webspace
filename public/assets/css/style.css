@@ -378,10 +378,11 @@ cover-art {
   }
 }
 
-/* The element builds the gate itself and then replaces it with the embed in place, so there
-   is no wrapper div and no server-rendered innards. With no JS it stays empty — the reserved
-   height below still holds the space, so nothing reflows when the script lands. */
-player-consent {
+/* Every consent-gated embed — add a provider's tag to this selector when you add its element.
+   The element builds the gate itself and then replaces it with the embed in place, so there is no
+   wrapper div and no server-rendered innards. With no JS it stays empty; the reserved height below
+   still holds the space, so nothing reflows when the script lands. */
+soundcloud-player {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -389,7 +390,7 @@ player-consent {
   gap: 0.75rem;
   margin-bottom: 2.5rem;
   /* Matches the iframe that replaces it, so the page doesn't jump on load.
-     <player-consent> sets --player-height from its own height attribute. */
+     ConsentGatedEmbed sets --player-height from the element's own height attribute. */
   height: var(--player-height, 300px);
   border: 1px solid var(--border);
   border-radius: 8px;

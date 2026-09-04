@@ -37,9 +37,18 @@ Two suites that cover different things — `test/unit/` for logic and edge cases
 for the real autoloader, real HTTP, `exit`-ing auth code and repo hygiene. See `docs/testing.md` for
 the split and for the invariants that exist to stop specific mistakes recurring.
 
-The verify script also type-checks `assets/ts/` and asserts the committed JS is current with it. Both
-are skipped with a printed NOTE when `npm install` has never been run, so `composer test` still works
-on a bare clone.
+```bash
+npm test           # node --test — the elements and the enum mirrors
+npm run check      # tsc --noEmit
+```
+
+The verify script runs the client-side tests too, type-checks `assets/ts/`, and asserts the committed
+JS is current with it. All three are skipped with a printed NOTE when `npm install` has never been run,
+so `composer test` still works on a bare clone.
+
+The client-side tests run against the **compiled output** in `public/assets/js/`, the same files the
+browser loads — so a build that never ran is a failing test rather than a passing one. They use
+`node --test` (built in) with `jsdom` for a DOM; both are dev-only, like everything else here.
 
 ## Architecture
 
@@ -140,7 +149,8 @@ all the same, so the vocabulary has one place to look rather than existing only 
 
 | Module | Tags | Does |
 |---|---|---|
-| `PlayerConsent.ts` | `<player-consent provider height embed>` | builds the gate, reserves the player's height, then hosts the embed in place on click |
+| `ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Mirrors the `Embed` interface |
+| `SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client |
 | `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
 | `TerminalWindow.ts` | `<terminal-window label [narrow]>` `<terminal-command>` `<terminal-field>` `<terminal-key [error]>` `<terminal-ok>` `<terminal-cursor>` | none — the title bar and its three lights, the `$` sigil and the cursor glyph are all CSS |
 | `DownloadList.ts` | `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | none — each card wraps a real `<a data-no-spa>` |
@@ -159,8 +169,31 @@ Two consequences of self-containment worth knowing:
   `<noscript><img …></noscript>` inside `<cover-art>` if that trade is not worth it.
 - **The consent notice is written by the element**, not the server. That is still sound: the transfer
   it warns about can only be triggered by a click, a click needs the script, and the script writes the
-  notice. `ReleaseView` supplies the `provider` name and a unit test pins it, because getting it wrong
-  means a notice naming the wrong company.
+  notice. The provider is the element — `<soundcloud-player>` knows it is SoundCloud — and the wording
+  is asserted in `test/js/soundcloud-player.test.mjs`, where it is written.
+
+### The embed, and the mirrored enums
+
+`SoundCloudEmbed` no longer builds any markup. It renders `<soundcloud-player>` with the release's
+facts as attributes, and the element builds the widget URL and the attribution from them. The split is
+that the **server sends the release's facts** and the **element owns the provider's furniture** — the
+accent colour, the artist handle, the attribution styling and the iframe attributes all live in
+`SoundCloudPlayer.ts` now. Adding a provider is an `Embed` implementation and a `ConsentGatedEmbed`
+subclass, and nothing else.
+
+That means the server's output carries no SoundCloud address at all, which is a stronger version of
+the old guarantee: there is nothing for a browser to preconnect or prefetch before the visitor agrees.
+
+Building the URL client-side needs the query keys client-side, so `assets/ts/model/` mirrors three
+enums — `Platform` (with `displayName()`), `SoundCloudOption` and `SoundCloudPlayerStyle` (with
+`isVisual()`). Only those three: nothing here reads `Genre`, `MusicalKey` or `ReleaseFormat`, and a
+mirror with no reader is just something to keep in sync.
+
+**A mirror is a second copy of a fact, so it is tested.** `test/js/enum-parity.test.mjs` compares each
+one against its PHP original — name, backing value, and the accessors the client mirrors — in
+declaration order, because `SoundCloudEmbed` and `SoundCloudPlayer` both build the query string by
+iterating the cases. Add a case on one side only, rename one, retype a backing value or reorder two,
+and it fails.
 
 Adding an element means adding it to `ViewTest::testTheViewsEmitOnlyKnownCustomElements`, which pins
 the set: a misspelled tag renders as an inert inline box with no error otherwise. The verify script

@@ -1,7 +1,7 @@
 # Testing
 
-Two suites that deliberately don't overlap. Neither catches everything; together they cover
-the parts the other structurally can't.
+Three suites that deliberately don't overlap. None catches everything; together they cover
+the parts the others structurally can't.
 
 ```bash
 composer test
@@ -13,16 +13,21 @@ runs both — unit tests first, then the verify script. Or separately:
 composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
 composer lint      # phpcs + php-cs-fixer, read-only
+npm test           # node --test, the elements and the enum mirrors
 npm run check      # tsc --noEmit, the front end on its own
 ```
 
 ## The split
 
-| | `test/unit/` (PHPUnit) | `test/basic_test.sh` (verify) |
-|---|---|---|
-| **Runs against** | Composer's autoloader | the real `autoload.php`, over real HTTP |
-| **Good at** | branches, edge cases, escaping, error paths | integration, `exit`-ing code, the deployed shape |
-| **Blind to** | anything that calls `exit`, `header()`, or needs a server | anything with no observable output |
+| | `test/unit/` (PHPUnit) | `test/js/` (node --test) | `test/basic_test.sh` (verify) |
+|---|---|---|---|
+| **Runs against** | Composer's autoloader | the compiled JS in `public/assets/js/`, in a jsdom DOM | the real `autoload.php`, over real HTTP |
+| **Good at** | branches, edge cases, escaping, error paths | what the elements build, and the enum mirrors | integration, `exit`-ing code, the deployed shape |
+| **Blind to** | anything that calls `exit`, `header()`, or needs a server | real layout, real CSS, real network | anything with no observable output |
+
+`test/js/` runs the *built* files rather than the TypeScript, so a stale build fails there as well as
+in the drift check. Two of its cases reach back into PHP through `php -r` — the enum parity ones, and
+the Permissions-Policy check — because the fact they guard spans both sides.
 
 The division matters in a few concrete places:
 
@@ -36,9 +41,14 @@ The division matters in a few concrete places:
   through its optional `ReleaseRepository` parameter — that argument exists purely as this seam.
 - **Escaping** is unit-tested because it needs hostile inputs (`<script>`, `&`, quotes, multibyte)
   that the real catalogue will never contain.
-- **The front end is compiled**, so the verify script owns it: PHPUnit never sees `assets/ts/`. Both
-  front-end checks are skipped with a printed NOTE when `node_modules/` is absent, so `composer test`
-  still runs end to end on a clone that has only ever seen `composer install`.
+- **The front end is compiled**, so PHPUnit never sees `assets/ts/`: `test/js/` covers what the
+  elements build, and the verify script runs it. The front-end checks are skipped with a printed NOTE
+  when `node_modules/` is absent, so `composer test` still runs end to end on a clone that has only
+  ever seen `composer install`.
+- **The embed's markup is built client-side**, so the cases that asserted on it moved with it. What
+  stays in `EmbedTest` is the contract the server still has — the element and its attributes; what
+  moved to `test/js/soundcloud-player.test.mjs` is the widget URL, the attribution and the
+  SoundCloud-hosts-only rule.
 
 ## Adding a unit test
 
@@ -69,6 +79,12 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **No view emits an inline style or event handler.** The CSP's `style-src` allowance exists only for the
   SoundCloud attribution markup we reproduce verbatim; a test keeps that allowance from quietly covering
   our own markup too.
+- **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
+  `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
+  widget query string is built in, so a reorder is a real bug and fails like one.
+- **The server emits no SoundCloud address.** `<soundcloud-player>` builds the widget URL, so there is
+  nothing in the served page for a browser to preconnect or prefetch before the visitor consents.
+  Asserted on `toElement()` in PHP and against `w.soundcloud.com` over HTTP in the verify script.
 - **The CSP names no host but HiDrive and SoundCloud.** A CDN sneaking into a future edit fails the test
   rather than shipping — asserted against `ContentSecurityPolicy::hosts()`, so it sees the typed hosts
   rather than grepping the rendered header.
@@ -112,4 +128,4 @@ the server, and that is still true: TypeScript compiles here, and the server rec
 it produced.
 
 There is no linter for the TypeScript — `tsc` under `strict` is the whole check. Adding ESLint would
-mean a second toolchain for four small files.
+mean a second toolchain for a handful of small files.

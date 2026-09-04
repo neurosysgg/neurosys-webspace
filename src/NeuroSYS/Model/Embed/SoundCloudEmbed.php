@@ -14,33 +14,13 @@ use NeuroSYS\Model\Platform;
  * dialog into `data/releases.php`. A release now names the track and this class
  * builds the markup, so the two can no longer drift apart.
  *
- * The generated markup is deliberately identical to what SoundCloud's own dialog
- * produces — same query parameters, same attribution block, same inline styles.
- * Both are their furniture, not ours; see docs/branding.md for the same stance on
- * brand assets.
+ * The markup itself is not built here. This renders <soundcloud-player> with the
+ * release's facts as attributes, and assets/ts/elements/SoundCloudPlayer.ts builds
+ * the widget URL and the attribution from them — SoundCloud's furniture lives with
+ * SoundCloud's element. See docs/branding.md for the same stance on brand assets.
  */
 final readonly class SoundCloudEmbed implements Embed
 {
-    /**
-     * The player accent, as SoundCloud's `color` parameter wants it.
-     *
-     * Intentionally *not* the site's --accent (#6a00ff), which reads as near-black
-     * against the player's own dark chrome. This is a lighter purple picked to sit
-     * in the same family while staying legible on SoundCloud's background.
-     */
-    private const string ACCENT = '#9e55e6';
-
-    /** The artist profile the attribution block credits and links to. */
-    private const string ARTIST_HANDLE = 'neurosysgg';
-    private const string ARTIST_NAME   = 'neuro.SYS';
-
-    /** SoundCloud's own attribution styling, reproduced verbatim. */
-    private const string ATTRIBUTION_STYLE = 'font-size: 10px; color: #cccccc;line-break: anywhere;'
-        . 'word-break: normal;overflow: hidden;white-space: nowrap;text-overflow: ellipsis; '
-        . 'font-family: Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,'
-        . 'Tahoma,sans-serif;font-weight: 100;';
-    private const string ATTRIBUTION_LINK_STYLE = 'color: #cccccc; text-decoration: none;';
-
     /**
      * The player configuration every release uses unless it says otherwise.
      *
@@ -89,100 +69,30 @@ final readonly class SoundCloudEmbed implements Embed
         return $this->style->height();
     }
 
-    public function toHtml(string $title): string
+    public function toElement(string $title): string
     {
-        return $this->iframeHtml($title) . $this->attributionHtml($title);
+        $options = implode(' ', array_map(
+            static fn (SoundCloudOption $option): string => $option->value,
+            $this->options,
+        ));
+
+        return '<soundcloud-player'
+            . ' track-id="' . $this->trackId . '"'
+            . ' permalink="' . htmlspecialchars($this->permalink) . '"'
+            . $this->secretTokenAttribute()
+            . ' player-style="' . $this->style->value . '"'
+            . ' options="' . htmlspecialchars($options) . '"'
+            . ' track-title="' . htmlspecialchars($title) . '"'
+            . ' height="' . $this->height() . '"'
+            . '></soundcloud-player>';
     }
 
-    /** Returns true if the given option is enabled on this embed. */
-    private function has(SoundCloudOption $option): bool
+    /** A public track carries no token, so the attribute is left off rather than sent empty. */
+    private function secretTokenAttribute(): string
     {
-        return in_array($option, $this->options, true);
-    }
-
-    /**
-     * Builds the player iframe.
-     *
-     * `scrolling` and `frameborder` are deprecated HTML attributes, but they are what
-     * SoundCloud ships and what is verified working, so they stay.
-     *
-     * @noinspection HtmlDeprecatedAttribute
-     */
-    private function iframeHtml(string $title): string
-    {
-        $src    = htmlspecialchars($this->playerUrl());
-        $height = $this->height();
-        $name   = htmlspecialchars($title . ' on ' . $this->platform()->displayName());
-
-        return '<iframe width="100%" height="' . $height . '" scrolling="no" frameborder="no"'
-            . ' allow="autoplay; encrypted-media" title="' . $name . '" src="' . $src . '"></iframe>';
-    }
-
-    /**
-     * Builds the artist · track credit line SoundCloud's embed carries.
-     *
-     * SoundCloud asks that embeds keep this attribution, so it renders whether or not
-     * {@link SoundCloudOption::ShowUser} is on — that toggle governs the player chrome,
-     * not the credit.
-     */
-    private function attributionHtml(string $title): string
-    {
-        $artist = $this->link(
-            'https://soundcloud.com/' . self::ARTIST_HANDLE,
-            self::ARTIST_NAME,
-        );
-        $track = $this->link($this->trackPermalink(), $title);
-
-        return '<div style="' . self::ATTRIBUTION_STYLE . '">' . $artist . ' · ' . $track . '</div>';
-    }
-
-    /** Builds one attribution link, styled the way SoundCloud styles it. */
-    private function link(string $href, string $text): string
-    {
-        $href = htmlspecialchars($href);
-        $text = htmlspecialchars($text);
-
-        return '<a href="' . $href . '" title="' . $text . '" target="_blank"'
-            . ' style="' . self::ATTRIBUTION_LINK_STYLE . '">' . $text . '</a>';
-    }
-
-    /** Builds the widget URL the iframe loads, with every option resolved to true/false. */
-    private function playerUrl(): string
-    {
-        $params = ['url' => $this->trackUrl(), 'color' => self::ACCENT];
-
-        foreach (SoundCloudOption::cases() as $option) {
-            $params[$option->value] = $this->has($option) ? 'true' : 'false';
-        }
-
-        $params['visual'] = $this->style->isVisual() ? 'true' : 'false';
-
-        return 'https://w.soundcloud.com/player/?' . http_build_query($params);
-    }
-
-    /**
-     * Returns the API track reference the player resolves.
-     *
-     * SoundCloud's dialog emits the `soundcloud:tracks:<id>` URN form rather than a
-     * bare id — unusual, but it is what the live embeds use, so it is reproduced as-is.
-     */
-    private function trackUrl(): string
-    {
-        $url = 'https://api.soundcloud.com/tracks/soundcloud:tracks:' . $this->trackId;
-
         return $this->secretToken === ''
-            ? $url
-            : $url . '?secret_token=' . $this->secretToken;
-    }
-
-    /** Returns the public track page the attribution links to. */
-    private function trackPermalink(): string
-    {
-        $url = 'https://soundcloud.com/' . self::ARTIST_HANDLE . '/' . $this->permalink;
-
-        return $this->secretToken === ''
-            ? $url
-            : $url . '/' . $this->secretToken;
+            ? ''
+            : ' secret-token="' . htmlspecialchars($this->secretToken) . '"';
     }
 
     /**

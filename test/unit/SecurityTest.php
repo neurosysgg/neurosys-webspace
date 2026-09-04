@@ -258,19 +258,13 @@ final class SecurityTest extends TestCase
      * PermissionsPolicyFeature would do, since the policy denies every case -- switches the
      * player off with no error anywhere. Tie the two together so that can't happen quietly.
      */
-    public function testThePolicyDeniesNothingTheSoundCloudPlayerAsksFor(): void
-    {
-        $iframe = new SoundCloudEmbed(trackId: 1, permalink: 'x')->toHtml('t');
-        self::assertSame(1, preg_match('/allow="([^"]+)"/', $iframe, $m), 'no allow= on the iframe');
-
-        $policy = self::header(SecurityHeader::PermissionsPolicy);
-
-        foreach (array_map('trim', explode(';', $m[1])) as $feature) {
-            self::assertStringNotContainsString(
-                $feature . '=()',
-                $policy,
-                "Permissions-Policy denies '$feature', which the SoundCloud player requires",
-            );
-        }
-    }
+    /*
+     * The Permissions-Policy is built with denyAll(), so adding a case to PermissionsPolicyFeature
+     * would deny that feature everywhere — including inside the SoundCloud iframe, which asks for
+     * autoplay and encrypted-media, and would switch the player off with no error anywhere.
+     *
+     * That iframe is built by <soundcloud-player> now, so the assertion lives in
+     * test/js/soundcloud-player.test.mjs: it reads the real allow= off the real element and checks
+     * it against the header this class sends. It did not go away, it moved to what it guards.
+     */
 }

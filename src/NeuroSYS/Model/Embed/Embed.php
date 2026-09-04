@@ -9,12 +9,13 @@ use NeuroSYS\Model\Platform;
 /**
  * The Embed interface. A third-party media player attached to a release.
  *
- * Implementations own their provider's markup so that {@link \NeuroSYS\Model\Release}
- * can declare a player as typed parameters rather than pasted HTML.
+ * Implementations own their provider's parameters so that {@link \NeuroSYS\Model\Release}
+ * can declare a player as typed values rather than pasted HTML.
  *
- * Every embed loads from someone else's servers, so the rendered markup is never
- * emitted directly into the page — {@link \NeuroSYS\View\ReleaseView} puts it behind
- * a click-to-load consent gate, worded from {@link self::platform()}.
+ * The provider's own markup is not built here. An implementation renders the custom
+ * element that builds it client-side, which is also what gates it: every embed loads
+ * from someone else's servers, and nothing is requested from them until the visitor
+ * clicks through the consent gate the element puts up first.
  */
 interface Embed
 {
@@ -31,10 +32,14 @@ interface Embed
     public function height(): int;
 
     /**
-     * Renders the provider's embed markup.
+     * Renders the custom element that builds this provider's player.
+     *
+     * The element receives the release's facts as typed attributes and builds the
+     * provider's markup itself — see assets/ts/elements/ for the counterpart. Adding
+     * a provider means an implementation here and an element there, and nothing else.
      *
      * @param string $title The release title, used for attribution and the player's
      *                      accessible name. Taken from the release so it can't drift.
      */
-    public function toHtml(string $title): string;
+    public function toElement(string $title): string;
 }

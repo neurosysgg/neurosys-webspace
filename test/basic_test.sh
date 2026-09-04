@@ -237,6 +237,14 @@ if [[ -x "$TSC" ]]; then
         fail "assets/ts/ has type errors (run: npm run check)"
     fi
 
+    # The element and enum-parity tests run against the compiled output in public/assets/js/, so
+    # they need the build to be current -- which the check below is what guarantees.
+    if (cd "$REPO" && node --test >/dev/null 2>&1); then
+        pass "the element and enum-parity tests pass"
+    else
+        fail "client-side tests failed (run: npm test)"
+    fi
+
     # Editing a .ts and forgetting to rebuild would deploy stale JS, and nothing else would notice.
     # The scratch outDir has to sit exactly as deep as public/assets/js/ — three levels below the
     # repo root — or every .map's "sources" path differs and the diff fails for the wrong reason.
@@ -303,9 +311,14 @@ echo "=== Rendered output ==="
 
 # Download links must bypass Navigation, or the 303 is consumed by fetch and nothing downloads.
 check_body "download cards carry data-no-spa"        "$BASE/releases/ill"  'data-no-spa'
-# Nothing may be requested from SoundCloud before the visitor clicks the consent gate.
-check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<iframe'   absent
-check_body "the consent gate is rendered"            "$BASE/releases/ill"  'player-consent'
+# Nothing may be requested from SoundCloud before the visitor clicks the consent gate. The widget
+# URL is built by <soundcloud-player>, so the served page carries no SoundCloud address at all —
+# nothing for a browser to preconnect or prefetch ahead of the click.
+check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<iframe'         absent
+# w.soundcloud.com specifically: the footer's profile link to soundcloud.com is a plain href and
+# loads nothing, but the widget host is what an iframe or a preconnect hint would reach for.
+check_body "the widget host is nowhere in the page"  "$BASE/releases/ill"  'w.soundcloud.com'  absent
+check_body "the player element is rendered"          "$BASE/releases/ill"  '<soundcloud-player'
 
 # An element the browser has never heard of renders as an inert inline box with no error anywhere,
 # so a tag name and its registration drifting apart is invisible. ViewTest pins the tag set from the
