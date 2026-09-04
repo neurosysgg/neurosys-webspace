@@ -242,11 +242,18 @@ if [[ -x "$TSC" ]]; then
     # repo root — or every .map's "sources" path differs and the diff fails for the wrong reason.
     TSOUT="$REPO/.tscheck/assets/js"
     rm -rf "$REPO/.tscheck"
-    if (cd "$REPO" && "$TSC" --outDir "$TSOUT" >/dev/null 2>&1) \
-       && diff -r "$TSOUT" "$REPO/public/assets/js" >/dev/null 2>&1; then
-        pass "public/assets/js/ is current with assets/ts/"
+    if (cd "$REPO" && "$TSC" --outDir "$TSOUT" >/dev/null 2>&1); then
+        # --brief names the files rather than dumping them; "Only in" lines are the ones that
+        # matter after a source is deleted, since tsc never removes what it no longer emits.
+        drift=$(diff -rq "$TSOUT" "$REPO/public/assets/js" 2>&1 | sed "s|$TSOUT|<rebuilt>|g; s|$REPO/||g")
+        if [[ -z "$drift" ]]; then
+            pass "public/assets/js/ is current with assets/ts/"
+        else
+            fail "public/assets/js/ has drifted from assets/ts/ (run: npm run build)"
+            echo "$drift" | sed 's/^/       /'
+        fi
     else
-        fail "public/assets/js/ is stale or diverged (run: npm run build)"
+        fail "assets/ts/ does not compile, so its output cannot be checked"
     fi
     rm -rf "$REPO/.tscheck"
 else
@@ -299,6 +306,15 @@ check_body "download cards carry data-no-spa"        "$BASE/releases/ill"  'data
 # Nothing may be requested from SoundCloud before the visitor clicks the consent gate.
 check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<iframe'   absent
 check_body "the consent gate is rendered"            "$BASE/releases/ill"  'player-consent'
+
+# An element the browser has never heard of renders as an inert inline box with no error anywhere,
+# so a tag name and its registration drifting apart is invisible. ViewTest pins the tag set from the
+# markup side; this checks the registrations from the other — every element assets/ts/ registers has
+# to actually appear in the page that is supposed to carry it.
+for tag in $(grep -ho "customElements.define('[a-z][a-z0-9-]*'" "$REPO"/assets/ts/elements/*.ts \
+             | sed "s/.*'\(.*\)'/\1/" | sort -u); do
+    check_body "<$tag> is registered and emitted"     "$BASE/releases/ill"  "<$tag"
+done
 # A PHP notice or warning leaking into the page means something is broken upstream.
 check_body "no PHP errors leak into the home page"   "$BASE/"              'Warning'   absent
 check_body "no PHP errors leak into a release page"  "$BASE/releases/ill"  'Fatal'     absent

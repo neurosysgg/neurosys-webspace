@@ -179,21 +179,21 @@ final class SecurityTest extends TestCase
         self::assertDoesNotMatchRegularExpression('/\son(error|click|load|mouse\w+)=/', $html);
     }
 
-    public function testTheCoverFallbackIsADataAttributeNotAnInlineHandler(): void
+    public function testTheCoverFallbackIsAnAttributeNotAnInlineHandler(): void
     {
         $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
         $html = new ReleaseView($release, 'ill')->content();
 
-        self::assertStringContainsString('data-fallback="/assets/img/cover-placeholder.svg"', $html);
+        self::assertStringContainsString('fallback="/assets/img/cover-placeholder.svg"', $html);
         self::assertStringNotContainsString('onerror', $html);
     }
 
-    public function testTheConsentGateCarriesItsHeightAsData(): void
+    public function testTheConsentGateCarriesItsHeightAsAnAttribute(): void
     {
         $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
         $html = new ReleaseView($release, 'ill')->content();
 
-        self::assertStringContainsString('data-player-height="300"', $html);
+        self::assertStringContainsString('height="300"', $html);
     }
 
     // ───────────────────────── the other headers ─────────────────────────

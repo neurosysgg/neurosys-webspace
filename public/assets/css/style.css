@@ -161,6 +161,10 @@ a:hover, a:focus-visible { text-decoration: underline; }
    Releases catalogue
    ---------------------------------------------------------------- */
 
+/* Custom elements default to display: inline, and these two exist only to name the fragment —
+   the anchor inside is still the card. display: contents keeps them out of the layout entirely. */
+release-card, download-card { display: contents; }
+
 .release-card, .dl-card {
   display: flex;
   flex-direction: column;
@@ -212,7 +216,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
    Terminal card
    ---------------------------------------------------------------- */
 
-.terminal {
+terminal-window {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -282,7 +286,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
    Cover art
    ---------------------------------------------------------------- */
 
-.cover-art {
+cover-art {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -292,7 +296,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
   justify-content: center;
   min-height: 220px;
 }
-.cover-art img {
+cover-art img {
   display: block;
   width: 100%;
   height: 100%;
@@ -322,14 +326,14 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .player { margin-bottom: 2.5rem; }
 .player iframe { border-radius: 8px; display: block; }
 
-.player-consent {
+player-consent {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
   /* Matches the iframe that replaces it, so the page doesn't jump on load.
-     player.js sets --player-height from the embed's own data-player-height. */
+     <player-consent> sets --player-height from its own height attribute. */
   height: var(--player-height, 300px);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -368,7 +372,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 
 .dl-meta { font-size: 0.8rem; color: var(--muted); }
 
-.terminal-narrow { max-width: 480px; }
+terminal-window[narrow] { max-width: 480px; }
 .back-home       { margin-top: 1.5rem; }
 
 /* ---------------------------------------------------------------

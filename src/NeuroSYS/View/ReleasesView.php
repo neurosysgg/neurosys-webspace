@@ -24,6 +24,7 @@ class ReleasesView extends View
     {
         $cards = '';
         foreach ($this->releases as $slug => $release) {
+            $slugAttr = htmlspecialchars($slug);
             $href  = htmlspecialchars('/releases/' . $slug . '/');
             $title = htmlspecialchars($release->title);
             $bpm   = $release->bpm;
@@ -31,10 +32,12 @@ class ReleasesView extends View
             $genre = htmlspecialchars($release->genre->value);
             $desc  = htmlspecialchars($release->description);
             $cards .= <<<HTML
-                  <a class="release-card" href="$href">
-                    <span class="release-title">$title</span>
-                    <span class="release-meta">$bpm bpm &middot; $key &middot; $genre &middot; $desc</span>
-                  </a>
+                  <release-card slug="$slugAttr">
+                    <a class="release-card" href="$href">
+                      <span class="release-title">$title</span>
+                      <span class="release-meta">$bpm bpm &middot; $key &middot; $genre &middot; $desc</span>
+                    </a>
+                  </release-card>
 
                 HTML;
         }

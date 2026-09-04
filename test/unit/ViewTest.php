@@ -148,7 +148,7 @@ final class ViewTest extends TestCase
 
     /**
      * The whole point of the gate: nothing may reach the page as a live element. The markup
-     * exists only escaped inside data-embed until the visitor clicks.
+     * exists only escaped inside the element's embed attribute until the visitor clicks.
      */
     public function testNoIframeReachesThePageBeforeConsent(): void
     {
@@ -158,7 +158,7 @@ final class ViewTest extends TestCase
         )->content();
 
         self::assertStringNotContainsString('<iframe', $html);
-        self::assertStringContainsString('data-embed="', $html);
+        self::assertStringContainsString('embed="', $html);
         self::assertStringContainsString('player-consent', $html);
     }
 
@@ -178,7 +178,7 @@ final class ViewTest extends TestCase
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x');
         $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
 
-        preg_match('/data-embed="([^"]*)"/', $html, $m);
+        preg_match('/embed="([^"]*)"/', $html, $m);
 
         self::assertSame($embed->toHtml('ill.'), html_entity_decode($m[1], ENT_QUOTES));
     }
@@ -192,8 +192,8 @@ final class ViewTest extends TestCase
 
     /**
      * The gate reserves the player's own height so the page doesn't jump on load. Carried as
-     * a data attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for
-     * our own markup — player.ts turns it into --player-height.
+     * an attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for our
+     * own markup — <player-consent> turns it into --player-height.
      */
     #[DataProvider('playerHeightProvider')]
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
@@ -201,7 +201,7 @@ final class ViewTest extends TestCase
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x', style: $style);
         $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
 
-        self::assertStringContainsString('data-player-height="' . $height . '"', $html);
+        self::assertStringContainsString('height="' . $height . '"', $html);
         self::assertStringNotContainsString('style="', $html);
     }
 
@@ -209,6 +209,36 @@ final class ViewTest extends TestCase
     {
         yield [SoundCloudPlayerStyle::Visual, 300];
         yield [SoundCloudPlayerStyle::Classic, 166];
+    }
+
+    /**
+     * A custom element the browser has never heard of renders as an inert inline box with no
+     * error anywhere, so a typo in a tag name is invisible. This pins the set: adding an element
+     * means adding it here, and misspelling one fails.
+     *
+     * <player-consent> and <cover-art> carry behaviour and are registered in assets/ts/elements/;
+     * the rest exist to name a fragment, and the verify script checks the registered two against
+     * the served markup from the other direction.
+     */
+    public function testTheViewsEmitOnlyKnownCustomElements(): void
+    {
+        $html = new ReleaseView(
+            $this->release(
+                embed:   new SoundCloudEmbed(trackId: 1, permalink: 'x'),
+                formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+            ),
+            'ill',
+        )->content()
+            . new ReleasesView(new SearchableCollection(Release::class)->add('ill', $this->release()))->content()
+            . new NotFoundView('/x')->content();
+
+        preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $m);
+
+        self::assertNotEmpty($m[1]);
+        self::assertSame(
+            ['cover-art', 'download-card', 'player-consent', 'release-card', 'terminal-window'],
+            array_values(array_unique((function (array $t) { sort($t); return $t; })($m[1]))),
+        );
     }
 
     // ───────────────────────────── downloads ─────────────────────────────

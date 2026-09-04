@@ -49,7 +49,7 @@ class ReleaseView extends View
 
         return <<<HTML
             <section class="hero">
-              <div class="terminal">
+              <terminal-window>
                 <div class="terminal-bar">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                   <span class="terminal-title">release.log</span>
@@ -63,15 +63,11 @@ class ReleaseView extends View
                   <p class="out"><span class="key">status</span><span class="ok">ready</span></p>
                   <p><span class="prompt">\$</span> <span class="cursor">_</span></p>
                 </div>
-              </div>
+              </terminal-window>
 
-              <div class="cover-art">
-                <img
-                  src="$coverSrc"
-                  data-fallback="$placeholder"
-                  alt="$alt"
-                />
-              </div>
+              <cover-art fallback="$placeholder">
+                <img src="$coverSrc" alt="$alt" />
+              </cover-art>
             </section>
             HTML;
     }
@@ -122,10 +118,10 @@ class ReleaseView extends View
     /**
      * Builds the click-to-load consent placeholder for the release's embed.
      *
-     * The markup never reaches the page directly — it is escaped into a data attribute
-     * and only swapped in by player.ts once the visitor clicks, so nothing is requested
-     * from the provider until then. The provider is named from the embed rather than
-     * hardcoded, so a non-SoundCloud embed needs no change here.
+     * The markup never reaches the page directly — it is escaped into the element's `embed`
+     * attribute and only swapped in by <player-consent> once the visitor clicks, so nothing
+     * is requested from the provider until then. The provider is named from the embed rather
+     * than hardcoded, so a non-SoundCloud embed needs no change here.
      */
     private function playerHtml(): string
     {
@@ -141,11 +137,11 @@ class ReleaseView extends View
 
         return <<<HTML
             <div class="player">
-              <div class="player-consent" data-player-height="$height" data-embed="$markup">
+              <player-consent height="$height" embed="$markup">
                 <p class="player-consent-label">$provider player</p>
-                <button class="btn-primary player-consent-btn">Load player</button>
+                <button class="btn-primary">Load player</button>
                 <p class="player-consent-hint">Third-party content — clicking connects you to $provider&rsquo;s servers.</p>
-              </div>
+              </player-consent>
             </div>
             HTML;
     }
@@ -161,10 +157,12 @@ class ReleaseView extends View
             $label = htmlspecialchars($format->type->label());
             $meta  = htmlspecialchars($this->formatMeta($format->type));
             $cards .= <<<HTML
-                    <a class="dl-card" data-no-spa href="/releases/$slug/$type">
-                      <span class="dl-label">$label</span>
-                      <span class="dl-meta">$meta</span>
-                    </a>
+                    <download-card format="$type">
+                      <a class="dl-card" data-no-spa href="/releases/$slug/$type">
+                        <span class="dl-label">$label</span>
+                        <span class="dl-meta">$meta</span>
+                      </a>
+                    </download-card>
 
                 HTML;
         }

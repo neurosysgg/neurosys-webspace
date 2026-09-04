@@ -24,7 +24,7 @@ class NotFoundView extends View
 
         return <<<HTML
             <section class="page-section">
-              <div class="terminal terminal-narrow">
+              <terminal-window narrow>
                 <div class="terminal-bar">
                   <span class="dot"></span><span class="dot"></span><span class="dot"></span>
                   <span class="terminal-title">error.log</span>
@@ -34,7 +34,7 @@ class NotFoundView extends View
                   <p class="out"><span class="accent-2">error</span>  404 — not found</p>
                   <p><span class="prompt">\$</span> <span class="cursor">_</span></p>
                 </div>
-              </div>
+              </terminal-window>
               <p class="back-home"><a href="/">← home</a></p>
             </section>
             HTML;

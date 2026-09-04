@@ -60,6 +60,10 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
 - **Download cards carry `data-no-spa`.** Without it `nav.ts` fetches the 303 and swallows it, and
   downloads silently stop working while every page still looks fine.
+- **The set of custom elements is closed.** An element the browser has never heard of renders as an
+  inert inline box with no error, so a misspelled tag is invisible. `ViewTest` pins the tag set the
+  views emit; the verify script checks the other direction, that everything `assets/ts/elements/`
+  registers appears in the served markup. The two together catch a rename on either side.
 - **The consent gate reserves the player's height.** `Embed::height()` feeds `--player-height`, so the
   placeholder and the real iframe are the same size and the page doesn't jump.
 - **No view emits an inline style or event handler.** The CSP's `style-src` allowance exists only for the

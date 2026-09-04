@@ -101,13 +101,15 @@ nothing on the server until that directory exists.
 TypeScript, compiled to browser-native ES modules. No bundler, no framework.
 
 ```
-assets/ts/          ← sources; outside public/, so they are neither web-served nor deployed
-├── main.ts         ← entry point, the only <script> Layout.php loads
-├── nav.ts          ← SPA navigation
-├── player.ts       ← consent gate + cover-art fallback
-└── dom.ts          ← shared typed helpers, and the navigate event
+assets/ts/                    ← sources; outside public/, neither web-served nor deployed
+├── main.ts                   ← entry point, the only <script> Layout.php loads
+├── nav.ts                    ← SPA navigation
+├── dom.ts                    ← shared typed helpers, and the navigate event
+└── elements/
+    ├── player-consent.ts     ← <player-consent>
+    └── cover-art.ts          ← <cover-art>
       ↓ npm run build
-public/assets/js/   ← generated, committed, deployed
+public/assets/js/             ← generated, committed, deployed
 ```
 
 **Never hand-edit `public/assets/js/`** — it is build output and the next `npm run build` overwrites it.
@@ -123,15 +125,39 @@ Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), s
 `module: nodenext` makes an extensionless relative import a compile error — a specifier the browser
 would 404 on cannot ship. Same instinct as `CspHost` refusing anything but a bare origin.
 
+### Custom elements
+
+The fragments with behaviour are custom elements rather than classes hunting through the document
+for a selector. Their content is always server-rendered, so the page reads correctly with no JS and
+the element only enhances what is already there.
+
+| Tag | Registered | Does |
+|---|---|---|
+| `<player-consent height embed>` | yes | reserves the player's height, swaps itself for the embed on click |
+| `<cover-art fallback>` | yes | falls back to the placeholder when the file host 404s |
+| `<terminal-window [narrow]>` | no | the terminal frame, used by `ReleaseView` and `NotFoundView` |
+| `<download-card format>` | no | names a download fragment; the `<a data-no-spa>` inside is still the card |
+| `<release-card slug>` | no | names a release fragment; the `<a>` inside is still the card |
+
+The unregistered three exist to name a fragment and are styled by tag; they wrap rather than replace
+their anchors, so link semantics, keyboard access and `data-no-spa` all survive. Both wrappers are
+`display: contents`, so they add no box — the anchor is still the card as far as layout is concerned.
+
+Adding an element means adding it to the table in `ViewTest::testTheViewsEmitOnlyKnownCustomElements`,
+which pins the set: a misspelled tag renders as an inert inline box with no error otherwise. The
+verify script checks the other direction, that everything `assets/ts/elements/` registers actually
+appears in the served markup.
+
 ### SPA navigation
 
 `nav.ts` intercepts internal link clicks, fetches the content fragment via XHR (`X-Requested-With:
 XMLHttpRequest`), and swaps `#content`. Download links carry `data-no-spa` to bypass this and trigger
 real navigation (otherwise the 303 is consumed silently by fetch).
 
-After a swap `main.ts` re-runs `initPlayer()`, so the replaced markup gets wired again. The two sides
-talk through `dispatchNavigate()` / `onNavigate()` in `dom.ts` instead of a shared event-name string,
-so a typo on one side cannot silently stop the player re-initialising on the other.
+Nothing re-runs after a swap. The browser upgrades any custom element it parses, including markup
+assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. `nav.ts` still
+fires a `neurosys:navigate` event on `document` — reach it through `onNavigate()` in `dom.ts` rather
+than the string — for anything that is not an element and does need to know.
 
 ## Adding a release
 
