@@ -74,12 +74,16 @@ them. Don't "fix" this by trimming the transparent margin — that's the clear s
   redrawn. On our `--bg` that means the white variant. Don't substitute the old bird mark.
 - **GitHub** — permissive for linking; use the official mark unmodified in shape.
 
-## Outstanding: Spotify and Apple Music
+## Outstanding: Spotify
 
-Both are waiting on DistroKid delivery — their icons are vendored, but `data/profiles.php` has no URL for them yet, so
-`ProfileRepository::all()` skips them. Paste the profile URLs once the profiles exist and they appear.
+Spotify is still waiting on DistroKid delivery — the icon is vendored, but `data/profiles.php` has no URL for it yet, so
+`ProfileRepository::all()` skips it. Paste the profile URL once the profile exists and it appears.
 
-The footer currently shows **SoundCloud, YouTube, X and GitHub**.
+Apple Music landed on 04.09.2026 as artist id `6808396360`. It is stored as `https://music.apple.com/artist/6808396360`
+— **no storefront segment and no name slug**. Apple redirects that to the visitor's own store, and it keeps working
+through an artist rename, which `…/us/artist/neuro-sys/6808396360` would not.
+
+The footer currently shows **SoundCloud, Apple Music, YouTube, X and GitHub**.
 
 ## Not covered here
 
