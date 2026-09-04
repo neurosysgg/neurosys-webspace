@@ -1,0 +1,54 @@
+/* ---------------------------------------------------------------
+   The card — the catalogue entry and the download entry share a look.
+
+   The one part named for a concept rather than a component, because the look genuinely spans
+   assets/ts/elements/release/ and .../download/. HtmlTest pins that list to this file alone, so a
+   second concept-named part has to be argued for in a test named for the fact — the same idiom as
+   RawHtml being the single audited hole in the markup tree.
+
+   Note what falls out of it: there is no elements/release.css, because every release-* tag is card
+   and nothing else. <download-list> is the only download tag with a look of its own.
+   ---------------------------------------------------------------- */
+
+/* The wrappers name the fragment and nothing else; the anchor inside is still the
+   card, so they are display: contents and add no box of their own. */
+release-list,
+release-card,
+download-card {
+  display: contents;
+
+  a {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.9rem 1.1rem;
+    margin-bottom: 0.6rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--fg);
+    transition: border-color 0.15s ease, background 0.15s ease;
+
+    &:hover,
+    &:focus-visible {
+      border-color: var(--accent);
+      background: var(--surface-2);
+      text-decoration: none;
+    }
+  }
+}
+
+release-title,
+download-label {
+  font-family: var(--mono);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+download-label::before { content: "↓ "; color: var(--accent); }
+
+release-meta,
+download-meta {
+  font-size: 0.8rem;
+  color: var(--muted);
+}

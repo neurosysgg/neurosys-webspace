@@ -1,0 +1,33 @@
+/* StatsView. */
+
+.stats-sub {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  text-transform: lowercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin: 1.5rem 0 0.5rem;
+}
+
+.stats-table {
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 0.85rem;
+  width: 100%;
+  max-width: 480px;
+
+  td {
+    padding: 0.3rem 0.6rem 0.3rem 0;
+    color: var(--fg);
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* Deliberately not nested inside .stats-table: `.stats-table td` already outweighs
+   this rule, and scoping it would flip that — a rendering change, not a cleanup.
+   The !important below is the existing workaround for the same collision. */
+.stats-count {
+  text-align: right;
+  color: var(--accent);
+  padding-right: 0 !important;
+}

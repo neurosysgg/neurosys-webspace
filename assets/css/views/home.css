@@ -1,0 +1,22 @@
+/* HomeView. */
+
+.home-hero {
+  padding: 4rem 0 2rem;
+
+  .home-eyebrow {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    margin: 0 0 0.5rem;
+  }
+
+  .home-title {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 7vw, 3.5rem);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    margin: 0 0 2rem;
+    line-height: 1.1;
+  }
+}

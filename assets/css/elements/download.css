@@ -1,0 +1,16 @@
+/* The download component's own look. Its three other tags — <download-card>, <download-label>,
+   <download-meta> — are the card, and live in card.css with the release side.
+   cf. assets/ts/elements/download/. */
+
+download-list {
+  display: block;
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    text-transform: lowercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.9rem;
+  }
+}

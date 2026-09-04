@@ -7,9 +7,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Plain PHP 8.5 / HTML / CSS, no framework, **no runtime dependencies**. The pipe operator (`|>`) is
 used in `autoload.php` and requires PHP ≥ 8.5.
 
-Nothing on the PHP side is built or transpiled. The front end is TypeScript and does compile — see
-[Front end](#front-end) — but the output is committed, so what lands on the server is still plain
-files served statically.
+Nothing on the PHP side is built or transpiled. The front end does have a build — TypeScript
+compiles, and the stylesheet is assembled from its parts — but both outputs are committed, so what
+lands on the server is still plain files served statically. See [Front end](#front-end) and
+[The stylesheet](#the-stylesheet).
 
 Composer and npm are dev tooling only (PHPUnit, phpcs, php-cs-fixer; TypeScript). `vendor/` and
 `node_modules/` are both gitignored and `deploy.sh` uploads neither — what runs on the server is
@@ -44,7 +45,8 @@ npm run check      # tsc --noEmit
 
 The verify script runs the client-side tests too, type-checks `assets/ts/`, and asserts the committed
 JS is current with it. All three are skipped with a printed NOTE when `npm install` has never been run,
-so `composer test` still works on a bare clone.
+so `composer test` still works on a bare clone. It also asserts the committed `style.css` is current
+with `assets/css/`; that one needs only `node`, so it runs on a bare clone rather than skipping.
 
 The client-side tests run against the **compiled output** in `public/assets/js/`, the same files the
 browser loads — so a build that never ran is a failing test rather than a passing one. They use
@@ -226,6 +228,9 @@ public/assets/js/             ← generated, committed, deployed
 if the committed output has drifted from the sources: `deploy.sh` rsyncs `public/` straight from the
 working tree, so a forgotten rebuild would ship stale JS and nothing else would notice.
 
+`npm run build` also builds the stylesheet — see [The stylesheet](#the-stylesheet). `npm run watch` does
+not; `npm run build:css` is the CSS on its own.
+
 Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), so DevTools shows
 `Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
 500s any static file it has no `SetHandler` for.
@@ -383,6 +388,54 @@ Nothing re-runs after a swap. The browser upgrades any custom element it parses,
 assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. `Navigation`
 still fires a `neurosys:navigate` event on `document` — subscribe with `Navigation.onNavigate()`
 rather than the string — for anything that is not an element and does need to know.
+
+### The stylesheet
+
+A component's CSS lives with the component, and `public/assets/css/style.css` is generated from it —
+the same arrangement as `assets/ts/` → `public/assets/js/`, for the same reasons.
+
+```
+assets/css/                   ← sources; outside public/, neither web-served nor deployed
+├── main.css                  ← the @import list; the order IS the cascade
+├── base/                     ← tokens.css (:root), elements.css (* html body a)
+├── layout/                   ← shell.css (what Layout.php emits), utilities.css
+├── views/                    ← home.css, release.css, stats.css        (cf. src/NeuroSYS/View/)
+└── elements/                 ← card.css, terminal.css, CoverArt.css,
+                                embed.css, download.css                 (cf. assets/ts/elements/)
+      ↓ npm run build
+public/assets/css/style.css   ← generated, committed, deployed
+```
+
+**Never hand-edit `public/assets/css/style.css`.** It carries a marker comment above each block
+naming the part it came from; edit that. The verify script rebuilds and diffs, so an edit made there
+fails the build and is lost at the next one.
+
+`main.css` is the CSS half of what `main.ts` is for the elements: an explicit list, in order, that
+nothing derives from a directory walk. `tools/build-css.mjs` inlines each `@import` — the source form
+is never the served one, because left in place the browser would discover each part only after
+parsing the one before it, and a typo'd href would 404 in silence with that component unstyled.
+Inlining costs nothing and makes both a build error. The build also refuses a part imported twice, an
+import that does not resolve, and a rule in a manifest — a file either orders parts or is one, so an
+ordering decision is never made twice.
+
+**`elements/` mirrors `assets/ts/elements/` at the component level**, because there the directory is
+the component and not the file: `terminal.css` styles `<terminal-window>` and the five tags it
+builds. The invariant is **every `Tag` case is styled by exactly one part**, asserted in both
+directions by `HtmlTest`. That closes the last unchecked mirror on the site — a tag name in the CSS
+had nothing on the other end of it, so renaming a case left the stylesheet quietly not matching,
+which on a dark page reads as a layout bug rather than a typo.
+
+`card.css` is the single part named for a concept rather than a component, because the catalogue
+entry and the download entry genuinely share a look across `release/` and `download/`. It is meant to
+be conspicuous the way `RawHtml` is: `HtmlTest` pins the list to that one file, so a second has to be
+argued for in a test named for the fact. What falls out of it is worth reading — there is no
+`elements/release.css`, because every `release-*` tag *is* card and nothing else.
+
+Two things did not move to a runtime: **the CSS never arrives via JavaScript.** Shadow DOM or
+`adoptedStyleSheets` would be the literal way to bundle a stylesheet with its element, and it would
+cost a flash of unstyled content on every load and leave a no-JS visitor an unstyled page — spending
+exactly the reserved-box guarantee the *Custom elements* section above is careful to keep. Colocation
+is a property of the sources; the browser still gets one static file under a strict `style-src`.
 
 ## Adding a release
 

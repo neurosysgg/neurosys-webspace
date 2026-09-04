@@ -1,0 +1,19 @@
+/* ---------------------------------------------------------------
+   neuro.SYS
+   accent   = purple (#6a00ff) — interactive highlights
+   accent-2 = pink   (#ff2eab) — emphasis / the logo dot
+   ---------------------------------------------------------------- */
+
+:root {
+  --bg:        #0b0c10;
+  --surface:   #15161d;
+  --surface-2: #1c1d27;
+  --border:    #262732;
+  --fg:        #e8e8f0;
+  --muted:     #84849c;
+  --accent:    #6a00ff;
+  --accent-2:  #ff2eab;
+
+  --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}

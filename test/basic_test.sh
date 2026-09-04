@@ -238,6 +238,29 @@ else
     fail "public/.htaccess is missing SetHandler for:$missing_types"
 fi
 
+# public/assets/css/style.css is generated from assets/css/ the same way, and for the same reason:
+# deploy.sh rsyncs public/ from the working tree, so a part edited without a rebuild would ship a
+# stylesheet nothing else notices is stale. Unlike the TypeScript below this needs no node_modules —
+# tools/build-css.mjs has no dependencies — so it runs on a clone that has never seen `npm install`.
+if command -v node >/dev/null 2>&1; then
+    CSSOUT="$REPO/.csscheck/style.css"
+    rm -rf "$REPO/.csscheck"
+    if css_error=$(node "$REPO/tools/build-css.mjs" --out "$CSSOUT" 2>&1 >/dev/null); then
+        if diff -q "$CSSOUT" "$REPO/public/assets/css/style.css" >/dev/null 2>&1; then
+            pass "public/assets/css/style.css is current with assets/css/"
+        else
+            fail "public/assets/css/style.css has drifted from assets/css/ (run: npm run build)"
+            diff "$CSSOUT" "$REPO/public/assets/css/style.css" | head -20 | sed 's/^/       /'
+        fi
+    else
+        fail "assets/css/ does not build, so its output cannot be checked"
+        echo "$css_error" | sed 's/^/       /'
+    fi
+    rm -rf "$REPO/.csscheck"
+else
+    echo "  SKIP assets/css/ drift check — no node on PATH"
+fi
+
 # public/assets/js/ is generated from assets/ts/ and committed, because deploy.sh rsyncs public/
 # straight from the working tree. Both checks need the npm dev tooling; without it they are skipped
 # rather than failed, so `composer test` still runs on a clone that has never seen `npm install`.

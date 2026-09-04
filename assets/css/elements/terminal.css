@@ -1,0 +1,86 @@
+/* ---------------------------------------------------------------
+   <terminal-window> and the five tags it builds — ReleaseView and NotFoundView.
+
+   One part, because one component: a view writes <terminal-window> and the element builds the
+   command, every row and the cursor. The row rule below spans three of those tags and needs no
+   exception for it — they are all the same component. cf. assets/ts/elements/terminal/.
+   ---------------------------------------------------------------- */
+
+terminal-window {
+  position: relative;
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  /* top clears the title bar below (1.8rem tall + its 1px rule), then the body's own padding */
+  padding: calc(1.8rem + 1px + 1rem) 1.1rem 1rem;
+
+  &[narrow] { max-width: 480px; }
+
+  /* The whole title bar is one pseudo-element: the label from the attribute, and the three
+     traffic lights as gradients at fixed offsets. Decoration belongs in CSS, not in markup
+     the server has to emit — <terminal-window> needs no children but its content. */
+  &::before {
+    content: attr(label);
+    position: absolute;
+    inset: 0 0 auto 0;
+    box-sizing: content-box;
+    height: 0.6rem;
+    padding: 0.6rem 0.8rem;
+    display: grid;
+    place-items: center;
+    color: var(--muted);
+    font-size: 0.75rem;
+    background-color: var(--surface-2);
+    background-repeat: no-repeat;
+    background-image:
+      radial-gradient(circle at 1.1rem 0.9rem, #FF5F57 0.3rem, #0000 0),
+      radial-gradient(circle at 2.1rem 0.9rem, #FEBC2E 0.3rem, #0000 0),
+      radial-gradient(circle at 3.1rem 0.9rem, #28C840 0.3rem, #0000 0);
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+/* The window builds all of these; a view only ever writes <terminal-window> itself. */
+terminal-command,
+terminal-field,
+terminal-cursor {
+  display: block;
+  margin: 0 0 0.45rem;
+  white-space: pre-wrap;
+}
+
+/* The $ sigil is decoration, so it is drawn rather than written out seven times. */
+terminal-command::before,
+terminal-cursor::before { content: "$ "; color: var(--accent-2); }
+
+terminal-cursor::after {
+  content: "_";
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 1s steps(1) infinite;
+
+  @media (prefers-reduced-motion: reduce) { animation: none; }
+}
+
+terminal-field {
+  color: var(--muted);
+  padding-left: 1.1rem;
+
+  /* The tone lands on the row, and which half of it takes the accent is a styling decision rather
+     than a markup one — ok reads as a value, error reads as a label. See TerminalTone. */
+  &[tone="ok"] terminal-value { color: var(--accent); }
+  &[tone="error"] terminal-key { color: var(--accent-2); }
+}
+
+terminal-key {
+  display: inline-block;
+  min-width: 8ch;
+  color: var(--fg);
+}
+
+/* Keyframes are global whatever file they sit in, so this one sits with its only user. */
+@keyframes blink { 50% { opacity: 0; } }

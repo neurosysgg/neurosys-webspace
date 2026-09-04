@@ -1,0 +1,35 @@
+/* ---------------------------------------------------------------
+   neuro.SYS — the stylesheet's manifest.
+
+   This file is the whole cascade, in one screen. It is the CSS half of what main.ts is for the
+   elements: an explicit list, in order, that nothing derives from a directory walk. tools/build-css.mjs
+   inlines each @import into public/assets/css/style.css, which is the single file the browser loads —
+   the imports never reach it, so this costs no extra request and nothing arrives after the page.
+
+   Order matters and is the only thing this file decides. Everything else about a rule — what it
+   selects, what it is for — is decided in the part that holds it.
+
+   assets/css/elements/ mirrors assets/ts/elements/ at the component level, because the directory
+   there is the component, not the file. Every Tag case is styled by exactly one part below, and
+   HtmlTest asserts it in both directions.
+   ---------------------------------------------------------------- */
+
+/* Before anything names itself. */
+@import url("base/tokens.css");
+@import url("base/elements.css");
+
+/* Layout.php's shell, then the classes more than one view writes. */
+@import url("layout/shell.css");
+@import url("layout/utilities.css");
+
+/* The views, in route order. */
+@import url("views/home.css");
+@import url("views/release.css");
+@import url("views/stats.css");
+
+/* The elements. Last, so a component can lean on a token or a utility and never the reverse. */
+@import url("elements/card.css");
+@import url("elements/terminal.css");
+@import url("elements/CoverArt.css");
+@import url("elements/embed.css");
+@import url("elements/download.css");

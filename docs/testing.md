@@ -122,6 +122,26 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   directions fail, and differently: a case the stylesheet never mentions is an element styled by
   nothing, and a selector no case names is dead CSS. This is the only mirror in the codebase whose
   actual reader can be tested.
+- **Every tag is styled, and every styled tag is a `Tag` case.** The same check for the custom
+  elements, and until `assets/css/` existed there was none: a tag name in the stylesheet was a bare
+  string with nothing on the other end of it, so renaming a case left the CSS quietly not matching.
+  Unlike a misspelled tag in markup — which at least renders visibly wrong — an unstyled element on
+  a dark page reads as a layout bug rather than a typo, and reaches no console.
+- **Every tag is styled by exactly one part.** `assets/css/elements/` mirrors `assets/ts/elements/`
+  at the component level, so "where is `<terminal-key>` styled?" has one mechanical answer. Two parts
+  naming a tag is the failure worth naming: whichever `main.css` imports later wins, silently, and
+  the loser reads as a rule that simply does not apply. A part named for a component may only style
+  tags whose modules live in it, so a rule cannot wander into the wrong file.
+- **`card.css` is the one part named for a concept.** The same idiom as `RawHtml`: the catalogue
+  entry and the download entry genuinely share a look across two component directories, so the
+  exception is pinned rather than trusted, and a second one has to be argued for by editing the
+  assertion. Proved by adding a stray part and watching it fail.
+- **The committed stylesheet is current with `assets/css/`.** The CSS half of the JS drift check
+  below, and for the same reason — `deploy.sh` rsyncs `public/`, so a part edited without a rebuild
+  would ship a stale stylesheet nothing else notices. `tools/build-css.mjs` has no dependencies, so
+  unlike the TypeScript checks this one runs on a clone that has never seen `npm install`. The build
+  itself refuses a part imported twice, an import that does not resolve, an absolute import, and a
+  rule sitting in a manifest.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.

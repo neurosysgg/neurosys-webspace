@@ -1,0 +1,28 @@
+/* The plain HTML elements, before anything names itself. Nothing here selects a class or a
+   custom tag, which is what makes it base rather than a component. */
+
+* { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible { text-decoration: underline; }
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
