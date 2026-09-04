@@ -159,10 +159,14 @@ final class HtmlTest extends TestCase
     #[DataProvider('attributeNameProvider')]
     public function testAnAttributeNameRendersAsItsBackingValue(AttributeName&\BackedEnum $name): void
     {
+        // A URL attribute is scheme-checked on the way out, so it gets a value that is one. The
+        // name is what this test is about either way; that the check fires is asserted below.
+        $value = $name->isUrl() ? '/x' : 'x';
+
         self::assertSame($name->value, $name->attribute());
         self::assertStringContainsString(
-            $name->attribute() . '="x"',
-            new Element(HtmlTag::P)->attr($name, 'x')->render(),
+            $name->attribute() . '="' . $value . '"',
+            new Element(HtmlTag::P)->attr($name, $value)->render(),
         );
     }
 
@@ -571,6 +575,128 @@ final class HtmlTest extends TestCase
         return array_values(array_unique($tags));
     }
 
+    // ─────────────────────── urls, which escaping cannot help with ───────────────────────
+
+    /**
+     * The mistake escaping cannot catch, and the reason {@link AttributeName::isUrl()} exists.
+     *
+     * htmlspecialchars() does its job perfectly on `javascript:alert(document.cookie)` — there is
+     * not a single character in it to escape — and the browser then runs it. Whether a URL is safe
+     * is a question about its *scheme*, so that is asked separately, and asked at render, where
+     * every element passes through however it was built.
+     */
+    #[DataProvider('refusedUrlProvider')]
+    public function testAUrlAttributeRefusesASchemeTheSiteMayNotEmit(string $url): void
+    {
+        $this->expectException(MarkupException::class);
+
+        new Element(HtmlTag::A)->attr(HtmlAttribute::Href, $url)->render();
+    }
+
+    public static function refusedUrlProvider(): iterable
+    {
+        yield 'javascript'         => ['javascript:alert(1)'];
+        yield 'javascript, cased'  => ['JaVaScRiPt:alert(1)'];
+        yield 'javascript, spaced' => ['  javascript:alert(1)'];
+
+        // Browsers strip tabs and newlines from inside a scheme before resolving it, which is how
+        // this arrives at the parser as `javascript:` regardless. An allowlist never needs to know
+        // that, because it is not in the business of recognising the bad ones.
+        yield 'javascript, split'  => ["jav\tascript:alert(1)"];
+
+        yield 'data'               => ['data:text/html,alert()'];
+        yield 'vbscript'           => ['vbscript:msgbox(1)'];
+
+        // Starts with a slash exactly as `/releases` does, and is a different origin. This is the
+        // same trap the SPA router has on the other side; see Navigation.onClick().
+        yield 'protocol-relative'  => ['//evil.example/x'];
+
+        yield 'plaintext http'     => ['http://evil.example/x'];
+        yield 'no scheme at all'   => ['evil.example/x'];
+        yield 'empty'              => [''];
+    }
+
+    #[DataProvider('allowedUrlProvider')]
+    public function testAUrlAttributeAllowsWhatTheSiteActuallyEmits(string $url): void
+    {
+        self::assertStringContainsString(
+            'href="' . $url . '"',
+            new Element(HtmlTag::A)->attr(HtmlAttribute::Href, $url)->render(),
+        );
+    }
+
+    public static function allowedUrlProvider(): iterable
+    {
+        yield 'root'          => ['/'];
+        yield 'a page'        => ['/imprint'];
+        yield 'a download'    => ['/releases/ill/flac'];
+        yield 'an asset'      => ['/assets/css/style.css'];
+        yield 'mailto'        => ['mailto:neuro.sys@neurosys.gg'];
+        yield 'the file host' => ['https://my.hidrive.com/api/sharelink/download?id=BXRsy9S7d'];
+    }
+
+    /**
+     * Which attributes are checked, pinned in both directions.
+     *
+     * An attribute the browser dereferences that nobody marked is a hole with nothing to report it:
+     * the check simply would not run, and the page would look right. So the set is asserted here
+     * rather than left to each enum's own good judgement, and adding a case that carries an address
+     * means adding it to this list too.
+     */
+    public function testExactlyTheAddressCarryingAttributesAreCheckedAsUrls(): void
+    {
+        $urls = [];
+
+        foreach (self::attributeNameProvider() as $name => [$case]) {
+            if ($case->isUrl()) {
+                $urls[] = $name;
+            }
+        }
+
+        self::assertSame(
+            [
+                CoverArtAttribute::class . '::Src',
+                CoverArtAttribute::class . '::Fallback',
+                HtmlAttribute::class . '::Href',
+                HtmlAttribute::class . '::Src',
+            ],
+            $urls,
+        );
+    }
+
+    /**
+     * Both guarantees live in render(), which is what makes this class the boundary it claims to be.
+     *
+     * An element assembled by handing the constructor an array gets exactly the same treatment as
+     * one built through attr(). It did not before: attr() escaped on the way *in* and render()
+     * emitted whatever it found, so the constructor was a way around escaping entirely — a public
+     * one, documented as taking values that were already escaped and trusted to have been.
+     */
+    public function testBothGuaranteesHoldHoweverTheElementWasBuilt(): void
+    {
+        self::assertSame(
+            '<p class="&quot; onload=&quot;alert(1)"></p>',
+            new Element(HtmlTag::P, ['class' => [HtmlAttribute::ClassName, '" onload="alert(1)']])->render(),
+        );
+
+        $this->expectException(MarkupException::class);
+
+        new Element(HtmlTag::A, ['href' => [HtmlAttribute::Href, 'javascript:alert(1)']])->render();
+    }
+
+    /**
+     * The whole document's escaping is one function call, and this is what keeps it that way.
+     *
+     * The same audit as the RawHtml pin below, for the same reason: a guarantee spread over two
+     * call sites is a guarantee that can be half-changed. {@link Element} escapes its attribute
+     * values by rendering a {@link Text} rather than reaching for htmlspecialchars() a second time,
+     * so the site has one set of flags and one place to change them.
+     */
+    public function testEscapingHappensInExactlyOnePlace(): void
+    {
+        self::assertSame(['Text.php'], self::filesContaining('htmlspecialchars('));
+    }
+
     // ───────────────────────────── the audited hole ─────────────────────────────
 
     public function testRawHtmlIsNotEscaped(): void
@@ -593,11 +719,25 @@ final class HtmlTest extends TestCase
      */
     public function testRawHtmlIsConstructedInExactlyOnePlace(): void
     {
+        self::assertSame(['PrivacyView.php'], self::filesContaining('new RawHtml('));
+    }
+
+    /**
+     * The file names under `src/` whose source contains $needle, sorted.
+     *
+     * How both audits above are done. Reading the source rather than the class graph is the point:
+     * what is being asserted is that a second call site does not *exist*, and a call site nobody
+     * reaches is still one somebody will reach later.
+     *
+     * @return list<string>
+     */
+    private static function filesContaining(string $needle): array
+    {
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator(NEUROSYS_ROOT . '/src', RecursiveDirectoryIterator::SKIP_DOTS),
         );
 
-        $callers = [];
+        $found = [];
 
         foreach ($files as $file) {
             if ($file->getExtension() !== 'php') {
@@ -606,13 +746,13 @@ final class HtmlTest extends TestCase
 
             $source = file_get_contents($file->getPathname());
 
-            if ($source !== false && str_contains($source, 'new RawHtml(')) {
-                $callers[] = $file->getFilename();
+            if ($source !== false && str_contains($source, $needle)) {
+                $found[] = $file->getFilename();
             }
         }
 
-        sort($callers);
+        sort($found);
 
-        self::assertSame(['PrivacyView.php'], $callers);
+        return $found;
     }
 }

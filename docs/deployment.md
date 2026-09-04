@@ -65,6 +65,30 @@ php -r "echo password_hash('yourpassword', PASSWORD_BCRYPT) . PHP_EOL;"
 
 Paste the output into `data/admin.php` as `pass_hash`, then upload that file.
 
+### 6. Check the HTTPS redirect on the first deploy
+
+`public/.htaccess` redirects `http://` to `https://`, and `Strict-Transport-Security` then tells the
+browser not to try plaintext again for a year. This is the one change nothing local can verify —
+`php -S` ignores `.htaccess` entirely — so check it once against the live host:
+
+```bash
+curl -sI http://neurosys.gg/ | head -3
+```
+
+Two things to confirm, in this order, because the second is hard to undo:
+
+1. **A single 301 to the `https://` URL, and no loop.** Strato terminates TLS at its proxy, so
+   `%{HTTPS}` can read `off` on a request that arrived encrypted. The rule checks
+   `X-Forwarded-Proto` as well and redirects only when *both* say plaintext — but if a redirect loop
+   appears anyway, that pair is where to look, not the header.
+2. **Every hostname that resolves here can serve HTTPS**, because the header carries
+   `includeSubDomains`. A browser that has seen it will not speak plaintext to *any* name under the
+   domain until the max-age runs out, and the only thing that can shorten that is a smaller max-age
+   delivered over HTTPS. A subdomain that cannot do TLS becomes unreachable rather than insecure.
+
+If either is in doubt, ship `StrictTransportSecurity::ONE_DAY` first — one constructor argument in
+`SecurityHeaders::strictTransportSecurity()` — confirm, then put it back to the default year.
+
 ## Regular deploy
 
 `./deploy.sh` is the current path — it rsyncs `public/`, `src/`, `autoload.php` and `data/` over the

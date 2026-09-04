@@ -21,4 +21,10 @@ enum LinkAttribute: string implements AttributeName
     {
         return $this->value;
     }
+
+    /** A flag the SPA router reads, not an address. */
+    public function isUrl(): bool
+    {
+        return false;
+    }
 }

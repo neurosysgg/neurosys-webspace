@@ -16,6 +16,15 @@ namespace NeuroSYS\Http;
  */
 enum SecurityHeader: string implements HeaderName
 {
+    /**
+     * Refuses plaintext to this host for as long as it says.
+     *
+     * First because it is the only one about the connection rather than the document: the others
+     * all constrain a page that has already arrived. See {@link Security\StrictTransportSecurity}
+     * for why a site whose only secret is a Basic Auth password still needs it.
+     */
+    case StrictTransportSecurity = 'Strict-Transport-Security';
+
     /** Restricts where the page may load anything from. */
     case ContentSecurityPolicy = 'Content-Security-Policy';
 

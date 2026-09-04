@@ -25,4 +25,20 @@ enum CoverArtAttribute: string implements AttributeName
     {
         return $this->value;
     }
+
+    /**
+     * Both image sources, neither of them a URL to the HTML parser.
+     *
+     * `<cover-art>` is a custom element, so nothing is fetched until `CoverArt.ts` assigns these to
+     * the `.src` of an image it builds — which makes them exactly as much a URL as a native
+     * `<img src>` would be, one layer later. The check belongs on the attribute the server writes,
+     * because that is the last point where anything on this side can still refuse it.
+     */
+    public function isUrl(): bool
+    {
+        return match ($this) {
+            self::Src, self::Fallback => true,
+            self::Alt                 => false,
+        };
+    }
 }

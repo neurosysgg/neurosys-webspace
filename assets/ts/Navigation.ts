@@ -75,11 +75,34 @@ export class Navigation {
 
     if (link === null || link.hasAttribute(LinkAttribute.NoSpa)) return;
 
+    // The selector matches the href *attribute*, and `//evil.example/x` starts with a slash exactly
+    // as `/releases` does — a protocol-relative URL is a different origin wearing a path's clothes.
+    // Everything below uses the *resolved* `link.href`, so the two readings have to be reconciled
+    // here rather than assumed equal. Nothing the server emits is protocol-relative, and pushState
+    // would throw a SecurityError on a cross-origin URL one line down, so today the consequence is
+    // a link that does nothing rather than a hole — but "it throws slightly later" is not a reason,
+    // and go() ends in innerHTML. Handing it back to the browser is both safe and correct.
+    if (new URL(link.href).origin !== location.origin) return;
+
     e.preventDefault();
     history.pushState({}, '', link.href);
     void this.go(link.href);
   }
 
+  /**
+   * Fetches `url` as a content fragment and swaps it into #content.
+   *
+   * The assignment at the end is `innerHTML`, and that is the one assumption this file rests on:
+   * the fragment is same-origin (onClick refuses anything else, and popstate can only reach a URL
+   * the browser already navigated to) and it is built by the server's markup tree, where every
+   * value is escaped by NeuroSYS\View\Html\Text and every URL attribute is scheme-checked. So the
+   * string being parsed here is one this codebase generated, not one it received.
+   *
+   * Worth stating because it is inherited rather than enforced: the guarantee lives on the server,
+   * and this line is where it is spent. Anything that ever puts markup into #content from another
+   * source — a different endpoint, a third party, a value not rendered through the tree — reopens
+   * DOM XSS here, and nothing in this file would notice.
+   */
   private async go(url: string): Promise<void> {
     try {
       const response = await fetch(url, {

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
+use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Service\DownloadLogEntry;
@@ -215,6 +216,52 @@ final class ServiceTest extends TestCase
         self::assertSame('', $entry?->referrer);
     }
 
+    /**
+     * Missing is empty; present-but-not-a-string is a line to skip. The two are different cases and
+     * used to be the same one.
+     *
+     * Every field is typed `string`, and under `strict_types=1` a number, a bool or a nested object
+     * reaching that constructor is an uncaught TypeError — not a null the caller can skip, a fatal.
+     * {@link \NeuroSYS\Controller\StatsController} reads the log line by line and skips whatever
+     * comes back null, so before this a single malformed line 500'd the whole stats page instead.
+     */
+    #[DataProvider('wrongTypeProvider')]
+    public function testAFieldOfTheWrongTypeIsSkippedRatherThanFatal(string $json): void
+    {
+        self::assertNull(DownloadLogEntry::fromJson($json));
+    }
+
+    public static function wrongTypeProvider(): iterable
+    {
+        yield 'numeric time'   => ['{"time":123}'];
+        yield 'float time'     => ['{"time":1.5}'];
+        yield 'bool format'    => ['{"format":true}'];
+        yield 'nested slug'    => ['{"slug":{"a":1}}'];
+        yield 'array referrer' => ['{"referrer":["a"]}'];
+
+        // The one that hydrated silently rather than throwing: json_decode(assoc: true) renders {}
+        // and [] as the same empty array, so a list passed the is_array() guard and became an entry
+        // of four empty strings — counted in the total, filed under '/'. Corrupt input read as data.
+        yield 'a json list'    => ['[1,2,3]'];
+        yield 'an empty list'  => ['[]'];
+        yield 'a list of rows' => ['[{"slug":"ill"}]'];
+    }
+
+    /** The other side of that: an object with nothing in it is still an object, and still decodes. */
+    public function testAnEmptyObjectIsStillAnEntry(): void
+    {
+        $entry = DownloadLogEntry::fromJson('{}');
+
+        self::assertNotNull($entry);
+        self::assertSame('', $entry->slug);
+    }
+
+    /** A null field is an absent one, which is the existing contract and stays that way. */
+    public function testANullFieldIsTreatedAsAbsent(): void
+    {
+        self::assertSame('', DownloadLogEntry::fromJson('{"referrer":null}')?->referrer);
+    }
+
     public function testSlashesAreNotEscapedInTheJson(): void
     {
         $entry = new DownloadLogEntry('t', 'ill', 'flac', 'https://example.test/a/b');
@@ -234,5 +281,51 @@ final class ServiceTest extends TestCase
 
         self::assertSame(Platform::SoundCloud, $profile->platform);
         self::assertSame('https://soundcloud.com/' . Config::HANDLE, $profile->url);
+    }
+
+    /**
+     * The URL is verified the way HiDriveLink's share id is, and for the same reason: it is the one
+     * address on the site that arrives as free text from a data file instead of being built from
+     * parts. Element refuses a `javascript:` href at render regardless — but that is the backstop,
+     * and a backstop reports the fault on whatever page happens to draw the footer. Here it is
+     * reported when `data/profiles.php` loads, which is where the mistake actually is.
+     */
+    #[DataProvider('badProfileUrlProvider')]
+    public function testAProfileUrlThatIsNotAnHttpsAddressIsRefused(string $url): void
+    {
+        $this->expectException(ReleaseVerificationException::class);
+
+        new Profile(Platform::X, $url);
+    }
+
+    public static function badProfileUrlProvider(): iterable
+    {
+        yield 'javascript'        => ['javascript:alert(document.domain)'];
+        yield 'data'              => ['data:text/html,alert()'];
+        yield 'protocol-relative' => ['//evil.example/neurosysgg'];
+        yield 'plaintext http'    => ['http://x.com/neurosysgg'];
+        yield 'no scheme'         => ['x.com/neurosysgg'];
+        yield 'scheme only'       => ['https://'];
+        yield 'empty'             => [''];
+
+        // \S throughout the pattern, because browsers strip whitespace out of a URL before
+        // resolving it — which is how `jav<tab>ascript:` arrives at the parser as a scheme.
+        yield 'embedded space'    => ['https://x.com/a b'];
+        yield 'embedded tab'      => ["https://x.com/a\tb"];
+
+        // \z rather than $, because $ also matches immediately before a trailing newline.
+        yield 'trailing newline'  => ["https://x.com/a\n"];
+    }
+
+    /** Every profile the site actually ships, checked as the data file declares them. */
+    public function testEveryShippedProfileUrlIsAccepted(): void
+    {
+        $profiles = new ProfileRepository()->all();
+
+        self::assertGreaterThan(0, $profiles->count());
+
+        foreach ($profiles as $profile) {
+            self::assertStringStartsWith('https://', $profile->url);
+        }
     }
 }

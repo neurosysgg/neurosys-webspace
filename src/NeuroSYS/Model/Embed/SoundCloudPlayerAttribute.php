@@ -42,4 +42,14 @@ enum SoundCloudPlayerAttribute: string implements AttributeName
     {
         return $this->value;
     }
+
+    /**
+     * None of them, and that is the design rather than an oversight: the server sends the release's
+     * facts — an id, a slug, a token — and `SoundCloudPlayer.ts` builds the widget URL around them
+     * from its own constant host. No address crosses, so there is no address to check.
+     */
+    public function isUrl(): bool
+    {
+        return false;
+    }
 }

@@ -41,6 +41,14 @@ class Auth
      * Every comparison is constant-time: the password because that is what `password_verify()`
      * is, the user name because it is compared on every request just the same.
      *
+     * **And neither is skipped when the other fails.** Chaining the two with `&&` made the pair
+     * leak what each one individually does not: bcrypt is deliberately slow, so a wrong user name
+     * came back in microseconds while a right one paid the full cost, and that difference is
+     * measurable across a network. It tells an attacker which half of the credential they have
+     * already got — which is the half they cannot otherwise find out, since the password is the one
+     * a brute-force attempt gets feedback on. So both run, every time, and the results are combined
+     * afterwards.
+     *
      * @param Request $request The request whose Basic Auth credentials to check.
      * @param string  $file    A credentials file returning `['user' => …, 'pass_hash' => …]`.
      */
@@ -50,10 +58,18 @@ class Auth
         $creds = require $file;
 
         // An empty hash is an unconfigured gate rather than one that accepts an empty password.
-        // password_verify() against '' is false anyway; the guard is here to say so out loud.
-        return $creds['pass_hash'] !== ''
-            && hash_equals($creds['user'], $request->authUser())
-            && password_verify($request->authPassword(), $creds['pass_hash']);
+        // password_verify() against '' is false anyway; the guard is here to say so out loud. It
+        // stays ahead of the comparisons because there is no timing to protect on a gate that is
+        // not configured — there is no right answer for the difference to be measured against.
+        if ($creds['pass_hash'] === '') {
+            return false;
+        }
+
+        // Both, always. See the note above on why this is not one `&&` chain.
+        $userMatches     = hash_equals($creds['user'], $request->authUser());
+        $passwordMatches = password_verify($request->authPassword(), $creds['pass_hash']);
+
+        return $userMatches && $passwordMatches;
     }
 
     /**

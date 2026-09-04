@@ -12,10 +12,12 @@ use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
+use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\RedirectResponse;
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlTag;
@@ -148,6 +150,27 @@ final class ResponseTest extends TestCase
     public function testTheDefaultStatusIsOk(): void
     {
         self::assertSame(HttpStatusCode::Ok, self::peek(new ViewResponse(new HomeView()), 'status'));
+    }
+
+    /**
+     * Extra headers reach the wire, in the order given.
+     *
+     * `header()` is a no-op under CLI, so what is asserted here is that the loop runs at all — the
+     * headers themselves are checked over real HTTP by the verify script, and the one caller that
+     * passes any is pinned in {@link AdminTest}. Worth having as a unit test regardless: an
+     * unexecuted loop is how a `Cache-Control` that nothing sends still reads as sent.
+     */
+    public function testExtraHeadersAreSentAlongsideTheBody(): void
+    {
+        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
+            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+        ]);
+
+        self::assertSame(
+            ['Cache-Control: no-store, private'],
+            array_map(static fn(Header $h): string => $h->line(), self::peek($response, 'headers')),
+        );
+        self::assertStringContainsString('<main', $this->render($response, $this->request('/')));
     }
 
     // ───────────────────────────── controllers ─────────────────────────────

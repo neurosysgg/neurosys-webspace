@@ -6,12 +6,15 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
 use NeuroSYS\Controller\StatsController;
+use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Service\Auth;
+use NeuroSYS\View\StatsView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
+use ReflectionProperty;
 
 /**
  * The admin path: the gate, and the log it protects.
@@ -116,6 +119,42 @@ final class AdminTest extends TestCase
     }
 
     /**
+     * The password comparison runs even when the user name is wrong.
+     *
+     * `hash_equals() && password_verify()` leaked, as a pair, what neither leaks alone: bcrypt is
+     * deliberately slow, so a wrong user name came back in microseconds while a right one paid the
+     * full cost. That difference is measurable across a network, and it tells an attacker which
+     * half of the credential they already hold — the half a brute-force attempt gets no other
+     * feedback on.
+     *
+     * Measured rather than read off the source, because the property is behavioural. Cost 10 puts a
+     * verify in the tens of milliseconds; the floor asserted here is a small fraction of that, and
+     * a short-circuit would return in microseconds — so the gap is three orders of magnitude and
+     * load can only push the measurement the safe way.
+     */
+    public function testAWrongUserNameStillPaysForThePasswordCheck(): void
+    {
+        $file = $this->temp(
+            '<?php return ' . var_export([
+                'user'      => 'admin',
+                'pass_hash' => password_hash('hunter2', PASSWORD_BCRYPT, ['cost' => 10]),
+            ], true) . ';',
+            '.php',
+        );
+
+        $start = hrtime(true);
+        self::assertFalse(Auth::accepts($this->request('wrong-user-entirely', 'hunter2'), $file));
+        $elapsed = (hrtime(true) - $start) / 1_000_000;
+
+        self::assertGreaterThan(
+            1.0,
+            $elapsed,
+            'A wrong user name returned before bcrypt could have run — the comparisons are '
+            . 'short-circuiting again, which makes the user name enumerable by timing.',
+        );
+    }
+
+    /**
      * An unconfigured gate is closed, not open. This is the state the repository actually ships:
      * `data/admin.php` is a placeholder whose `pass_hash` is empty, because the live credentials
      * are uploaded by hand and `deploy.sh` excludes the file.
@@ -162,6 +201,29 @@ final class AdminTest extends TestCase
     {
         yield 'site'  => ['requireSiteAuth'];
         yield 'admin' => ['requireAdminAuth'];
+    }
+
+    /**
+     * The one page on the site reached by handing over a password, and the only one told not to be
+     * kept. `no-store` keeps it out of the disk cache a shared or borrowed machine would leave it
+     * in, and `private` says the same to anything in between.
+     *
+     * Reached through reflection for the same reason parseLog() is: handle() calls
+     * requireAdminAuth() against `data/admin.php`, whose shipped pass_hash is empty, so nothing in
+     * this repository can get past the gate to the response behind it. The header is the part worth
+     * asserting, and it does not need the gate opened to be asserted.
+     */
+    public function testTheStatsPageTellsTheBrowserNotToKeepIt(): void
+    {
+        $response = new ReflectionMethod(StatsController::class, 'response')
+            ->invoke(null, new StatsView(0, [], [], false));
+
+        $headers = new ReflectionProperty($response, 'headers')->getValue($response);
+
+        self::assertSame(
+            ['Cache-Control: no-store, private'],
+            array_map(static fn(Header $h): string => $h->line(), $headers),
+        );
     }
 
     // ───────────────────────── the log the gate protects ─────────────────────────

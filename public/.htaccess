@@ -9,6 +9,19 @@ DirectoryIndex index.php
 RewriteEngine On
 RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 
+# Force HTTPS, before anything else runs. Both gates are HTTP Basic and Basic is base64, so a
+# request that arrives in plaintext has already put its credentials on the wire — this redirect
+# fixes the next request, and the Strict-Transport-Security header stops there being a plaintext
+# one at all. See src/NeuroSYS/Http/Security/StrictTransportSecurity.php.
+#
+# Two conditions, and both must fail before the redirect fires, because a redirect that triggers on
+# a request which already arrived over HTTPS is an infinite loop. Strato terminates TLS at its
+# proxy, where %{HTTPS} can read "off" on a request that was encrypted the whole way; there
+# X-Forwarded-Proto is the one telling the truth. Neither is reliable alone, so ask both.
+RewriteCond %{HTTPS} !=on
+RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
+
 # Pass real files and directories through (assets, etc.)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

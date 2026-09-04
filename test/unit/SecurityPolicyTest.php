@@ -13,6 +13,7 @@ use NeuroSYS\Http\Security\CspScheme;
 use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
+use NeuroSYS\Http\Security\StrictTransportSecurity;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\ResponseHeader;
@@ -29,8 +30,75 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(PermissionsPolicy::class)]
 #[CoversClass(PermissionsPolicyFeature::class)]
 #[CoversClass(SecurityHeader::class)]
+#[CoversClass(StrictTransportSecurity::class)]
 final class SecurityPolicyTest extends TestCase
 {
+    // ───────────────────────── StrictTransportSecurity ─────────────────────────
+
+    public function testTheTransportPolicyRendersItsMaxAgeAndSubdomains(): void
+    {
+        self::assertSame(
+            'max-age=31536000; includeSubDomains',
+            new StrictTransportSecurity()->render(),
+        );
+    }
+
+    public function testSubdomainsCanBeLeftOutForAnEstateThatNeedsIt(): void
+    {
+        self::assertSame(
+            'max-age=86400',
+            new StrictTransportSecurity(StrictTransportSecurity::ONE_DAY, includeSubDomains: false)->render(),
+        );
+    }
+
+    /** Zero is the documented way to switch the policy off, so it is a value and not an error. */
+    public function testAZeroMaxAgeIsAllowed(): void
+    {
+        self::assertSame('max-age=0; includeSubDomains', new StrictTransportSecurity(0)->render());
+    }
+
+    /**
+     * A negative max-age is a header the browser discards, which is worse than no header: it reads
+     * as protection that is present when there is none.
+     */
+    public function testANegativeMaxAgeIsRefused(): void
+    {
+        $this->expectException(SecurityPolicyException::class);
+
+        new StrictTransportSecurity(-1);
+    }
+
+    /**
+     * What the site actually sends, rather than what the class can express.
+     *
+     * A year is the value that makes the policy worth having; anything shorter leaves a window
+     * where a visitor who has not been back lately still sends the Basic Auth header in the clear.
+     * Asserted as a floor, so shipping the ONE_DAY ramp value by accident fails here.
+     */
+    public function testTheSiteSendsAtLeastAYearAndCoversSubdomains(): void
+    {
+        $sent = \NeuroSYS\Http\SecurityHeaders::headers()[SecurityHeader::StrictTransportSecurity->value];
+
+        self::assertMatchesRegularExpression('/^max-age=(\d+); includeSubDomains$/', $sent);
+        self::assertGreaterThanOrEqual(
+            StrictTransportSecurity::ONE_YEAR,
+            (int) preg_replace('/\D/', '', explode(';', $sent)[0] ?? ''),
+        );
+    }
+
+    /**
+     * Preload is deliberately not offered — see the class docblock. It ships the host inside the
+     * browser binary, where nothing this server sends can take it back, so it is a decision to make
+     * on purpose rather than a flag to pass on the way past.
+     */
+    public function testThePolicyDoesNotClaimToBePreloaded(): void
+    {
+        self::assertStringNotContainsStringIgnoringCase(
+            'preload',
+            new StrictTransportSecurity()->render(),
+        );
+    }
+
     // ───────────────────────── CspHost ─────────────────────────
 
     public function testAcceptsABareOrigin(): void

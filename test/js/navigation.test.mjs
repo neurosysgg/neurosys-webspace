@@ -47,6 +47,7 @@ const real = dom.window.location;
 globalThis.location = {
   get href() { return real.href; },
   get pathname() { return real.pathname; },
+  get origin() { return real.origin; },
   assign(url) { handedBack.push(url); },
 };
 
@@ -212,6 +213,29 @@ test('an external link is left to the browser', async () => {
 
   assert.equal(verdict.intercepted, false);
   assert.deepEqual(requests, []);
+});
+
+/**
+ * The one an `href^="/"` selector cannot tell from a path.
+ *
+ * `//evil.example/x` starts with a slash exactly as `/releases` does, so it matches INTERNAL_LINK —
+ * but the resolved `link.href` everything downstream uses is a different origin, and go() ends in
+ * an innerHTML assignment. Before the origin check the outcome was still not a hole, because
+ * pushState throws a SecurityError on a cross-origin URL one line later; it was a link that
+ * silently did nothing at all. Neither is what should happen, and "it throws slightly later" is
+ * not a guarantee anybody can read off the file.
+ */
+test('a protocol-relative link is left to the browser, selector or no selector', async () => {
+  const a = link('//evil.example/x');
+
+  assert.ok(a.matches(`a[href^="/"]`), 'the selector matches it — that is the whole problem');
+  assert.notEqual(new URL(a.href).origin, location.origin);
+
+  await navigate(a);
+
+  assert.equal(verdict.intercepted, false);
+  assert.deepEqual(requests, []);
+  assert.deepEqual(handedBack, []);
 });
 
 /** Open-in-new-tab and open-in-new-window are the browser's, not ours. */

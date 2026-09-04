@@ -14,6 +14,7 @@ use NeuroSYS\Http\Security\CspScheme;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
+use NeuroSYS\Http\Security\StrictTransportSecurity;
 
 /**
  * The SecurityHeaders class. Emits the site's response security headers.
@@ -53,11 +54,26 @@ final class SecurityHeaders
     public static function headers(): array
     {
         return [
+            SecurityHeader::StrictTransportSecurity->value => self::strictTransportSecurity()->render(),
             SecurityHeader::ContentSecurityPolicy->value => self::contentSecurityPolicy()->render(),
             SecurityHeader::ReferrerPolicy->value        => self::referrerPolicy()->value,
             SecurityHeader::ContentTypeOptions->value    => ContentTypeOptions::NoSniff->value,
             SecurityHeader::PermissionsPolicy->value     => self::permissionsPolicy()->render(),
         ];
+    }
+
+    /**
+     * Builds the Strict-Transport-Security policy.
+     *
+     * The site is read-only and sets no cookie, so the thing this protects is the credentials on
+     * the two Basic Auth gates — the admin one, and the pre-launch one that runs on every single
+     * request. Basic is base64. Over plaintext it is readable, and the `.htaccess` redirect cannot
+     * help the request that carried it. See {@link StrictTransportSecurity}, and note the ramp
+     * documented on its ONE_DAY constant before raising this on an estate you have not checked.
+     */
+    public static function strictTransportSecurity(): StrictTransportSecurity
+    {
+        return new StrictTransportSecurity();
     }
 
     /**

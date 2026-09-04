@@ -24,6 +24,9 @@ enum ResponseHeader: string implements HeaderName
     /** The Basic Auth challenge, sent with a 401. */
     case WwwAuthenticate = 'WWW-Authenticate';
 
+    /** How long a response may be kept. Sent with the pages that sit behind a gate. */
+    case CacheControl = 'Cache-Control';
+
     public function headerName(): string
     {
         return $this->value;

@@ -44,7 +44,7 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.72% of
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.87% of
 lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
@@ -102,16 +102,24 @@ src/NeuroSYS/
 `public/index.php` is five statements: security headers → parse request → site auth check →
 `Router::dispatch()` → send.
 
-`SecurityHeaders::send()` runs before anything else, so the CSP and `Referrer-Policy` cover every response
-including the 401 `Auth` exits with and the 303 a download redirects with. Every value is a typed object —
-`CspDirective`, `CspKeyword`/`CspScheme`/`CspHost` behind a `CspSource` interface, `ReferrerPolicy`,
-`PermissionsPolicyFeature` — so a misspelled directive or an unquoted `'self'` is a parse error, not a
-header the browser silently drops. `CspHost` validates it got a bare origin, the way `HiDriveLink`
-validates a share id. The CSP allows images only from
-HiDrive and frames only from SoundCloud; `script-src` is strict, and no view emits an inline style or event
-handler (a test enforces that). `style-src` is strict too: it carried `'unsafe-inline'` only for
-SoundCloud's attribution markup, and `<soundcloud-player>` sets those properties through the CSSOM
-instead — same styling, nothing for the allowance to cover.
+`SecurityHeaders::send()` runs before anything else, so the CSP and `Referrer-Policy` cover every
+response including the 401 `Auth` exits with and the 303 a download redirects with. Every value is a
+typed object — `CspDirective`, `CspKeyword`/`CspScheme`/`CspHost` behind a `CspSource` interface,
+`ReferrerPolicy`, `PermissionsPolicyFeature`, `StrictTransportSecurity` — so a misspelled directive
+or an unquoted `'self'` is a parse error, not a header the browser silently drops. `CspHost`
+validates it got a bare origin, the way `HiDriveLink` validates a share id. The CSP allows images
+only from HiDrive and frames only from SoundCloud; `script-src` is strict, and no view emits an
+inline style or event handler (a test enforces that). `style-src` is strict too: it carried
+`'unsafe-inline'` only for SoundCloud's attribution markup, and `<soundcloud-player>` sets those
+properties through the CSSOM instead — same styling, nothing for the allowance to cover.
+
+**`Strict-Transport-Security` is the one header about the connection rather than the document**, and
+`public/.htaccess` redirects `http://` to `https://` ahead of it. Both halves are needed and neither
+is optional: the two auth gates are HTTP Basic, Basic is base64 rather than encryption, and the
+pre-launch gate runs on *every* request. A plaintext request has already put the credentials on the
+wire before any redirect can be read, so the redirect fixes that request and the header stops there
+being another. It is a year with `includeSubDomains`; `StrictTransportSecurity::ONE_DAY` exists for
+ramping an estate you have not checked, and `preload` is deliberately not offered — see the class.
 
 The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405. The `Allow`
 header is built from `HttpMethod::allowed()`, which filters the cases by `isReadOnly()` — so the
@@ -174,6 +182,26 @@ deliberately different — `options=""` is a real empty value, `secret-token` ab
 `containing()` takes nodes, and a bare string becomes escaped `Text`. That is the safe reading of the
 ambiguous case: markup passed as a string shows up as visible `&lt;b&gt;` — wrong on the page, but
 *visibly* wrong.
+
+**Both guarantees are enforced in `render()`, not in the builders.** `render()` is the only code that
+turns a node into markup, so a rule applied there holds for any element however it was built —
+including one assembled by handing the constructor an array, which `attr()` is otherwise the only
+thing standing in front of. Two rules:
+
+- **Escaping.** `Element` escapes an attribute value by rendering it as a `Text`, so
+  `htmlspecialchars` is called in exactly one place on the whole site, with one set of flags stated
+  rather than inherited from the runtime's defaults. `HtmlTest` pins that call site the same way it
+  pins `RawHtml`'s.
+- **Scheme.** An attribute the browser dereferences is asked what scheme it names, because escaping
+  is the wrong tool for a URL and always was — `javascript:alert(1)` contains not one character
+  `htmlspecialchars` touches. `AttributeName::isUrl()` says which attributes those are, case by case
+  and not enum by enum, since `href` and `class` live in the same one. The allowlist is
+  site-relative, `https:` and `mailto:`; `//host` is refused as the different origin it is, and
+  `HtmlTest` pins the marked set in both directions.
+
+`Profile::url` is checked a second time at its own constructor, the way `HiDriveLink`'s share id is.
+The renderer is the backstop and reports the fault on whatever page draws the footer; the constructor
+reports it when `data/profiles.php` loads, which is where the mistake actually is.
 
 **`RawHtml` is the single hole, and it is meant to be conspicuous.** It exists for `data/privacy.html`,
 a hand-authored document rather than markup a view assembles. `HtmlTest` pins its call sites, so a
@@ -405,6 +433,13 @@ tag no response contains.
 `Navigation` intercepts internal link clicks, fetches the content fragment via XHR (`X-Requested-With:
 XMLHttpRequest`), and swaps `#content`. Download links carry `data-no-spa` to bypass this and trigger
 real navigation (otherwise the 303 is consumed silently by fetch).
+
+The selector matches the href *attribute* and the code then uses the *resolved* `link.href`, so
+`onClick` reconciles the two: `//evil.example/x` starts with a slash exactly as `/releases` does, and
+a cross-origin URL is handed back to the browser rather than fetched. Nothing the server emits is
+protocol-relative — `Element` refuses to write one — so this is the client's half of the same rule.
+It matters because `go()` ends in an `innerHTML` assignment, which is safe only for as long as what
+lands in `#content` is markup this codebase generated.
 
 Nothing re-runs after a swap. The browser upgrades any custom element it parses, including markup
 assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. `Navigation`

@@ -90,18 +90,24 @@ check_method() {
     fi
 }
 
-# Assert that an AJAX request returns a 200 fragment (no <html> tag).
+# Assert that an AJAX request returns a 200 fragment (no <html> tag) that says how to read it.
+#
+# The charset is checked here rather than only on a full page because the fragment is the response
+# that needs it most: a page carries <meta charset>, a fragment carries nothing, so the header is
+# the only thing telling the browser what encoding the bytes are in.
 check_spa_fragment() {
     local desc="$1"; local url="$2"
-    local tmp status body
+    local tmp status body headers
     tmp=$(mktemp)
     status=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" \
-        -o "$tmp" -w "%{http_code}" "$url" 2>/dev/null) || true
-    body=$(cat "$tmp"); rm -f "$tmp"
+        -o "$tmp" -D "$tmp.h" -w "%{http_code}" "$url" 2>/dev/null) || true
+    body=$(cat "$tmp"); headers=$(tr -d '\r' < "$tmp.h"); rm -f "$tmp" "$tmp.h"
     if [[ "$status" != "200" ]]; then
         fail "$desc (expected 200, got $status)"
     elif echo "$body" | grep -qi "<html"; then
         fail "$desc (AJAX response contains <html>)"
+    elif ! echo "$headers" | grep -qi "^content-type: text/html; charset=utf-8"; then
+        fail "$desc (fragment does not declare text/html; charset=utf-8)"
     else
         pass "$desc"
     fi
@@ -405,6 +411,11 @@ echo ""
 echo "=== Security headers ==="
 # Sent from index.php before dispatch, so they cover every response the app produces.
 
+# The credentials on both Basic Auth gates are base64, so a plaintext request has already put them
+# on the wire. The .htaccess redirect fixes that request; this header stops there being another.
+check_header "Strict-Transport-Security is sent"      "$BASE/"             "^strict-transport-security:"
+check_header "  it lasts a year"                      "$BASE/"             "max-age=31536000"
+check_header "  and covers subdomains"                "$BASE/"             "includeSubDomains"
 check_header "Content-Security-Policy is sent"        "$BASE/"             "^content-security-policy:"
 check_header "  script-src is strict"                 "$BASE/"             "script-src 'self'"
 check_header "  style-src is strict too"                "$BASE/"             "style-src 'self';"
@@ -416,7 +427,15 @@ check_header "X-Content-Type-Options is set"          "$BASE/"             "^x-c
 check_header "Permissions-Policy is set"              "$BASE/"             "^permissions-policy:"
 # A download redirect is where the Referer would otherwise leak to the file host.
 check_header "headers reach a 303 too"                "$BASE/releases/ill/flac" "^referrer-policy:"
+check_header "transport policy reaches a 401 too"     "$BASE/admin/stats"  "^strict-transport-security:"
 check_header "headers reach a 404 too"                "$BASE/nope"         "^content-security-policy:"
+
+# ViewResponse used to send no Content-Type at all and inherit PHP's default_mimetype — right by
+# accident of the runtime's ini, and unwritten anywhere. It matters most for the AJAX fragment,
+# which carries no <meta charset> of its own, so the header is all a browser has to go on.
+check_header "a page declares its type and encoding"  "$BASE/"             "^content-type: text/html; charset=utf-8"
+check_header "  the 404 does too"                     "$BASE/nope"         "^content-type: text/html; charset=utf-8"
+check_header "  and the 405 says plain text"          "$BASE/"             "^content-type: text/plain; charset=utf-8" "POST"
 
 
 echo ""

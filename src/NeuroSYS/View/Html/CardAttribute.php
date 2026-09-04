@@ -23,4 +23,10 @@ enum CardAttribute: string implements AttributeName
     {
         return $this->value;
     }
+
+    /** Neither is a URL: they name a release and a format, and the `<a>` inside carries the link. */
+    public function isUrl(): bool
+    {
+        return false;
+    }
 }

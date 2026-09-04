@@ -33,4 +33,14 @@ enum TerminalAttribute: string implements AttributeName
     {
         return $this->value;
     }
+
+    /**
+     * None of them. Worth stating rather than assuming: `command` carries the 404's request path,
+     * which is the one string on this site an attacker writes in full — but `<terminal-window>`
+     * assigns it to `textContent`, so it is text all the way down and never resolved as anything.
+     */
+    public function isUrl(): bool
+    {
+        return false;
+    }
 }

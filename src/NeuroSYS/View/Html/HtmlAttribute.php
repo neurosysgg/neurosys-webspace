@@ -37,4 +37,13 @@ enum HtmlAttribute: string implements AttributeName
     {
         return $this->value;
     }
+
+    /** `href` and `src` are the two the browser dereferences; the rest are values it reads. */
+    public function isUrl(): bool
+    {
+        return match ($this) {
+            self::Href, self::Src => true,
+            default              => false,
+        };
+    }
 }
