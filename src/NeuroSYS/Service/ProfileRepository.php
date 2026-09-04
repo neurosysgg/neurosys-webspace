@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Config;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Support\Collection;
@@ -29,7 +30,7 @@ class ProfileRepository
      */
     public function __construct(?string $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? dirname(__DIR__, 3) . '/data/profiles.php';
+        $this->dataFile = $dataFile ?? Config::dataPath('profiles.php');
     }
 
     /**

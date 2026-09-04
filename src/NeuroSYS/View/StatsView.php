@@ -31,7 +31,7 @@ class StatsView extends View
         private readonly bool  $loggingEnabled = false,
     ) {}
 
-    public function pageTitle(): string { return 'stats — neuro.SYS'; }
+    public function pageTitle(): string { return self::title('stats'); }
 
     public function content(): Node
     {

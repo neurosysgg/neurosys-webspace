@@ -26,7 +26,7 @@ class ReleasesView extends View
      */
     public function __construct(private readonly SearchableCollection $releases) {}
 
-    public function pageTitle(): string { return 'releases — neuro.SYS'; }
+    public function pageTitle(): string { return self::title('releases'); }
 
     public function content(): Node
     {

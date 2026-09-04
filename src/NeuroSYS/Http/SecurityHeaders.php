@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Config;
 use NeuroSYS\Http\Security\ContentSecurityPolicy;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
@@ -32,16 +33,6 @@ use NeuroSYS\Http\Security\ReferrerPolicy;
  */
 final class SecurityHeaders
 {
-    /**
-     * The hosts the site is allowed to reach, beyond its own origin.
-     *
-     * Cover art is served by HiDrive; the SoundCloud player is framed, but only after the
-     * visitor clicks the consent gate. Nothing else may load, so a stray CDN reference in a
-     * future edit fails visibly in the console rather than quietly phoning home.
-     */
-    private const string COVER_HOST  = 'https://my.hidrive.com';
-    private const string PLAYER_HOST = 'https://w.soundcloud.com';
-
     /** Sends every security header. Safe to call before any output. */
     public static function send(): void
     {
@@ -91,9 +82,9 @@ final class SecurityHeaders
                 CspDirective::ImgSrc,
                 CspKeyword::SelfOrigin,
                 CspScheme::Data,
-                new CspHost(self::COVER_HOST),
+                new CspHost(Config::FILE_HOST),
             )
-            ->allow(CspDirective::FrameSrc, new CspHost(self::PLAYER_HOST))
+            ->allow(CspDirective::FrameSrc, new CspHost(Config::PLAYER_HOST))
             ->allow(CspDirective::BaseUri, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FormAction, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FrameAncestors, CspKeyword::None)

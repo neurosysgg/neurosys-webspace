@@ -71,7 +71,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   reference, not what it points at, so `Collection::with()` returning a copy is what actually makes
   `Release::$formats`, `Terminal::$fields` and `SoundCloudEmbed::$options` immutable. `SupportTest`
   builds a `Release`, calls `with()` on its formats and asserts the release still has one.
-- **Download logging stays off.** `ServiceTest` asserts `DownloadLogger::ENABLED === false` and that
+- **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
 - **Download cards carry `data-no-spa`.** Without it `Navigation` fetches the 303 and swallows it, and
   downloads silently stop working while every page still looks fine.
@@ -113,6 +113,10 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   enums, but they fail differently: a wrong value usually shows, a wrong name shows as nothing —
   `getAttribute` returns null, or the browser lays out an inert inline box. `tone` and `loaded` are
   the two with no PHP side, read only by the stylesheet, and no test can follow them.
+- **The origins the client uses are the origins the CSP allows.** `Config::PLAYER_HOST` is both the
+  widget URL `SoundCloudPlayer.ts` builds and the whole of the CSP's `frame-src`; the parity test
+  compares the two sides. Before `Config` they were separate literals in separate languages, and a
+  drift would have shown up only as a blocked frame in the console.
 - **Every class name is styled, and every styled class is named.** `HtmlTest` parses `style.css`
   with comments stripped and compares its class selectors against `CssClass::cases()`. Both
   directions fail, and differently: a case the stylesheet never mentions is an element styled by

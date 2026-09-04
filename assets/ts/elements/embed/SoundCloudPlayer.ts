@@ -2,6 +2,7 @@ import { Platform, displayName } from '../../model/Platform.js';
 import { SoundCloudOption } from '../../model/SoundCloudOption.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
+import { Config } from '../../Config.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
 import { Tag } from '../../model/Tag.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
@@ -28,9 +29,14 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
    */
   private static readonly ACCENT = '#9e55e6';
 
-  /** The artist profile the attribution block credits and links to. */
-  private static readonly ARTIST_HANDLE = 'neurosysgg';
-  private static readonly ARTIST_NAME   = 'neuro.SYS';
+  /**
+   * The artist's page on SoundCloud, which the attribution credits and links to.
+   *
+   * soundcloud.com rather than Config.PLAYER_HOST, and it stays here rather than in Config: this is
+   * only ever a link target, never loaded, so it needs no CSP entry and is not a fact the server
+   * shares. The handle it is built from is.
+   */
+  private static readonly PROFILE = `https://soundcloud.com/${Config.HANDLE}`;
 
   /** SoundCloud's own attribution styling, reproduced property for property. */
   private static readonly ATTRIBUTION_STYLE: Partial<CSSStyleDeclaration> = {
@@ -98,8 +104,8 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
 
     credit.append(
       this.attributionLink(
-        `https://soundcloud.com/${SoundCloudPlayer.ARTIST_HANDLE}`,
-        SoundCloudPlayer.ARTIST_NAME,
+        SoundCloudPlayer.PROFILE,
+        Config.NAME,
       ),
       ' · ',
       this.attributionLink(this.trackPermalink(), this.trackTitle()),
@@ -137,7 +143,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
 
     params.set('visual', String(isVisual(this.playerStyle())));
 
-    return `https://w.soundcloud.com/player/?${params.toString()}`;
+    return `${Config.PLAYER_HOST}/player/?${params.toString()}`;
   }
 
   /**
@@ -155,7 +161,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
 
   /** Returns the public track page the attribution links to. */
   private trackPermalink(): string {
-    const url   = `https://soundcloud.com/${SoundCloudPlayer.ARTIST_HANDLE}/${this.getAttribute(SoundCloudPlayerAttribute.Permalink) ?? ''}`;
+    const url   = `${SoundCloudPlayer.PROFILE}/${this.getAttribute(SoundCloudPlayerAttribute.Permalink) ?? ''}`;
     const token = this.secretToken();
 
     return token === '' ? url : `${url}/${token}`;

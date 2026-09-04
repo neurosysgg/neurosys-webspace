@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Config;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
@@ -27,9 +28,6 @@ use NeuroSYS\View\Terminal\TerminalTone;
  */
 class ReleaseView extends View
 {
-    /** Shown when a release has no cover link, and as the onerror fallback for one that fails. */
-    private const string COVER_PLACEHOLDER = '/assets/img/cover-placeholder.svg';
-
     /**
      * Constructs an instance of {@link self}.
      *
@@ -43,7 +41,7 @@ class ReleaseView extends View
 
     public function pageTitle(): string
     {
-        return $this->release->title . ' — neuro.SYS';
+        return self::title($this->release->title);
     }
 
     public function content(): Node
@@ -60,7 +58,7 @@ class ReleaseView extends View
             label:   'release.log',
             command: './release --track "' . $release->title . '"',
             fields:  new Collection(TerminalField::class)->with(
-                new TerminalField('artist', 'neuro.SYS'),
+                new TerminalField('artist', Config::NAME),
                 new TerminalField('bpm', (string) $release->bpm),
                 new TerminalField('key', $release->key->value),
                 new TerminalField('genre', $release->genre->value),
@@ -69,8 +67,8 @@ class ReleaseView extends View
         );
 
         $cover = new Element(Tag::CoverArt)
-            ->attr(CoverArtAttribute::Src, $release->cover?->url() ?? self::COVER_PLACEHOLDER)
-            ->attr(CoverArtAttribute::Fallback, self::COVER_PLACEHOLDER)
+            ->attr(CoverArtAttribute::Src, $release->cover?->url() ?? Config::COVER_PLACEHOLDER)
+            ->attr(CoverArtAttribute::Fallback, Config::COVER_PLACEHOLDER)
             ->attr(CoverArtAttribute::Alt, $release->title . ' cover art');
 
         return new Element(HtmlTag::Section)
@@ -84,10 +82,10 @@ class ReleaseView extends View
         $section = new Element(HtmlTag::Section)
             ->attr(HtmlAttribute::ClassName, CssClass::ReleaseInfo)
             ->containing(
-                new Element(HtmlTag::H1)->containing(...$this->title()),
+                new Element(HtmlTag::H1)->containing(...self::accented($this->release->title)),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::Tagline)
-                    ->containing('neuro.SYS — ' . $this->release->description),
+                    ->containing(Config::NAME . ' — ' . $this->release->description),
             );
 
         // A release with no embed emits no player element at all, rather than an empty one: the
@@ -99,30 +97,6 @@ class ReleaseView extends View
         }
 
         return $section->containing($this->downloads());
-    }
-
-    /**
-     * The release title, with a trailing `!`, `.` or `?` accented.
-     *
-     * Split rather than styled whole so the mark carries the accent — 'hello world!' and 'ill.' both
-     * read as name + mark.
-     *
-     * @return list<Node|string>
-     */
-    private function title(): array
-    {
-        $title = $this->release->title;
-
-        if (preg_match('/[!.?]$/', $title, $matches) !== 1) {
-            return [$title];
-        }
-
-        return [
-            substr($title, 0, -1),
-            new Element(HtmlTag::Span)
-                ->attr(HtmlAttribute::ClassName, CssClass::Bang)
-                ->containing($matches[0]),
-        ];
     }
 
     /** Builds the download group: a heading and one card per format. */
@@ -167,7 +141,7 @@ class ReleaseView extends View
     private static function formatMeta(ReleaseFormat $format): string
     {
         return match ($format) {
-            ReleaseFormat::STEMS => 'non-commercial — commercial licensing: neuro.sys@neurosys.gg',
+            ReleaseFormat::STEMS => 'non-commercial — commercial licensing: ' . Config::EMAIL,
             ReleaseFormat::MP3   => '320 kbps',
             ReleaseFormat::OGG   => 'OGG Vorbis',
             default              => $format->isLossless() ? 'lossless, 24-bit/48kHz' : 'lossy',

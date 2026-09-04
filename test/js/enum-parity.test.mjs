@@ -31,6 +31,7 @@ import { ElementId } from '../../public/assets/js/model/ElementId.js';
 import { RequestHeader } from '../../public/assets/js/model/RequestHeader.js';
 import { RequestedWith } from '../../public/assets/js/model/RequestedWith.js';
 import { TerminalFieldKey } from '../../public/assets/js/model/TerminalFieldKey.js';
+import { Config } from '../../public/assets/js/Config.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -121,3 +122,20 @@ for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {
     );
   });
 }
+
+/**
+ * Config, which is not an enum but is the same problem: a fact stated on both sides.
+ *
+ * PLAYER_HOST is the one with teeth — it is also the CSP's whole frame-src, so a drift here means
+ * the player is blocked by our own policy, in the console, with nothing in the page to say why.
+ */
+test('Config mirrors the part of NeuroSYS\\Config the client reads', () => {
+  assert.deepEqual(
+    { NAME: Config.NAME, HANDLE: Config.HANDLE, PLAYER_HOST: Config.PLAYER_HOST },
+    php(`echo json_encode([
+        'NAME'        => NeuroSYS\\Config::NAME,
+        'HANDLE'      => NeuroSYS\\Config::HANDLE,
+        'PLAYER_HOST' => NeuroSYS\\Config::PLAYER_HOST,
+    ]);`),
+  );
+});

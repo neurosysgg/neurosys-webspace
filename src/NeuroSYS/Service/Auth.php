@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Config;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\Request;
@@ -20,7 +21,7 @@ class Auth
      * One constant rather than the same quoted string twice: the browser keys stored credentials by
      * realm, so two that differ by a character are two separate prompts to the visitor.
      */
-    private const string CHALLENGE = 'Basic realm="neuro.SYS"';
+    private const string CHALLENGE = 'Basic realm="' . Config::NAME . '"';
 
     /**
      * Enforces site-wide pre-launch authentication if a credentials file exists.
@@ -30,7 +31,7 @@ class Auth
      */
     public static function requireSiteAuth(Request $request): void
     {
-        $file = dirname(__DIR__, 3) . '/data/site_auth.php';
+        $file = Config::dataPath('site_auth.php');
         if (!is_file($file)) {
             return;
         }
@@ -54,7 +55,7 @@ class Auth
      */
     public static function requireAdminAuth(Request $request): void
     {
-        $creds = require dirname(__DIR__, 3) . '/data/admin.php';
+        $creds = require Config::dataPath('admin.php');
 
         $ok = $creds['pass_hash'] !== ''
            && hash_equals($creds['user'], $request->authUser())

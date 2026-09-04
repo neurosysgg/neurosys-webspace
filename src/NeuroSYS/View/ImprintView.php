@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Config;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -20,8 +21,6 @@ use NeuroSYS\View\Html\Node;
  */
 class ImprintView extends View
 {
-    private const string EMAIL = 'neuro.sys@neurosys.gg';
-
     /** @var list<string> The postal address, one line per element. */
     private const array ADDRESS = [
         'Niclas Ahl',
@@ -31,7 +30,7 @@ class ImprintView extends View
         'Germany',
     ];
 
-    public function pageTitle(): string { return 'Imprint — neuro.SYS'; }
+    public function pageTitle(): string { return self::title('Imprint'); }
 
     public function content(): Node
     {
@@ -81,8 +80,8 @@ class ImprintView extends View
         return new Element(HtmlTag::P)->containing(
             $label,
             new Element(HtmlTag::A)
-                ->attr(HtmlAttribute::Href, 'mailto:' . self::EMAIL)
-                ->containing(self::EMAIL),
+                ->attr(HtmlAttribute::Href, 'mailto:' . Config::EMAIL)
+                ->containing(Config::EMAIL),
         );
     }
 }

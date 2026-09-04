@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Config;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Support\SearchableCollection;
 
@@ -27,7 +28,7 @@ class ReleaseRepository
      */
     public function __construct(?string $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? dirname(__DIR__, 3) . '/data/releases.php';
+        $this->dataFile = $dataFile ?? Config::dataPath('releases.php');
     }
 
     /**

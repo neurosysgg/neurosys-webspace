@@ -70,6 +70,7 @@ src/NeuroSYS/
 │   ├── Html/       ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document, Doctype
 │   │                 + Tag/HtmlTag and the attribute enums they compose
 │   └── Terminal/   ← Terminal, TerminalField + the enums they compose
+├── Config.php      ← the facts about this site: identity, origins, paths, switches
 ├── Layout.php      ← static wrap(View): Document — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
@@ -96,6 +97,32 @@ An unrecognised method is `null` rather than a guess, and null is not read-only.
 Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
 place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
 purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
+
+## Config
+
+`Config` holds the facts about *this site* rather than about any of its code, and it is deliberately
+narrow — a central bag of constants is the opposite of how everything else here is arranged, where a
+fact lives with the thing it describes so its docblock can say why. A constant earns a place only by
+being **identity** (name, handle, address, tagline), **environment** (data paths, reachable origins,
+switches), or **already stated twice**.
+
+That third one is what made it worth writing:
+
+- `https://my.hidrive.com` was in `HiDriveLink` *and* in the CSP. Change one and covers keep loading
+  right up until the policy blocks them.
+- `https://w.soundcloud.com` was in the CSP and again in `SoundCloudPlayer.ts`, in another language.
+  Drift there means the player is blocked by our own policy with nothing in the page to explain it.
+- `neuro.SYS` was in eleven places; the `data/` directory was derived seven times, one of them by a
+  different idiom (`__DIR__ . '/../../../data/'` rather than `dirname(__DIR__, 3)`). That is where
+  the credentials live.
+
+`assets/ts/Config.ts` mirrors the three the client reads — `NAME`, `HANDLE`, `PLAYER_HOST` — under
+the same parity test as the enums. Not the rest: the data paths and the logging switch are the
+server's business.
+
+**What stayed put**, because it means nothing outside the file that owns it: `CspHost`'s origin
+pattern, `HiDriveLink`'s share-id pattern, SoundCloud's accent and attribution styling,
+`Navigation`'s event name. Moving those here would only make them reachable from everywhere.
 
 ## The markup tree
 
@@ -164,12 +191,12 @@ All requests hit `public/index.php` via `.htaccess` rewrite. It:
 
 Download routes (`/releases/{slug}/{format}`) call `DownloadLogger` and issue a 303 redirect to the HiDrive direct-download link.
 
-**Download logging is deliberately off, for legal reasons.** `DownloadLogger::ENABLED` is `false`, and `log()` returns on it
+**Download logging is deliberately off, for legal reasons.** `Config::DOWNLOAD_LOGGING` is `false`, and `log()` returns on it
 before the `DownloadLogEntry` is built — so the referrer is never read and nothing is written. `StatsController` skips reading the
 log entirely and `/admin/stats` says logging is switched off rather than showing an empty table. Both suites assert the switch
 stays off, and the unit test additionally asserts the referrer is never read.
 
-To turn it on later: flip `ENABLED` to `true`. That is a privacy-policy decision before a code one — `data/privacy.html` currently
+To turn it on later: flip `Config::DOWNLOAD_LOGGING` to `true`. That is a privacy-policy decision before a code one — `data/privacy.html` currently
 makes no download-tracking claim, so amend it first. Note the old failure mode is still latent underneath: `fopen(..., 'ab')`
 creates the log file but not its directory, and `data/logs/` is excluded from `deploy.sh`, so a freshly enabled logger writes
 nothing on the server until that directory exists.

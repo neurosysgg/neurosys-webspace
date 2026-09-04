@@ -76,7 +76,7 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 
 ## Download logging
 
-**Off, deliberately, for legal reasons.** `DownloadLogger::ENABLED` is `false` and `log()` returns on it before the
+**Off, deliberately, for legal reasons.** `Config::DOWNLOAD_LOGGING` is `false` and `log()` returns on it before the
 entry is built, so the referrer is never read and nothing is written. `/admin/stats` says so rather than showing an
 empty table, and the verify script asserts the switch stays off.
 

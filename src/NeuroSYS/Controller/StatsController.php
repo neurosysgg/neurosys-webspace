@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
+use NeuroSYS\Config;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
@@ -24,7 +25,7 @@ class StatsController implements Controller
     /** Constructs an instance of {@link self}. */
     public function __construct()
     {
-        $this->logFile = dirname(__DIR__, 3) . '/data/logs/downloads.log';
+        $this->logFile = Config::downloadLog();
     }
 
     public function handle(Request $request): Response
@@ -32,7 +33,7 @@ class StatsController implements Controller
         Auth::requireAdminAuth($request);
 
         // Logging off means the log is not read at all, not even a stale one left over from a previous machine.
-        if (!DownloadLogger::ENABLED) {
+        if (!Config::DOWNLOAD_LOGGING) {
             return new ViewResponse(new StatsView(0, [], [], false));
         }
 

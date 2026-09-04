@@ -176,13 +176,14 @@ php_ok "data/admin.php is shaped the way Auth expects" \
      (isset(\$c['user'], \$c['pass_hash']) && is_string(\$c['pass_hash'])) or exit(1);"
 
 php_ok "download logging is switched off and writes nothing" \
-    "use NeuroSYS\Service\DownloadLogger;
+    "use NeuroSYS\Config;
+     use NeuroSYS\Service\DownloadLogger;
      \$f = '$REPO/data/logs/downloads.log';
      \$before = is_file(\$f) ? filesize(\$f) : -1;
      new DownloadLogger()->log('test-slug', NeuroSYS\Model\ReleaseFormat::FLAC);
      clearstatcache();
      \$after = is_file(\$f) ? filesize(\$f) : -1;
-     (DownloadLogger::ENABLED === false && \$after === \$before) or exit(1);"
+     (Config::DOWNLOAD_LOGGING === false && \$after === \$before) or exit(1);"
 
 if [[ -f "$REPO/data/.htaccess" ]] && grep -qi 'Require all denied' "$REPO/data/.htaccess"; then
     pass "data/.htaccess denies web access (fallback if data/ ends up inside the webroot)"

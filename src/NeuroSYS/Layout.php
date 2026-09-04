@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use NeuroSYS\Config;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\View\Html\Document;
@@ -15,17 +16,13 @@ use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\View;
+use NeuroSYS\View\Wordmark;
 
 /**
  * The Layout class. Renders the site shell — HTML document, header, footer, and scripts.
  */
 class Layout
 {
-    private const string EMAIL       = 'neuro.sys@neurosys.gg';
-    private const string DESCRIPTION = 'neuro.SYS — electronic music.';
-    private const string STYLESHEET  = '/assets/css/style.css';
-    private const string SCRIPT      = '/assets/js/main.js';
-
     /**
      * Wraps the given view's content in the full site shell.
      *
@@ -51,10 +48,10 @@ class Layout
             new Element(HtmlTag::Title)->containing($title),
             new Element(HtmlTag::Meta)
                 ->attr(HtmlAttribute::Name, 'description')
-                ->attr(HtmlAttribute::Content, self::DESCRIPTION),
+                ->attr(HtmlAttribute::Content, Config::description()),
             new Element(HtmlTag::Link)
                 ->attr(HtmlAttribute::Rel, 'stylesheet')
-                ->attr(HtmlAttribute::Href, self::STYLESHEET),
+                ->attr(HtmlAttribute::Href, Config::STYLESHEET),
         );
     }
 
@@ -67,7 +64,7 @@ class Layout
             // type="module", so it defers on its own and every import resolves as an ES module.
             new Element(HtmlTag::Script)
                 ->attr(HtmlAttribute::Type, 'module')
-                ->attr(HtmlAttribute::Src, self::SCRIPT),
+                ->attr(HtmlAttribute::Src, Config::SCRIPT),
         );
     }
 
@@ -79,13 +76,7 @@ class Layout
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::ClassName, CssClass::Logo)
                     ->attr(HtmlAttribute::Href, '/')
-                    ->containing(
-                        'neuro',
-                        new Element(HtmlTag::Span)
-                            ->attr(HtmlAttribute::ClassName, CssClass::LogoDot)
-                            ->containing('.'),
-                        'SYS',
-                    ),
+                    ->containing(...Wordmark::nodes()),
                 new Element(HtmlTag::Nav)
                     ->attr(HtmlAttribute::ClassName, CssClass::SiteNav)
                     ->containing(
@@ -112,10 +103,10 @@ class Layout
 
         return $footer->containing(
             new Element(HtmlTag::P)->containing(
-                'neuro.SYS · ',
+                Config::NAME . ' · ',
                 new Element(HtmlTag::A)
-                    ->attr(HtmlAttribute::Href, 'mailto:' . self::EMAIL)
-                    ->containing(self::EMAIL),
+                    ->attr(HtmlAttribute::Href, 'mailto:' . Config::EMAIL)
+                    ->containing(Config::EMAIL),
                 ' · ',
                 new Element(HtmlTag::A)->attr(HtmlAttribute::Href, '/imprint')->containing('imprint'),
                 ' · ',

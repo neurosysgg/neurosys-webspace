@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model\Link;
 
+use NeuroSYS\Config;
 use NeuroSYS\Exception\ReleaseVerificationException;
 
 /**
@@ -21,7 +22,7 @@ use NeuroSYS\Exception\ReleaseVerificationException;
 final readonly class HiDriveLink implements FileLink
 {
     /** HiDrive's direct-download endpoint — serves the file, not a viewer page. */
-    private const string BASE = 'https://my.hidrive.com/api/sharelink/download';
+    private const string BASE = Config::FILE_HOST . '/api/sharelink/download';
 
     /**
      * The shape HiDrive currently mints: exactly 9 alphanumeric characters.

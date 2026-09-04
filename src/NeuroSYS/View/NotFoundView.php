@@ -26,7 +26,7 @@ class NotFoundView extends View
      */
     public function __construct(private readonly string $path) {}
 
-    public function pageTitle(): string { return '404 — neuro.SYS'; }
+    public function pageTitle(): string { return self::title('404'); }
 
     public function content(): Node
     {

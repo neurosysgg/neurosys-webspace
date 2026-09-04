@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Config;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Service\DownloadLogEntry;
@@ -146,7 +147,7 @@ final class ServiceTest extends TestCase
      */
     public function testLoggingIsSwitchedOff(): void
     {
-        self::assertFalse(DownloadLogger::ENABLED);
+        self::assertFalse(Config::DOWNLOAD_LOGGING);
     }
 
     public function testLoggingWritesNothingWhileItIsOff(): void

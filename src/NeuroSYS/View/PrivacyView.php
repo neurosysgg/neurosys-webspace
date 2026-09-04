@@ -27,7 +27,7 @@ class PrivacyView extends View
      */
     public function __construct(private readonly string $html) {}
 
-    public function pageTitle(): string { return 'Privacy Policy — neuro.SYS'; }
+    public function pageTitle(): string { return self::title('Privacy Policy'); }
 
     public function content(): Node
     {
