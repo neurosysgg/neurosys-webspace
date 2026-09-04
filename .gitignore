@@ -10,5 +10,6 @@ data/logs/
 # Deploy script contains credentials
 deploy.sh
 
-# Pre-public site auth (remove file to disable)
+# Pre-public site auth — dot-prefix the file to disable the gate without losing it
 data/site_auth.php
+data/.site_auth.php

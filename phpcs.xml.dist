@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<ruleset name="NeuroSYS">
+    <description>PSR-12, minus the sniffs that fight aligned constructor params and one-line accessor methods.</description>
+
+    <arg name="basepath" value="."/>
+    <arg name="colors"/>
+    <arg name="extensions" value="php"/>
+
+    <file>src</file>
+    <file>public</file>
+    <file>test</file>
+
+    <rule ref="PSR12">
+        <!-- allows `private array  $segments` column-alignment across constructor params -->
+        <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpacingAfterHint"/>
+        <!-- allows one-line accessors: `public function all(): array { return $this->items; }` -->
+        <exclude name="Squiz.Functions.MultiLineFunctionDeclaration.BraceOnSameLine"/>
+        <exclude name="Squiz.Functions.MultiLineFunctionDeclaration.ContentAfterBrace"/>
+        <exclude name="Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore"/>
+    </rule>
+</ruleset>
