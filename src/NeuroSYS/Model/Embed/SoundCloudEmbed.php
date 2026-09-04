@@ -86,7 +86,7 @@ final readonly class SoundCloudEmbed implements Embed
         return $this->style->height();
     }
 
-    public function toElement(string $title): string
+    public function toElement(string $title): Element
     {
         $options = implode(' ', array_map(
             static fn (SoundCloudOption $option): string => $option->value,
@@ -94,15 +94,15 @@ final readonly class SoundCloudEmbed implements Embed
         ));
 
         return new Element(Tag::SoundCloudPlayer)
-            ->with(SoundCloudPlayerAttribute::TrackId, $this->trackId)
-            ->with(SoundCloudPlayerAttribute::Permalink, $this->permalink)
-            // A public track carries no token, so the attribute is left off rather than sent empty.
-            ->withOptional(SoundCloudPlayerAttribute::SecretToken, $this->secretToken)
-            ->with(SoundCloudPlayerAttribute::PlayerStyle, $this->style->value)
-            ->with(SoundCloudPlayerAttribute::Options, $options)
-            ->with(SoundCloudPlayerAttribute::TrackTitle, $title)
-            ->with(SoundCloudPlayerAttribute::Height, $this->height())
-            ->render();
+            ->attr(SoundCloudPlayerAttribute::TrackId, $this->trackId)
+            ->attr(SoundCloudPlayerAttribute::Permalink, $this->permalink)
+            // ?: so a public track sends no attribute at all rather than an empty one — null is
+            // absent, '' is a real empty value, and the client reads those differently.
+            ->attr(SoundCloudPlayerAttribute::SecretToken, $this->secretToken ?: null)
+            ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style->value)
+            ->attr(SoundCloudPlayerAttribute::Options, $options)
+            ->attr(SoundCloudPlayerAttribute::TrackTitle, $title)
+            ->attr(SoundCloudPlayerAttribute::Height, $this->height());
     }
 
     /**

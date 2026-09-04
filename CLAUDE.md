@@ -52,7 +52,8 @@ browser loads — so a build that never ran is a failing test rather than a pass
 
 ## Architecture
 
-MVC, all plain PHP classes — no template files, no `extract()`, no inline echo syntax.
+MVC, all plain PHP classes — no template files, no `extract()`, no inline echo syntax, and since the
+markup tree, no HTML written as a string either.
 
 ```
 src/NeuroSYS/
@@ -65,10 +66,11 @@ src/NeuroSYS/
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization, JsonDeserializable
-├── View/           ← View abstract base + one concrete per page; HTML via heredoc, no template files
-│   ├── Html/       ← Tag, HtmlAttribute + Element; every custom element is built from these
+├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
+│   ├── Html/       ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document, Doctype
+│   │                 + Tag/HtmlTag and the attribute enums they compose
 │   └── Terminal/   ← Terminal, TerminalField + the enums they compose
-├── Layout.php      ← static wrap(View): string — the full HTML shell
+├── Layout.php      ← static wrap(View): Document — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
 
@@ -94,6 +96,42 @@ An unrecognised method is `null` rather than a guess, and null is not read-only.
 Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
 place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
 purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
+
+## The markup tree
+
+**Nothing builds HTML from a string.** A view returns a `Node`, a page is a tree of them, and the
+only code that writes a `<` is `Element` and `Doctype`. A verify check enforces that: a heredoc or a
+`'<tag'` literal anywhere under `src/` outside those two files fails the build.
+
+| Node | Is |
+|---|---|
+| `Element` | a `TagName`, typed attributes, child nodes |
+| `Text` | a run of text, escaped on the way out |
+| `Fragment` | several nodes with no element around them |
+| `Document` | a `Doctype` and the `<html>` under it |
+| `RawHtml` | the one audited hole — see below |
+
+Four mistakes stop being possible, three of them previously silent: a misspelled tag renders as an
+inert inline box, a misspelled attribute is a null the client reads as nothing, an unescaped value is
+an injection, and a mismatched closing tag is a document the browser reinterprets. The last one a
+tree removes outright — there is no closing tag to get wrong, because there is no text form to write.
+
+`Element::attr()` is the whole attribute API. What you pass decides what renders: a string or int is
+a value, `true` is a bare boolean attribute, and `false`/`null` leave it off. `''` and `null` are
+deliberately different — `options=""` is a real empty value, `secret-token` absent is not.
+
+`containing()` takes nodes, and a bare string becomes escaped `Text`. That is the safe reading of the
+ambiguous case: markup passed as a string shows up as visible `&lt;b&gt;` — wrong on the page, but
+*visibly* wrong.
+
+**`RawHtml` is the single hole, and it is meant to be conspicuous.** It exists for `data/privacy.html`,
+a hand-authored document rather than markup a view assembles. `HtmlTest` pins its call sites, so a
+second one has to be argued for in a test named for the fact. Never construct one from anything a
+request can influence.
+
+Rendering pretty-prints: an element of only elements puts each on its own line, one with any `Text`
+among them stays on one line. That rule is not cosmetic — whitespace between inline content is
+content, and without it `<h1>ill<span>.</span></h1>` would gain a space inside the title.
 
 ## Collections, and why they are immutable
 

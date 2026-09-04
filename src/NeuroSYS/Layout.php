@@ -4,7 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
+use NeuroSYS\View\Html\Document;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Fragment;
+use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\View;
 
 /**
@@ -12,89 +19,134 @@ use NeuroSYS\View\View;
  */
 class Layout
 {
+    private const string EMAIL       = 'neuro.sys@neurosys.gg';
+    private const string DESCRIPTION = 'neuro.SYS — electronic music.';
+    private const string STYLESHEET  = '/assets/css/style.css';
+    private const string SCRIPT      = '/assets/js/main.js';
+
     /**
      * Wraps the given view's content in the full site shell.
      *
      * @param View $view The view whose content to embed.
-     * @return string The complete HTML document.
+     * @return Document The complete document, ready to render.
      */
-    public static function wrap(View $view): string
+    public static function wrap(View $view): Document
     {
-        $title    = htmlspecialchars($view->pageTitle());
-        $content  = $view->content();
-        $profiles = self::profileLinks();
+        return new Document(
+            new Element(HtmlTag::Html)
+                ->attr(HtmlAttribute::Lang, 'en')
+                ->containing(self::head($view->pageTitle()), self::body($view->content())),
+        );
+    }
 
-        return <<<HTML
-            <!DOCTYPE html>
-            <html lang="en">
-            <head>
-              <meta charset="UTF-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-              <title>$title</title>
-              <meta name="description" content="neuro.SYS — electronic music." />
-              <link rel="stylesheet" href="/assets/css/style.css" />
-            </head>
-            <body>
+    private static function head(string $title): Element
+    {
+        return new Element(HtmlTag::Head)->containing(
+            new Element(HtmlTag::Meta)->attr(HtmlAttribute::Charset, 'UTF-8'),
+            new Element(HtmlTag::Meta)
+                ->attr(HtmlAttribute::Name, 'viewport')
+                ->attr(HtmlAttribute::Content, 'width=device-width, initial-scale=1.0'),
+            new Element(HtmlTag::Title)->containing($title),
+            new Element(HtmlTag::Meta)
+                ->attr(HtmlAttribute::Name, 'description')
+                ->attr(HtmlAttribute::Content, self::DESCRIPTION),
+            new Element(HtmlTag::Link)
+                ->attr(HtmlAttribute::Rel, 'stylesheet')
+                ->attr(HtmlAttribute::Href, self::STYLESHEET),
+        );
+    }
 
-              <header class="site-header">
-                <a class="logo" href="/">neuro<span class="logo-dot">.</span>SYS</a>
-                <nav class="site-nav">
-                  <a href="/releases">releases</a>
-                </nav>
-              </header>
+    private static function body(Node $content): Element
+    {
+        return new Element(HtmlTag::Body)->containing(
+            self::header(),
+            new Element(HtmlTag::Main)->attr(HtmlAttribute::Id, 'content')->containing($content),
+            self::footer(),
+            // type="module", so it defers on its own and every import resolves as an ES module.
+            new Element(HtmlTag::Script)
+                ->attr(HtmlAttribute::Type, 'module')
+                ->attr(HtmlAttribute::Src, self::SCRIPT),
+        );
+    }
 
-              <main id="content">
-                $content
-              </main>
+    private static function header(): Element
+    {
+        return new Element(HtmlTag::Header)
+            ->attr(HtmlAttribute::ClassName, 'site-header')
+            ->containing(
+                new Element(HtmlTag::A)
+                    ->attr(HtmlAttribute::ClassName, 'logo')
+                    ->attr(HtmlAttribute::Href, '/')
+                    ->containing(
+                        'neuro',
+                        new Element(HtmlTag::Span)
+                            ->attr(HtmlAttribute::ClassName, 'logo-dot')
+                            ->containing('.'),
+                        'SYS',
+                    ),
+                new Element(HtmlTag::Nav)
+                    ->attr(HtmlAttribute::ClassName, 'site-nav')
+                    ->containing(
+                        new Element(HtmlTag::A)
+                            ->attr(HtmlAttribute::Href, '/releases')
+                            ->containing('releases'),
+                    ),
+            );
+    }
 
-              <footer class="site-footer">
-                $profiles
-                <p>neuro.SYS &middot; <a href="mailto:neuro.sys@neurosys.gg">neuro.sys@neurosys.gg</a> &middot; <a href="/imprint">imprint</a> &middot; <a href="/privacy">privacy policy</a></p>
-              </footer>
+    private static function footer(): Element
+    {
+        $footer = new Element(HtmlTag::Footer)->attr(HtmlAttribute::ClassName, 'site-footer');
+        $links  = new ProfileRepository()->all();
 
-              <script type="module" src="/assets/js/main.js"></script>
-            </body>
-            </html>
-            HTML;
+        if ($links->count() > 0) {
+            $footer = $footer->containing(
+                new Element(HtmlTag::Nav)
+                    ->attr(HtmlAttribute::ClassName, 'profile-links')
+                    ->attr(HtmlAttribute::AriaLabel, 'Profiles')
+                    ->containing(...array_map(self::profileLink(...), $links->all())),
+            );
+        }
+
+        return $footer->containing(
+            new Element(HtmlTag::P)->containing(
+                'neuro.SYS · ',
+                new Element(HtmlTag::A)
+                    ->attr(HtmlAttribute::Href, 'mailto:' . self::EMAIL)
+                    ->containing(self::EMAIL),
+                ' · ',
+                new Element(HtmlTag::A)->attr(HtmlAttribute::Href, '/imprint')->containing('imprint'),
+                ' · ',
+                new Element(HtmlTag::A)
+                    ->attr(HtmlAttribute::Href, '/privacy')
+                    ->containing('privacy policy'),
+            ),
+        );
     }
 
     /**
-     * Builds the external profile link row, or an empty string if none are configured.
+     * One external profile link.
      *
-     * These are plain hyperlinks to locally vendored icons — nothing is requested
-     * from the platforms until a visitor actually clicks, so no consent gate is
-     * needed (unlike the SoundCloud embed, which is gated in ReleaseView).
+     * A plain hyperlink to a locally vendored icon — nothing is requested from the platform until a
+     * visitor actually clicks, so no consent gate is needed (unlike the SoundCloud embed, which is
+     * gated in ReleaseView). See docs/branding.md for why the icons are never hot-linked.
      */
-    private static function profileLinks(): string
+    private static function profileLink(Profile $profile): Element
     {
-        $links = new ProfileRepository()->all();
+        $platform = $profile->platform;
+        $label    = $platform->label();
 
-        if ($links->count() === 0) {
-            return '';
-        }
-
-        $items = '';
-
-        foreach ($links as $profile) {
-            $platform = $profile->platform;
-            $href     = htmlspecialchars($profile->url);
-            $label    = htmlspecialchars($platform->label());
-            $src      = htmlspecialchars($platform->iconSrc());
-            $height   = $platform->iconHeight();
-
-            $items .= <<<HTML
-                        <a class="profile-link" href="$href" title="$label"
-                           target="_blank" rel="noopener noreferrer external">
-                          <img src="$src" alt="$label" height="$height" />
-                        </a>
-
-                    HTML;
-        }
-
-        return <<<HTML
-            <nav class="profile-links" aria-label="Profiles">
-                    $items
-                </nav>
-            HTML;
+        return new Element(HtmlTag::A)
+            ->attr(HtmlAttribute::ClassName, 'profile-link')
+            ->attr(HtmlAttribute::Href, $profile->url)
+            ->attr(HtmlAttribute::Title, $label)
+            ->attr(HtmlAttribute::Target, '_blank')
+            ->attr(HtmlAttribute::Rel, 'noopener noreferrer external')
+            ->containing(
+                new Element(HtmlTag::Img)
+                    ->attr(HtmlAttribute::Src, $platform->iconSrc())
+                    ->attr(HtmlAttribute::Alt, $label)
+                    ->attr(HtmlAttribute::Height, $platform->iconHeight()),
+            );
     }
 }

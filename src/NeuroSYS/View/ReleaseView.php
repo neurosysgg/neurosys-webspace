@@ -4,13 +4,18 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Fragment;
+use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\LinkAttribute;
+use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalField;
@@ -40,15 +45,16 @@ class ReleaseView extends View
         return $this->release->title . ' — neuro.SYS';
     }
 
-    public function content(): string
+    public function content(): Node
     {
-        return $this->heroSection() . $this->infoSection();
+        return new Fragment($this->heroSection(), $this->infoSection());
     }
 
     /** Builds the hero section with terminal metadata and cover art. */
-    private function heroSection(): string
+    private function heroSection(): Element
     {
-        $release  = $this->release;
+        $release = $this->release;
+
         $terminal = new Terminal(
             label:   'release.log',
             command: './release --track "' . $release->title . '"',
@@ -59,116 +65,96 @@ class ReleaseView extends View
                 new TerminalField('genre', $release->genre->value),
                 new TerminalField('status', 'ready', TerminalTone::Ok),
             ),
-        )->toElement();
+        );
 
         $cover = new Element(Tag::CoverArt)
-            ->with(CoverArtAttribute::Src, $release->cover?->url() ?? self::COVER_PLACEHOLDER)
-            ->with(CoverArtAttribute::Fallback, self::COVER_PLACEHOLDER)
-            ->with(CoverArtAttribute::Alt, $release->title . ' cover art')
-            ->render();
+            ->attr(CoverArtAttribute::Src, $release->cover?->url() ?? self::COVER_PLACEHOLDER)
+            ->attr(CoverArtAttribute::Fallback, self::COVER_PLACEHOLDER)
+            ->attr(CoverArtAttribute::Alt, $release->title . ' cover art');
 
-        return <<<HTML
-            <section class="hero">
-              $terminal
-              $cover
-            </section>
-            HTML;
+        return new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'hero')
+            ->containing($terminal->toElement(), $cover);
     }
 
     /** Builds the release info section with player and download cards. */
-    private function infoSection(): string
+    private function infoSection(): Element
     {
-        $title    = $this->titleHtml();
-        $desc     = htmlspecialchars($this->release->description);
-        $player   = $this->playerHtml();
-        $dlCards  = $this->downloadCards();
+        $section = new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'release-info')
+            ->containing(
+                new Element(HtmlTag::H1)->containing(...$this->title()),
+                new Element(HtmlTag::P)
+                    ->attr(HtmlAttribute::ClassName, 'tagline')
+                    ->containing('neuro.SYS — ' . $this->release->description),
+            );
 
-        return <<<HTML
-
-            <section class="release-info">
-              <h1>$title</h1>
-              <p class="tagline">neuro.SYS &mdash; $desc</p>
-              $player
-              <download-list>
-                <h2>downloads</h2>
-                $dlCards
-              </download-list>
-            </section>
-            HTML;
-    }
-
-    /**
-     * Renders the release title, splitting a trailing punctuation mark off so it can
-     * carry the accent colour — 'hello world!' and 'ill.' both read as name + mark.
-     */
-    private function titleHtml(): string
-    {
-        $title = $this->release->title;
-        $mark  = '';
-
-        if (preg_match('/[!.?]$/', $title, $matches)) {
-            $mark  = $matches[0];
-            $title = substr($title, 0, -1);
-        }
-
-        $title = htmlspecialchars($title);
-
-        return $mark === ''
-            ? $title
-            : $title . '<span class="bang">' . htmlspecialchars($mark) . '</span>';
-    }
-
-    /**
-     * Builds the click-to-load consent placeholder for the release's embed.
-     *
-     * Nothing reaches the page but the tag and its attributes: <soundcloud-player> builds the gate,
-     * and only builds the iframe once the visitor clicks it, so nothing is requested from the
-     * provider before then. The provider comes from the embed rather than being hardcoded, so a
-     * non-SoundCloud embed needs no change here.
-     */
-    private function playerHtml(): string
-    {
+        // A release with no embed emits no player element at all, rather than an empty one: the
+        // stylesheet reserves the gate's height, so an empty box would be 300px of nothing.
         $embed = $this->release->embed;
 
-        if ($embed === null) {
-            return '';
+        if ($embed !== null) {
+            $section = $section->containing($embed->toElement($this->release->title));
         }
 
-        return $embed->toElement($this->release->title);
+        return $section->containing($this->downloads());
     }
 
     /**
-     * Builds the download card links for all formats on this release.
+     * The release title, with a trailing `!`, `.` or `?` accented.
      *
-     * The `<a>` inside stays server-rendered and stays native: downloads have to work without JS,
-     * and `data-no-spa` has to land on a real link or the SPA router fetches the 303 and swallows
-     * it. That is why the card wraps the anchor rather than replacing it.
+     * Split rather than styled whole so the mark carries the accent — 'hello world!' and 'ill.' both
+     * read as name + mark.
+     *
+     * @return list<Node|string>
      */
-    private function downloadCards(): string
+    private function title(): array
     {
-        $cards = '';
-        $slug  = htmlspecialchars($this->slug);
-        $noSpa = LinkAttribute::NoSpa->attribute();
+        $title = $this->release->title;
 
-        foreach ($this->release->formats->all() as $format) {
-            $type  = $format->type->value;
-            $label = htmlspecialchars($format->type->label());
-            $meta  = htmlspecialchars($this->formatMeta($format->type));
-
-            $cards .= new Element(Tag::DownloadCard)
-                ->with(CardAttribute::Format, $type)
-                ->containing(<<<HTML
-
-                          <a $noSpa href="/releases/$slug/$type">
-                            <download-label>$label</download-label>
-                            <download-meta>$meta</download-meta>
-                          </a>
-
-                        HTML)
-                ->render() . "\n";
+        if (preg_match('/[!.?]$/', $title, $matches) !== 1) {
+            return [$title];
         }
 
-        return self::indent(rtrim($cards), 4);
+        return [
+            substr($title, 0, -1),
+            new Element(HtmlTag::Span)
+                ->attr(HtmlAttribute::ClassName, 'bang')
+                ->containing($matches[0]),
+        ];
+    }
+
+    /** Builds the download group: a heading and one card per format. */
+    private function downloads(): Element
+    {
+        return new Element(Tag::DownloadList)->containing(
+            new Element(HtmlTag::H2)->containing('downloads'),
+            ...array_map($this->downloadCard(...), $this->release->formats->all()),
+        );
+    }
+
+    /**
+     * Builds one format's card.
+     *
+     * The `<a>` inside stays native and server-rendered: downloads have to work without JS, and
+     * `data-no-spa` has to land on a real link or the SPA router fetches the 303 and swallows it.
+     * That is why the card wraps the anchor rather than replacing it.
+     */
+    private function downloadCard(\NeuroSYS\Model\Format $format): Element
+    {
+        $type = $format->type;
+
+        return new Element(Tag::DownloadCard)
+            ->attr(CardAttribute::Format, $type->value)
+            ->containing(
+                new Element(HtmlTag::A)
+                    ->attr(LinkAttribute::NoSpa)
+                    ->attr(HtmlAttribute::Href, '/releases/' . $this->slug . '/' . $type->value)
+                    ->containing(
+                        new Element(Tag::DownloadLabel)->containing($type->label()),
+                        new Element(Tag::DownloadMeta)->containing(self::formatMeta($type)),
+                    ),
+            );
     }
 
     /**
@@ -177,7 +163,7 @@ class ReleaseView extends View
      * Which formats are lossless is {@link ReleaseFormat::isLossless()}'s to know — listing
      * them again here would be a second copy of that fact, free to drift from the first.
      */
-    private function formatMeta(ReleaseFormat $format): string
+    private static function formatMeta(ReleaseFormat $format): string
     {
         return match ($format) {
             ReleaseFormat::STEMS => 'non-commercial — commercial licensing: neuro.sys@neurosys.gg',

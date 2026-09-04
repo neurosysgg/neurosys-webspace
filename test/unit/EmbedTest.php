@@ -38,7 +38,7 @@ final class EmbedTest extends TestCase
 
     public function testRendersTheElementForTheGivenTrack(): void
     {
-        $html = $this->embed()->toElement('ill.');
+        $html = $this->embed()->toElement('ill.')->render();
 
         self::assertStringContainsString('<soundcloud-player', $html);
         self::assertStringContainsString('track-id="2394077313"', $html);
@@ -49,14 +49,14 @@ final class EmbedTest extends TestCase
     {
         self::assertStringContainsString(
             'secret-token="s-dIMAqki109G"',
-            $this->embed(secretToken: 's-dIMAqki109G')->toElement('ill.'),
+            $this->embed(secretToken: 's-dIMAqki109G')->toElement('ill.')->render(),
         );
     }
 
     /** A public track carries no token, so the attribute is left off rather than sent empty. */
     public function testAPublicTrackSendsNoSecretTokenAttribute(): void
     {
-        self::assertStringNotContainsString('secret-token', $this->embed()->toElement('ill.'));
+        self::assertStringNotContainsString('secret-token', $this->embed()->toElement('ill.')->render());
     }
 
     /**
@@ -66,7 +66,7 @@ final class EmbedTest extends TestCase
      */
     public function testTheServerEmitsNoSoundCloudUrlAtAll(): void
     {
-        $html = $this->embed(secretToken: 's-dIMAqki109G')->toElement('ill.');
+        $html = $this->embed(secretToken: 's-dIMAqki109G')->toElement('ill.')->render();
 
         self::assertStringNotContainsString('<iframe', $html);
         self::assertStringNotContainsString('soundcloud.com', $html);
@@ -84,7 +84,7 @@ final class EmbedTest extends TestCase
     {
         self::assertStringContainsString(
             'options="show_comments"',
-            $this->embed(options: $this->options(SoundCloudOption::ShowComments))->toElement('t'),
+            $this->embed(options: $this->options(SoundCloudOption::ShowComments))->toElement('t')->render(),
         );
     }
 
@@ -92,13 +92,16 @@ final class EmbedTest extends TestCase
     {
         self::assertStringContainsString(
             'options="auto_play show_comments show_user show_teaser"',
-            $this->embed()->toElement('t'),
+            $this->embed()->toElement('t')->render(),
         );
     }
 
     public function testAnEmptyOptionListSendsAnEmptyAttribute(): void
     {
-        self::assertStringContainsString('options=""', $this->embed(options: $this->options())->toElement('t'));
+        self::assertStringContainsString(
+            'options=""',
+            $this->embed(options: $this->options())->toElement('t')->render(),
+        );
     }
 
     /** The collection refuses it before the embed ever sees it, which is the point of holding one. */
@@ -146,7 +149,7 @@ final class EmbedTest extends TestCase
         int $height,
     ): void {
         $embed = $this->embed(style: $style);
-        $html  = $embed->toElement('t');
+        $html  = $embed->toElement('t')->render();
 
         self::assertSame($height, $embed->height());
         self::assertStringContainsString('player-style="' . $style->value . '"', $html);
@@ -160,7 +163,7 @@ final class EmbedTest extends TestCase
             $embed = $this->embed(style: $style);
             self::assertStringContainsString(
                 'height="' . $embed->height() . '"',
-                $embed->toElement('t'),
+                $embed->toElement('t')->render(),
             );
         }
     }
@@ -169,7 +172,7 @@ final class EmbedTest extends TestCase
 
     public function testTheTitleIsCarriedIntoTheElementEscaped(): void
     {
-        $html = $this->embed()->toElement('rock & <roll>');
+        $html = $this->embed()->toElement('rock & <roll>')->render();
 
         self::assertStringContainsString('track-title="rock &amp; &lt;roll&gt;"', $html);
         self::assertStringNotContainsString('<roll>', $html);
@@ -177,7 +180,7 @@ final class EmbedTest extends TestCase
 
     public function testATitleWithQuotesCannotBreakOutOfTheAttribute(): void
     {
-        $html = $this->embed()->toElement('a "quoted" title');
+        $html = $this->embed()->toElement('a "quoted" title')->render();
 
         self::assertStringNotContainsString('track-title="a "quoted" title', $html);
         self::assertStringContainsString('&quot;quoted&quot;', $html);
@@ -185,7 +188,7 @@ final class EmbedTest extends TestCase
 
     public function testThePermalinkIsEscapedToo(): void
     {
-        $html = new SoundCloudEmbed(trackId: 1, permalink: 'a"b')->toElement('t');
+        $html = new SoundCloudEmbed(trackId: 1, permalink: 'a"b')->toElement('t')->render();
 
         self::assertStringContainsString('permalink="a&quot;b"', $html);
     }

@@ -4,9 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Model\Release;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\Tag;
 
 /**
@@ -17,48 +21,54 @@ class ReleasesView extends View
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param SearchableCollection $releases The collection of all releases.
+     * @param SearchableCollection<Release> $releases The collection of all releases.
      */
     public function __construct(private readonly SearchableCollection $releases) {}
 
     public function pageTitle(): string { return 'releases — neuro.SYS'; }
 
-    public function content(): string
+    public function content(): Node
     {
-        $cards = '';
+        $cards = [];
 
         foreach ($this->releases as $slug => $release) {
-            $href  = htmlspecialchars('/releases/' . $slug . '/');
-            $title = htmlspecialchars($release->title);
-            $bpm   = $release->bpm;
-            $key   = htmlspecialchars($release->key->value);
-            $genre = htmlspecialchars($release->genre->value);
-            $desc  = htmlspecialchars($release->description);
-
-            // The anchor stays native and server-rendered: a catalogue that only works with JS is
-            // not a catalogue. The card wraps it and names which release it is for.
-            $cards .= new Element(Tag::ReleaseCard)
-                ->with(CardAttribute::Slug, $slug)
-                ->containing(<<<HTML
-
-                        <a href="$href">
-                          <release-title>$title</release-title>
-                          <release-meta>$bpm bpm &middot; $key &middot; $genre &middot; $desc</release-meta>
-                        </a>
-
-                      HTML)
-                ->render() . "\n";
+            $cards[] = self::card($slug, $release);
         }
 
-        $cards = self::indent(rtrim($cards), 4);
+        return new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->containing(
+                new Element(HtmlTag::H2)
+                    ->attr(HtmlAttribute::ClassName, 'page-heading')
+                    ->containing('releases'),
+                new Element(Tag::ReleaseList)->containing(...$cards),
+            );
+    }
 
-        return <<<HTML
-            <section class="page-section">
-              <h2 class="page-heading">releases</h2>
-              <release-list>
-                $cards
-              </release-list>
-            </section>
-            HTML;
+    /**
+     * Builds one catalogue entry.
+     *
+     * The anchor stays native and server-rendered: a catalogue that only works with JS is not a
+     * catalogue. The card wraps it and names which release it is for.
+     */
+    private static function card(string $slug, Release $release): Element
+    {
+        $meta = implode(' · ', [
+            $release->bpm . ' bpm',
+            $release->key->value,
+            $release->genre->value,
+            $release->description,
+        ]);
+
+        return new Element(Tag::ReleaseCard)
+            ->attr(CardAttribute::Slug, $slug)
+            ->containing(
+                new Element(HtmlTag::A)
+                    ->attr(HtmlAttribute::Href, '/releases/' . $slug . '/')
+                    ->containing(
+                        new Element(Tag::ReleaseTitle)->containing($release->title),
+                        new Element(Tag::ReleaseMeta)->containing($meta),
+                    ),
+            );
     }
 }

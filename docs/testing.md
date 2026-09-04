@@ -96,6 +96,15 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **A tag outside the element it belongs inside says so.** `NestedElement` is what the otherwise
   behaviourless classes do; `terminal-window.test.mjs` asserts both that it fires and that it looks
   through the card anchors rather than only at the direct parent.
+- **No markup is built from a string.** Every page is a tree of `View\Html` nodes, and the verify
+  script fails on a heredoc or a `'<tag'` literal anywhere under `src/` outside `Element` and
+  `Doctype` — the two files whose job is turning a tree into text. Proved by putting `<b>` in a
+  view's text and watching it fail.
+- **`RawHtml` is constructed in exactly one place.** It is the one node that does not escape, so its
+  call sites are pinned rather than trusted: `HtmlTest` scans `src/` and asserts the list is
+  `['PrivacyView.php']`. A second one has to be argued for by editing that assertion.
+- **A void element refuses children.** `<img>text</img>` is not markup a browser fixes, it is markup
+  it reinterprets, so `Element::containing()` throws rather than emitting it.
 - **No attribute value reaches the markup unescaped.** `Element` escapes once, in one place, rather
   than a `htmlspecialchars()` call per attribute at every call site — forgetting one of those is an
   injection. `ViewTest` asserts a value carrying `" onload="` comes back fully escaped, and that a
@@ -143,9 +152,9 @@ house style:
   `SoundCloudEmbed`, `new Format(ReleaseFormat::FLAC,  new HiDriveLink(…))` in `data/releases.php`
 - **one-line accessors** — `public function all(): array { return $this->items; }`
 
-One long-line warning remains, in `Layout.php`; it is HTML inside a heredoc that can't wrap without
-changing the output, and warnings don't fail the build. (`ReleaseView.php`'s went away when the consent
-gate's wording moved into `<player-consent>`.)
+`phpcs` reports no warnings either, as of the markup tree — the last one was a 193-character line in
+`Layout.php`, HTML inside a heredoc that couldn't wrap without changing the output. There is no
+heredoc left to be long.
 
 Editor note: nvim's stock `nvim-lint` phpcs resolves `vendor/bin/phpcs` and its ruleset against *Neovim's*
 cwd, so opening a file from outside the project silently lints it as bare PSR-12 and flags both exemptions

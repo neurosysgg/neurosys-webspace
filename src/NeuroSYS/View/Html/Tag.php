@@ -12,11 +12,11 @@ namespace NeuroSYS\View\Html;
  * invisible. This is the one list of them, and `assets/ts/model/Tag.ts` mirrors it — the parity test
  * compares the two, so the server cannot emit a tag the client does not register.
  *
- * Native tags are deliberately absent. `<a>`, `<h1>`, `<img>` and the rest carry meaning the browser
- * already knows; a typo in one of those is a tag the browser also does not know, but the failure is
- * visible immediately rather than silent.
+ * The standard elements are {@link HtmlTag}, and the split is the point: a case here has to be
+ * registered client-side, is mirrored in `assets/ts/model/Tag.ts`, and is asserted against the
+ * served markup. None of that applies to `<section>`, which the browser already knows.
  */
-enum Tag: string
+enum Tag: string implements TagName
 {
     case SoundCloudPlayer = 'soundcloud-player';
 
@@ -38,4 +38,18 @@ enum Tag: string
     case ReleaseCard  = 'release-card';
     case ReleaseTitle = 'release-title';
     case ReleaseMeta  = 'release-meta';
+
+    public function tagName(): string
+    {
+        return $this->value;
+    }
+
+    /**
+     * Never. A custom element with no closing tag is a parse error the browser recovers from by
+     * swallowing everything after it, which is about as quiet as a failure gets.
+     */
+    public function isVoid(): bool
+    {
+        return false;
+    }
 }

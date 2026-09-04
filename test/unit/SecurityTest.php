@@ -205,9 +205,9 @@ final class SecurityTest extends TestCase
     public function testNoViewEmitsAnInlineStyleOrEventHandler(): void
     {
         $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
-        $html = new ReleaseView($release, 'ill')->content()
-            . new NotFoundView('/x')->content()
-            . \NeuroSYS\Layout::wrap(new NotFoundView('/x'));
+        $html = new ReleaseView($release, 'ill')->content()->render()
+            . new NotFoundView('/x')->content()->render()
+            . \NeuroSYS\Layout::wrap(new NotFoundView('/x'))->render();
 
         self::assertDoesNotMatchRegularExpression('/\sstyle="/', $html);
         self::assertDoesNotMatchRegularExpression('/\son(error|click|load|mouse\w+)=/', $html);
@@ -216,7 +216,7 @@ final class SecurityTest extends TestCase
     public function testTheCoverFallbackIsAnAttributeNotAnInlineHandler(): void
     {
         $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
-        $html = new ReleaseView($release, 'ill')->content();
+        $html = new ReleaseView($release, 'ill')->content()->render();
 
         self::assertStringContainsString('fallback="/assets/img/cover-placeholder.svg"', $html);
         self::assertStringNotContainsString('onerror', $html);
@@ -225,7 +225,7 @@ final class SecurityTest extends TestCase
     public function testTheConsentGateCarriesItsHeightAsAnAttribute(): void
     {
         $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
-        $html = new ReleaseView($release, 'ill')->content();
+        $html = new ReleaseView($release, 'ill')->content()->render();
 
         self::assertStringContainsString('height="300"', $html);
     }

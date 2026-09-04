@@ -12,6 +12,9 @@ use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\RedirectResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\ViewResponse;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\Node;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\NotFoundView;
@@ -116,9 +119,9 @@ final class ResponseTest extends TestCase
                 return 'rock & roll';
             }
 
-            public function content(): string
+            public function content(): Node
             {
-                return '<p>x</p>';
+                return new Element(HtmlTag::P)->containing('x');
             }
         };
 

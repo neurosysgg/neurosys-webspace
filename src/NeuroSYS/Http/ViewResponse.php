@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Layout;
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Fragment;
+use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\View;
 
 /**
@@ -31,11 +34,15 @@ readonly class ViewResponse implements Response
     {
         http_response_code($this->status->value);
 
-        if ($request->isAjax()) {
-            echo '<title>' . htmlspecialchars($this->view->pageTitle()) . '</title>';
-            echo $this->view->content();
-        } else {
-            echo Layout::wrap($this->view);
-        }
+        // The fragment leads with a <title> so Navigation can read the new page title out of it —
+        // an element like any other, so the title is escaped by the same rule as everything else.
+        $body = $request->isAjax()
+            ? new Fragment(
+                new Element(HtmlTag::Title)->containing($this->view->pageTitle()),
+                $this->view->content(),
+            )
+            : Layout::wrap($this->view);
+
+        echo $body->render();
     }
 }

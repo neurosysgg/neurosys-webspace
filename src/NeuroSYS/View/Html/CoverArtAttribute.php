@@ -10,7 +10,7 @@ namespace NeuroSYS\View\Html;
  * The element builds its own `<img>` from these, so all three are read by
  * `assets/ts/elements/CoverArt.ts` and mirrored in `assets/ts/model/CoverArtAttribute.ts`.
  */
-enum CoverArtAttribute: string implements HtmlAttribute
+enum CoverArtAttribute: string implements AttributeName
 {
     /** Where the cover is hosted. */
     case Src = 'src';

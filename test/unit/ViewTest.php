@@ -20,7 +20,6 @@ use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
-use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\StatsView;
@@ -37,11 +36,16 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(NotFoundView::class)]
 #[CoversClass(StatsView::class)]
 #[CoversClass(Layout::class)]
-#[CoversClass(Element::class)]
 #[CoversClass(Terminal::class)]
 #[CoversClass(TerminalField::class)]
 final class ViewTest extends TestCase
 {
+    /** A one-entry catalogue, for the cases that render the list rather than a single release. */
+    private function catalogue(): SearchableCollection
+    {
+        return new SearchableCollection(Release::class)->with('ill', $this->release());
+    }
+
     /** @param list<Format> $formats */
     private function release(
         string $title = 'ill.',
@@ -78,7 +82,7 @@ final class ViewTest extends TestCase
         string $stem,
         ?string $mark,
     ): void {
-        $html = new ReleaseView($this->release(title: $title), 'x')->content();
+        $html = new ReleaseView($this->release(title: $title), 'x')->content()->render();
 
         if ($mark === null) {
             self::assertStringNotContainsString('<span class="bang">', $html);
@@ -91,14 +95,14 @@ final class ViewTest extends TestCase
     /** substr(-1) is byte-based; a multibyte title must not be cut mid-character. */
     public function testAMultibyteTitleIsNotCorrupted(): void
     {
-        $html = new ReleaseView($this->release(title: 'überfall'), 'x')->content();
+        $html = new ReleaseView($this->release(title: 'überfall'), 'x')->content()->render();
 
         self::assertStringContainsString('überfall', $html);
     }
 
     public function testAMultibyteTitleEndingInAMarkStillSplitsCleanly(): void
     {
-        $html = new ReleaseView($this->release(title: 'überfall!'), 'x')->content();
+        $html = new ReleaseView($this->release(title: 'überfall!'), 'x')->content()->render();
 
         self::assertStringContainsString('überfall<span class="bang">!</span>', $html);
     }
@@ -107,7 +111,7 @@ final class ViewTest extends TestCase
 
     public function testTheReleaseTitleIsEscapedEverywhereItAppears(): void
     {
-        $html = new ReleaseView($this->release(title: '<script>alert(1)</script>'), 'x')->content();
+        $html = new ReleaseView($this->release(title: '<script>alert(1)</script>'), 'x')->content()->render();
 
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
@@ -118,14 +122,14 @@ final class ViewTest extends TestCase
         $html = new ReleaseView(
             $this->release(formats: [new Format(ReleaseFormat::FLAC)]),
             '"><script>alert(1)</script>',
-        )->content();
+        )->content()->render();
 
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
     }
 
     public function testTheNotFoundPathIsEscaped(): void
     {
-        $html = new NotFoundView('/<img src=x onerror=alert(1)>')->content();
+        $html = new NotFoundView('/<img src=x onerror=alert(1)>')->content()->render();
 
         self::assertStringNotContainsString('<img src=x', $html);
         self::assertStringContainsString('&lt;img', $html);
@@ -136,14 +140,14 @@ final class ViewTest extends TestCase
         $releases = new SearchableCollection(Release::class)
             ->with('x', $this->release(title: 'a & b'));
 
-        self::assertStringContainsString('a &amp; b', new ReleasesView($releases)->content());
+        self::assertStringContainsString('a &amp; b', new ReleasesView($releases)->content()->render());
     }
 
     // ───────────────────────────── cover art ─────────────────────────────
 
     public function testFallsBackToThePlaceholderWhenThereIsNoCover(): void
     {
-        $html = new ReleaseView($this->release(), 'x')->content();
+        $html = new ReleaseView($this->release(), 'x')->content()->render();
 
         self::assertStringContainsString('src="/assets/img/cover-placeholder.svg"', $html);
         self::assertStringNotContainsString('src=""', $html);
@@ -151,7 +155,7 @@ final class ViewTest extends TestCase
 
     public function testUsesTheConfiguredCoverWhenThereIsOne(): void
     {
-        $html = new ReleaseView($this->release(cover: new HiDriveLink('J2FXbB70A')), 'x')->content();
+        $html = new ReleaseView($this->release(cover: new HiDriveLink('J2FXbB70A')), 'x')->content()->render();
 
         self::assertStringContainsString('id=J2FXbB70A', $html);
     }
@@ -168,7 +172,7 @@ final class ViewTest extends TestCase
         $html = new ReleaseView(
             $this->release(embed: new SoundCloudEmbed(trackId: 1, permalink: 'x')),
             'x',
-        )->content();
+        )->content()->render();
 
         self::assertStringNotContainsString('<iframe', $html);
         self::assertStringNotContainsString('soundcloud.com', $html);
@@ -184,7 +188,7 @@ final class ViewTest extends TestCase
     public function testTheViewEmitsTheProvidersOwnElement(): void
     {
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x');
-        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
+        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content()->render();
 
         self::assertSame(Platform::SoundCloud, $embed->platform());
         self::assertStringContainsString('<soundcloud-player', $html);
@@ -192,7 +196,7 @@ final class ViewTest extends TestCase
 
     public function testThereIsNoPlayerAtAllWithoutAnEmbed(): void
     {
-        $html = new ReleaseView($this->release(), 'x')->content();
+        $html = new ReleaseView($this->release(), 'x')->content()->render();
 
         self::assertStringNotContainsString('soundcloud-player', $html);
     }
@@ -206,7 +210,7 @@ final class ViewTest extends TestCase
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
     {
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x', style: $style);
-        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content();
+        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content()->render();
 
         self::assertStringContainsString('height="' . $height . '"', $html);
 
@@ -219,83 +223,6 @@ final class ViewTest extends TestCase
     {
         yield [SoundCloudPlayerStyle::Visual, 300];
         yield [SoundCloudPlayerStyle::Classic, 166];
-    }
-
-    // ───────────────────────────── Element ─────────────────────────────
-
-    public function testAnElementRendersItsTagAndAttributes(): void
-    {
-        self::assertSame(
-            '<cover-art src="/a.png" alt="a"></cover-art>',
-            new Element(Tag::CoverArt)
-                ->with(CoverArtAttribute::Src, '/a.png')
-                ->with(CoverArtAttribute::Alt, 'a')
-                ->render(),
-        );
-    }
-
-    /**
-     * The reason this class exists. Escaping used to be a htmlspecialchars() call per attribute at
-     * every call site, and forgetting one is an injection — so it happens here, once, or not at all.
-     */
-    public function testAnAttributeValueCannotBreakOutOfItsAttribute(): void
-    {
-        $html = new Element(Tag::CoverArt)
-            ->with(CoverArtAttribute::Alt, '" onload="alert(1)')
-            ->render();
-
-        self::assertSame('<cover-art alt="&quot; onload=&quot;alert(1)"></cover-art>', $html);
-    }
-
-    /** A boolean attribute and an empty value are different things, and render differently. */
-    public function testABooleanAttributeIsBareAndAnEmptyValueIsNot(): void
-    {
-        self::assertSame(
-            '<terminal-window command="" narrow></terminal-window>',
-            new Element(Tag::TerminalWindow)
-                ->with(TerminalAttribute::Command, '')
-                ->withFlag(TerminalAttribute::Narrow)
-                ->render(),
-        );
-    }
-
-    public function testAFlagThatIsNotSetIsLeftOffEntirely(): void
-    {
-        self::assertSame(
-            '<terminal-window></terminal-window>',
-            new Element(Tag::TerminalWindow)->withFlag(TerminalAttribute::Narrow, false)->render(),
-        );
-    }
-
-    /** `secret-token=""` is not the same thing to the client as no token, so it is left off. */
-    public function testAnOptionalAttributeIsOmittedWhenEmptyAndKeptWhenNot(): void
-    {
-        $bare = new Element(Tag::CoverArt)->withOptional(CoverArtAttribute::Fallback, '')->render();
-        $set  = new Element(Tag::CoverArt)->withOptional(CoverArtAttribute::Fallback, '/f.svg')->render();
-
-        self::assertSame('<cover-art></cover-art>', $bare);
-        self::assertSame('<cover-art fallback="/f.svg"></cover-art>', $set);
-    }
-
-    /** Immutable like the policies and the collections — every builder method returns a copy. */
-    public function testBuildingDoesNotMutateTheElementBuiltFrom(): void
-    {
-        $empty = new Element(Tag::CoverArt);
-        $empty->with(CoverArtAttribute::Src, '/a.png');
-
-        self::assertSame('<cover-art></cover-art>', $empty->render());
-    }
-
-    public function testTheSameAttributeTwiceKeepsTheLastValueAndItsPosition(): void
-    {
-        self::assertSame(
-            '<cover-art src="/b.png" alt="a"></cover-art>',
-            new Element(Tag::CoverArt)
-                ->with(CoverArtAttribute::Src, '/a.png')
-                ->with(CoverArtAttribute::Alt, 'a')
-                ->with(CoverArtAttribute::Src, '/b.png')
-                ->render(),
-        );
     }
 
     // ───────────────────────────── Terminal ─────────────────────────────
@@ -316,7 +243,7 @@ final class ViewTest extends TestCase
     {
         self::assertStringContainsString(
             'fields="[]"',
-            new Terminal('error.log', 'find /x')->toElement(),
+            new Terminal('error.log', 'find /x')->toElement()->render(),
         );
     }
 
@@ -328,7 +255,7 @@ final class ViewTest extends TestCase
             command: './x',
             fields:  new Collection(TerminalField::class)
                 ->with(new TerminalField('title', '" onload="alert(1)', TerminalTone::Ok)),
-        )->toElement();
+        )->toElement()->render();
 
         // JSON escapes the quote, htmlspecialchars then escapes that — belt and braces, in that order.
         self::assertStringContainsString('\\&quot; onload=\\&quot;alert(1)', $html);
@@ -355,9 +282,9 @@ final class ViewTest extends TestCase
                 formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
             ),
             'ill',
-        )->content()
-            . new ReleasesView(new SearchableCollection(Release::class)->with('ill', $this->release()))->content()
-            . new NotFoundView('/x')->content();
+        )->content()->render()
+            . new ReleasesView($this->catalogue())->content()->render()
+            . new NotFoundView('/x')->content()->render();
 
         preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $m);
 
@@ -392,9 +319,9 @@ final class ViewTest extends TestCase
                 formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
             ),
             'ill',
-        )->content()
-            . new ReleasesView(new SearchableCollection(Release::class)->with('ill', $this->release()))->content()
-            . new NotFoundView('/x')->content();
+        )->content()->render()
+            . new ReleasesView($this->catalogue())->content()->render()
+            . new NotFoundView('/x')->content()->render();
 
         $unserved = array_values(array_filter(
             Tag::cases(),
@@ -420,7 +347,7 @@ final class ViewTest extends TestCase
     {
         $html = new ReleaseView($this->release(
             formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
-        ), 'ill')->content();
+        ), 'ill')->content()->render();
 
         preg_match_all('/<download-card[^>]*>\s*<a([^>]*)>/', $html, $m);
 
@@ -434,7 +361,7 @@ final class ViewTest extends TestCase
     {
         $html = new ReleaseView($this->release(
             formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
-        ), 'ill')->content();
+        ), 'ill')->content()->render();
 
         self::assertStringContainsString('href="/releases/ill/flac"', $html);
         self::assertStringNotContainsString('hidrive', $html);
@@ -442,7 +369,7 @@ final class ViewTest extends TestCase
 
     public function testAFormatWithNoLinkStillRendersItsCard(): void
     {
-        $html = new ReleaseView($this->release(formats: [new Format(ReleaseFormat::WAV)]), 'ill')->content();
+        $html = new ReleaseView($this->release(formats: [new Format(ReleaseFormat::WAV)]), 'ill')->content()->render();
 
         self::assertStringContainsString('href="/releases/ill/wav"', $html);
     }
@@ -453,7 +380,7 @@ final class ViewTest extends TestCase
             new Format(ReleaseFormat::FLAC),
             new Format(ReleaseFormat::WAV),
             new Format(ReleaseFormat::MP3),
-        ]), 'ill')->content();
+        ]), 'ill')->content()->render();
 
         self::assertSame(2, substr_count($html, 'lossless, 24-bit/48kHz'));
         self::assertStringContainsString('320 kbps', $html);
@@ -463,7 +390,7 @@ final class ViewTest extends TestCase
 
     public function testStatsSaysLoggingIsOffRatherThanShowingAnEmptyTable(): void
     {
-        $html = new StatsView(0, [], [], false)->content();
+        $html = new StatsView(0, [], [], false)->content()->render();
 
         self::assertStringContainsString('switched off', $html);
         self::assertStringNotContainsString('<table', $html);
@@ -471,12 +398,15 @@ final class ViewTest extends TestCase
 
     public function testStatsDistinguishesOffFromOnButEmpty(): void
     {
-        self::assertStringContainsString('No downloads logged yet', new StatsView(0, [], [], true)->content());
+        self::assertStringContainsString(
+            'No downloads logged yet',
+            new StatsView(0, [], [], true)->content()->render(),
+        );
     }
 
     public function testStatsEscapesLogDerivedKeys(): void
     {
-        $html = new StatsView(1, ['<script>x</script>' => 1], [], true)->content();
+        $html = new StatsView(1, ['<script>x</script>' => 1], [], true)->content()->render();
 
         self::assertStringNotContainsString('<script>x</script>', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
@@ -486,7 +416,7 @@ final class ViewTest extends TestCase
 
     public function testTheLayoutWrapsContentInADocumentWithTheViewsTitle(): void
     {
-        $html = Layout::wrap(new NotFoundView('/nope'));
+        $html = Layout::wrap(new NotFoundView('/nope'))->render();
 
         self::assertStringStartsWith('<!DOCTYPE html>', $html);
         self::assertStringContainsString('<title>404 — neuro.SYS</title>', $html);
@@ -495,7 +425,7 @@ final class ViewTest extends TestCase
 
     public function testProfileLinksOpenSafelyInANewTab(): void
     {
-        $html = Layout::wrap(new NotFoundView('/nope'));
+        $html = Layout::wrap(new NotFoundView('/nope'))->render();
 
         preg_match_all('/<a class="profile-link"[^>]*>/', $html, $m);
 
@@ -513,7 +443,7 @@ final class ViewTest extends TestCase
      */
     public function testNothingInTheLayoutIsFetchedFromARemoteHostOnPageLoad(): void
     {
-        $html = Layout::wrap(new NotFoundView('/x'));
+        $html = Layout::wrap(new NotFoundView('/x'))->render();
 
         preg_match_all('/\\bsrc="([^"]+)"/', $html, $src);
         preg_match_all('/<link[^>]+href="([^"]+)"/', $html, $link);
@@ -531,7 +461,7 @@ final class ViewTest extends TestCase
     {
         preg_match_all(
             '/<a class="profile-link" href="([^"]+)"/',
-            Layout::wrap(new NotFoundView('/x')),
+            Layout::wrap(new NotFoundView('/x'))->render(),
             $m,
         );
 

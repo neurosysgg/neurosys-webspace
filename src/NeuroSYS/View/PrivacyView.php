@@ -4,18 +4,34 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\Node;
+use NeuroSYS\View\Html\RawHtml;
+
+/**
+ * The PrivacyView class. Renders data/privacy.html inside the page shell.
+ *
+ * The only view that holds {@link RawHtml}, and the reason that class exists: the policy is a
+ * hand-authored document, not markup a view assembles. It is read from a file next to the code and
+ * nothing about a request can reach it — see RawHtml before adding a second call site.
+ */
 class PrivacyView extends View
 {
+    /**
+     * Constructs an instance of {@link self}.
+     *
+     * @param string $html The policy document, trusted verbatim.
+     */
     public function __construct(private readonly string $html) {}
 
     public function pageTitle(): string { return 'Privacy Policy — neuro.SYS'; }
 
-    public function content(): string
+    public function content(): Node
     {
-        return <<<HTML
-            <section class="page-section">
-              {$this->html}
-            </section>
-            HTML;
+        return new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->containing(new RawHtml($this->html));
     }
 }

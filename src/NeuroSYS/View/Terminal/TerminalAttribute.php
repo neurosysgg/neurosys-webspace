@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
-use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\AttributeName;
 
 /**
  * The TerminalAttribute enum. What {@link Terminal} tells `<terminal-window>`.
@@ -15,7 +15,7 @@ use NeuroSYS\View\Html\HtmlAttribute;
  * one of those has a parity test, so both sides are mirrored in
  * `assets/ts/model/TerminalAttribute.ts` and the stylesheet is the remaining manual link.
  */
-enum TerminalAttribute: string implements HtmlAttribute
+enum TerminalAttribute: string implements AttributeName
 {
     /** The window's title, drawn in its bar by CSS. */
     case Label = 'label';

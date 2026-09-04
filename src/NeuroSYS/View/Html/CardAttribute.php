@@ -11,7 +11,7 @@ namespace NeuroSYS\View\Html;
  * naming: an attribute nothing consumes is one nothing would report on either. They say which
  * release and which format a card is for, and they are here so that stays true after a rename.
  */
-enum CardAttribute: string implements HtmlAttribute
+enum CardAttribute: string implements AttributeName
 {
     /** The release a `<release-card>` links to. */
     case Slug = 'slug';

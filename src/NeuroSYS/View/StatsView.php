@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Fragment;
+use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\Node;
+
 /**
  * The StatsView class. Renders the download statistics admin page.
  */
@@ -26,45 +32,71 @@ class StatsView extends View
 
     public function pageTitle(): string { return 'stats — neuro.SYS'; }
 
-    public function content(): string
+    public function content(): Node
     {
-        // Distinguish "switched off" from "on, but nothing yet" — otherwise an empty page reads as a bug.
+        // Distinguish "switched off" from "on, but nothing yet" — otherwise an empty page reads as
+        // a bug. Logging is off for legal reasons; see DownloadLogger and CLAUDE.md.
         if (!$this->loggingEnabled) {
-            return '<section class="page-section"><p class="muted">Download logging is switched off — '
-                 . 'nothing is recorded.</p></section>';
+            return self::notice('Download logging is switched off — nothing is recorded.');
         }
 
         if ($this->total === 0) {
-            return '<section class="page-section"><p class="muted">No downloads logged yet.</p></section>';
+            return self::notice('No downloads logged yet.');
         }
 
-        $total       = $this->total;
-        $formatTable = $this->buildTable($this->byFormat);
-        $days        = $this->byDay;
+        $days = $this->byDay;
         ksort($days);
-        $dayTable = $this->buildTable($days);
 
-        return <<<HTML
-            <section class="page-section">
-              <h2 class="page-heading">stats</h2>
-              <p class="muted">total downloads: <strong>$total</strong></p>
-
-              <h3 class="stats-sub">by format</h3>
-              $formatTable
-
-              <h3 class="stats-sub">by day</h3>
-              $dayTable
-            </section>
-            HTML;
+        return new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->containing(
+                new Element(HtmlTag::H2)
+                    ->attr(HtmlAttribute::ClassName, 'page-heading')
+                    ->containing('stats'),
+                new Element(HtmlTag::P)
+                    ->attr(HtmlAttribute::ClassName, 'muted')
+                    ->containing(
+                        'total downloads: ',
+                        new Element(HtmlTag::Strong)->containing((string) $this->total),
+                    ),
+                self::subheading('by format'),
+                self::table($this->byFormat),
+                self::subheading('by day'),
+                self::table($days),
+            );
     }
 
-    private function buildTable(array $rows): string
+    /** A page that is only a sentence: switched off, or on with nothing to show. */
+    private static function notice(string $text): Element
     {
-        $html = '<table class="stats-table">';
-        foreach ($rows as $key => $count) {
-            $html .= '<tr><td>' . htmlspecialchars((string)$key) . '</td>'
-                   . '<td class="stats-count">' . $count . '</td></tr>';
-        }
-        return $html . '</table>';
+        return new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->containing(
+                new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, 'muted')->containing($text),
+            );
+    }
+
+    private static function subheading(string $text): Element
+    {
+        return new Element(HtmlTag::H3)
+            ->attr(HtmlAttribute::ClassName, 'stats-sub')
+            ->containing($text);
+    }
+
+    /** @param array<string, int> $rows Counts keyed by whatever the table is grouped by. */
+    private static function table(array $rows): Element
+    {
+        return new Element(HtmlTag::Table)
+            ->attr(HtmlAttribute::ClassName, 'stats-table')
+            ->containing(...array_map(
+                static fn(string $key, int $count): Element => new Element(HtmlTag::Tr)->containing(
+                    new Element(HtmlTag::Td)->containing($key),
+                    new Element(HtmlTag::Td)
+                        ->attr(HtmlAttribute::ClassName, 'stats-count')
+                        ->containing((string) $count),
+                ),
+                array_map(strval(...), array_keys($rows)),
+                array_values($rows),
+            ));
     }
 }

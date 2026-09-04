@@ -5,15 +5,36 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Html;
 
 /**
- * The HtmlAttribute interface. One attribute name an {@link Element} may carry.
+ * The HtmlAttribute enum. The standard HTML attributes this site emits.
  *
- * Implemented by an enum per element, so `track-id` is {@link \NeuroSYS\Model\Embed\
- * SoundCloudPlayerAttribute::TrackId} rather than a string typed out once in PHP and again in
- * TypeScript. Same shape as {@link \NeuroSYS\Http\Security\CspSource}: the interface is what lets
- * {@link Element} take any element's attributes without knowing which element it is building.
+ * `class` is {@link self::ClassName} rather than `Class`, because `HtmlAttribute::Class` parses as
+ * the `::class` magic constant and would quietly evaluate to the enum's own name — a case where the
+ * wrong thing compiles, which is exactly what this file exists to prevent.
  */
-interface HtmlAttribute
+enum HtmlAttribute: string implements AttributeName
 {
-    /** The attribute name as it appears in the markup. */
-    public function attribute(): string;
+    case ClassName = 'class';
+    case Id        = 'id';
+    case Lang      = 'lang';
+    case Title     = 'title';
+
+    case Href   = 'href';
+    case Src    = 'src';
+    case Rel    = 'rel';
+    case Target = 'target';
+    case Type   = 'type';
+
+    case Alt     = 'alt';
+    case Height  = 'height';
+    case Width   = 'width';
+    case Charset = 'charset';
+    case Name    = 'name';
+    case Content = 'content';
+
+    case AriaLabel = 'aria-label';
+
+    public function attribute(): string
+    {
+        return $this->value;
+    }
 }

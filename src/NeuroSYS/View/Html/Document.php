@@ -1,0 +1,26 @@
+<?php
+
+declare(strict_types=1);
+
+namespace NeuroSYS\View\Html;
+
+/**
+ * The Document class. A doctype and the `<html>` element under it.
+ *
+ * The doctype is the one piece of a page that is not an element and has no attributes, so it is
+ * neither a {@link Tag} case nor an {@link Element}. It is a {@link Doctype}, which is a Node like
+ * everything else here — leaving the last string in the document as a string would have been the
+ * one exception, and it guards the loudest-consequence, quietest-failure value on the page.
+ */
+final readonly class Document implements Node
+{
+    /** Constructs an instance of {@link self} wrapping the given `<html>` element. */
+    public function __construct(private Element $html) {}
+
+    public function render(int $depth = 0): string
+    {
+        return Doctype::Html5->render($depth)
+            . "\n" . str_repeat('  ', $depth)
+            . $this->html->render($depth);
+    }
+}

@@ -46,8 +46,8 @@ final readonly class Terminal
         }
     }
 
-    /** Renders the element that builds this terminal. */
-    public function toElement(): string
+    /** Returns the element that builds this terminal. */
+    public function toElement(): Element
     {
         $fields = json_encode(
             array_map(static fn (TerminalField $f): array => $f->toArray(), $this->fields->all()),
@@ -55,10 +55,9 @@ final readonly class Terminal
         );
 
         return new Element(Tag::TerminalWindow)
-            ->with(TerminalAttribute::Label, $this->label)
-            ->with(TerminalAttribute::Command, $this->command)
-            ->with(TerminalAttribute::Fields, $fields)
-            ->withFlag(TerminalAttribute::Narrow, $this->narrow)
-            ->render();
+            ->attr(TerminalAttribute::Label, $this->label)
+            ->attr(TerminalAttribute::Command, $this->command)
+            ->attr(TerminalAttribute::Fields, $fields)
+            ->attr(TerminalAttribute::Narrow, $this->narrow);
     }
 }

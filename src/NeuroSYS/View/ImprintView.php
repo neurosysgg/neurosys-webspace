@@ -4,64 +4,84 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\Fragment;
+use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\Node;
+
+/**
+ * The ImprintView class. Renders the legally required imprint, in German and English.
+ *
+ * The two halves say the same thing under § 5 DDG and § 18 Abs. 2 MStV, so the address and the
+ * contact line are built once each and used from both — a legal document with two copies of an
+ * address is a legal document with one wrong address, eventually.
+ */
 class ImprintView extends View
 {
+    private const string EMAIL = 'neuro.sys@neurosys.gg';
+
+    /** @var list<string> The postal address, one line per element. */
+    private const array ADDRESS = [
+        'Niclas Ahl',
+        'c/o Adressgeber #2109',
+        'An der alten Ziegelei 38',
+        '48157 Münster',
+        'Germany',
+    ];
+
     public function pageTitle(): string { return 'Imprint — neuro.SYS'; }
 
-    public function content(): string
+    public function content(): Node
     {
-        return <<<HTML
-            <section class="page-section">
-              <h1>Impressum</h1>
+        return new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->containing(
+                self::heading(HtmlTag::H1, 'Impressum'),
+                self::heading(HtmlTag::H2, 'Angaben gemäß § 5 DDG'),
+                self::address(),
+                self::heading(HtmlTag::H2, 'Kontakt'),
+                self::contact('E-Mail: '),
+                self::heading(HtmlTag::H2, 'Verantwortlicher im Sinne des § 18 Abs. 2 MStV'),
+                self::address(),
+                self::heading(HtmlTag::H1, 'Imprint'),
+                self::heading(HtmlTag::H2, 'Information pursuant to § 5 DDG'),
+                self::address(),
+                self::heading(HtmlTag::H2, 'Contact'),
+                self::contact('E-Mail: '),
+                self::heading(HtmlTag::H2, 'Responsible for content pursuant to § 18 Abs. 2 MStV'),
+                self::address(),
+            );
+    }
 
-              <h2>Angaben gemäß § 5 DDG</h2>
-              <p>
-                Niclas Ahl<br />
-                c/o Adressgeber #2109<br />
-                An der alten Ziegelei 38<br />
-                48157 Münster<br />
-                Germany
-              </p>
+    private static function heading(HtmlTag $level, string $text): Element
+    {
+        return new Element($level)->containing($text);
+    }
 
-              <h2>Kontakt</h2>
-              <p>
-                E-Mail: <a href="mailto:neuro.sys@neurosys.gg">neuro.sys@neurosys.gg</a>
-              </p>
+    /** The postal address as one paragraph, its lines separated by `<br>`. */
+    private static function address(): Element
+    {
+        $lines = [];
 
-              <h2>Verantwortlicher im Sinne des § 18 Abs. 2 MStV</h2>
-              <p>
-                Niclas Ahl<br />
-                c/o Adressgeber #2109<br />
-                An der alten Ziegelei 38<br />
-                48157 Münster<br />
-                Germany
-              </p>
+        foreach (self::ADDRESS as $index => $line) {
+            if ($index > 0) {
+                $lines[] = new Element(HtmlTag::Br);
+            }
 
-              <h1>Imprint</h1>
+            $lines[] = $line;
+        }
 
-              <h2>Information pursuant to § 5 DDG</h2>
-              <p>
-                Niclas Ahl<br />
-                c/o Adressgeber #2109<br />
-                An der alten Ziegelei 38<br />
-                48157 Münster<br />
-                Germany
-              </p>
+        return new Element(HtmlTag::P)->containing(...$lines);
+    }
 
-              <h2>Contact</h2>
-              <p>
-                E-Mail: <a href="mailto:neuro.sys@neurosys.gg">neuro.sys@neurosys.gg</a>
-              </p>
-
-              <h2>Responsible for content pursuant to § 18 Abs. 2 MStV</h2>
-              <p>
-                Niclas Ahl<br />
-                c/o Adressgeber #2109<br />
-                An der alten Ziegelei 38<br />
-                48157 Münster<br />
-                Germany
-              </p>
-            </section>
-            HTML;
+    private static function contact(string $label): Element
+    {
+        return new Element(HtmlTag::P)->containing(
+            $label,
+            new Element(HtmlTag::A)
+                ->attr(HtmlAttribute::Href, 'mailto:' . self::EMAIL)
+                ->containing(self::EMAIL),
+        );
     }
 }

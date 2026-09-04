@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Embed;
 
 use NeuroSYS\Model\Platform;
+use NeuroSYS\View\Html\Element;
 
 /**
  * The Embed interface. A third-party media player attached to a release.
@@ -41,5 +42,5 @@ interface Embed
      * @param string $title The release title, used for attribution and the player's
      *                      accessible name. Taken from the release so it can't drift.
      */
-    public function toElement(string $title): string;
+    public function toElement(string $title): Element;
 }

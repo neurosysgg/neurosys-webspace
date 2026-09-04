@@ -195,6 +195,17 @@ echo ""
 echo "=== Repo hygiene ==="
 # Things that would only hurt once they are on the server.
 
+# Every page is a tree of View\Html nodes, so markup written as a string is markup that skipped the
+# escaping. The only two files allowed to hold a '<' in a literal are the ones whose job is to turn a
+# tree into text — Element and Doctype. A heredoc anywhere under src/ is the same finding.
+markup=$(grep -rlE "'[^']*<[a-zA-Z/!]|<<<'?HTML" "$REPO/src" 2>/dev/null \
+         | grep -v "/View/Html/Element.php$" | grep -v "/View/Html/Doctype.php$" || true)
+if [[ -z "$markup" ]]; then
+    pass "no markup is built from strings outside View/Html/"
+else
+    fail "markup written as a string: $(echo "$markup" | tr '\n' ' ')"
+fi
+
 if grep -RIlq --exclude-dir=.git --exclude-dir=vendor --exclude-dir=.idea \
        -e '\$2[aby]\$[0-9]\{2\}\$' "$REPO/data/releases.php" "$REPO/data/profiles.php" 2>/dev/null; then
     fail "a bcrypt hash is sitting in a non-credential data file"

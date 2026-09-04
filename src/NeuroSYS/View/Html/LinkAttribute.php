@@ -12,7 +12,7 @@ namespace NeuroSYS\View\Html;
  * looks fine. `Navigation.ts` reads the name, `assets/ts/model/LinkAttribute.ts` mirrors it, and the
  * parity test is what stops the two drifting.
  */
-enum LinkAttribute: string implements HtmlAttribute
+enum LinkAttribute: string implements AttributeName
 {
     /** Bypasses the SPA router, so the browser performs a real navigation. */
     case NoSpa = 'data-no-spa';

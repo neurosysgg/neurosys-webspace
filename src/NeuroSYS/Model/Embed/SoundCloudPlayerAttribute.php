@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model\Embed;
 
-use NeuroSYS\View\Html\HtmlAttribute;
+use NeuroSYS\View\Html\AttributeName;
 
 /**
  * The SoundCloudPlayerAttribute enum. What {@link SoundCloudEmbed} tells `<soundcloud-player>`.
@@ -15,7 +15,7 @@ use NeuroSYS\View\Html\HtmlAttribute;
  * place per side and `assets/ts/model/SoundCloudPlayerAttribute.ts` mirrors this, under the same
  * parity test as the enums the query string is built from.
  */
-enum SoundCloudPlayerAttribute: string implements HtmlAttribute
+enum SoundCloudPlayerAttribute: string implements AttributeName
 {
     /** The numeric SoundCloud track id the widget resolves. */
     case TrackId = 'track-id';
