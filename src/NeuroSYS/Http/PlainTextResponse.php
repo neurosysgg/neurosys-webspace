@@ -28,7 +28,7 @@ readonly class PlainTextResponse implements Response
     public function send(Request $request): never
     {
         http_response_code($this->status->value);
-        header(new Header(ResponseHeader::ContentType, MediaType::PlainText->contentType())->line());
+        header(new Header(ResponseHeader::ContentType, MimeType::plainText()->render())->line());
 
         foreach ($this->headers as $header) {
             header($header->line());

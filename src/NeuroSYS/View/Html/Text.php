@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use NeuroSYS\Support\Charset;
+
 /**
  * The Text class. A run of text, escaped on the way out.
  *
@@ -39,9 +41,6 @@ final readonly class Text implements Node
      */
     public const int FLAGS = ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401;
 
-    /** The encoding to escape in, named for the same reason as {@link self::FLAGS}. */
-    public const string CHARSET = 'UTF-8';
-
     /**
      * Constructs an instance of {@link self}.
      *
@@ -50,8 +49,14 @@ final readonly class Text implements Node
      */
     public function __construct(public string $text) {}
 
+    /**
+     * The encoding is the site's one {@link Charset} rather than a constant of this class, for the
+     * same reason {@link self::FLAGS} is written out rather than inherited: this is the line the
+     * whole document's safety rests on, and a second name for the encoding is a second thing that
+     * can be changed alone.
+     */
     public function render(int $depth = 0): string
     {
-        return htmlspecialchars($this->text, self::FLAGS, self::CHARSET);
+        return htmlspecialchars($this->text, self::FLAGS, Charset::Utf8->canonical());
     }
 }

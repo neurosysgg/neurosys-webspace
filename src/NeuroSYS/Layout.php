@@ -7,6 +7,7 @@ namespace NeuroSYS;
 use NeuroSYS\Config;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
+use NeuroSYS\Support\Charset;
 use NeuroSYS\View\Html\Document;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
@@ -41,7 +42,7 @@ class Layout
     private static function head(string $title): Element
     {
         return new Element(HtmlTag::Head)->containing(
-            new Element(HtmlTag::Meta)->attr(HtmlAttribute::Charset, 'UTF-8'),
+            new Element(HtmlTag::Meta)->attr(HtmlAttribute::Charset, Charset::Utf8->canonical()),
             new Element(HtmlTag::Meta)
                 ->attr(HtmlAttribute::Name, 'viewport')
                 ->attr(HtmlAttribute::Content, 'width=device-width, initial-scale=1.0'),

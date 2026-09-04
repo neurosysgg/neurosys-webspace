@@ -17,7 +17,7 @@ use NeuroSYS\View\View;
  * On full-page requests, wraps the content in the site {@link Layout}.
  *
  * Sends its own `Content-Type` rather than leaving PHP's `default_mimetype` to supply one — see
- * {@link MediaType}. It matters most for the fragment, which has no `<meta charset>` in it.
+ * {@link MimeType}. It matters most for the fragment, which declares no encoding of its own.
  */
 readonly class ViewResponse implements Response
 {
@@ -40,7 +40,7 @@ readonly class ViewResponse implements Response
     public function send(Request $request): void
     {
         http_response_code($this->status->value);
-        header(new Header(ResponseHeader::ContentType, MediaType::Html->contentType())->line());
+        header(new Header(ResponseHeader::ContentType, MimeType::html()->render())->line());
 
         foreach ($this->headers as $header) {
             header($header->line());

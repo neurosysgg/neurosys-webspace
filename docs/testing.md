@@ -243,7 +243,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 97.87% of lines, and what is left is named below
+composer coverage   # PHP  — 97.90% of lines, and what is left is named below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -266,7 +266,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **97.87% of lines** (830/848), 98.50% of methods.
+clover XML and a browsable HTML report. Currently **97.90% of lines** (843/861), 98.53% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,

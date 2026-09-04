@@ -44,7 +44,7 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.87% of
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.90% of
 lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
@@ -83,13 +83,15 @@ markup tree, no HTML written as a string either.
 src/NeuroSYS/
 ├── Controller/     ← one class per route group; fetches its own data, returns a Response
 ├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse
-│                     + HttpStatusCode, HttpMethod, Header/HeaderName and the two header-name enums
+│                     + HttpStatusCode, HttpMethod, MimeType/TopLevelType, Header/HeaderName
+│                     and the two header-name enums
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, Profile, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
-├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization, JsonDeserializable
+├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization,
+│                     JsonDeserializable, Charset
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document, Doctype
 │   │                 + Tag/HtmlTag and the attribute enums they compose
@@ -129,6 +131,20 @@ An unrecognised method is `null` rather than a guess, and null is not read-only.
 Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
 place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
 purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
+
+`Content-Type` is a `MimeType` — a `TopLevelType` case, a validated subtype and a `Charset` — and not
+a string with `; charset=utf-8` stapled onto it. A class rather than an enum for the reason
+`StrictTransportSecurity` is one: the value carries a parameter, and a case cannot hold one. The two
+the site sends are `MimeType::html()` and `MimeType::plainText()`, so no call site types a subtype,
+and a malformed one throws where it is written the way `CspHost`'s origin does. The charset is the
+half that earns the class — `nosniff` stops a browser guessing the type, and nothing stops it
+guessing the encoding.
+
+**The encoding is one fact.** `Charset` sits in `Support/` because both the header and the markup
+tree read it and `View/` has no other reason to know anything about HTTP. It carries two forms —
+`utf-8` for the header parameter, `canonical()` for the document head and for the site's one escaping
+call — because those two readers already wrote it differently, and keeping both is what left every
+byte unchanged.
 
 ## Config
 

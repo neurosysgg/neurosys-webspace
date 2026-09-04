@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
+use NeuroSYS\Exception\MimeTypeException;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
@@ -14,15 +15,18 @@ use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
+use NeuroSYS\Http\MimeType;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\RedirectResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\ResponseHeader;
+use NeuroSYS\Http\TopLevelType;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Support\Charset;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
@@ -37,6 +41,8 @@ use ReflectionProperty;
 #[CoversClass(RedirectResponse::class)]
 #[CoversClass(PlainTextResponse::class)]
 #[CoversClass(HttpStatusCode::class)]
+#[CoversClass(MimeType::class)]
+#[CoversClass(Charset::class)]
 #[CoversClass(DownloadController::class)]
 #[CoversClass(ReleaseController::class)]
 #[CoversClass(NotFoundController::class)]
@@ -350,5 +356,82 @@ final class ResponseTest extends TestCase
         yield [HttpStatusCode::Unauthorized, 401];
         yield [HttpStatusCode::NotFound, 404];
         yield [HttpStatusCode::ServiceUnavailable, 503];
+    }
+
+    // ───────────────────────────── MimeType ─────────────────────────────
+
+    /**
+     * The two the site sends, pinned to the byte. test/basic_test.sh greps the live headers for
+     * these exact strings; this is the same assertion one layer down, where it can say why it
+     * failed rather than that a curl did not match.
+     */
+    public function testTheTwoTypesTheSiteSendsRenderExactly(): void
+    {
+        self::assertSame('text/html; charset=utf-8', MimeType::html()->render());
+        self::assertSame('text/plain; charset=utf-8', MimeType::plainText()->render());
+    }
+
+    /** The parameter is optional because most types have no encoding to declare. */
+    public function testANullCharsetRendersTheTypeAlone(): void
+    {
+        self::assertSame(
+            'image/png',
+            new MimeType(TopLevelType::Image, 'png', charset: null)->render(),
+        );
+    }
+
+    /** Every body this site sends is text, so the parameter is there unless it is refused. */
+    public function testTheCharsetIsPresentByDefault(): void
+    {
+        self::assertSame(Charset::Utf8, new MimeType(TopLevelType::Text, 'css')->charset);
+    }
+
+    public static function validSubtypeProvider(): iterable
+    {
+        yield 'plain'        => ['html'];
+        yield 'plus suffix'  => ['svg+xml'];
+        yield 'vendor tree'  => ['vnd.api+json'];
+        yield 'x- prefix'    => ['x-www-form-urlencoded'];
+        yield 'digits'       => ['mp4'];
+        yield 'leading digit' => ['3gpp'];
+        yield 'at the cap'   => [str_repeat('a', 127)];
+    }
+
+    #[DataProvider('validSubtypeProvider')]
+    public function testAcceptsEveryShapeARegisteredSubtypeTakes(string $subtype): void
+    {
+        self::assertSame($subtype, new MimeType(TopLevelType::Application, $subtype)->subtype);
+    }
+
+    public static function invalidSubtypeProvider(): iterable
+    {
+        yield 'empty'          => [''];
+        yield 'space'          => ['ht ml'];
+        yield 'a whole type'   => ['text/html'];
+        yield 'with parameter' => ['html; q=1'];
+        yield 'leading dash'   => ['-html'];
+        yield 'leading dot'    => ['.html'];
+        yield 'a token char no subtype uses' => ['ht!ml'];
+        yield 'past the cap'   => [str_repeat('a', 128)];
+    }
+
+    /** Mirrors CspHost: a bad paste has to fail where it is written, not on the wire. */
+    #[DataProvider('invalidSubtypeProvider')]
+    public function testRejectsAnythingThatIsNotABareSubtype(string $subtype): void
+    {
+        $this->expectException(MimeTypeException::class);
+        new MimeType(TopLevelType::Text, $subtype);
+    }
+
+    // ───────────────────────────── Charset ─────────────────────────────
+
+    /**
+     * Both forms, pinned to the literals the three readers carried before this enum existed: the
+     * header parameter, the charset meta tag in Layout, and htmlspecialchars in Text.
+     */
+    public function testTheEncodingHasAHeaderFormAndACanonicalOne(): void
+    {
+        self::assertSame('utf-8', Charset::Utf8->value);
+        self::assertSame('UTF-8', Charset::Utf8->canonical());
     }
 }
