@@ -39,6 +39,7 @@ MVC, all plain PHP classes — no template files, no `extract()`, no inline echo
 src/NeuroSYS/
 ├── Controller/     ← one class per route group; fetches its own data, returns a Response
 ├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse, HttpStatusCode
+│   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
@@ -53,7 +54,11 @@ src/NeuroSYS/
 `Router::dispatch()` → send.
 
 `SecurityHeaders::send()` runs before anything else, so the CSP and `Referrer-Policy` cover every response
-including the 401 `Auth` exits with and the 303 a download redirects with. The CSP allows images only from
+including the 401 `Auth` exits with and the 303 a download redirects with. Every value is a typed object —
+`CspDirective`, `CspKeyword`/`CspScheme`/`CspHost` behind a `CspSource` interface, `ReferrerPolicy`,
+`PermissionsPolicyFeature` — so a misspelled directive or an unquoted `'self'` is a parse error, not a
+header the browser silently drops. `CspHost` validates it got a bare origin, the way `HiDriveLink`
+validates a share id. The CSP allows images only from
 HiDrive and frames only from SoundCloud; `script-src` is strict, and no view emits an inline style or event
 handler (a test enforces that). `style-src` keeps `'unsafe-inline'` solely because `SoundCloudEmbed`
 reproduces SoundCloud's attribution markup verbatim.

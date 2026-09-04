@@ -7,7 +7,12 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\Security\ContentTypeOptions;
+use NeuroSYS\Http\Security\PermissionsPolicyFeature;
+use NeuroSYS\Http\Security\ReferrerPolicy;
+use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
+use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Router;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\View\NotFoundView;
@@ -15,7 +20,6 @@ use NeuroSYS\View\ReleaseView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionMethod;
 use ReflectionProperty;
 
 #[CoversClass(SecurityHeaders::class)]
@@ -41,9 +45,15 @@ final class SecurityTest extends TestCase
         return Request::fromGlobals();
     }
 
+    /** The rendered Content-Security-Policy, as it is actually sent. */
     private static function policy(): string
     {
-        return new ReflectionMethod(SecurityHeaders::class, 'policy')->invoke(null);
+        return SecurityHeaders::headers()[SecurityHeader::ContentSecurityPolicy->value];
+    }
+
+    private static function header(SecurityHeader $header): string
+    {
+        return SecurityHeaders::headers()[$header->value];
     }
 
     // ───────────────────────── read-only method gate ─────────────────────────
@@ -194,11 +204,73 @@ final class SecurityTest extends TestCase
     /** A cheap guard against a CDN sneaking into the policy in a future edit. */
     public function testThePolicyNamesNoUnexpectedHost(): void
     {
-        preg_match_all('#https?://[^\s;]+#', self::policy(), $m);
-
         self::assertSame(
             ['https://my.hidrive.com', 'https://w.soundcloud.com'],
-            array_values(array_unique($m[0])),
+            SecurityHeaders::contentSecurityPolicy()->hosts(),
         );
+    }
+
+    // ───────────────────────── the other headers ─────────────────────────
+
+    public function testEveryHeaderIsSentAndNamedByTheEnum(): void
+    {
+        self::assertSame(
+            array_map(static fn(SecurityHeader $h): string => $h->value, SecurityHeader::cases()),
+            array_keys(SecurityHeaders::headers()),
+        );
+    }
+
+    public function testNoHeaderIsSentEmpty(): void
+    {
+        foreach (SecurityHeaders::headers() as $name => $value) {
+            self::assertNotSame('', $value, "$name is sent with an empty value");
+        }
+    }
+
+    public function testReferrerPolicyKeepsThePathOffCrossOriginRequests(): void
+    {
+        self::assertSame(
+            ReferrerPolicy::StrictOriginWhenCrossOrigin->value,
+            self::header(SecurityHeader::ReferrerPolicy),
+        );
+    }
+
+    public function testContentTypeOptionsIsNosniff(): void
+    {
+        self::assertSame(
+            ContentTypeOptions::NoSniff->value,
+            self::header(SecurityHeader::ContentTypeOptions),
+        );
+    }
+
+    public function testEveryKnownFeatureIsDenied(): void
+    {
+        $policy = self::header(SecurityHeader::PermissionsPolicy);
+
+        foreach (PermissionsPolicyFeature::cases() as $feature) {
+            self::assertStringContainsString($feature->denied(), $policy);
+        }
+    }
+
+    /**
+     * Permissions-Policy applies to framed documents too, and the player's iframe asks for
+     * `autoplay; encrypted-media`. Denying either -- which adding a case to
+     * PermissionsPolicyFeature would do, since the policy denies every case -- switches the
+     * player off with no error anywhere. Tie the two together so that can't happen quietly.
+     */
+    public function testThePolicyDeniesNothingTheSoundCloudPlayerAsksFor(): void
+    {
+        $iframe = new SoundCloudEmbed(trackId: 1, permalink: 'x')->toHtml('t');
+        self::assertSame(1, preg_match('/allow="([^"]+)"/', $iframe, $m), 'no allow= on the iframe');
+
+        $policy = self::header(SecurityHeader::PermissionsPolicy);
+
+        foreach (array_map('trim', explode(';', $m[1])) as $feature) {
+            self::assertStringNotContainsString(
+                $feature . '=()',
+                $policy,
+                "Permissions-Policy denies '$feature', which the SoundCloud player requires",
+            );
+        }
     }
 }

@@ -4,22 +4,36 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Http\Security\ContentSecurityPolicy;
+use NeuroSYS\Http\Security\ContentTypeOptions;
+use NeuroSYS\Http\Security\CspDirective;
+use NeuroSYS\Http\Security\CspHost;
+use NeuroSYS\Http\Security\CspKeyword;
+use NeuroSYS\Http\Security\CspScheme;
+use NeuroSYS\Http\Security\PermissionsPolicy;
+use NeuroSYS\Http\Security\PermissionsPolicyFeature;
+use NeuroSYS\Http\Security\ReferrerPolicy;
+
 /**
- * The SecurityHeaders class. Emits the site's response headers.
+ * The SecurityHeaders class. Emits the site's response security headers.
  *
- * Sent from `public/index.php` before anything is dispatched, so they cover every response
- * the application produces — including the 401 {@link \NeuroSYS\Service\Auth} exits with and
- * the 303 a download redirects with.
+ * Sent from `public/index.php` before anything is dispatched, so they cover every response the
+ * application produces — including the 401 {@link \NeuroSYS\Service\Auth} exits with, the 405
+ * {@link \NeuroSYS\Router} refuses a write method with, and the 303 a download redirects with.
+ *
+ * Every value here is a typed object rather than a header string: see {@link CspDirective},
+ * {@link CspSource}, {@link ReferrerPolicy} and {@link PermissionsPolicyFeature}. A misspelled
+ * directive or an unquoted `'self'` is a parse error now, not a header the browser drops.
  *
  * Static assets are served straight by Apache and never reach PHP, so they don't get these.
- * That is fine for what `public/assets/` holds; if it ever holds something user-supplied,
- * add the headers to `public/.htaccess` behind an `<IfModule mod_headers.c>` guard instead —
- * an unguarded `Header` directive 500s the whole site where mod_headers isn't loaded.
+ * That is fine for what `public/assets/` holds; if it ever holds something user-supplied, add
+ * the headers to `public/.htaccess` behind an `<IfModule mod_headers.c>` guard instead — an
+ * unguarded `Header` directive 500s the whole site where mod_headers isn't loaded.
  */
 final class SecurityHeaders
 {
     /**
-     * The hosts the site is allowed to pull from, beyond its own origin.
+     * The hosts the site is allowed to reach, beyond its own origin.
      *
      * Cover art is served by HiDrive; the SoundCloud player is framed, but only after the
      * visitor clicks the consent gate. Nothing else may load, so a stray CDN reference in a
@@ -31,38 +45,81 @@ final class SecurityHeaders
     /** Sends every security header. Safe to call before any output. */
     public static function send(): void
     {
-        // A download redirect leaks the release URL to the file host as a Referer otherwise,
-        // and the framed player would receive the full page URL once it loads.
-        header('Referrer-Policy: strict-origin-when-cross-origin');
-        header('X-Content-Type-Options: nosniff');
-        header('Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), interest-cohort=()');
-        header('Content-Security-Policy: ' . self::policy());
+        foreach (self::headers() as $name => $value) {
+            header(SecurityHeader::from($name)->line($value));
+        }
+    }
+
+    /**
+     * Returns every header this class sends, keyed by header name.
+     *
+     * Public because it is the honest answer to "what does the site send?" — {@link self::send()}
+     * is only the `header()` loop over it, and the test suite asserts against this rather than
+     * reaching through reflection.
+     *
+     * @return array<string, string>
+     */
+    public static function headers(): array
+    {
+        return [
+            SecurityHeader::ContentSecurityPolicy->value => self::contentSecurityPolicy()->render(),
+            SecurityHeader::ReferrerPolicy->value        => self::referrerPolicy()->value,
+            SecurityHeader::ContentTypeOptions->value    => ContentTypeOptions::NoSniff->value,
+            SecurityHeader::PermissionsPolicy->value     => self::permissionsPolicy()->render(),
+        ];
     }
 
     /**
      * Builds the Content-Security-Policy.
      *
-     * `script-src 'self'` is strict — there are no inline handlers or inline scripts left in
-     * any view, which is the directive that actually blocks XSS.
+     * `script-src` is strict — there are no inline handlers or inline scripts left in any view,
+     * which is the directive that actually blocks XSS.
      *
-     * `style-src` keeps `'unsafe-inline'`, deliberately: {@link \NeuroSYS\Model\Embed\SoundCloudEmbed}
-     * reproduces SoundCloud's attribution markup verbatim, inline `style` attributes and all, and
-     * that markup is injected once the consent gate is clicked. Dropping the allowance would mean
-     * rewriting their furniture, which is exactly what that class exists not to do. Our own markup
-     * carries no inline styles, so this covers only the reproduced block.
+     * `style-src` keeps {@link CspKeyword::UnsafeInline}, deliberately:
+     * {@link \NeuroSYS\Model\Embed\SoundCloudEmbed} reproduces SoundCloud's attribution markup
+     * verbatim, inline `style` attributes and all, and that markup is injected once the consent
+     * gate is clicked. Dropping the allowance would mean rewriting their furniture, which is
+     * exactly what that class exists not to do. Our own markup carries no inline styles — a test
+     * enforces that — so this covers only the reproduced block.
      */
-    private static function policy(): string
+    public static function contentSecurityPolicy(): ContentSecurityPolicy
     {
-        return implode('; ', [
-            "default-src 'self'",
-            "script-src 'self'",
-            "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: " . self::COVER_HOST,
-            'frame-src ' . self::PLAYER_HOST,
-            "base-uri 'self'",
-            "form-action 'self'",
-            "frame-ancestors 'none'",
-            "object-src 'none'",
-        ]);
+        return new ContentSecurityPolicy()
+            ->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin)
+            ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
+            ->allow(CspDirective::StyleSrc, CspKeyword::SelfOrigin, CspKeyword::UnsafeInline)
+            ->allow(
+                CspDirective::ImgSrc,
+                CspKeyword::SelfOrigin,
+                CspScheme::Data,
+                new CspHost(self::COVER_HOST),
+            )
+            ->allow(CspDirective::FrameSrc, new CspHost(self::PLAYER_HOST))
+            ->allow(CspDirective::BaseUri, CspKeyword::SelfOrigin)
+            ->allow(CspDirective::FormAction, CspKeyword::SelfOrigin)
+            ->allow(CspDirective::FrameAncestors, CspKeyword::None)
+            ->allow(CspDirective::ObjectSrc, CspKeyword::None);
+    }
+
+    /**
+     * A download 303 hands the release URL to HiDrive as a `Referer` otherwise, and the framed
+     * player receives the full page URL once it loads. Same-origin navigation keeps the path, so
+     * SPA links still work as expected.
+     */
+    private static function referrerPolicy(): ReferrerPolicy
+    {
+        return ReferrerPolicy::StrictOriginWhenCrossOrigin;
+    }
+
+    /**
+     * The site asks for none of these, so all of them are denied to everyone.
+     *
+     * Denies every {@link PermissionsPolicyFeature} case, which makes that enum the list of
+     * things the site refuses rather than a catalogue of what exists — see its docblock before
+     * adding a case, because `Permissions-Policy` also applies to the SoundCloud iframe.
+     */
+    private static function permissionsPolicy(): PermissionsPolicy
+    {
+        return PermissionsPolicy::denyAll();
     }
 }

@@ -62,7 +62,12 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   SoundCloud attribution markup we reproduce verbatim; a test keeps that allowance from quietly covering
   our own markup too.
 - **The CSP names no host but HiDrive and SoundCloud.** A CDN sneaking into a future edit fails the test
-  rather than shipping.
+  rather than shipping — asserted against `ContentSecurityPolicy::hosts()`, so it sees the typed hosts
+  rather than grepping the rendered header.
+- **The Permissions-Policy denies nothing the player asks for.** It is built with `denyAll()`, so adding a
+  case to `PermissionsPolicyFeature` denies that feature everywhere — including inside the SoundCloud
+  iframe, which requests `autoplay; encrypted-media`. The test reads the iframe's own `allow` attribute and
+  checks the policy against it, so the two can't drift apart silently.
 - **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
   into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
 
