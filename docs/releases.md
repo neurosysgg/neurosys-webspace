@@ -101,7 +101,9 @@ by hand. Source files live in `~/Music/neuro.SYS/releases/ill/`; they are upload
 - [x] `bash test/basic_test.sh` — flipped `/releases/ill/flac` to 303; 22/22 pass
 - [x] Deploy `public/` + `src/` + updated `data/releases.php` to Strato — `./deploy.sh`, 2026-09-04
 - [x] Test all four download links live — all four 303 to the right HiDrive ids (logging stays off by design, see CLAUDE.md)
-- [ ] Mobile check
+- [~] Mobile check — no horizontal overflow at 375px on `/`, `/releases/ill` or `/privacy`, and the consent gate swaps
+      in the real iframe correctly. Not visually eyeballed; give it one look on an actual phone.
+- [x] SoundCloud published 04.09.2026 — the secret-token embed still resolves after going public, no re-grab needed
 
 ## Checklist (hello world! — target 01.07.2026)
 
