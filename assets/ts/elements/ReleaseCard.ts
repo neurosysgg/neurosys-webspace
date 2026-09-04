@@ -1,17 +1,29 @@
+import { NestedElement } from './NestedElement.js';
+
 /**
- * <release-card slug="ill"> — one entry in the catalogue.
+ * <release-list> and the catalogue entries inside it.
  *
- * No behaviour: the card wraps a real <a>, so it navigates with or without JS. Registered so the
- * vocabulary is declared in one place rather than existing only as a CSS selector.
+ * Like the download group, these wrap a real <a> and so build nothing: a catalogue that only works
+ * with JS is not a catalogue. What they can do is refuse to be somewhere they do not belong.
  */
-export class ReleaseCard extends HTMLElement {}
+export class ReleaseList extends HTMLElement {}
+
+/** One entry. `slug` names the release it links to. */
+export class ReleaseCard extends NestedElement {
+  protected parent(): CustomElementConstructor { return ReleaseList; }
+}
 
 /** The release title. */
-export class ReleaseTitle extends HTMLElement {}
+export class ReleaseTitle extends NestedElement {
+  protected parent(): CustomElementConstructor { return ReleaseCard; }
+}
 
 /** The bpm · key · genre · description line under it. */
-export class ReleaseMeta extends HTMLElement {}
+export class ReleaseMeta extends NestedElement {
+  protected parent(): CustomElementConstructor { return ReleaseCard; }
+}
 
+customElements.define('release-list', ReleaseList);
 customElements.define('release-card', ReleaseCard);
 customElements.define('release-title', ReleaseTitle);
 customElements.define('release-meta', ReleaseMeta);

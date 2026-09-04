@@ -79,6 +79,12 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **No view emits an inline style or event handler, and `style-src` has no `'unsafe-inline'`.** The
   allowance existed only for SoundCloud's attribution markup; that block is built through the CSSOM
   now, so it went away. Two assertions keep it away — one on the policy, one on the views.
+- **Every custom tag served is registered.** Checked in that direction, not the reverse: the
+  terminal's own tags are registered but built by `<terminal-window>`, so no view emits one and
+  asking for them in the markup would fail for the wrong reason.
+- **A tag outside the element it belongs inside says so.** `NestedElement` is what the otherwise
+  behaviourless classes do; `terminal-window.test.mjs` asserts both that it fires and that it looks
+  through the card anchors rather than only at the direct parent.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.

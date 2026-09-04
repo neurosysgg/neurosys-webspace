@@ -321,19 +321,23 @@ check_body "the widget host is nowhere in the page"  "$BASE/releases/ill"  'w.so
 check_body "the player element is rendered"          "$BASE/releases/ill"  '<soundcloud-player'
 
 # An element the browser has never heard of renders as an inert inline box with no error anywhere,
-# so a tag name and its registration drifting apart is invisible. ViewTest pins the tag set from the
-# markup side; this checks the registrations from the other — every element assets/ts/ registers has
-# to actually appear in the page that is supposed to carry it.
-# The catalogue and a release page carry the whole vocabulary between them, so both are fetched.
-vocabulary=$(curl "${CURL_ARGS[@]}" "$BASE/releases" "$BASE/releases/ill" 2>/dev/null)
-for tag in $(grep -ho "customElements.define('[a-z][a-z0-9-]*'" "$REPO"/assets/ts/elements/*.ts \
-             | sed "s/.*'\(.*\)'/\1/" | sort -u); do
-    if [[ "$vocabulary" == *"<$tag"* ]]; then
-        pass "<$tag> is registered and emitted"
-    else
-        fail "<$tag> is registered but no page emits it"
-    fi
+# so a tag reaching a page with no registration behind it is invisible. Checked in that direction:
+# every custom tag the server actually serves has to be one assets/ts/elements/ defines. The reverse
+# would fail on the terminal's own tags, which are registered but built by <terminal-window> rather
+# than written out by any view.
+registered=$(grep -ho "customElements.define('[a-z][a-z0-9-]*'" "$REPO"/assets/ts/elements/*.ts \
+             | sed "s/.*'\(.*\)'/\1/" | sort -u)
+served=$(curl "${CURL_ARGS[@]}" "$BASE/releases" "$BASE/releases/ill" "$BASE/nope" 2>/dev/null \
+         | grep -oE '<[a-z][a-z0-9]*-[a-z0-9-]+' | tr -d '<' | sort -u)
+unregistered=""
+for tag in $served; do
+    grep -qx "$tag" <<< "$registered" || unregistered="$unregistered $tag"
 done
+if [[ -n "$served" && -z "$unregistered" ]]; then
+    pass "every custom tag served is registered ($(wc -w <<< "$served") in use)"
+else
+    fail "custom tags served with no element behind them:$unregistered"
+fi
 # A PHP notice or warning leaking into the page means something is broken upstream.
 check_body "no PHP errors leak into the home page"   "$BASE/"              'Warning'   absent
 check_body "no PHP errors leak into a release page"  "$BASE/releases/ill"  'Fatal'     absent

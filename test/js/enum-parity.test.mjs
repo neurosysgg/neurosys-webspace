@@ -18,6 +18,7 @@ import { dirname, resolve } from 'node:path';
 import { Platform, displayName } from '../../public/assets/js/model/Platform.js';
 import { SoundCloudOption } from '../../public/assets/js/model/SoundCloudOption.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../public/assets/js/model/SoundCloudPlayerStyle.js';
+import { TerminalTone } from '../../public/assets/js/model/TerminalTone.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -59,6 +60,16 @@ test('SoundCloudPlayerStyle mirrors its PHP enum, including isVisual()', () => {
     php(`echo json_encode(array_map(
         fn ($c) => [$c->name, $c->value, $c->isVisual()],
         NeuroSYS\\Model\\Embed\\SoundCloudPlayerStyle::cases(),
+    ));`),
+  );
+});
+
+test('TerminalTone mirrors NeuroSYS\\View\\Terminal\\TerminalTone', () => {
+  assert.deepEqual(
+    cases(TerminalTone),
+    php(`echo json_encode(array_map(
+        fn ($c) => [$c->name, $c->value],
+        NeuroSYS\\View\\Terminal\\TerminalTone::cases(),
     ));`),
   );
 });

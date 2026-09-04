@@ -31,6 +31,7 @@ neurosys/
 │   ├── Service/         ← Auth, ReleaseRepository, ProfileRepository, DownloadLogger…
 │   ├── Support/         ← Collection<T>, SearchableCollection<T>, Route, JsonDeserializable
 │   ├── View/            ← one View class per page; HTML lives here as heredoc strings
+│   │   └── Terminal/    ← Terminal, TerminalField, TerminalTone — declared, not written out
 │   ├── Layout.php       ← full HTML shell (nav, footer, scripts)
 │   └── Router.php       ← URL → Controller mapper
 │

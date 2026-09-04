@@ -45,7 +45,9 @@ class ReleasesView extends View
         return <<<HTML
             <section class="page-section">
               <h2 class="page-heading">releases</h2>
+              <release-list>
             $cards
+              </release-list>
             </section>
             HTML;
     }

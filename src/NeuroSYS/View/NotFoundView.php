@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalField;
+use NeuroSYS\View\Terminal\TerminalTone;
+
 /**
  * The NotFoundView class. Renders the 404 error page.
  */
@@ -20,15 +24,16 @@ class NotFoundView extends View
 
     public function content(): string
     {
-        $path = htmlspecialchars($this->path);
+        $terminal = new Terminal(
+            label:   'error.log',
+            command: 'find ' . $this->path,
+            fields:  [new TerminalField('error', '404 — not found', TerminalTone::Error)],
+            narrow:  true,
+        )->toElement();
 
         return <<<HTML
             <section class="page-section">
-              <terminal-window label="error.log" narrow>
-                <terminal-command>find $path</terminal-command>
-                <terminal-field><terminal-key error>error</terminal-key>404 — not found</terminal-field>
-                <terminal-cursor></terminal-cursor>
-              </terminal-window>
+              $terminal
               <p class="back-home"><a href="/">← home</a></p>
             </section>
             HTML;

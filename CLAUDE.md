@@ -153,25 +153,50 @@ all the same, so the vocabulary has one place to look rather than existing only 
 | `ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Mirrors the `Embed` interface |
 | `SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client |
 | `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
-| `TerminalWindow.ts` | `<terminal-window label [narrow]>` `<terminal-command>` `<terminal-field>` `<terminal-key [error]>` `<terminal-ok>` `<terminal-cursor>` | none — the title bar and its three lights, the `$` sigil and the cursor glyph are all CSS |
-| `DownloadList.ts` | `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | none — each card wraps a real `<a data-no-spa>` |
-| `ReleaseCard.ts` | `<release-card slug>` `<release-title>` `<release-meta>` | none — the card wraps a real `<a>` |
+| `TerminalWindow.ts` | `<terminal-window label command fields [narrow]>` and the `<terminal-command>` `<terminal-field tone>` `<terminal-key>` `<terminal-value>` `<terminal-cursor>` it builds | builds its whole subtree from a declared `Terminal` |
+| `DownloadList.ts` | `<download-list>` `<download-card format>` `<download-label>` `<download-meta>` | nesting guards only |
+| `ReleaseCard.ts` | `<release-list>` `<release-card slug>` `<release-title>` `<release-meta>` | nesting guards only |
+| `NestedElement.ts` | — (abstract) | refuses to connect outside the element it belongs inside |
 
 What stays native is what carries meaning or behaviour the browser provides: `<a>`, `<button>`,
 `<h1>`/`<h2>`, `<img>`, `<p>`, `<section>`. The card tags wrap their anchors rather than replacing
 them, so links keep working without JS, keyboard access is unchanged, and `data-no-spa` still lands on
-a real `<a>`; both wrappers are `display: contents`, so the anchor is still the card to layout.
+a real `<a>`; the wrappers are `display: contents`, so the anchor is still the card to layout. That is
+also why `DownloadList` and `ReleaseList` build nothing and never will — what they wrap has to be
+server-rendered, so they carry a name and a guard, and no more.
+
+**Every tag that isn't a root extends `NestedElement`**, which walks up from itself looking for an
+instance of the element it belongs inside and refuses to connect if it doesn't find one. That is the
+implementation those classes have instead of being empty: `<terminal-key>` loose in a page is the same
+silent failure as a misspelled tag, and now it says so. The check is "somewhere inside" rather than
+"directly under", because a card's tags sit inside the anchor. Note that a throw in
+`connectedCallback` does not reach whoever inserted the element — the browser reports it as an
+uncaught error instead, which is loud enough to notice and is how the tests capture it.
 
 Two consequences of self-containment worth knowing:
 
-- **With JS off, `<cover-art>` and `<player-consent>` are empty.** The CSS still reserves both boxes,
-  so nothing reflows when the script lands, but a no-JS visitor gets no cover image and an empty
-  player frame. Everything else — links, navigation, downloads, all text — works as before. Put a
-  `<noscript><img …></noscript>` inside `<cover-art>` if that trade is not worth it.
+- **With JS off, the self-building elements are empty — and that now includes real content.** A no-JS
+  visitor gets no cover image, an empty player frame, and no terminal: no bpm, key or genre on a
+  release, and no error line on a 404. Links, navigation, downloads, titles, taglines and the privacy
+  and imprint pages are all unaffected, and the CSS still reserves every box so nothing reflows when
+  the script lands. This is the accumulated cost of building markup client-side, and it is worth
+  re-reading whenever another fragment moves. A `<noscript>` inside `<terminal-window>` and
+  `<cover-art>`, carrying the same content, buys it back for the price of rendering it twice.
 - **The consent notice is written by the element**, not the server. That is still sound: the transfer
   it warns about can only be triggered by a click, a click needs the script, and the script writes the
   notice. The provider is the element — `<soundcloud-player>` knows it is SoundCloud — and the wording
   is asserted in `test/js/soundcloud-player.test.mjs`, where it is written.
+
+### The terminal
+
+`ReleaseView::heroSection()` declares a `Terminal` — a label, a command line and typed
+`TerminalField` rows — and emits one tag. `<terminal-window>` builds the command, every row and the
+cursor. The rows cross as JSON in an attribute, which is the only shape that stays generic across a
+release's five metadata rows and a 404's single error line.
+
+`TerminalTone` decides how a row reads, and the stylesheet decides which half of it that colours:
+`ok` accents the value, `error` accents the key. The tone is on the row rather than on one half of
+it, so that stays a styling decision.
 
 ### The embed, and the mirrored enums
 
@@ -185,10 +210,10 @@ subclass, and nothing else.
 That means the server's output carries no SoundCloud address at all, which is a stronger version of
 the old guarantee: there is nothing for a browser to preconnect or prefetch before the visitor agrees.
 
-Building the URL client-side needs the query keys client-side, so `assets/ts/model/` mirrors three
-enums — `Platform` (with `displayName()`), `SoundCloudOption` and `SoundCloudPlayerStyle` (with
-`isVisual()`). Only those three: nothing here reads `Genre`, `MusicalKey` or `ReleaseFormat`, and a
-mirror with no reader is just something to keep in sync.
+Building the URL client-side needs the query keys client-side, so `assets/ts/model/` mirrors four
+enums — `Platform` (with `displayName()`), `SoundCloudOption`, `SoundCloudPlayerStyle` (with
+`isVisual()`) and `TerminalTone`. Only what is read here: nothing client-side touches `Genre`,
+`MusicalKey` or `ReleaseFormat`, and a mirror with no reader is just something to keep in sync.
 
 **A mirror is a second copy of a fact, so it is tested.** `test/js/enum-parity.test.mjs` compares each
 one against its PHP original — name, backing value, and the accessors the client mirrors — in

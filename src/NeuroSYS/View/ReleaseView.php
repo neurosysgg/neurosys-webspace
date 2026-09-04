@@ -6,6 +6,9 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalField;
+use NeuroSYS\View\Terminal\TerminalTone;
 
 /**
  * The ReleaseView class. Renders the detail page for a single release.
@@ -39,26 +42,26 @@ class ReleaseView extends View
     /** Builds the hero section with terminal metadata and cover art. */
     private function heroSection(): string
     {
-        $title       = htmlspecialchars($this->release->title);
-        $bpm         = $this->release->bpm;
-        $key         = htmlspecialchars($this->release->key->value);
-        $genre       = htmlspecialchars($this->release->genre->value);
-        $coverSrc    = htmlspecialchars($this->release->cover?->url() ?? self::COVER_PLACEHOLDER);
-        $alt         = htmlspecialchars($this->release->title . ' cover art');
+        $release  = $this->release;
+        $terminal = new Terminal(
+            label:   'release.log',
+            command: './release --track "' . $release->title . '"',
+            fields:  [
+                new TerminalField('artist', 'neuro.SYS'),
+                new TerminalField('bpm', (string) $release->bpm),
+                new TerminalField('key', $release->key->value),
+                new TerminalField('genre', $release->genre->value),
+                new TerminalField('status', 'ready', TerminalTone::Ok),
+            ],
+        )->toElement();
+
+        $coverSrc    = htmlspecialchars($release->cover?->url() ?? self::COVER_PLACEHOLDER);
+        $alt         = htmlspecialchars($release->title . ' cover art');
         $placeholder = self::COVER_PLACEHOLDER;
 
         return <<<HTML
             <section class="hero">
-              <terminal-window label="release.log">
-                <terminal-command>./release --track "$title"</terminal-command>
-                <terminal-field><terminal-key>artist</terminal-key>neuro.SYS</terminal-field>
-                <terminal-field><terminal-key>bpm</terminal-key>$bpm</terminal-field>
-                <terminal-field><terminal-key>key</terminal-key>$key</terminal-field>
-                <terminal-field><terminal-key>genre</terminal-key>$genre</terminal-field>
-                <terminal-field><terminal-key>status</terminal-key><terminal-ok>ready</terminal-ok></terminal-field>
-                <terminal-cursor></terminal-cursor>
-              </terminal-window>
-
+              $terminal
               <cover-art src="$coverSrc" fallback="$placeholder" alt="$alt"></cover-art>
             </section>
             HTML;

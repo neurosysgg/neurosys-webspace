@@ -206,6 +206,7 @@ a {
 
 /* The wrappers name the fragment and nothing else; the anchor inside is still the
    card, so they are display: contents and add no box of their own. */
+release-list,
 release-card,
 download-card {
   display: contents;
@@ -288,6 +289,7 @@ terminal-window {
   }
 }
 
+/* The window builds all of these; a view only ever writes <terminal-window> itself. */
 terminal-command,
 terminal-field,
 terminal-cursor {
@@ -312,17 +314,18 @@ terminal-cursor::after {
 terminal-field {
   color: var(--muted);
   padding-left: 1.1rem;
+
+  /* The tone lands on the row, and which half of it takes the accent is a styling decision rather
+     than a markup one — ok reads as a value, error reads as a label. See TerminalTone. */
+  &[tone="ok"] terminal-value { color: var(--accent); }
+  &[tone="error"] terminal-key { color: var(--accent-2); }
 }
 
 terminal-key {
   display: inline-block;
   min-width: 8ch;
   color: var(--fg);
-
-  &[error] { color: var(--accent-2); }
 }
-
-terminal-ok { color: var(--accent); }
 
 @keyframes blink { 50% { opacity: 0; } }
 

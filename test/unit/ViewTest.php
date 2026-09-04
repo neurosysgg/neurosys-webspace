@@ -215,8 +215,10 @@ final class ViewTest extends TestCase
      * error anywhere, so a typo in a tag name is invisible. This pins the set: adding an element
      * means adding it here, and misspelling one fails.
      *
-     * Every tag is registered in assets/ts/elements/; the verify script checks the other
-     * direction, that each registered one appears in the markup of a page that should carry it.
+     * Note what is *not* in this list. <terminal-command>, <terminal-field>, <terminal-key>,
+     * <terminal-value> and <terminal-cursor> are all real, registered elements — the server just
+     * never writes one. <terminal-window> builds its whole subtree, so a view declares a Terminal
+     * and emits one tag. The verify script checks that every tag reaching the browser is registered.
      */
     public function testTheViewsEmitOnlyKnownCustomElements(): void
     {
@@ -239,9 +241,8 @@ final class ViewTest extends TestCase
         self::assertSame(
             [
                 'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
-                'release-card', 'release-meta', 'release-title', 'soundcloud-player',
-                'terminal-command', 'terminal-cursor', 'terminal-field', 'terminal-key',
-                'terminal-ok', 'terminal-window',
+                'release-card', 'release-list', 'release-meta', 'release-title',
+                'soundcloud-player', 'terminal-window',
             ],
             $tags,
         );
