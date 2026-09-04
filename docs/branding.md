@@ -1,7 +1,7 @@
 # Brand assets and profile links
 
 Profile links live in the footer. They are **plain hyperlinks to locally vendored icons** — nothing is requested from
-Spotify, Apple, YouTube or GitHub until a visitor actually clicks.
+Spotify, Apple, YouTube, X or GitHub until a visitor actually clicks.
 
 ## Why the icons are vendored
 
@@ -52,13 +52,25 @@ from our own origin, so a hostile SVG would run in our security context.
   It's a wide 140.62 × 41 asset, so it renders slightly taller (30px) than the square marks to match their optical weight.
 - **YouTube** — the logo or icon may be made into a link **only** when the destination is a YouTube channel. That's
   exactly our case, so it's permitted.
+- **X** — use the official X mark from the brand toolkit, in black or white only; it must not be recoloured, restyled or
+  redrawn. On our `--bg` that means the white variant. Don't substitute the old bird mark.
 - **GitHub** — permissive for linking; use the official mark unmodified in shape.
 
-## Outstanding: YouTube
+## Outstanding: YouTube and X
 
-Not vendored. YouTube's assets sit behind the JS app at <https://brand.youtube/> and aren't fetchable programmatically —
-download the icon there and save it as `public/assets/img/brand/youtube.svg`, then fill in `Platform::YouTube`'s
-`iconSrc()`. Until then the YouTube link is skipped even if `data/profiles.php` has a URL for it.
+Both have their profile URL set in `data/profiles.php` already, but **neither icon is vendored**, so
+`ProfileRepository::all()` skips them and nothing renders broken. Each needs the same two steps:
+
+| Platform | Get the asset from | Save as | Then |
+|---|---|---|---|
+| YouTube | <https://brand.youtube/> — JS app, not fetchable programmatically | `public/assets/img/brand/youtube.svg` | fill in `Platform::YouTube`'s `iconSrc()` |
+| X | <https://about.x.com/en/who-we-are/brand-toolkit> | `public/assets/img/brand/x.svg` | fill in `Platform::X`'s `iconSrc()` |
+
+Take the **white** variant of each — our `--bg` is dark, and both sets of guidelines restrict recolouring. Check the file
+for `<script>`, event handlers and external references before committing, as with every other vendored asset. The links
+appear in the footer the moment `iconSrc()` returns a path.
+
+Until then the footer shows GitHub only (Spotify and Apple Music are waiting on DistroKid delivery).
 
 ## Not covered here
 

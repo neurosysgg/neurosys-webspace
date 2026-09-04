@@ -14,6 +14,7 @@ enum Platform: string
     case Spotify    = 'spotify';
     case AppleMusic = 'apple-music';
     case YouTube    = 'youtube';
+    case X          = 'x';
     case GitHub     = 'github';
 
     /** Returns the accessible link label, worded per each platform's brand guidelines. */
@@ -23,6 +24,7 @@ enum Platform: string
             self::Spotify    => 'Listen on Spotify',
             self::AppleMusic => 'Listen on Apple Music',
             self::YouTube    => 'Watch on YouTube',
+            self::X          => 'Follow on X',
             self::GitHub     => 'GitHub',
         };
     }
@@ -35,6 +37,7 @@ enum Platform: string
             self::AppleMusic => '/assets/img/brand/apple-music-badge.svg',
             self::GitHub     => '/assets/img/brand/github.svg',
             self::YouTube    => '', // not vendored — see docs/branding.md
+            self::X          => '', // not vendored — see docs/branding.md
         };
     }
 
