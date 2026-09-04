@@ -75,19 +75,18 @@ final class SecurityHeaders
      * `script-src` is strict — there are no inline handlers or inline scripts left in any view,
      * which is the directive that actually blocks XSS.
      *
-     * `style-src` keeps {@link CspKeyword::UnsafeInline}, deliberately:
-     * {@link \NeuroSYS\Model\Embed\SoundCloudEmbed} reproduces SoundCloud's attribution markup
-     * verbatim, inline `style` attributes and all, and that markup is injected once the consent
-     * gate is clicked. Dropping the allowance would mean rewriting their furniture, which is
-     * exactly what that class exists not to do. Our own markup carries no inline styles — a test
-     * enforces that — so this covers only the reproduced block.
+     * `style-src` is strict too. It carried {@link CspKeyword::UnsafeInline} for as long as
+     * SoundCloud's attribution block was reproduced as HTML with inline `style` attributes. That
+     * block is built by `<soundcloud-player>` now, which sets the same properties through the
+     * CSSOM — element.style, which CSP does not govern — so the styling is unchanged and the
+     * allowance has nothing left to cover. Nothing else emits an inline style; a test enforces it.
      */
     public static function contentSecurityPolicy(): ContentSecurityPolicy
     {
         return new ContentSecurityPolicy()
             ->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
-            ->allow(CspDirective::StyleSrc, CspKeyword::SelfOrigin, CspKeyword::UnsafeInline)
+            ->allow(CspDirective::StyleSrc, CspKeyword::SelfOrigin)
             ->allow(
                 CspDirective::ImgSrc,
                 CspKeyword::SelfOrigin,

@@ -349,6 +349,7 @@ echo "=== Security headers ==="
 
 check_header "Content-Security-Policy is sent"        "$BASE/"             "^content-security-policy:"
 check_header "  script-src is strict"                 "$BASE/"             "script-src 'self'"
+check_header "  style-src is strict too"                "$BASE/"             "style-src 'self';"
 check_header "  only HiDrive may serve images"        "$BASE/"             "img-src 'self' data: https://my.hidrive.com"
 check_header "  only SoundCloud may be framed"        "$BASE/"             "frame-src https://w.soundcloud.com"
 check_header "  the site may not be framed"           "$BASE/"             "frame-ancestors 'none'"

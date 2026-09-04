@@ -79,8 +79,9 @@ including the 401 `Auth` exits with and the 303 a download redirects with. Every
 header the browser silently drops. `CspHost` validates it got a bare origin, the way `HiDriveLink`
 validates a share id. The CSP allows images only from
 HiDrive and frames only from SoundCloud; `script-src` is strict, and no view emits an inline style or event
-handler (a test enforces that). `style-src` keeps `'unsafe-inline'` solely because `SoundCloudEmbed`
-reproduces SoundCloud's attribution markup verbatim.
+handler (a test enforces that). `style-src` is strict too: it carried `'unsafe-inline'` only for
+SoundCloud's attribution markup, and `<soundcloud-player>` sets those properties through the CSSOM
+instead — same styling, nothing for the allowance to cover.
 
 The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405 and `Allow: GET, HEAD`.
 

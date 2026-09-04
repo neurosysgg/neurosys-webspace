@@ -76,9 +76,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   registers appears in the served markup. The two together catch a rename on either side.
 - **The consent gate reserves the player's height.** `Embed::height()` feeds `--player-height`, so the
   placeholder and the real iframe are the same size and the page doesn't jump.
-- **No view emits an inline style or event handler.** The CSP's `style-src` allowance exists only for the
-  SoundCloud attribution markup we reproduce verbatim; a test keeps that allowance from quietly covering
-  our own markup too.
+- **No view emits an inline style or event handler, and `style-src` has no `'unsafe-inline'`.** The
+  allowance existed only for SoundCloud's attribution markup; that block is built through the CSSOM
+  now, so it went away. Two assertions keep it away — one on the policy, one on the views.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.

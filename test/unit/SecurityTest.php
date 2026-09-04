@@ -164,9 +164,19 @@ final class SecurityTest extends TestCase
     }
 
     /**
-     * `style-src` keeps 'unsafe-inline' only because SoundCloudEmbed reproduces SoundCloud's
-     * attribution markup verbatim. If our *own* views ever grow an inline style, that
-     * justification stops being the whole story — so assert they still have none.
+     * The allowance is gone, and this is what keeps it gone. Reintroducing an inline style
+     * anywhere would fail the test below rather than quietly get a directive loosened for it.
+     */
+    public function testStyleSrcIsStrict(): void
+    {
+        self::assertStringContainsString("style-src 'self'", self::policy());
+        self::assertStringNotContainsString("'unsafe-inline'", self::policy());
+    }
+
+    /**
+     * `style-src` carried 'unsafe-inline' until SoundCloud's attribution block moved into
+     * <soundcloud-player>, which sets the same properties through the CSSOM instead. Nothing may
+     * put the allowance back by needing it, so assert the views still emit no inline style.
      */
     public function testNoViewEmitsAnInlineStyleOrEventHandler(): void
     {
