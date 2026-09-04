@@ -19,6 +19,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ReleaseRepository::class)]
 #[CoversClass(ProfileRepository::class)]
+#[CoversClass(Profile::class)]
 #[CoversClass(DownloadLogger::class)]
 #[CoversClass(DownloadLogEntry::class)]
 final class ServiceTest extends TestCase
@@ -219,5 +220,19 @@ final class ServiceTest extends TestCase
         $entry = new DownloadLogEntry('t', 'ill', 'flac', 'https://example.test/a/b');
 
         self::assertStringContainsString('https://example.test/a/b', (string) $entry);
+    }
+
+    /**
+     * All a Profile carries is the pairing: the footer asks the platform for its own label, icon
+     * and height. It replaced an `['platform' => …, 'url' => …]` array shape, which is a value
+     * object nobody named — nothing checked the keys, and a caller destructuring it wrongly got
+     * null rather than an error.
+     */
+    public function testAProfileCarriesItsPlatformAndUrl(): void
+    {
+        $profile = new Profile(Platform::SoundCloud, 'https://soundcloud.com/' . Config::HANDLE);
+
+        self::assertSame(Platform::SoundCloud, $profile->platform);
+        self::assertSame('https://soundcloud.com/' . Config::HANDLE, $profile->url);
     }
 }

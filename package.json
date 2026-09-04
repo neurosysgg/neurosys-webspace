@@ -8,7 +8,8 @@
         "build:css": "node tools/build-css.mjs",
         "watch": "tsc --watch",
         "check": "tsc --noEmit",
-        "test": "node --test"
+        "test": "node --test",
+        "coverage": "node --test --experimental-test-coverage --test-coverage-include='public/assets/js/**' --test-coverage-include-all --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100"
     },
     "devDependencies": {
         "jsdom": "^30.0.1",

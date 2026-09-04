@@ -19,11 +19,25 @@ import { dirname, resolve } from 'node:path';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-const dom = new JSDOM('<!doctype html><html><body></body></html>', { url: 'https://neurosys.gg/' });
+/**
+ * The shell Layout.php emits, reduced to the part the scripts look for.
+ *
+ * <main id="content"> is here because Navigation.forDocument() returns null without it and
+ * main.js's `?.start()` then wires nothing — so a DOM without it silently tests the SPA switched
+ * off, which is the one state no real page is ever in.
+ */
+const dom = new JSDOM(
+  '<!doctype html><html><body><main id="content"></main></body></html>',
+  { url: 'https://neurosys.gg/' },
+);
 
+// Element and HTMLAnchorElement are what Navigation narrows a click target with, and history and
+// location are what it navigates through. Node defines none of the four, so leaving them out is
+// not a smaller DOM — it is a ReferenceError the moment a link is clicked.
 for (const name of [
-  'window', 'document', 'HTMLElement', 'customElements', 'DocumentFragment',
-  'Node', 'Event', 'MouseEvent', 'CSSStyleDeclaration',
+  'window', 'document', 'HTMLElement', 'HTMLAnchorElement', 'Element',
+  'customElements', 'DocumentFragment', 'Node', 'Event', 'MouseEvent',
+  'CSSStyleDeclaration', 'history', 'location',
 ]) {
   globalThis[name] = name === 'window' ? dom.window : dom.window[name];
 }

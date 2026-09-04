@@ -183,3 +183,54 @@ test('the Permissions-Policy denies nothing the player asks for', () => {
     );
   }
 });
+
+// ───────────────────────── the gate's own edges ─────────────────────────
+
+/**
+ * The reserved height is what stops the page jumping when the gate becomes the player. It is
+ * carried as an attribute rather than an inline style so the CSP needs no 'unsafe-inline'.
+ */
+test('the gate reserves exactly the height it is given', () => {
+  assert.equal(gated({ height: '300' }).style.getPropertyValue('--player-height'), '300px');
+});
+
+/**
+ * The stylesheet carries its own fallback, so bailing out is safe — setting the property from a
+ * missing attribute would write "undefinedpx", which CSS drops on the floor anyway.
+ */
+test('a player with no height sets no height, rather than an invalid one', () => {
+  for (const height of [undefined, '']) {
+    const el = document.createElement('soundcloud-player');
+    el.setAttribute('track-id', '1');
+    if (height !== undefined) el.setAttribute('height', height);
+    document.body.append(el);
+
+    assert.equal(el.style.getPropertyValue('--player-height'), '');
+    assert.equal(el.getAttribute('style'), null);
+  }
+});
+
+/** connectedCallback fires again if the element is ever moved in the DOM. */
+test('moving a consented player does not put the gate back', () => {
+  const el = loaded();
+
+  document.body.append(el);
+
+  assert.ok(el.querySelector('iframe'));
+  assert.equal(el.querySelector('button'), null);
+});
+
+/**
+ * Every attribute has a `?? ''` behind it, and this is what they are for: a missing one has to
+ * leave a gap in the URL, not the four characters `null`, which SoundCloud would resolve as a
+ * track id and the attribution would link to.
+ */
+test('a player told nothing renders nothing rather than the word null', () => {
+  const el = document.createElement('soundcloud-player');
+  document.body.append(el);
+  el.querySelector('button').click();
+
+  assert.equal(el.innerHTML.includes('null'), false);
+  assert.equal(el.innerHTML.includes('undefined'), false);
+  assert.equal(src(el).includes('null'), false);
+});

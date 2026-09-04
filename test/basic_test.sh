@@ -308,7 +308,22 @@ echo ""
 echo "=== HTTP routes ==="
 
 # Start the built-in dev server in the background; kill it on exit.
-php -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
+#
+# With NEUROSYS_COVERAGE_DIR set, the server runs under Xdebug with tools/coverage-prepend.php
+# loaded, so the checks below contribute to a coverage report instead of being invisible to one.
+# That is the only way the exit-ing auth code, the header() calls and the send() methods are ever
+# measured -- they are a no-op or a different process everywhere else. See `composer coverage`.
+if [[ -n "${NEUROSYS_COVERAGE_DIR:-}" ]]; then
+    mkdir -p "$NEUROSYS_COVERAGE_DIR"
+    # Absolute: the prepend script writes from the server process, whose working directory is
+    # not something this script gets to decide.
+    NEUROSYS_COVERAGE_DIR="$(cd "$NEUROSYS_COVERAGE_DIR" && pwd)"
+    export NEUROSYS_COVERAGE_DIR
+    XDEBUG_MODE=coverage php -d "auto_prepend_file=$REPO/tools/coverage-prepend.php" \
+        -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
+else
+    php -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
+fi
 SERVER_PID=$!
 trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
 

@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Config;
 use NeuroSYS\Controller\DownloadController;
+use NeuroSYS\Controller\HomeController;
+use NeuroSYS\Controller\ImprintController;
 use NeuroSYS\Controller\NotFoundController;
+use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
+use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\RedirectResponse;
@@ -17,7 +22,10 @@ use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\HomeView;
+use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
+use NeuroSYS\View\PrivacyView;
+use NeuroSYS\View\ReleasesView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -30,6 +38,10 @@ use ReflectionProperty;
 #[CoversClass(DownloadController::class)]
 #[CoversClass(ReleaseController::class)]
 #[CoversClass(NotFoundController::class)]
+#[CoversClass(HomeController::class)]
+#[CoversClass(ImprintController::class)]
+#[CoversClass(PrivacyController::class)]
+#[CoversClass(ReleasesController::class)]
 final class ResponseTest extends TestCase
 {
     /** @var array<string, mixed> */
@@ -233,6 +245,71 @@ final class ResponseTest extends TestCase
         $this->tempFiles[] = $file;
 
         return new ReleaseRepository($file);
+    }
+
+    // ───────────────────────── the pages with no parameters ─────────────────────────
+
+    /** Each of these is one line, and the line is which view the route means. */
+    #[DataProvider('staticRouteProvider')]
+    public function testAStaticRouteRendersItsOwnView(string $controller, string $path, string $view): void
+    {
+        $response = new $controller()->handle($this->request($path));
+
+        self::assertInstanceOf(ViewResponse::class, $response);
+        self::assertInstanceOf($view, self::peek($response, 'view'));
+        self::assertSame(HttpStatusCode::Ok, self::peek($response, 'status'));
+    }
+
+    public static function staticRouteProvider(): iterable
+    {
+        yield 'home'     => [HomeController::class, '/', HomeView::class];
+        yield 'imprint'  => [ImprintController::class, '/imprint', ImprintView::class];
+        yield 'privacy'  => [PrivacyController::class, '/privacy', PrivacyView::class];
+        yield 'releases' => [ReleasesController::class, '/releases', ReleasesView::class];
+    }
+
+    /**
+     * `file_get_contents(...) ?: ''` means a policy that has moved renders as a blank page rather
+     * than an error — a privacy policy that silently says nothing. Assert the document arrives.
+     */
+    public function testThePrivacyControllerReadsTheRealPolicyDocument(): void
+    {
+        $response = new PrivacyController()->handle($this->request('/privacy'));
+        $html     = self::peek($response, 'view')->content()->render();
+
+        $lines = array_values(array_filter(
+            array_map(trim(...), explode("\n", (string) file_get_contents(Config::dataPath('privacy.html')))),
+        ));
+
+        // First and last line rather than the whole document: RawHtml is emitted verbatim but the
+        // renderer indents each of its lines, so equality would fail on the whitespace instead of
+        // on what this is about — that the file was read, whole, rather than defaulted to ''.
+        self::assertNotSame([], $lines);
+        self::assertStringContainsString($lines[0], $html);
+        self::assertStringContainsString($lines[array_key_last($lines)], $html);
+        self::assertStringContainsString('HiDrive', $html);
+    }
+
+    /** The catalogue is injectable so a test does not depend on what is released today. */
+    public function testTheCatalogueControllerListsTheReleasesItWasGiven(): void
+    {
+        $response = new ReleasesController($this->stagedCatalogue())->handle($this->request('/releases'));
+
+        $html = self::peek($response, 'view')->content()->render();
+
+        self::assertStringContainsString('staged', $html);
+        self::assertStringNotContainsString('hello-world', $html);
+    }
+
+    /** With none given it reads the real one, which is what the route actually does. */
+    public function testTheCatalogueControllerFallsBackToTheRealCatalogue(): void
+    {
+        $response = new ReleasesController()->handle($this->request('/releases'));
+
+        self::assertStringContainsString(
+            'hello-world',
+            self::peek($response, 'view')->content()->render(),
+        );
     }
 
     // ───────────────────────────── status codes ─────────────────────────────

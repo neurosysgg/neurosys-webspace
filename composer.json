@@ -25,14 +25,23 @@
         ],
         "phpcs": "phpcs",
         "cs-check": "php-cs-fixer check --diff",
-        "cs-fix": "php-cs-fixer fix"
+        "cs-fix": "php-cs-fixer fix",
+        "coverage": [
+            "@putenv XDEBUG_MODE=coverage",
+            "@putenv NEUROSYS_COVERAGE_DIR=build/coverage/e2e",
+            "rm -rf build/coverage",
+            "phpunit --coverage-php build/coverage/unit.cov",
+            "@verify",
+            "php tools/merge-coverage.php build/coverage/unit.cov build/coverage/e2e --clover build/coverage/clover.xml --html build/coverage/html"
+        ]
     },
     "scripts-descriptions": {
         "test": "Unit tests then the end-to-end verify script",
         "unit": "PHPUnit unit tests",
         "verify": "End-to-end verify script (real autoloader, real HTTP, repo hygiene)",
         "lint": "phpcs + php-cs-fixer, both read-only",
-        "cs-fix": "Apply php-cs-fixer's changes"
+        "cs-fix": "Apply php-cs-fixer's changes",
+        "coverage": "Both suites' coverage, merged into one report (build/coverage/html)"
     },
     "config": {
         "sort-packages": true

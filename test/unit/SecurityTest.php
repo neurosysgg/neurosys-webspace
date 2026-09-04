@@ -7,6 +7,7 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
@@ -15,6 +16,7 @@ use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
+use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Router;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\View\NotFoundView;
@@ -26,6 +28,10 @@ use ReflectionProperty;
 
 #[CoversClass(SecurityHeaders::class)]
 #[CoversClass(Router::class)]
+#[CoversClass(Request::class)]
+#[CoversClass(HttpMethod::class)]
+#[CoversClass(Header::class)]
+#[CoversClass(ResponseHeader::class)]
 final class SecurityTest extends TestCase
 {
     /** @var array<string, mixed> */
@@ -301,4 +307,51 @@ final class SecurityTest extends TestCase
      * test/js/soundcloud-player.test.mjs: it reads the real allow= off the real element and checks
      * it against the header this class sends. It did not go away, it moved to what it guards.
      */
+
+    // ───────────────────────── the unmatched path ─────────────────────────
+
+    /**
+     * The fall-through after every route has been tried. A router that returned null here would
+     * hand a null to Response::send(); a 404 is the only answer that is still a response.
+     */
+    public function testAPathNoRouteMatchesFallsThroughToTheNotFoundPage(): void
+    {
+        $response = new Router(RouteInitialization::routes())
+            ->dispatch($this->request('GET', '/no-such-page'));
+
+        self::assertInstanceOf(ViewResponse::class, $response);
+        self::assertSame(
+            HttpStatusCode::NotFound,
+            new ReflectionProperty($response, 'status')->getValue($response),
+        );
+    }
+
+    /** The 404 reports the path that was asked for, and it is the normalised one. */
+    public function testTheNotFoundPageNamesThePathThatWasAskedFor(): void
+    {
+        $response = new Router(RouteInitialization::routes())
+            ->dispatch($this->request('GET', '/no-such-page/'));
+
+        $view = new ReflectionProperty($response, 'view')->getValue($response);
+
+        self::assertInstanceOf(NotFoundView::class, $view);
+        self::assertStringContainsString('/no-such-page', $view->content()->render());
+    }
+
+    /** Every header a response sends is formatted in one place rather than at each header() call. */
+    public function testAHeaderFormatsItselfAsNameColonValue(): void
+    {
+        self::assertSame(
+            'Allow: GET, HEAD',
+            new Header(ResponseHeader::Allow, HttpMethod::allowed())->line(),
+        );
+    }
+
+    /** Each name goes on the wire as its backing value; there is no second spelling anywhere. */
+    public function testEveryResponseHeaderIsNamedAsItGoesOnTheWire(): void
+    {
+        foreach (ResponseHeader::cases() as $header) {
+            self::assertSame($header->value, $header->headerName());
+        }
+    }
 }

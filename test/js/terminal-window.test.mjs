@@ -77,33 +77,53 @@ test('a fields attribute that is not a list of rows reports rather than half-ren
   assert.equal(el.querySelector('terminal-field'), null);
 });
 
-// ───────────────────────── the nesting guard ─────────────────────────
+test('a fields list with a hole in it reports rather than half-rendering', () => {
+  const el = document.createElement('terminal-window');
+  el.setAttribute('command', 'x');
+  el.setAttribute('fields', '[null]');
 
-test('a tag placed outside the element it belongs to says so', () => {
-  const [error] = uncaughtErrors(() => document.body.append(document.createElement('terminal-key')));
+  const [error] = uncaughtErrors(() => document.body.append(el));
 
-  assert.match(error.message, /<terminal-key> must be inside <terminal-field>/);
+  assert.match(error.message, /not a list of rows/);
 });
 
-test('the guard looks through wrappers, not just at the direct parent', () => {
-  // download-label sits inside the <a> that has to stay a real link, not directly in the card.
-  const list = document.createElement('download-list');
-  const card = document.createElement('download-card');
-  const link = document.createElement('a');
-  const label = document.createElement('download-label');
+/**
+ * The server always writes fields, even for a terminal with no rows — but an element that renders
+ * nothing at all when it is missing is the difference between an empty window and a thrown error
+ * on a page that would otherwise have worked.
+ */
+test('a terminal with no fields attribute is an empty terminal, not an error', () => {
+  const el = document.createElement('terminal-window');
+  el.setAttribute('command', './x');
 
-  link.append(label);
-  card.append(link);
-  list.append(card);
-
-  assert.doesNotThrow(() => document.body.append(list));
+  assert.deepEqual(uncaughtErrors(() => document.body.append(el)), []);
+  assert.equal(el.querySelectorAll('terminal-field').length, 0);
+  assert.ok(el.querySelector('terminal-cursor'));
 });
 
-test('the guard still rejects a tag outside the element it belongs to', () => {
-  const link = document.createElement('a');
-  link.append(document.createElement('download-label'));
+test('an empty fields attribute is no rows rather than a parse error', () => {
+  const el = document.createElement('terminal-window');
+  el.setAttribute('fields', '');
 
-  const [error] = uncaughtErrors(() => document.body.append(link));
+  assert.deepEqual(uncaughtErrors(() => document.body.append(el)), []);
+  assert.equal(el.querySelectorAll('terminal-field').length, 0);
+});
 
-  assert.match(error.message, /<download-label> must be inside <download-card>/);
+test('a terminal with no command line still builds the rest', () => {
+  const el = document.createElement('terminal-window');
+  document.body.append(el);
+
+  assert.equal(el.querySelector('terminal-command').textContent, '');
+  assert.ok(el.querySelector('terminal-cursor'));
+});
+
+/** connectedCallback fires again if the element is ever moved in the DOM. */
+test('moving a terminal does not rebuild it', () => {
+  const el     = terminal({ fields: [{ key: 'bpm', value: '140', tone: 'plain' }] });
+  const before = el.querySelector('terminal-field');
+
+  document.body.append(el);
+
+  assert.equal(el.querySelectorAll('terminal-field').length, 1);
+  assert.equal(el.querySelector('terminal-field'), before);
 });

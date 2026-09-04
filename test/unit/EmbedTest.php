@@ -192,4 +192,22 @@ final class EmbedTest extends TestCase
 
         self::assertStringContainsString('permalink="a&quot;b"', $html);
     }
+
+    /**
+     * The `visual` query flag SoundCloud's widget URL carries. It is a property of the layout
+     * rather than a second field, so the two cannot disagree about which player is being asked for.
+     */
+    #[DataProvider('visualProvider')]
+    public function testOnlyTheVisualLayoutSetsTheVisualFlag(
+        SoundCloudPlayerStyle $style,
+        bool $visual,
+    ): void {
+        self::assertSame($visual, $style->isVisual());
+    }
+
+    public static function visualProvider(): iterable
+    {
+        yield 'visual'  => [SoundCloudPlayerStyle::Visual, true];
+        yield 'classic' => [SoundCloudPlayerStyle::Classic, false];
+    }
 }

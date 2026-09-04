@@ -178,4 +178,23 @@ final class SupportTest extends TestCase
         self::assertSame($item, $collection->find('../../etc/passwd'));
         self::assertNull($collection->find('etc/passwd'));
     }
+
+    /**
+     * all() hands back the keyed map rather than a list — the slug is the key, and it is what
+     * ReleasesView iterates to build each card's href.
+     */
+    public function testASearchableCollectionHandsBackItsItemsKeyed(): void
+    {
+        $a = new stdClass();
+        $b = new stdClass();
+
+        $collection = new SearchableCollection(stdClass::class)->with('a', $a)->with('b', $b);
+
+        self::assertSame(['a' => $a, 'b' => $b], $collection->all());
+    }
+
+    public function testAnEmptySearchableCollectionHandsBackAnEmptyArray(): void
+    {
+        self::assertSame([], new SearchableCollection(stdClass::class)->all());
+    }
 }

@@ -22,10 +22,17 @@ class StatsController implements Controller
 {
     private string $logFile;
 
-    /** Constructs an instance of {@link self}. */
-    public function __construct()
+    /**
+     * Constructs an instance of {@link self}.
+     *
+     * @param string|null $logFile The log to read; defaults to the real one. Injectable for the
+     *                             same reason {@link ReleasesController}'s repository is — the
+     *                             parser is the only logic here, and it needs a log it can be
+     *                             given rather than the one this machine happens to have.
+     */
+    public function __construct(?string $logFile = null)
     {
-        $this->logFile = Config::downloadLog();
+        $this->logFile = $logFile ?? Config::downloadLog();
     }
 
     public function handle(Request $request): Response

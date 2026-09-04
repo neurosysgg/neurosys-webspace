@@ -5,8 +5,12 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Exception\MarkupException;
+use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
+use NeuroSYS\View\Html\AttributeName;
+use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\CssClass;
+use NeuroSYS\View\Html\LinkAttribute;
 use NeuroSYS\View\Html\Doctype;
 use NeuroSYS\View\Html\Document;
 use NeuroSYS\View\Html\Element;
@@ -18,6 +22,7 @@ use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Html\Text;
 use NeuroSYS\View\Terminal\TerminalAttribute;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -35,6 +40,12 @@ use RecursiveIteratorIterator;
 #[CoversClass(HtmlTag::class)]
 #[CoversClass(HtmlAttribute::class)]
 #[CoversClass(CssClass::class)]
+#[CoversClass(Tag::class)]
+#[CoversClass(CardAttribute::class)]
+#[CoversClass(CoverArtAttribute::class)]
+#[CoversClass(LinkAttribute::class)]
+#[CoversClass(TerminalAttribute::class)]
+#[CoversClass(SoundCloudPlayerAttribute::class)]
 final class HtmlTest extends TestCase
 {
     // ───────────────────────────── attributes ─────────────────────────────
@@ -114,6 +125,86 @@ final class HtmlTest extends TestCase
         $empty->containing('x');
 
         self::assertSame('<cover-art></cover-art>', $empty->render());
+    }
+
+    /**
+     * A backed enum stands for its value, so a call site passes CssClass::Bang rather than
+     * remembering ->value — one fewer thing to get right at twenty call sites.
+     */
+    public function testABackedEnumValueRendersAsItsBackingValue(): void
+    {
+        self::assertSame(
+            '<p class="bang"></p>',
+            new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, CssClass::Bang)->render(),
+        );
+    }
+
+    /** An enum value is escaped on the same path a string is; nothing gets in around it. */
+    public function testABackedEnumValueGoesThroughTheSameEscaping(): void
+    {
+        $enum = new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, CssClass::Bang)->render();
+        $text = new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, 'bang')->render();
+
+        self::assertSame($text, $enum);
+    }
+
+    // ───────────────────────── the names themselves ─────────────────────────
+
+    /**
+     * Every attribute name is a case rather than a string typed out at each call site, and
+     * {@link AttributeName} is what lets {@link Element} take any of them without knowing which
+     * element it is building. A name that renders as something other than its backing value would
+     * be a silent null on the client, so assert the two are the same thing.
+     */
+    #[DataProvider('attributeNameProvider')]
+    public function testAnAttributeNameRendersAsItsBackingValue(AttributeName&\BackedEnum $name): void
+    {
+        self::assertSame($name->value, $name->attribute());
+        self::assertStringContainsString(
+            $name->attribute() . '="x"',
+            new Element(HtmlTag::P)->attr($name, 'x')->render(),
+        );
+    }
+
+    public static function attributeNameProvider(): iterable
+    {
+        foreach (
+            [
+                CardAttribute::class,
+                CoverArtAttribute::class,
+                LinkAttribute::class,
+                TerminalAttribute::class,
+                SoundCloudPlayerAttribute::class,
+                HtmlAttribute::class,
+            ] as $enum
+        ) {
+            foreach ($enum::cases() as $case) {
+                yield $enum . '::' . $case->name => [$case];
+            }
+        }
+    }
+
+    /**
+     * A custom element the browser has never heard of renders as an inert inline box with no error
+     * anywhere, so the tag name is a contract with `assets/ts/elements/` that fails in silence.
+     */
+    public function testEveryCustomTagRendersAsItsBackingValue(): void
+    {
+        foreach (Tag::cases() as $tag) {
+            self::assertSame($tag->value, $tag->tagName());
+            self::assertSame("<{$tag->value}></{$tag->value}>", new Element($tag)->render());
+        }
+    }
+
+    /**
+     * Never void. A custom element with no closing tag is a parse error the browser recovers from
+     * by swallowing everything after it, which is about as quiet as a failure gets.
+     */
+    public function testNoCustomTagIsVoid(): void
+    {
+        foreach (Tag::cases() as $tag) {
+            self::assertFalse($tag->isVoid(), "<{$tag->value}> would render without a closing tag");
+        }
     }
 
     // ───────────────────────────── content ─────────────────────────────

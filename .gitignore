@@ -30,3 +30,6 @@ data/.site_auth.php
 
 # phpactor writes this on first attach; editor state, not project config
 .phpactor.json
+
+# Merged coverage reports (composer coverage)
+/build/

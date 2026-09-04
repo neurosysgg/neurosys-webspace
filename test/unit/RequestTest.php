@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\RequestHeader;
+use NeuroSYS\Http\RequestedWith;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(Request::class)]
+#[CoversClass(RequestHeader::class)]
+#[CoversClass(RequestedWith::class)]
 final class RequestTest extends TestCase
 {
     /** @var array<string, mixed> */
@@ -165,5 +169,55 @@ final class RequestTest extends TestCase
 
         self::assertSame('', $request->authUser());
         self::assertSame('', $request->authPassword());
+    }
+
+    // ───────────────────── the header that asks for a fragment ─────────────────────
+
+    /**
+     * The worst name on the site to get wrong. Drift on either side and the server answers a SPA
+     * fetch with a whole document, which Navigation then writes into <main> — a page broken in a
+     * way nothing reports. `assets/ts/model/RequestHeader.ts` mirrors this and the parity test
+     * compares them; what belongs here is that the wire name is the value.
+     */
+    public function testTheRequestedWithHeaderIsNamedAsItGoesOnTheWire(): void
+    {
+        self::assertSame('X-Requested-With', RequestHeader::RequestedWith->headerName());
+        self::assertSame(RequestHeader::RequestedWith->value, RequestHeader::RequestedWith->headerName());
+    }
+
+    /**
+     * fromGlobals() derives the $_SERVER key from the case rather than retyping it, because that
+     * transform is PHP's rather than ours. This is the derivation, spelled out once.
+     */
+    public function testTheServerKeyIsDerivedFromTheHeaderName(): void
+    {
+        self::assertSame(
+            'HTTP_X_REQUESTED_WITH',
+            'HTTP_' . str_replace('-', '_', strtoupper(RequestHeader::RequestedWith->headerName())),
+        );
+    }
+
+    /**
+     * The header is conventional rather than standard and libraries disagree on its casing, so
+     * the rule lives on the enum instead of as a strtolower() at the one call site that
+     * remembers it.
+     */
+    #[DataProvider('requestedWithProvider')]
+    public function testTheRequestedWithValueIsMatchedWhateverCaseItArrivesIn(
+        string $header,
+        bool $expected,
+    ): void {
+        self::assertSame($expected, RequestedWith::XmlHttpRequest->matches($header));
+    }
+
+    public static function requestedWithProvider(): iterable
+    {
+        yield 'as sent'    => ['XMLHttpRequest', true];
+        yield 'lower'      => ['xmlhttprequest', true];
+        yield 'mixed'      => ['XmlHttpRequest', true];
+        yield 'upper'      => ['XMLHTTPREQUEST', true];
+        yield 'fetch'      => ['fetch', false];
+        yield 'empty'      => ['', false];
+        yield 'substring'  => ['not-XMLHttpRequest', false];
     }
 }

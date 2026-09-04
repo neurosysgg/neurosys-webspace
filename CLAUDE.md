@@ -31,6 +31,7 @@ the TypeScript. Neither is needed just to serve the site.
 composer test      # unit tests, then the end-to-end verify script
 composer unit      # PHPUnit only
 composer verify    # bash test/basic_test.sh only
+composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 ```
 
@@ -38,10 +39,31 @@ Two suites that cover different things — `test/unit/` for logic and edge cases
 for the real autoloader, real HTTP, `exit`-ing auth code and repo hygiene. See `docs/testing.md` for
 the split and for the invariants that exist to stop specific mistakes recurring.
 
+`composer coverage` merges them, because separately neither number means much: PHPUnit cannot see
+`header()` (a no-op under CLI) or anything past an `exit`, so the 401, the 303 and the 405 read as
+untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
+the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
+its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.72% of
+lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
+
+**A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
+same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
+that ends the request cannot be asserted against, so everything worth asserting lives beside it
+rather than inside it. That split is why `AdminTest` exists — before it, the credential comparison
+had never executed under either suite, because the placeholder `data/admin.php` short-circuits it.
+
 ```bash
 npm test           # node --test — the elements and the enum mirrors
+npm run coverage   # the same, with coverage held at 100%
 npm run check      # tsc --noEmit
 ```
+
+`npm run coverage` is a gate rather than a report: its thresholds are 100 for lines, branches and
+functions, so a branch nothing exercises fails the command. That is affordable here and nowhere
+else — `assets/ts/` is forty small files with one job each. It runs with
+`--test-coverage-include-all`, the front end's version of the `#[CoversClass]` trap: without it a
+module nothing imports is not reported as uncovered, it is not reported at all.
 
 The verify script runs the client-side tests too, type-checks `assets/ts/`, and asserts the committed
 JS is current with it. All three are skipped with a printed NOTE when `npm install` has never been run,

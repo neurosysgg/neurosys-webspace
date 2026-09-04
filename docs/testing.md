@@ -12,8 +12,10 @@ runs both — unit tests first, then the verify script. Or separately:
 ```bash
 composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
+composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 npm test           # node --test, the elements and the enum mirrors
+npm run coverage   # node --test with coverage, held at 100%
 npm run check      # tsc --noEmit, the front end on its own
 ```
 
@@ -34,6 +36,9 @@ The division matters in a few concrete places:
 
 - **`Auth::requireSiteAuth()` / `requireAdminAuth()` call `exit`.** A unit test can't observe that
   without process isolation, so the verify script asserts `/admin/stats` really returns 401 over HTTP.
+  The *decision* is a different matter and is unit-tested: `Auth::accepts()` is public and returns a
+  bool, so `AdminTest` can ask it about a wrong password without the answer ending the process. That
+  split is the same one `SecurityHeaders` makes between `headers()` and `send()`, for the same reason.
 - **`autoload.php` uses the `|>` pipe operator**, which is a parse error below PHP 8.5. PHPUnit never
   touches that file (it boots from Composer), so the verify script exercises it directly and checks
   every class under `src/` actually resolves through it.
@@ -56,8 +61,29 @@ The division matters in a few concrete places:
 Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_ROOT` is defined by
 `test/bootstrap.php` if you need the real data files.
 
-Files are grouped by layer, not one-per-class: `ModelTest`, `EmbedTest`, `ViewTest`, `ServiceTest`,
-`SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`.
+Files are grouped by layer, not one-per-class: `ModelTest`, `EmbedTest`, `HtmlTest`, `ViewTest`,
+`PageTest`, `ServiceTest`, `SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `ConfigTest`,
+`SecurityTest`, `SecurityPolicyTest`, `AdminTest`.
+
+Two of those are named for a path rather than a layer, because that is what they are about: `PageTest`
+covers the pages that are only content — the home hero, the imprint, the privacy policy — and
+`AdminTest` covers the gate and the log it protects.
+
+## Adding a front-end test
+
+Drop a `*.test.mjs` into `test/js/` and import `./dom.mjs` first — it builds the JSDOM, installs the
+globals and loads the real `main.js`, so every element is registered by the same list the browser
+uses. Import a module directly only for what `main.js` does not expose: `Navigation`, and the
+mirrored enums.
+
+`dom.mjs`'s document is `<main id="content">`, which is not decoration. Without it
+`Navigation.forDocument()` returns null and `main.js`'s `?.start()` wires nothing, so a DOM missing
+it silently tests the SPA switched off — the one state no real page is ever in. It also installs
+`Element`, `HTMLAnchorElement`, `history` and `location`, which Node does not define and Navigation
+needs the moment a link is clicked.
+
+The files are `soundcloud-player`, `terminal-window`, `cover-art`, `nesting`, `navigation`,
+`vocabulary` and `enum-parity`.
 
 ## Invariants worth keeping green
 
@@ -73,6 +99,27 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   builds a `Release`, calls `with()` on its formats and asserts the release still has one.
 - **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
+- **A wrong admin password is refused.** This one had never run. `data/admin.php` ships with an empty
+  `pass_hash`, so `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()`
+  nor `password_verify()` is reached — which means the verify script's two `/admin/stats → 401`
+  checks prove the route is gated without ever comparing a credential. `AdminTest` supplies a real
+  bcrypt hash (cost 4, so the suite stays fast) and walks a dozen near-misses past it: wrong case,
+  a prefix of the right password, the right password with a character appended.
+- **An unconfigured gate is closed, not open.** An empty `pass_hash` accepts nobody, including
+  somebody sending an empty password. `password_verify()` against an empty hash is false anyway, so
+  the explicit guard is documentation rather than behaviour — and the test asserts the behaviour, so
+  it holds whichever of the two is doing the work.
+- **A truncated log line costs that line and nothing else.** The downloads log is append-only and a
+  crash can cut it mid-write, so `parseLog()` skips what `DownloadLogEntry::fromJson()` rejects
+  rather than failing the page that reads it — the only place anyone would find out.
+- **The imprint states one address, four times.** It is a legal document, and one built from four
+  copies of an address is one with a wrong address eventually. `PageTest` asserts the four rendered
+  blocks are byte-identical, not merely present.
+- **Every asset path resolves to a file, and every third-party origin is one the CSP accepts.**
+  A mistyped `Config::STYLESHEET` is a 404 that renders an unstyled page with nothing in a log; an
+  origin carrying a path is a CSP directive the browser drops while the URLs built from it stay
+  valid. `ConfigTest` walks both sets — the asset paths against `public/`, the origins through
+  `CspHost`, which is the same class the policy validates them with.
 - **Download cards carry `data-no-spa`.** Without it `Navigation` fetches the 303 and swallows it, and
   downloads silently stop working while every page still looks fine.
 - **The set of custom elements is closed.** An element the browser has never heard of renders as an
@@ -93,9 +140,29 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   `vocabulary.test.mjs` reads the tags out of `assets/ts/elements/` and asserts each one is
   registered once the real `main.js` has loaded. It also pins the file layout: one
   `customElements.define` per module, and a module named for the class it exports.
-- **A tag outside the element it belongs inside says so.** `NestedElement` is what the otherwise
-  behaviourless classes do; `terminal-window.test.mjs` asserts both that it fires and that it looks
-  through the card anchors rather than only at the direct parent.
+- **A tag outside the element it belongs inside says so — every one of them.** `NestedElement` is
+  what the otherwise behaviourless classes do, so `nesting.test.mjs` checks it for all eleven rather
+  than the two that happened to have a test. The pairings are not restated there: each tag is asked
+  where it belongs by being put somewhere it is not, and the answer is read off the error message,
+  so adding a nested element covers it automatically. It also asserts the guard looks through the
+  card anchors rather than only at the direct parent, and that the message names tags rather than
+  class names on both sides.
+- **A download link is left to the browser.** The `data-no-spa` half of the same invariant
+  `ViewTest` asserts about the markup: without it `Navigation` fetches the download route, gets the
+  303 and swallows it, and downloads stop working while every page still looks right.
+- **A SPA fetch asks for a fragment.** `X-Requested-With` is the entire signal, and drift on either
+  side means the server answers with a whole document that `Navigation` then writes into `<main>`.
+  `navigation.test.mjs` reads the header off the real fetch; the parity test keeps the two names
+  equal.
+- **A navigation that fails is handed back to the browser.** `pushState` has already run by the time
+  a response arrives, so a 404 or a dead connection would otherwise strand the visitor on a URL
+  they never got. Both paths end in `location.assign`.
+- **The SPA switches itself off rather than throwing.** No `#content` means `forDocument()` returns
+  null, nothing is registered, and every link stays the plain href it always was.
+- **The cover falls back without an inline handler.** `onerror=` would need `'unsafe-inline'` in
+  `script-src`, which is the one allowance the policy is careful not to carry. The listener is
+  attached before `src` is assigned, so a response that fails immediately cannot beat it, and
+  `once: true` means a placeholder that is itself missing fails quietly instead of looping.
 - **No markup is built from a string.** Every page is a tree of `View\Html` nodes, and the verify
   script fails on a heredoc or a `'<tag'` literal anywhere under `src/` outside `Element` and
   `Doctype` — the two files whose job is turning a tree into text. Proved by putting `<b>` in a
@@ -170,6 +237,73 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. This is the front end's equivalent of the
   typed value objects on the PHP side: the point is that a `data-` attribute rename becomes a compile
   error instead of the literal text `undefined` appearing on the page.
+
+## Coverage
+
+Two commands, because they measure two languages:
+
+```bash
+composer coverage   # PHP  — 97.72% of lines, and what is left is named below
+npm run coverage    # front end — 100% of lines, branches and functions, enforced
+```
+
+### The front end
+
+`node --test` has coverage built in. The thresholds in the `coverage` script are set to 100 across
+lines, branches and functions, so this is a gate rather than a report: a new branch nothing
+exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is forty small
+files with one job each.
+
+It runs with `--test-coverage-include-all`, which is the front end's version of the `#[CoversClass]`
+trap below: without it a module nothing imports is not reported as uncovered, it is not reported at
+all. Coverage is measured against the compiled output in `public/assets/js/`, the same files the
+tests load and the browser runs.
+
+### PHP
+
+```bash
+composer coverage
+```
+
+Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
+clover XML and a browsable HTML report. Currently **97.72% of lines** (772/790), 98.38% of methods.
+
+Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
+verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
+`SecurityHeaders::send()` — read as untested when they are among the most exercised paths on the
+site. They are invisible to PHPUnit twice over: `header()` is a no-op under CLI, and a `send()`
+ends in `exit`.
+
+So the verify script's dev server collects its own. With `NEUROSYS_COVERAGE_DIR` set it starts
+under `XDEBUG_MODE=coverage` with `tools/coverage-prepend.php` as `auto_prepend_file`, which
+records line coverage and writes it out **from a shutdown function** — the whole trick, because a
+shutdown function still runs when a request ends in `exit`, and every response here does. That is
+one dump per request; `tools/merge-coverage.php` unions them with PHPUnit's `--coverage-php` output
+and renders the combined report. `composer verify` on its own is untouched and sets nothing.
+
+#### What is deliberately not covered
+
+Eighteen lines, in three groups, none of which a test can reach as the repository stands:
+
+- **`DownloadLogger::log()`'s body (13 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
+  constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
+  the switch injectable, which is exactly the guarantee that assertion exists to make — so the lines
+  stay uncovered and the switch stays a constant.
+- **`StatsController::handle()`'s body (4 lines)** needs an admin login to succeed, and
+  `data/admin.php` in the repository is a placeholder with an empty `pass_hash` — the real
+  credentials are uploaded by hand and `deploy.sh` excludes the file. `parseLog()`, which is all the
+  logic, is fully unit-tested through the controller's optional `$logFile` parameter.
+- **`Auth::requireSiteAuth()`'s challenge (1 line)** is only reachable when `data/site_auth.php`
+  exists, and it is gitignored precisely so the repository copy cannot switch pre-launch auth on.
+  The admin gate's identical branch *is* covered, over HTTP, by the verify script.
+
+#### A number is not a measurement
+
+PHPUnit restricts recorded coverage to what `#[CoversClass]` names, so a class no test file declares
+reads as 0% however thoroughly the suite exercises it. Before this was noticed, 53 of the 161
+uncovered statements were in that state — covered, unattributed. The fix is to write the assertion
+the class deserves and then declare it, never to add the attribute on its own: an attribute with no
+test behind it moves the number and nothing else.
 
 ## Linting
 

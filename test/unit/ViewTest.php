@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Config;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Layout;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
@@ -469,5 +470,38 @@ final class ViewTest extends TestCase
         foreach ($m[1] as $url) {
             self::assertStringStartsWith('https://', $url);
         }
+    }
+
+    // ───────────────────────────── page titles ─────────────────────────────
+
+    /**
+     * The title is what the tab says and what Navigation writes into document.title after a swap.
+     * Six views used to spell out `' — neuro.SYS'` between them, which is six chances to use a
+     * hyphen where the others use an em dash and never notice.
+     */
+    public function testAReleasePageIsTitledForItsRelease(): void
+    {
+        self::assertSame(
+            'ill. — ' . Config::NAME,
+            new ReleaseView($this->release(), 'ill')->pageTitle(),
+        );
+    }
+
+    public function testTheReleaseTitleIsNotEscapedTwiceIntoTheTitle(): void
+    {
+        self::assertSame(
+            'a & b — ' . Config::NAME,
+            new ReleaseView($this->release(title: 'a & b'), 'x')->pageTitle(),
+        );
+    }
+
+    public function testTheCataloguePageIsTitledForTheSection(): void
+    {
+        self::assertSame('releases — ' . Config::NAME, new ReleasesView($this->catalogue())->pageTitle());
+    }
+
+    public function testTheStatsPageIsTitledForTheSection(): void
+    {
+        self::assertSame('stats — ' . Config::NAME, new StatsView(0, [], [], false)->pageTitle());
     }
 }
