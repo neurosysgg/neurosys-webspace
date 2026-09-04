@@ -7,7 +7,9 @@ namespace NeuroSYS;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\View\Html\Document;
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
+use NeuroSYS\View\Html\ElementId;
 use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
@@ -60,7 +62,7 @@ class Layout
     {
         return new Element(HtmlTag::Body)->containing(
             self::header(),
-            new Element(HtmlTag::Main)->attr(HtmlAttribute::Id, 'content')->containing($content),
+            new Element(HtmlTag::Main)->attr(HtmlAttribute::Id, ElementId::Content)->containing($content),
             self::footer(),
             // type="module", so it defers on its own and every import resolves as an ES module.
             new Element(HtmlTag::Script)
@@ -72,20 +74,20 @@ class Layout
     private static function header(): Element
     {
         return new Element(HtmlTag::Header)
-            ->attr(HtmlAttribute::ClassName, 'site-header')
+            ->attr(HtmlAttribute::ClassName, CssClass::SiteHeader)
             ->containing(
                 new Element(HtmlTag::A)
-                    ->attr(HtmlAttribute::ClassName, 'logo')
+                    ->attr(HtmlAttribute::ClassName, CssClass::Logo)
                     ->attr(HtmlAttribute::Href, '/')
                     ->containing(
                         'neuro',
                         new Element(HtmlTag::Span)
-                            ->attr(HtmlAttribute::ClassName, 'logo-dot')
+                            ->attr(HtmlAttribute::ClassName, CssClass::LogoDot)
                             ->containing('.'),
                         'SYS',
                     ),
                 new Element(HtmlTag::Nav)
-                    ->attr(HtmlAttribute::ClassName, 'site-nav')
+                    ->attr(HtmlAttribute::ClassName, CssClass::SiteNav)
                     ->containing(
                         new Element(HtmlTag::A)
                             ->attr(HtmlAttribute::Href, '/releases')
@@ -96,13 +98,13 @@ class Layout
 
     private static function footer(): Element
     {
-        $footer = new Element(HtmlTag::Footer)->attr(HtmlAttribute::ClassName, 'site-footer');
+        $footer = new Element(HtmlTag::Footer)->attr(HtmlAttribute::ClassName, CssClass::SiteFooter);
         $links  = new ProfileRepository()->all();
 
         if ($links->count() > 0) {
             $footer = $footer->containing(
                 new Element(HtmlTag::Nav)
-                    ->attr(HtmlAttribute::ClassName, 'profile-links')
+                    ->attr(HtmlAttribute::ClassName, CssClass::ProfileLinks)
                     ->attr(HtmlAttribute::AriaLabel, 'Profiles')
                     ->containing(...array_map(self::profileLink(...), $links->all())),
             );
@@ -137,7 +139,7 @@ class Layout
         $label    = $platform->label();
 
         return new Element(HtmlTag::A)
-            ->attr(HtmlAttribute::ClassName, 'profile-link')
+            ->attr(HtmlAttribute::ClassName, CssClass::ProfileLink)
             ->attr(HtmlAttribute::Href, $profile->url)
             ->attr(HtmlAttribute::Title, $label)
             ->attr(HtmlAttribute::Target, '_blank')

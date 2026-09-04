@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Support\Collection;
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
@@ -30,7 +31,7 @@ class NotFoundView extends View
     public function content(): Node
     {
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(
                 new Terminal(
                     label:   'error.log',
@@ -40,7 +41,7 @@ class NotFoundView extends View
                     narrow:  true,
                 )->toElement(),
                 new Element(HtmlTag::P)
-                    ->attr(HtmlAttribute::ClassName, 'back-home')
+                    ->attr(HtmlAttribute::ClassName, CssClass::BackHome)
                     ->containing(new Element(HtmlTag::A)->attr(HtmlAttribute::Href, '/')->containing('← home')),
             );
     }

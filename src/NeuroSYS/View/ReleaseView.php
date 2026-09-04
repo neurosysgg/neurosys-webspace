@@ -10,6 +10,7 @@ use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -73,7 +74,7 @@ class ReleaseView extends View
             ->attr(CoverArtAttribute::Alt, $release->title . ' cover art');
 
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'hero')
+            ->attr(HtmlAttribute::ClassName, CssClass::Hero)
             ->containing($terminal->toElement(), $cover);
     }
 
@@ -81,11 +82,11 @@ class ReleaseView extends View
     private function infoSection(): Element
     {
         $section = new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'release-info')
+            ->attr(HtmlAttribute::ClassName, CssClass::ReleaseInfo)
             ->containing(
                 new Element(HtmlTag::H1)->containing(...$this->title()),
                 new Element(HtmlTag::P)
-                    ->attr(HtmlAttribute::ClassName, 'tagline')
+                    ->attr(HtmlAttribute::ClassName, CssClass::Tagline)
                     ->containing('neuro.SYS — ' . $this->release->description),
             );
 
@@ -119,7 +120,7 @@ class ReleaseView extends View
         return [
             substr($title, 0, -1),
             new Element(HtmlTag::Span)
-                ->attr(HtmlAttribute::ClassName, 'bang')
+                ->attr(HtmlAttribute::ClassName, CssClass::Bang)
                 ->containing($matches[0]),
         ];
     }

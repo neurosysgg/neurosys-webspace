@@ -6,6 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\View\Html\CoverArtAttribute;
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Doctype;
 use NeuroSYS\View\Html\Document;
 use NeuroSYS\View\Html\Element;
@@ -33,6 +34,7 @@ use RecursiveIteratorIterator;
 #[CoversClass(Doctype::class)]
 #[CoversClass(HtmlTag::class)]
 #[CoversClass(HtmlAttribute::class)]
+#[CoversClass(CssClass::class)]
 final class HtmlTest extends TestCase
 {
     // ───────────────────────────── attributes ─────────────────────────────
@@ -253,6 +255,44 @@ final class HtmlTest extends TestCase
     {
         self::assertSame([Doctype::Html5], Doctype::cases());
         self::assertSame('<!DOCTYPE html>', Doctype::Html5->render());
+    }
+
+    // ───────────────────────────── class names ─────────────────────────────
+
+    /**
+     * The one mirror that can be checked against its actual reader.
+     *
+     * A misspelled class errors nowhere — the element just renders unstyled, which on a dark page
+     * reads as a layout bug rather than a typo. Both directions matter and fail differently: a case
+     * the stylesheet never mentions is an element styled by nothing, and a selector no case names is
+     * a rule that can never match. The second is how dead CSS accumulates.
+     */
+    public function testEveryClassNameIsStyledAndEveryStyledClassIsNamed(): void
+    {
+        $declared = array_map(static fn(CssClass $c): string => $c->value, CssClass::cases());
+        $styled   = self::classSelectors();
+
+        sort($declared);
+        sort($styled);
+
+        self::assertNotEmpty($styled, 'found no class selectors at all — the scan is broken');
+        self::assertSame($declared, $styled);
+    }
+
+    /** @return list<string> Every class the stylesheet selects on, comments stripped first. */
+    private static function classSelectors(): array
+    {
+        $css = file_get_contents(NEUROSYS_ROOT . '/public/assets/css/style.css');
+
+        self::assertIsString($css);
+
+        // Comments first: this file's own header names .out and .dot, which no rule has used since
+        // the terminal moved client-side, and a scan that counted those would be measuring prose.
+        $css = preg_replace('#/\*.*?\*/#s', '', $css) ?? '';
+
+        preg_match_all('/\.([a-z][a-z0-9-]*)/', $css, $matches);
+
+        return array_values(array_unique($matches[1]));
     }
 
     // ───────────────────────────── the audited hole ─────────────────────────────

@@ -113,6 +113,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   enums, but they fail differently: a wrong value usually shows, a wrong name shows as nothing —
   `getAttribute` returns null, or the browser lays out an inert inline box. `tone` and `loaded` are
   the two with no PHP side, read only by the stylesheet, and no test can follow them.
+- **Every class name is styled, and every styled class is named.** `HtmlTest` parses `style.css`
+  with comments stripped and compares its class selectors against `CssClass::cases()`. Both
+  directions fail, and differently: a case the stylesheet never mentions is an element styled by
+  nothing, and a selector no case names is dead CSS. This is the only mirror in the codebase whose
+  actual reader can be tested.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.

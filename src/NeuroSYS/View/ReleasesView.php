@@ -7,6 +7,7 @@ namespace NeuroSYS\View;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\Html\CardAttribute;
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
@@ -36,10 +37,10 @@ class ReleasesView extends View
         }
 
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(
                 new Element(HtmlTag::H2)
-                    ->attr(HtmlAttribute::ClassName, 'page-heading')
+                    ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
                     ->containing('releases'),
                 new Element(Tag::ReleaseList)->containing(...$cards),
             );

@@ -1,4 +1,5 @@
 import { CoverArtAttribute } from '../model/CoverArtAttribute.js';
+import { HtmlTag } from '../model/HtmlTag.js';
 import { Tag } from '../model/Tag.js';
 
 /**
@@ -22,7 +23,7 @@ export class CoverArt extends HTMLElement {
 
     if (src === null || src === '') return;
 
-    const img      = document.createElement('img');
+    const img      = document.createElement(HtmlTag.Img);
     const fallback = this.getAttribute(CoverArtAttribute.Fallback);
 
     img.alt = this.getAttribute(CoverArtAttribute.Alt) ?? '';

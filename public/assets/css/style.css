@@ -4,8 +4,12 @@
    accent-2 = pink   (#ff2eab) — emphasis / the logo dot
 
    Native CSS nesting throughout: a component's internals live inside it, so the
-   file reads in the same order the markup does. Nesting also scopes them — .out
-   and .dot only mean anything inside a <terminal-window>, and now only match there.
+   file reads in the same order the markup does.
+
+   Every class selector here is a NeuroSYS\View\Html\CssClass case, and HtmlTest
+   asserts the two sets match exactly — a rule for a class nothing emits fails as
+   loudly as a class with no rule. Element selectors (terminal-field, cover-art…)
+   are the Tag enum, and carry the site's own vocabulary instead.
    ---------------------------------------------------------------- */
 
 :root {

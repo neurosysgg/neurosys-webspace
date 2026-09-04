@@ -2,6 +2,7 @@ import { Platform, displayName } from '../../model/Platform.js';
 import { SoundCloudOption } from '../../model/SoundCloudOption.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
+import { HtmlTag } from '../../model/HtmlTag.js';
 import { Tag } from '../../model/Tag.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
 /**
@@ -60,7 +61,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
      * they are what SoundCloud ships and what is verified working, so they stay.
      */
     buildIframe() {
-        const iframe = document.createElement('iframe');
+        const iframe = document.createElement(HtmlTag.Iframe);
         iframe.width = '100%';
         iframe.height = this.getAttribute(SoundCloudPlayerAttribute.Height) ?? '';
         iframe.title = `${this.trackTitle()} on ${displayName(this.platform())}`;
@@ -80,14 +81,14 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
      * — that toggle governs the player chrome, not the credit.
      */
     buildAttribution() {
-        const credit = document.createElement('div');
+        const credit = document.createElement(HtmlTag.Div);
         Object.assign(credit.style, SoundCloudPlayer.ATTRIBUTION_STYLE);
         credit.append(this.attributionLink(`https://soundcloud.com/${SoundCloudPlayer.ARTIST_HANDLE}`, SoundCloudPlayer.ARTIST_NAME), ' · ', this.attributionLink(this.trackPermalink(), this.trackTitle()));
         return credit;
     }
     /** Builds one attribution link, styled the way SoundCloud styles it. */
     attributionLink(href, text) {
-        const link = document.createElement('a');
+        const link = document.createElement(HtmlTag.A);
         link.href = href;
         link.title = text;
         link.target = '_blank';

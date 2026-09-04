@@ -2,6 +2,7 @@ import { Platform, displayName } from '../../model/Platform.js';
 import { SoundCloudOption } from '../../model/SoundCloudOption.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
+import { HtmlTag } from '../../model/HtmlTag.js';
 import { Tag } from '../../model/Tag.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
 
@@ -68,7 +69,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
    * they are what SoundCloud ships and what is verified working, so they stay.
    */
   private buildIframe(): HTMLIFrameElement {
-    const iframe = document.createElement('iframe');
+    const iframe = document.createElement(HtmlTag.Iframe);
 
     iframe.width  = '100%';
     iframe.height = this.getAttribute(SoundCloudPlayerAttribute.Height) ?? '';
@@ -92,7 +93,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
    * — that toggle governs the player chrome, not the credit.
    */
   private buildAttribution(): HTMLDivElement {
-    const credit = document.createElement('div');
+    const credit = document.createElement(HtmlTag.Div);
     Object.assign(credit.style, SoundCloudPlayer.ATTRIBUTION_STYLE);
 
     credit.append(
@@ -109,7 +110,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
 
   /** Builds one attribution link, styled the way SoundCloud styles it. */
   private attributionLink(href: string, text: string): HTMLAnchorElement {
-    const link = document.createElement('a');
+    const link = document.createElement(HtmlTag.A);
 
     link.href        = href;
     link.title       = text;

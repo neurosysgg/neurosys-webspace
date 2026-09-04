@@ -25,9 +25,17 @@ final readonly class TerminalField
         public TerminalTone $tone = TerminalTone::Plain,
     ) {}
 
-    /** @return array{key: string, value: string, tone: string} */
+    /**
+     * The row as it crosses to `<terminal-window>`, keyed by {@link TerminalFieldKey}.
+     *
+     * @return array<string, string>
+     */
     public function toArray(): array
     {
-        return ['key' => $this->key, 'value' => $this->value, 'tone' => $this->tone->value];
+        return [
+            TerminalFieldKey::Key->value   => $this->key,
+            TerminalFieldKey::Value->value => $this->value,
+            TerminalFieldKey::Tone->value  => $this->tone->value,
+        ];
     }
 }

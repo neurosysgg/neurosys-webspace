@@ -297,22 +297,41 @@ subclass, and nothing else.
 That means the server's output carries no SoundCloud address at all, which is a stronger version of
 the old guarantee: there is nothing for a browser to preconnect or prefetch before the visitor agrees.
 
-Building the URL client-side needs the query keys client-side, so `assets/ts/model/` mirrors what
-the client reads: four value enums — `Platform` (with `displayName()`), `SoundCloudOption`,
-`SoundCloudPlayerStyle` (with `isVisual()`) and `TerminalTone` — and five name enums, `Tag` plus the
-attribute enums for the player, the terminal, the cover and the `<a>`. Only what is read here:
-nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`, and a mirror with no reader is
-just something to keep in sync.
+`assets/ts/model/` mirrors every fact the client reads out of the server's output. Nothing else:
+nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`.
 
-The two kinds fail differently, which is worth knowing before renaming either. A wrong **value**
+| Mirror | Guards |
+|---|---|
+| `Platform`, `SoundCloudOption`, `SoundCloudPlayerStyle`, `TerminalTone` | values the client resolves |
+| `Tag`, `HtmlTag`, `HtmlAttribute` | what it creates and selects on |
+| `SoundCloudPlayerAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
+| `TerminalFieldKey` | the JSON keys a terminal row arrives under |
+| `CssClass`, `ElementId` | what the stylesheet and the SPA router look for |
+| `RequestHeader`, `RequestedWith` | the header that asks for a fragment |
+
+The kinds fail differently, which is worth knowing before renaming any of them. A wrong **value**
 usually shows: a broken widget URL, a tone that does not colour. A wrong **name** shows as nothing —
-`getAttribute` returns null and the element falls back, or the browser meets a tag it has never heard
-of and lays out an inert inline box. Neither reaches a console.
+`getAttribute` returns null and the element falls back, the browser meets a tag it has never heard of
+and lays out an inert inline box, or the SPA router finds no `#content` and quietly switches itself
+off with every page still working. None of that reaches a console.
 
-Two attribute names have no PHP side at all and so no parity test: `tone` on `<terminal-field>` and
-`loaded` on a loaded embed are written by an element and read only by the stylesheet.
-`TerminalFieldAttribute` and `EmbedAttribute` name them anyway, because the stylesheet is exactly the
-kind of reader that fails in silence.
+The worst of them is `X-Requested-With`. Drift on either side and the server answers a SPA fetch with
+a whole document, which `Navigation` then writes into `<main>` — a page broken in a way nothing
+reports, from two strings that used to sit in different languages with nothing between them.
+
+Three names have no PHP side and so no parity test — `tone`, `loaded` and `--player-height` are
+written by an element and read only by the stylesheet. `TerminalFieldAttribute`, `EmbedAttribute` and
+`CustomProperty` name them anyway, because the stylesheet is exactly the kind of reader that fails in
+silence. `CssClass` is the one that *can* be checked against it: `HtmlTest` parses `style.css` and
+asserts the sets match in both directions, so a class with no rule and a rule with no class both
+fail.
+
+**What deliberately stays a literal**, so the absence reads as a decision rather than an oversight:
+the platform's own vocabulary (`'click'`, `'error'`, `'popstate'`, `'same-origin'` — TypeScript's
+DOM types already carry those), user-facing copy, and SoundCloud's furniture. The player reproduces
+that dialog's output exactly — `allow`, `scrolling`, `frameborder`, the `url`/`color`/`visual` query
+keys, the accent and the attribution's font stack — and none of it is a contract with our own code.
+`SoundCloudOption` is enumerated only because the *server* says which options are on.
 
 **A mirror is a second copy of a fact, so it is tested.** `test/js/enum-parity.test.mjs` compares each
 one against its PHP original — name, backing value, and the accessors the client mirrors — in

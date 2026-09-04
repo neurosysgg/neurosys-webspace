@@ -1,6 +1,7 @@
 import { Tag } from '../../model/Tag.js';
 import { TerminalAttribute } from '../../model/TerminalAttribute.js';
 import { TerminalFieldAttribute } from '../../model/TerminalFieldAttribute.js';
+import { TerminalFieldKey } from '../../model/TerminalFieldKey.js';
 import { TerminalTone } from '../../model/TerminalTone.js';
 /**
  * <terminal-window label="release.log" command="…" fields="[…]" [narrow]></terminal-window>
@@ -33,11 +34,12 @@ export class TerminalWindow extends HTMLElement {
         const field = document.createElement(Tag.TerminalField);
         const key = document.createElement(Tag.TerminalKey);
         const value = document.createElement(Tag.TerminalValue);
-        key.textContent = data.key;
-        value.textContent = data.value;
+        key.textContent = data[TerminalFieldKey.Key];
+        value.textContent = data[TerminalFieldKey.Value];
         // The tone goes on the row; the stylesheet decides which half of it takes the accent.
-        if (data.tone !== TerminalTone.Plain)
-            field.setAttribute(TerminalFieldAttribute.Tone, data.tone);
+        const tone = data[TerminalFieldKey.Tone];
+        if (tone !== TerminalTone.Plain)
+            field.setAttribute(TerminalFieldAttribute.Tone, tone);
         field.append(key, value);
         return field;
     }
@@ -61,9 +63,9 @@ export class TerminalWindow extends HTMLElement {
         if (typeof value !== 'object' || value === null)
             return false;
         const row = value;
-        return typeof row['key'] === 'string'
-            && typeof row['value'] === 'string'
-            && Object.values(TerminalTone).includes(row['tone']);
+        return typeof row[TerminalFieldKey.Key] === 'string'
+            && typeof row[TerminalFieldKey.Value] === 'string'
+            && Object.values(TerminalTone).includes(row[TerminalFieldKey.Tone]);
     }
 }
 customElements.define(Tag.TerminalWindow, TerminalWindow);

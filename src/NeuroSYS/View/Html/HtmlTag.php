@@ -11,6 +11,10 @@ namespace NeuroSYS\View\Html;
  * and {@link \NeuroSYS\Http\Security\PermissionsPolicyFeature} list what is used rather than what is
  * possible. Adding markup that needs a new element means adding its case, which is the moment to ask
  * whether it should be one of ours instead — see {@link Tag}.
+ *
+ * "Used" means by either side. `<iframe>`, `<small>`, `<div>` and `<textarea>` are only ever created
+ * by the client, but they are elements this site emits all the same, and `assets/ts/model/HtmlTag.ts`
+ * mirrors this list so both halves agree on every one.
  */
 enum HtmlTag: string implements TagName
 {
@@ -38,7 +42,13 @@ enum HtmlTag: string implements TagName
     case Img    = 'img';
     case Button = 'button';
     case Span   = 'span';
+    case Small  = 'small';
     case Strong = 'strong';
+    case Div    = 'div';
+
+    /** Created client-side only: the player's frame, and the textarea that decodes entities. */
+    case Iframe   = 'iframe';
+    case Textarea = 'textarea';
 
     case Table = 'table';
     case Tr    = 'tr';

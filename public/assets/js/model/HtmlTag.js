@@ -1,0 +1,39 @@
+/**
+ * Mirrors NeuroSYS\View\Html\HtmlTag — the standard elements this site emits.
+ *
+ * The client creates most of these: the gate builds a <p>, a <button> and a <small>, the player an
+ * <iframe> and a <div>, and Navigation a <textarea> to decode entities out of a title.
+ */
+export var HtmlTag;
+(function (HtmlTag) {
+    HtmlTag["Html"] = "html";
+    HtmlTag["Head"] = "head";
+    HtmlTag["Meta"] = "meta";
+    HtmlTag["Link"] = "link";
+    HtmlTag["Title"] = "title";
+    HtmlTag["Script"] = "script";
+    HtmlTag["Body"] = "body";
+    HtmlTag["Header"] = "header";
+    HtmlTag["Nav"] = "nav";
+    HtmlTag["Main"] = "main";
+    HtmlTag["Footer"] = "footer";
+    HtmlTag["Section"] = "section";
+    HtmlTag["H1"] = "h1";
+    HtmlTag["H2"] = "h2";
+    HtmlTag["H3"] = "h3";
+    HtmlTag["P"] = "p";
+    HtmlTag["Br"] = "br";
+    HtmlTag["A"] = "a";
+    HtmlTag["Img"] = "img";
+    HtmlTag["Button"] = "button";
+    HtmlTag["Span"] = "span";
+    HtmlTag["Small"] = "small";
+    HtmlTag["Strong"] = "strong";
+    HtmlTag["Div"] = "div";
+    HtmlTag["Iframe"] = "iframe";
+    HtmlTag["Textarea"] = "textarea";
+    HtmlTag["Table"] = "table";
+    HtmlTag["Tr"] = "tr";
+    HtmlTag["Td"] = "td";
+})(HtmlTag || (HtmlTag = {}));
+//# sourceMappingURL=HtmlTag.js.map

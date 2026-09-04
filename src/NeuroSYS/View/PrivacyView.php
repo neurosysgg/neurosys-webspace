@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
@@ -31,7 +32,7 @@ class PrivacyView extends View
     public function content(): Node
     {
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(new RawHtml($this->html));
     }
 }

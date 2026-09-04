@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -48,13 +49,13 @@ class StatsView extends View
         ksort($days);
 
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(
                 new Element(HtmlTag::H2)
-                    ->attr(HtmlAttribute::ClassName, 'page-heading')
+                    ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
                     ->containing('stats'),
                 new Element(HtmlTag::P)
-                    ->attr(HtmlAttribute::ClassName, 'muted')
+                    ->attr(HtmlAttribute::ClassName, CssClass::Muted)
                     ->containing(
                         'total downloads: ',
                         new Element(HtmlTag::Strong)->containing((string) $this->total),
@@ -70,16 +71,16 @@ class StatsView extends View
     private static function notice(string $text): Element
     {
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(
-                new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, 'muted')->containing($text),
+                new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, CssClass::Muted)->containing($text),
             );
     }
 
     private static function subheading(string $text): Element
     {
         return new Element(HtmlTag::H3)
-            ->attr(HtmlAttribute::ClassName, 'stats-sub')
+            ->attr(HtmlAttribute::ClassName, CssClass::StatsSub)
             ->containing($text);
     }
 
@@ -87,12 +88,12 @@ class StatsView extends View
     private static function table(array $rows): Element
     {
         return new Element(HtmlTag::Table)
-            ->attr(HtmlAttribute::ClassName, 'stats-table')
+            ->attr(HtmlAttribute::ClassName, CssClass::StatsTable)
             ->containing(...array_map(
                 static fn(string $key, int $count): Element => new Element(HtmlTag::Tr)->containing(
                     new Element(HtmlTag::Td)->containing($key),
                     new Element(HtmlTag::Td)
-                        ->attr(HtmlAttribute::ClassName, 'stats-count')
+                        ->attr(HtmlAttribute::ClassName, CssClass::StatsCount)
                         ->containing((string) $count),
                 ),
                 array_map(strval(...), array_keys($rows)),

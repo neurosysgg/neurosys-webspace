@@ -24,6 +24,13 @@ import { SoundCloudPlayerAttribute } from '../../public/assets/js/model/SoundClo
 import { TerminalAttribute } from '../../public/assets/js/model/TerminalAttribute.js';
 import { CoverArtAttribute } from '../../public/assets/js/model/CoverArtAttribute.js';
 import { LinkAttribute } from '../../public/assets/js/model/LinkAttribute.js';
+import { HtmlTag } from '../../public/assets/js/model/HtmlTag.js';
+import { HtmlAttribute } from '../../public/assets/js/model/HtmlAttribute.js';
+import { CssClass } from '../../public/assets/js/model/CssClass.js';
+import { ElementId } from '../../public/assets/js/model/ElementId.js';
+import { RequestHeader } from '../../public/assets/js/model/RequestHeader.js';
+import { RequestedWith } from '../../public/assets/js/model/RequestedWith.js';
+import { TerminalFieldKey } from '../../public/assets/js/model/TerminalFieldKey.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
@@ -97,6 +104,13 @@ const MIRRORED_NAMES = [
   ['TerminalAttribute', TerminalAttribute, 'NeuroSYS\\View\\Terminal\\TerminalAttribute'],
   ['CoverArtAttribute', CoverArtAttribute, 'NeuroSYS\\View\\Html\\CoverArtAttribute'],
   ['LinkAttribute', LinkAttribute, 'NeuroSYS\\View\\Html\\LinkAttribute'],
+  ['HtmlTag', HtmlTag, 'NeuroSYS\\View\\Html\\HtmlTag'],
+  ['HtmlAttribute', HtmlAttribute, 'NeuroSYS\\View\\Html\\HtmlAttribute'],
+  ['CssClass', CssClass, 'NeuroSYS\\View\\Html\\CssClass'],
+  ['ElementId', ElementId, 'NeuroSYS\\View\\Html\\ElementId'],
+  ['RequestHeader', RequestHeader, 'NeuroSYS\\Http\\RequestHeader'],
+  ['RequestedWith', RequestedWith, 'NeuroSYS\\Http\\RequestedWith'],
+  ['TerminalFieldKey', TerminalFieldKey, 'NeuroSYS\\View\\Terminal\\TerminalFieldKey'],
 ];
 
 for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {

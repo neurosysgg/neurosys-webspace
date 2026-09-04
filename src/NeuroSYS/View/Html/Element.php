@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
 
 /**
@@ -50,6 +51,7 @@ final readonly class Element implements Node
      * | `$value`      | rendered              |
      * |---------------|-----------------------|
      * | `'visual'`, 5 | `player-style="visual"`, `height="5"` |
+     * | `CssClass::Hero`, any backed enum | its value — `class="hero"` |
      * | `''`          | `options=""` — an empty value, which is not the same as no attribute |
      * | `true`        | `narrow` — a bare boolean attribute |
      * | `false`, null | nothing at all        |
@@ -58,10 +60,18 @@ final readonly class Element implements Node
      * track has no secret token, and `secret-token=""` is not the same thing to the client as no
      * attribute — so an absent value is `null`, and `''` stays a real empty value.
      */
-    public function attr(AttributeName $attribute, string|int|bool|null $value = true): self
-    {
+    public function attr(
+        AttributeName $attribute,
+        string|int|bool|BackedEnum|null $value = true,
+    ): self {
         if ($value === false || $value === null) {
             return $this;
+        }
+
+        // A backed enum stands for its value, so a call site passes CssClass::Hero rather than
+        // remembering ->value — one fewer thing to get right at twenty call sites.
+        if ($value instanceof BackedEnum) {
+            $value = $value->value;
         }
 
         return new self(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -35,7 +36,7 @@ class ImprintView extends View
     public function content(): Node
     {
         return new Element(HtmlTag::Section)
-            ->attr(HtmlAttribute::ClassName, 'page-section')
+            ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(
                 self::heading(HtmlTag::H1, 'Impressum'),
                 self::heading(HtmlTag::H2, 'Angaben gemäß § 5 DDG'),

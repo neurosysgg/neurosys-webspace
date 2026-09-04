@@ -36,8 +36,12 @@ readonly class Request
         $path     = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
         $path     = rtrim($path, '/') ?: '/';
 
-        $ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
-             && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+        // The header name in $_SERVER form: HTTP_ + upper-cased with dashes as underscores, which
+        // is PHP's transform rather than ours, so it is derived from the case instead of retyped.
+        $requestedWith = 'HTTP_' . str_replace('-', '_', strtoupper(RequestHeader::RequestedWith->value));
+
+        $ajax = isset($_SERVER[$requestedWith])
+             && RequestedWith::XmlHttpRequest->matches($_SERVER[$requestedWith]);
 
         $user = $_SERVER['PHP_AUTH_USER'] ?? '';
         $pass = $_SERVER['PHP_AUTH_PW']   ?? '';

@@ -1,4 +1,9 @@
+import { ElementId } from './model/ElementId.js';
+import { HtmlAttribute } from './model/HtmlAttribute.js';
+import { HtmlTag } from './model/HtmlTag.js';
 import { LinkAttribute } from './model/LinkAttribute.js';
+import { RequestHeader } from './model/RequestHeader.js';
+import { RequestedWith } from './model/RequestedWith.js';
 /**
  * SPA navigation: intercept internal link clicks, fetch the page as a content fragment, and swap it
  * into #content. Every link is a real href, so direct loads and no-JS behave identically.
@@ -13,6 +18,21 @@ export class Navigation {
      * upgrades those on its own. It stays for anything that is not an element.
      */
     static EVENT = 'neurosys:navigate';
+    /**
+     * An anchor pointing somewhere on this site.
+     *
+     * Built from the same tag and attribute names the server writes rather than spelled out, so the
+     * selector cannot go on matching nothing after a rename it was never told about.
+     */
+    static INTERNAL_LINK = `${HtmlTag.A}[${HtmlAttribute.Href}^="/"]`;
+    /**
+     * The <title> ViewResponse leads a fragment with.
+     *
+     * Named from HtmlTag for the same reason as the selector above, and deliberately not global —
+     * the same expression is used to read the title and then to strip it, and a /g regex carries
+     * lastIndex between those two calls.
+     */
+    static TITLE = new RegExp(`<${HtmlTag.Title}>([\\s\\S]*?)</${HtmlTag.Title}>`);
     constructor(content) {
         this.content = content;
     }
@@ -23,7 +43,7 @@ export class Navigation {
      * stays a plain href, which lands the visitor on the same page by the browser's own route.
      */
     static forDocument() {
-        const content = document.getElementById('content');
+        const content = document.getElementById(ElementId.Content);
         return content === null ? null : new Navigation(content);
     }
     /** Runs `handler` every time #content is replaced. */
@@ -43,7 +63,7 @@ export class Navigation {
         if (!(e.target instanceof Element))
             return;
         // The selector is what makes the anchor type true.
-        const link = e.target.closest('a[href^="/"]');
+        const link = e.target.closest(Navigation.INTERNAL_LINK);
         if (link === null || link.hasAttribute(LinkAttribute.NoSpa))
             return;
         e.preventDefault();
@@ -54,19 +74,19 @@ export class Navigation {
         try {
             const response = await fetch(url, {
                 credentials: 'same-origin',
-                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                headers: { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest }
             });
             if (!response.ok) {
                 location.assign(url);
                 return;
             }
             const html = await response.text();
-            const title = html.match(/<title>([\s\S]*?)<\/title>/)?.[1];
+            const title = html.match(Navigation.TITLE)?.[1];
             if (title !== undefined)
                 document.title = Navigation.decodeEntities(title);
             else
                 console.warn('No title found in HTML response');
-            this.content.innerHTML = html.replace(/<title>[\s\S]*?<\/title>/, '');
+            this.content.innerHTML = html.replace(Navigation.TITLE, '');
             document.dispatchEvent(new Event(Navigation.EVENT));
             window.scrollTo(0, 0);
         }
@@ -82,7 +102,7 @@ export class Navigation {
      * "rock &amp; roll".
      */
     static decodeEntities(text) {
-        const el = document.createElement('textarea');
+        const el = document.createElement(HtmlTag.Textarea);
         el.innerHTML = text;
         return el.value;
     }

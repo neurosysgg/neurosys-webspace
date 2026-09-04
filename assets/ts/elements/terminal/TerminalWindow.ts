@@ -1,13 +1,19 @@
 import { Tag } from '../../model/Tag.js';
 import { TerminalAttribute } from '../../model/TerminalAttribute.js';
 import { TerminalFieldAttribute } from '../../model/TerminalFieldAttribute.js';
+import { TerminalFieldKey } from '../../model/TerminalFieldKey.js';
 import { TerminalTone } from '../../model/TerminalTone.js';
 
-/** One output row, as Terminal::toElement() serialises it. */
+/**
+ * One output row, as Terminal::toElement() serialises it.
+ *
+ * The property names are TerminalFieldKey's cases — the guard below checks them through the enum,
+ * so the shape and the names it is checked against cannot drift apart.
+ */
 interface TerminalFieldData {
-  key: string;
-  value: string;
-  tone: TerminalTone;
+  [TerminalFieldKey.Key]: string;
+  [TerminalFieldKey.Value]: string;
+  [TerminalFieldKey.Tone]: TerminalTone;
 }
 
 /**
@@ -50,11 +56,13 @@ export class TerminalWindow extends HTMLElement {
     const key   = document.createElement(Tag.TerminalKey);
     const value = document.createElement(Tag.TerminalValue);
 
-    key.textContent   = data.key;
-    value.textContent = data.value;
+    key.textContent   = data[TerminalFieldKey.Key];
+    value.textContent = data[TerminalFieldKey.Value];
 
     // The tone goes on the row; the stylesheet decides which half of it takes the accent.
-    if (data.tone !== TerminalTone.Plain) field.setAttribute(TerminalFieldAttribute.Tone, data.tone);
+    const tone = data[TerminalFieldKey.Tone];
+
+    if (tone !== TerminalTone.Plain) field.setAttribute(TerminalFieldAttribute.Tone, tone);
 
     field.append(key, value);
 
@@ -86,9 +94,9 @@ export class TerminalWindow extends HTMLElement {
 
     const row = value as Record<string, unknown>;
 
-    return typeof row['key'] === 'string'
-      && typeof row['value'] === 'string'
-      && Object.values<unknown>(TerminalTone).includes(row['tone']);
+    return typeof row[TerminalFieldKey.Key] === 'string'
+      && typeof row[TerminalFieldKey.Value] === 'string'
+      && Object.values<unknown>(TerminalTone).includes(row[TerminalFieldKey.Tone]);
   }
 }
 

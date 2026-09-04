@@ -1,4 +1,7 @@
+import { CssClass } from '../../model/CssClass.js';
+import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
+import { HtmlTag } from '../../model/HtmlTag.js';
 import { Platform, displayName } from '../../model/Platform.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 
@@ -44,21 +47,21 @@ export abstract class ConsentGatedEmbed extends HTMLElement {
     // would otherwise set --player-height to "undefinedpx", which CSS drops.
     if (height === null || height === '') return;
 
-    this.style.setProperty('--player-height', `${height}px`);
+    this.style.setProperty(CustomProperty.PlayerHeight, `${height}px`);
   }
 
   private renderGate(): void {
     const provider = displayName(this.platform());
 
-    const label = document.createElement('p');
+    const label = document.createElement(HtmlTag.P);
     label.textContent = `${provider} player`;
 
-    const button = document.createElement('button');
-    button.className = 'btn-primary';
+    const button = document.createElement(HtmlTag.Button);
+    button.className = CssClass.BtnPrimary;
     button.textContent = 'Load player';
     button.addEventListener('click', () => { this.load(); }, { once: true });
 
-    const hint = document.createElement('small');
+    const hint = document.createElement(HtmlTag.Small);
     hint.textContent = `Third-party content — clicking connects you to ${provider}’s servers.`;
 
     this.replaceChildren(label, button, hint);
