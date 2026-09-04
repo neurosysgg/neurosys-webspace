@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Model\Embed;
@@ -83,13 +84,18 @@ final readonly class SoundCloudEmbed implements Embed
         return Platform::SoundCloud;
     }
 
+    public function height(): int
+    {
+        return $this->style->height();
+    }
+
     public function toHtml(string $title): string
     {
         return $this->iframeHtml($title) . $this->attributionHtml($title);
     }
 
     /** Returns true if the given option is enabled on this embed. */
-    public function has(SoundCloudOption $option): bool
+    private function has(SoundCloudOption $option): bool
     {
         return in_array($option, $this->options, true);
     }
@@ -105,7 +111,7 @@ final readonly class SoundCloudEmbed implements Embed
     private function iframeHtml(string $title): string
     {
         $src    = htmlspecialchars($this->playerUrl());
-        $height = $this->style->height();
+        $height = $this->height();
         $name   = htmlspecialchars($title . ' on ' . $this->platform()->displayName());
 
         return '<iframe width="100%" height="' . $height . '" scrolling="no" frameborder="no"'

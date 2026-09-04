@@ -1,14 +1,23 @@
 <?xml version="1.0"?>
 <ruleset name="NeuroSYS">
-    <description>PSR-12, minus the sniffs that fight aligned constructor params and one-line accessor methods.</description>
+    <description>PSR-12. The only exemptions are the sniffs that fight column-aligned parameters
+        and one-line accessor methods; file headers and control structures follow PSR-12 exactly.</description>
 
     <arg name="basepath" value="."/>
     <arg name="colors"/>
     <arg name="extensions" value="php"/>
 
+    <!-- The only warnings left are long lines of HTML inside heredocs, which can't be
+         wrapped without changing the output. Report them, don't fail the build on them. -->
+    <config name="ignore_warnings_on_exit" value="1"/>
+
     <file>src</file>
     <file>public</file>
     <file>test</file>
+    <file>data</file>
+
+    <!-- Composer dev dependencies are not ours to lint. -->
+    <exclude-pattern>vendor/*</exclude-pattern>
 
     <rule ref="PSR12">
         <!-- allows `private array  $segments` column-alignment across constructor params -->
@@ -17,5 +26,24 @@
         <exclude name="Squiz.Functions.MultiLineFunctionDeclaration.BraceOnSameLine"/>
         <exclude name="Squiz.Functions.MultiLineFunctionDeclaration.ContentAfterBrace"/>
         <exclude name="Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore"/>
+        <!-- allows column-aligned call arguments, the way data/releases.php lines up
+             `new Format(ReleaseFormat::FLAC,  new HiDriveLink(…))` across entries -->
+        <exclude name="Generic.Functions.FunctionCallArgumentSpacing.TooMuchSpaceAfterComma"/>
+        <!-- allows column-aligned defaults: `public SoundCloudPlayerStyle $style  = …` -->
+        <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpaceBeforeEquals"/>
+        <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpaceAfterEquals"/>
+    </rule>
+
+    <!-- A bootstrap and a data file both have to load something *and* define something;
+         that is what they are for. -->
+    <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
+        <exclude-pattern>test/bootstrap.php</exclude-pattern>
+        <exclude-pattern>data/*.php</exclude-pattern>
+    </rule>
+
+    <!-- data/*.php are configuration, not classes: a `use` block followed by a docblock
+         and a `return` is the shape, and PSR-12's file-header rules don't describe it. -->
+    <rule ref="PSR12.Files.FileHeader">
+        <exclude-pattern>data/*.php</exclude-pattern>
     </rule>
 </ruleset>

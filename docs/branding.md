@@ -23,8 +23,8 @@ Paste the URL into `data/profiles.php`:
 Platform::Spotify->value => 'https://open.spotify.com/artist/…',
 ```
 
-An empty URL hides that link — same convention as release formats. A platform whose icon isn't vendored is skipped even
-if a URL is set, so nothing renders broken.
+An empty URL hides that link — same convention as release formats. All six platforms have their icon vendored, so a
+URL is the only thing that decides whether a link renders.
 
 To add a platform: add a case to `src/NeuroSYS/Model/Platform.php` (label, icon path, height), vendor its asset into
 `public/assets/img/brand/`, and add a row to `data/profiles.php`.

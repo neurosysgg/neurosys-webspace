@@ -1,7 +1,7 @@
 /* ---------------------------------------------------------------
    neuro.SYS
-   accent   = cyan  (#00e5ff) — interactive highlights
-   accent-2 = magenta (#ff2e6e) — emphasis / the logo dot
+   accent   = purple (#6a00ff) — interactive highlights
+   accent-2 = pink   (#ff2eab) — emphasis / the logo dot
    ---------------------------------------------------------------- */
 
 :root {
@@ -11,8 +11,8 @@
   --border:    #262732;
   --fg:        #e8e8f0;
   --muted:     #84849c;
-  --accent: #6a00ff;
-  --accent-2: #ff2eab;
+  --accent:    #6a00ff;
+  --accent-2:  #ff2eab;
 
   --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -26,7 +26,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--fg);
-  font-family: var(--sans), sans-serif;
+  font-family: var(--sans);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
@@ -57,7 +57,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 .logo {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-weight: 600;
   font-size: 1rem;
   color: var(--fg);
@@ -70,7 +70,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .site-nav {
   display: flex;
   gap: 1.5rem;
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.8rem;
   text-transform: lowercase;
   letter-spacing: 0.06em;
@@ -93,7 +93,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
   margin: 0 auto;
   padding: 0 1.5rem 2.5rem;
   color: var(--muted);
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.8rem;
 }
 
@@ -108,7 +108,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .page-section { margin: 1.5rem 0; }
 
 .page-heading {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.85rem;
   text-transform: lowercase;
   letter-spacing: 0.08em;
@@ -125,7 +125,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 .home-eyebrow {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.85rem;
   color: var(--muted);
   letter-spacing: 0.08em;
@@ -133,7 +133,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 .home-title {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: clamp(2rem, 7vw, 3.5rem);
   font-weight: 600;
   letter-spacing: -0.02em;
@@ -143,7 +143,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 
 .btn-primary {
   display: inline-block;
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.9rem;
   color: var(--accent);
   border: 1px solid var(--accent);
@@ -180,7 +180,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 .release-title {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-weight: 500;
   font-size: 0.95rem;
 }
@@ -217,7 +217,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
   border: 1px solid var(--border);
   border-radius: 10px;
   overflow: hidden;
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.875rem;
   display: flex;
   flex-direction: column;
@@ -304,7 +304,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
    ---------------------------------------------------------------- */
 
 .release-info h1 {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: clamp(2rem, 6vw, 3.25rem);
   font-weight: 600;
   margin: 0;
@@ -314,7 +314,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 .tagline {
   margin: 0.25rem 0 1.75rem;
   color: var(--muted);
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.85rem;
   letter-spacing: 0.04em;
 }
@@ -328,7 +328,9 @@ a:hover, a:focus-visible { text-decoration: underline; }
   align-items: center;
   justify-content: center;
   gap: 0.75rem;
-  height: 300px;
+  /* Matches the iframe that replaces it, so the page doesn't jump on load.
+     ReleaseView sets --player-height from SoundCloudPlayerStyle::height(). */
+  height: var(--player-height, 300px);
   border: 1px solid var(--border);
   border-radius: 8px;
   text-align: center;
@@ -342,7 +344,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
    ---------------------------------------------------------------- */
 
 .downloads h2 {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.85rem;
   text-transform: lowercase;
   letter-spacing: 0.08em;
@@ -358,7 +360,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 }
 
 .dl-label {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-weight: 500;
   font-size: 0.95rem;
 }
@@ -371,7 +373,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
    ---------------------------------------------------------------- */
 
 .stats-sub {
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.8rem;
   text-transform: lowercase;
   letter-spacing: 0.06em;
@@ -381,7 +383,7 @@ a:hover, a:focus-visible { text-decoration: underline; }
 
 .stats-table {
   border-collapse: collapse;
-  font-family: var(--mono), monospace;
+  font-family: var(--mono);
   font-size: 0.85rem;
   width: 100%;
   max-width: 480px;

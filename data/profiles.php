@@ -10,9 +10,8 @@ use NeuroSYS\Model\Platform;
  * formats in releases.php. Paste the profile URL once DistroKid has delivered
  * and the profile exists.
  *
- * A platform whose icon isn't vendored yet is skipped even with a URL set, so
- * SoundCloud, YouTube and X are configured here but stay hidden until their
- * brand assets land in public/assets/img/brand/. See docs/branding.md.
+ * Every platform's icon is vendored under public/assets/img/brand/; adding a new
+ * one means vendoring its asset too, never hot-linking. See docs/branding.md.
  */
 return [
     Platform::SoundCloud->value => 'https://soundcloud.com/neurosysgg',

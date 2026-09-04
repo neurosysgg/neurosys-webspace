@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
@@ -20,12 +21,17 @@ readonly class ReleaseController implements Controller
      * Constructs an instance of {@link self}.
      *
      * @param string $slug The URL slug identifying the release.
+     * @param ReleaseRepository|null $releases The catalogue to read, or null for the
+     *                                         canonical one. Only tests pass this.
      */
-    public function __construct(private string $slug) {}
+    public function __construct(
+        private string $slug,
+        private ?ReleaseRepository $releases = null,
+    ) {}
 
     public function handle(Request $request): Response
     {
-        $release = new ReleaseRepository()->find($this->slug);
+        $release = ($this->releases ?? new ReleaseRepository())->find($this->slug);
 
         if ($release === null) {
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);

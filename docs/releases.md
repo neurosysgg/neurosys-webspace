@@ -35,7 +35,7 @@ Available formats: `ReleaseFormat::FLAC`, `MP3`, `WAV`, `AIFF`, `STEMS`, `OGG`.
 
 Available keys: all 24 standard Western keys as `MusicalKey::CMajor`, `CSharpMajor`, … `BMinor` (see `src/NeuroSYS/Model/MusicalKey.php` for the full list).
 
-Available genres: `Genre::Dubstep`, `Riddim`, `Halftime`, `DrumAndBass`, `Neurofunk`, `Trap`, `Techno`, `House`, `Ambient`, `Experimental` (see `src/NeuroSYS/Model/Genre.php` — add a case when you need one).
+Available genres: `Genre::Dubstep`, `Riddim`, `Halftime`, `DrumAndBass`, `Neurofunk`, `Trap`, `FutureBass`, `Techno`, `House`, `Ambient`, `Experimental` (see `src/NeuroSYS/Model/Genre.php` — add a case when you need one).
 
 ## Titles and the accent mark
 
@@ -158,7 +158,7 @@ by hand. Source files live in `~/Music/neuro.SYS/releases/ill/`; they are upload
       link is live, so changing it now means a re-upload and a new link. Carry to the next release.
 - [x] **Create share links in the HiDrive web UI** for cover + FLAC + WAV + MP3 + stems zip → `cover` and `formats`
 - [x] Grab the SoundCloud track id / permalink / secret token → `embed` (a scheduled track has a secret-token embed before it goes public — `hello world!` uses one)
-- [x] `bash test/basic_test.sh` — flipped `/releases/ill/flac` to 303; 22/22 pass
+- [x] `bash test/basic_test.sh` — flipped `/releases/ill/flac` to 303; all checks pass
 - [x] Deploy `public/` + `src/` + updated `data/releases.php` to Strato — `./deploy.sh`, 2026-09-04
 - [x] Test all four download links live — all four 303 to the right HiDrive ids (logging stays off by design, see CLAUDE.md)
 - [~] Mobile check — no horizontal overflow at 375px on `/`, `/releases/ill` or `/privacy`, and the consent gate swaps

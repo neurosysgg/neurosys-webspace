@@ -1,7 +1,40 @@
 {
+    "require": {
+        "php": ">=8.5"
+    },
     "autoload": {
         "psr-4": {
             "NeuroSYS\\": "src/NeuroSYS/"
         }
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^13.3",
+        "squizlabs/php_codesniffer": "^4.0",
+        "friendsofphp/php-cs-fixer": "^3.95"
+    },
+    "scripts": {
+        "test": [
+            "@unit",
+            "@verify"
+        ],
+        "unit": "phpunit",
+        "verify": "bash test/basic_test.sh",
+        "lint": [
+            "@phpcs",
+            "@cs-check"
+        ],
+        "phpcs": "phpcs",
+        "cs-check": "php-cs-fixer check --diff",
+        "cs-fix": "php-cs-fixer fix"
+    },
+    "scripts-descriptions": {
+        "test": "Unit tests then the end-to-end verify script",
+        "unit": "PHPUnit unit tests",
+        "verify": "End-to-end verify script (real autoloader, real HTTP, repo hygiene)",
+        "lint": "phpcs + php-cs-fixer, both read-only",
+        "cs-fix": "Apply php-cs-fixer's changes"
+    },
+    "config": {
+        "sort-packages": true
     }
 }

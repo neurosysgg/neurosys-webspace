@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-Plain PHP 8.5 / HTML / CSS — no framework, no build step, no package manager. The pipe operator (`|>`) is used in `autoload.php` and requires PHP ≥ 8.5.
+Plain PHP 8.5 / HTML / CSS — no framework, no build step, and **no runtime dependencies**. The pipe
+operator (`|>`) is used in `autoload.php` and requires PHP ≥ 8.5.
+
+Composer is used for dev tooling only (PHPUnit, phpcs, php-cs-fixer). `vendor/` is gitignored and
+`deploy.sh` never uploads it — what runs on the server is still plain PHP with a hand-rolled autoloader.
 
 ## Local dev
 
@@ -12,7 +16,20 @@ Plain PHP 8.5 / HTML / CSS — no framework, no build step, no package manager. 
 php -S localhost:8080 -t public
 ```
 
-No build, no transpile, no dependencies to install.
+No build, no transpile. `composer install` only if you want to run the tests or linters.
+
+## Tests
+
+```bash
+composer test      # unit tests, then the end-to-end verify script
+composer unit      # PHPUnit only
+composer verify    # bash test/basic_test.sh only
+composer lint      # phpcs + php-cs-fixer, read-only
+```
+
+Two suites that cover different things — `test/unit/` for logic and edge cases, `test/basic_test.sh`
+for the real autoloader, real HTTP, `exit`-ing auth code and repo hygiene. See `docs/testing.md` for
+the split and for the invariants that exist to stop specific mistakes recurring.
 
 ## Architecture
 
@@ -26,13 +43,13 @@ src/NeuroSYS/
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
-├── Support/        ← Collection<T>, SearchableCollection<T>, JsonDeserializable interface
+├── Support/        ← Collection<T>, SearchableCollection<T>, Route, RouteInitialization, JsonDeserializable
 ├── View/           ← View abstract base + one concrete per page; HTML via heredoc, no template files
 ├── Layout.php      ← static wrap(View): string — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
 
-`public/index.php` is nine lines: parse request → site auth check → `Router::dispatch()`.
+`public/index.php` is four statements: parse request → site auth check → `Router::dispatch()` → send.
 
 ## How the router works
 
@@ -47,8 +64,8 @@ Download routes (`/releases/{slug}/{format}`) call `DownloadLogger` and issue a 
 
 **Download logging is deliberately off, for legal reasons.** `DownloadLogger::ENABLED` is `false`, and `log()` returns on it
 before the `DownloadLogEntry` is built — so the referrer is never read and nothing is written. `StatsController` skips reading the
-log entirely and `/admin/stats` says logging is switched off rather than showing an empty table. `test/basic_test.sh` asserts the
-switch stays off.
+log entirely and `/admin/stats` says logging is switched off rather than showing an empty table. Both suites assert the switch
+stays off, and the unit test additionally asserts the referrer is never read.
 
 To turn it on later: flip `ENABLED` to `true`. That is a privacy-policy decision before a code one — `data/privacy.html` currently
 makes no download-tracking claim, so amend it first. Note the old failure mode is still latent underneath: `fopen(..., 'ab')`
@@ -102,13 +119,16 @@ means a new class implementing `Embed`, not a new field on `Release`.
 
 `public/` maps to Strato's `htdocs/` (web-exposed). `data/` lives **outside** the webroot — it's uploaded separately and never via the standard deployment mapping.
 
-- Regular deploy: right-click `public/` → **Deployment → Upload to Strato** in PHPStorm
-- After adding/changing a release: also upload `data/releases.php` manually via the Remote Host panel
+- Regular deploy: `./deploy.sh` (rsync over the mounted SFTP), or right-click `public/` →
+  **Deployment → Upload to Strato** in PHPStorm
+- `deploy.sh` ships `public/`, `src/`, `autoload.php` and `data/` — but **excludes `data/admin.php` and
+  `data/site_auth.php`**, because the repo copies are placeholders and syncing them would overwrite the
+  live credentials. Upload those two by hand when they change.
 - `data/admin.php` holds bcrypt credentials for `/admin/stats`; generate with `php -r "echo password_hash('pw', PASSWORD_BCRYPT);"`
 
 Footer profile links come from `data/profiles.php` — an empty URL hides that link. Brand icons are **vendored** under
 `public/assets/img/brand/`, never hot-linked from a platform CDN; see `docs/branding.md` for why and for each platform's
 usage rules.
 
-See `docs/deployment.md` for first-time FTP setup, `docs/releases.md` for the full release checklist, and
-`docs/branding.md` for brand assets and profile links.
+See `docs/deployment.md` for first-time FTP setup, `docs/releases.md` for the full release checklist,
+`docs/branding.md` for brand assets and profile links, and `docs/testing.md` for the two test suites.

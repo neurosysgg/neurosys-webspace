@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\View;
@@ -35,7 +36,7 @@ class ImprintView extends View
                 48157 Münster<br />
                 Germany
               </p>
-            
+
               <h1>Imprint</h1>
 
               <h2>Information pursuant to § 5 DDG</h2>

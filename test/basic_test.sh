@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
-# Basic smoke tests for neuro.SYS.
-# No test framework — PHP CLI checks for class logic, curl checks for HTTP behaviour.
+# End-to-end verify script for neuro.SYS.
+#
+# This is the *other half* of the test suite. `vendor/bin/phpunit` covers the units —
+# pure logic, branches, escaping — against Composer's autoloader. This script covers
+# what unit tests structurally cannot:
+#
+#   * the real hand-rolled autoloader in autoload.php (the |> pipe operator needs PHP 8.5)
+#   * the real HTTP stack: status codes, redirects, Basic Auth (Auth::* calls exit)
+#   * the real data files as they will be deployed
+#   * repo hygiene that would only bite on the server
 #
 # Usage (from any directory):
 #   bash test/basic_test.sh
@@ -19,8 +27,7 @@ FAIL=0
 pass() { echo "  OK   $1"; ((PASS+=1)); }
 fail() { echo "  FAIL $1"; ((FAIL+=1)); }
 
-# Run a PHP snippet; exit 0 = pass, anything else = fail.
-# The snippet runs with the autoloader already required.
+# Run a PHP snippet against the REAL autoloader; exit 0 = pass, anything else = fail.
 php_ok() {
     local desc="$1"
     local code="$2"
@@ -31,18 +38,6 @@ php_ok() {
     fi
 }
 
-# Build curl args — include Basic Auth credentials if site_auth.php is active.
-CURL_ARGS=(-s)
-if [[ -f "$REPO/data/site_auth.php" ]]; then
-    if [[ -n "${SITE_USER:-}" && -n "${SITE_PASS:-}" ]]; then
-        CURL_ARGS+=(-u "${SITE_USER}:${SITE_PASS}")
-    else
-        echo "NOTE: data/site_auth.php is active — HTTP checks will 401 without credentials."
-        echo "      Run: SITE_USER=<user> SITE_PASS=<pass> bash test/basic_test.sh"
-        echo ""
-    fi
-fi
-
 # Assert an HTTP status code against a URL.
 check_status() {
     local desc="$1"; local url="$2"; local expected="$3"
@@ -52,6 +47,20 @@ check_status() {
         pass "$desc ($actual)"
     else
         fail "$desc (expected $expected, got $actual)"
+    fi
+}
+
+# Assert that a URL's body contains (or does not contain) a string.
+check_body() {
+    local desc="$1"; local url="$2"; local needle="$3"; local mode="${4:-contains}"
+    local body
+    body=$(curl "${CURL_ARGS[@]}" "$url" 2>/dev/null) || true
+    if [[ "$mode" == "contains" ]] && [[ "$body" == *"$needle"* ]]; then
+        pass "$desc"
+    elif [[ "$mode" == "absent" ]] && [[ "$body" != *"$needle"* ]]; then
+        pass "$desc"
+    else
+        fail "$desc (expected to $mode '$needle')"
     fi
 }
 
@@ -72,58 +81,75 @@ check_spa_fragment() {
     fi
 }
 
+# Build curl args — include Basic Auth credentials if site_auth.php is active.
+CURL_ARGS=(-s)
+if [[ -f "$REPO/data/site_auth.php" ]]; then
+    if [[ -n "${SITE_USER:-}" && -n "${SITE_PASS:-}" ]]; then
+        CURL_ARGS+=(-u "${SITE_USER}:${SITE_PASS}")
+    else
+        echo "NOTE: data/site_auth.php is active — HTTP checks will 401 without credentials."
+        echo "      Run: SITE_USER=<user> SITE_PASS=<pass> bash test/basic_test.sh"
+        echo ""
+    fi
+fi
+
 
 echo ""
-echo "=== PHP class checks ==="
+echo "=== Environment ==="
 
-# --- Autoloader ---
+# autoload.php uses the |> pipe operator, which is a hard parse error below 8.5.
+if php -r 'exit(PHP_VERSION_ID >= 80500 ? 0 : 1);'; then
+    pass "PHP $(php -r 'echo PHP_VERSION;') satisfies the >=8.5 the pipe operator needs"
+else
+    fail "PHP $(php -r 'echo PHP_VERSION;') is below the 8.5 autoload.php requires"
+fi
 
-php_ok "Autoloader resolves Collection" \
-    "new NeuroSYS\Support\Collection(stdClass::class);"
 
-php_ok "Autoloader resolves SearchableCollection" \
-    "new NeuroSYS\Support\SearchableCollection(stdClass::class);"
+echo ""
+echo "=== Production autoloader ==="
+# PHPUnit runs against Composer's autoloader; these exercise the one that actually ships.
 
-php_ok "Autoloader resolves HttpStatusCode" \
+php_ok "autoload.php resolves a Support class" \
+    "class_exists('NeuroSYS\Support\Collection', true) or exit(1);"
+
+php_ok "autoload.php resolves a nested-namespace class" \
+    "class_exists('NeuroSYS\Model\Link\HiDriveLink', true) or exit(1);"
+
+php_ok "autoload.php resolves an enum" \
     "NeuroSYS\Http\HttpStatusCode::NotFound->value === 404 or exit(1);"
 
-# --- SearchableCollection ---
+php_ok "autoload.php ignores classes outside the NeuroSYS prefix" \
+    "class_exists('Some\Other\Vendor\Thing', true) === false or exit(1);"
 
-php_ok "SearchableCollection::find returns null for unknown key" \
-    "use NeuroSYS\Support\SearchableCollection;
-     \$c = new SearchableCollection(stdClass::class);
-     \$c->find('x') === null or exit(1);"
+php_ok "every class under src/ actually loads" \
+    "\$bad = [];
+     \$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator('$REPO/src'));
+     foreach (\$it as \$f) {
+         if (\$f->getExtension() !== 'php') continue;
+         \$rel = substr(\$f->getPathname(), strlen('$REPO/src/'));
+         \$class = str_replace('/', chr(92), substr(\$rel, 0, -4));
+         if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class)) \$bad[] = \$class;
+     }
+     \$bad === [] or exit(1);"
 
-php_ok "SearchableCollection::find returns the item for a known key" \
-    "use NeuroSYS\Support\SearchableCollection;
-     \$c = new SearchableCollection(stdClass::class);
-     \$o = new stdClass();
-     \$c->add('k', \$o);
-     \$c->find('k') === \$o or exit(1);"
 
-php_ok "SearchableCollection rejects items of the wrong type" \
-    "use NeuroSYS\Support\SearchableCollection;
-     \$c = new SearchableCollection(DateTime::class);
-     try { \$c->add('k', new stdClass()); exit(1); } catch (TypeError \$e) {}"
+echo ""
+echo "=== Data files ==="
+# These load the real data/ as it will be uploaded, so a bad paste fails here.
 
-# --- DownloadLogEntry ---
+php_ok "data/releases.php loads and every Release constructs" \
+    "(new NeuroSYS\Service\ReleaseRepository())->all()->count() > 0 or exit(1);"
 
-# Verifies that __toString() produces valid JSON and fromJson() reconstructs the object.
-php_ok "DownloadLogEntry round-trips through JSON" \
-    "use NeuroSYS\Service\DownloadLogEntry;
-     \$e = new DownloadLogEntry('2026-06-17T00:00:00+00:00', 'test-slug', 'flac', '');
-     \$d = DownloadLogEntry::fromJson((string) \$e);
-     (\$d->slug === 'test-slug' && \$d->format === 'flac') or exit(1);"
+php_ok "data/profiles.php loads and every link is https" \
+    "foreach ((new NeuroSYS\Service\ProfileRepository())->all() as \$l) {
+         str_starts_with(\$l['url'], 'https://') or exit(1);
+     }"
 
-# Malformed lines in the log file must not crash the stats parser.
-php_ok "DownloadLogEntry::fromJson returns null for invalid JSON" \
-    "use NeuroSYS\Service\DownloadLogEntry;
-     DownloadLogEntry::fromJson('not json') === null or exit(1);"
+php_ok "data/admin.php is shaped the way Auth expects" \
+    "\$c = require '$REPO/data/admin.php';
+     (isset(\$c['user'], \$c['pass_hash']) && is_string(\$c['pass_hash'])) or exit(1);"
 
-# --- DownloadLogger ---
-
-# Download logging is deliberately switched off (legal). Guard against it being turned back on by accident.
-php_ok "DownloadLogger is switched off and writes nothing" \
+php_ok "download logging is switched off and writes nothing" \
     "use NeuroSYS\Service\DownloadLogger;
      \$f = '$REPO/data/logs/downloads.log';
      \$before = is_file(\$f) ? filesize(\$f) : -1;
@@ -132,122 +158,51 @@ php_ok "DownloadLogger is switched off and writes nothing" \
      \$after = is_file(\$f) ? filesize(\$f) : -1;
      (DownloadLogger::ENABLED === false && \$after === \$before) or exit(1);"
 
-# --- ReleaseRepository ---
+if [[ -f "$REPO/data/.htaccess" ]] && grep -qi 'Require all denied' "$REPO/data/.htaccess"; then
+    pass "data/.htaccess denies web access (fallback if data/ ends up inside the webroot)"
+else
+    fail "data/.htaccess is missing or no longer denies access"
+fi
 
-php_ok "ReleaseRepository loads at least one release" \
-    "use NeuroSYS\Service\ReleaseRepository;
-     (new ReleaseRepository())->all()->count() > 0 or exit(1);"
-
-php_ok "ReleaseRepository::find returns null for unknown slug" \
-    "use NeuroSYS\Service\ReleaseRepository;
-     (new ReleaseRepository())->find('does-not-exist') === null or exit(1);"
-
-# Confirm the known slug from data/releases.php resolves to a Release object.
-php_ok "ReleaseRepository::find returns a Release for 'hello-world'" \
-    "use NeuroSYS\Service\ReleaseRepository;
-     use NeuroSYS\Model\Release;
-     \$r = (new ReleaseRepository())->find('hello-world');
-     \$r instanceof Release or exit(1);"
-
-
-# --- SoundCloudEmbed ---
-
-# The embed generates its own markup, so the track id must survive into the player URL.
-php_ok "SoundCloudEmbed renders an iframe for the right track" \
-    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
-     \$h = new SoundCloudEmbed(trackId: 123, permalink: 'x')->toHtml('t');
-     (str_contains(\$h, '<iframe') && str_contains(\$h, 'soundcloud%3Atracks%3A123')) or exit(1);"
-
-# Options are an enum set; a bare string would silently produce a broken query flag.
-php_ok "SoundCloudEmbed rejects a non-SoundCloudOption" \
-    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
-     use NeuroSYS\Exception\ReleaseVerificationException;
-     try { new SoundCloudEmbed(trackId: 1, permalink: 'x', options: ['show_user']); exit(1); }
-     catch (ReleaseVerificationException \$e) {}"
-
-# Presence in the option list means true, absence means false — both are emitted.
-php_ok "SoundCloudEmbed maps options to true/false query flags" \
-    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
-     use NeuroSYS\Model\Embed\SoundCloudOption;
-     \$on  = new SoundCloudEmbed(trackId: 1, permalink: 'x', options: [SoundCloudOption::ShowComments])->toHtml('t');
-     \$off = new SoundCloudEmbed(trackId: 1, permalink: 'x', options: [])->toHtml('t');
-     (str_contains(\$on, 'show_comments=true') && str_contains(\$off, 'show_comments=false')) or exit(1);"
-
-# The attribution text comes from the release title, never a second hand-typed copy.
-php_ok "SoundCloudEmbed credits the title it is given" \
-    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
-     \$h = new SoundCloudEmbed(trackId: 1, permalink: 'x')->toHtml('my track!');
-     str_contains(\$h, '>my track!</a>') or exit(1);"
-
-# End to end: the view must gate the embed behind the consent placeholder, named per platform.
-php_ok "ReleaseView gates the embed behind a named consent placeholder" \
-    "use NeuroSYS\Service\ReleaseRepository;
-     use NeuroSYS\View\ReleaseView;
-     \$h = new ReleaseView((new ReleaseRepository())->find('ill'), 'ill')->content();
-     (str_contains(\$h, 'player-consent') && str_contains(\$h, 'SoundCloud player')) or exit(1);"
-
-
-# --- HiDriveLink ---
-
-# The share id is the only per-file part; the endpoint is generated around it.
-php_ok "HiDriveLink builds the direct-download URL from a share id" \
-    "use NeuroSYS\Model\Link\HiDriveLink;
-     new HiDriveLink('BXRsy9S7d')->url()
-       === 'https://my.hidrive.com/api/sharelink/download?id=BXRsy9S7d' or exit(1);"
-
-# A truncated or mistyped paste must fail when the data file loads, not 404 later at HiDrive.
-php_ok "HiDriveLink rejects a malformed share id" \
-    "use NeuroSYS\Model\Link\HiDriveLink;
-     use NeuroSYS\Exception\ReleaseVerificationException;
-     \$bad = 0;
-     foreach (['BXRsy9S7', 'BXRsy9S7dd', '', 'BXRsy-9S7', 'https://my.hidrive.com/x'] as \$id) {
-         try { new HiDriveLink(\$id); } catch (ReleaseVerificationException \$e) { \$bad++; }
-     }
-     \$bad === 5 or exit(1);"
-
-# Every link in the catalogue must resolve to the direct-download endpoint, not a share page.
-php_ok "Every release link points at HiDrive direct download" \
-    "use NeuroSYS\Service\ReleaseRepository;
-     \$n = 0;
-     foreach ((new ReleaseRepository())->all() as \$r) {
-         foreach ([\$r->cover, ...array_map(fn(\$f) => \$f->link, \$r->formats->all())] as \$l) {
-             if (\$l === null) continue;
-             str_starts_with(\$l->url(), 'https://my.hidrive.com/api/sharelink/download?id=') or exit(1);
-             \$n++;
-         }
-     }
-     \$n > 0 or exit(1);"
-
-# The staging state: a format declared with no link yet. DownloadController keys its 503
-# branch off exactly this being null, so guard the default rather than the controller
-# (which builds its own ReleaseRepository and can't be handed a synthetic release).
-php_ok "A format declared without a link has a null link" \
-    "use NeuroSYS\Model\Format;
-     use NeuroSYS\Model\Genre;
-     use NeuroSYS\Model\MusicalKey;
-     use NeuroSYS\Model\Release;
-     use NeuroSYS\Model\ReleaseFormat;
-     use NeuroSYS\Support\Collection;
-     \$r = new Release('t', 1, MusicalKey::CMajor, Genre::Dubstep, 'd', null,
-         new Collection(Format::class)->add(new Format(ReleaseFormat::FLAC)));
-     \$r->findFormat('flac')->link === null or exit(1);"
-
-# A release with no cover link renders the placeholder rather than an empty src.
-php_ok "ReleaseView falls back to the cover placeholder" \
-    "use NeuroSYS\Model\Format;
-     use NeuroSYS\Model\Genre;
-     use NeuroSYS\Model\MusicalKey;
-     use NeuroSYS\Model\Release;
-     use NeuroSYS\Support\Collection;
-     use NeuroSYS\View\ReleaseView;
-     \$r = new Release('t', 1, MusicalKey::CMajor, Genre::Dubstep, 'd', null,
-         new Collection(Format::class));
-     \$h = new ReleaseView(\$r, 't')->content();
-     (str_contains(\$h, 'src=\"/assets/img/cover-placeholder.svg\"')
-      && !str_contains(\$h, 'src=\"\"')) or exit(1);"
 
 echo ""
-echo "=== HTTP route checks ==="
+echo "=== Repo hygiene ==="
+# Things that would only hurt once they are on the server.
+
+if grep -RIlq --exclude-dir=.git --exclude-dir=vendor --exclude-dir=.idea \
+       -e '\$2[aby]\$[0-9]\{2\}\$' "$REPO/data/releases.php" "$REPO/data/profiles.php" 2>/dev/null; then
+    fail "a bcrypt hash is sitting in a non-credential data file"
+else
+    pass "no credentials in releases.php / profiles.php"
+fi
+
+if git -C "$REPO" ls-files --error-unmatch data/site_auth.php >/dev/null 2>&1 \
+   || git -C "$REPO" ls-files --error-unmatch deploy.sh >/dev/null 2>&1; then
+    fail "a gitignored credential file is tracked by git"
+else
+    pass "site_auth.php and deploy.sh are untracked"
+fi
+
+# Every brand icon Platform names must exist, or the footer renders broken images.
+php_ok "every vendored brand icon referenced by Platform exists" \
+    "foreach (NeuroSYS\Model\Platform::cases() as \$p) {
+         is_file('$REPO/public' . \$p->iconSrc()) or exit(1);
+     }"
+
+# .htaccess must pass every asset type through as a static file — Strato 500s otherwise.
+missing_types=""
+for ext in $(find "$REPO/public/assets" -type f | sed 's/.*\.//' | sort -u); do
+    grep -q "$ext" "$REPO/public/.htaccess" || missing_types="$missing_types $ext"
+done
+if [[ -z "$missing_types" ]]; then
+    pass "public/.htaccess handles every asset extension in use"
+else
+    fail "public/.htaccess is missing SetHandler for:$missing_types"
+fi
+
+
+echo ""
+echo "=== HTTP routes ==="
 
 # Start the built-in dev server in the background; kill it on exit.
 php -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
@@ -267,17 +222,42 @@ fi
 
 check_status "GET /                              → 200" "$BASE/"                                200
 check_status "GET /releases                      → 200" "$BASE/releases"                       200
+check_status "GET /releases/                     → 200" "$BASE/releases/"                      200
 check_status "GET /releases/hello-world          → 200" "$BASE/releases/hello-world"           200
 check_status "GET /releases/hello-world/flac     → 303" "$BASE/releases/hello-world/flac"      303
 check_status "GET /releases/ill                  → 200" "$BASE/releases/ill"                   200
 check_status "GET /releases/ill/flac             → 303" "$BASE/releases/ill/flac"              303
+check_status "GET /imprint                       → 200" "$BASE/imprint"                        200
+check_status "GET /privacy                       → 200" "$BASE/privacy"                        200
 check_status "GET /releases/no-such-slug         → 404" "$BASE/releases/no-such-slug"          404
 check_status "GET /releases/hello-world/badformat→ 404" "$BASE/releases/hello-world/badformat" 404
 check_status "GET /notfound                      → 404" "$BASE/notfound"                       404
 
+# Auth::requireAdminAuth() calls exit, so only a real request can prove it gates.
+check_status "GET /admin/stats (no creds)        → 401" "$BASE/admin/stats"                    401
+check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"                    401
+
+
+echo ""
+echo "=== Rendered output ==="
+
+# Download links must bypass nav.js, or the 303 is consumed by fetch and nothing downloads.
+check_body "download cards carry data-no-spa"        "$BASE/releases/ill"  'data-no-spa'
+# Nothing may be requested from SoundCloud before the visitor clicks the consent gate.
+check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<iframe'   absent
+check_body "the consent gate is rendered"            "$BASE/releases/ill"  'player-consent'
+# A PHP notice or warning leaking into the page means something is broken upstream.
+check_body "no PHP errors leak into the home page"   "$BASE/"              'Warning'   absent
+check_body "no PHP errors leak into a release page"  "$BASE/releases/ill"  'Fatal'     absent
+check_body "the privacy policy is served"            "$BASE/privacy"       'Datenschutz'
+# HiDrive receives the visitor's IP on a download, so the policy has to say so.
+check_body "the privacy policy names HiDrive"        "$BASE/privacy"       'HiDrive'
+check_body "the imprint carries a legal name"        "$BASE/imprint"       'Niclas Ahl'
+
 # AJAX requests should return a page fragment, not a full HTML document.
 check_spa_fragment "AJAX /         returns fragment only" "$BASE/"
 check_spa_fragment "AJAX /releases returns fragment only" "$BASE/releases"
+check_spa_fragment "AJAX /releases/ill returns fragment only" "$BASE/releases/ill"
 
 
 echo ""

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\View;
@@ -129,14 +130,18 @@ class ReleaseView extends View
     private function playerHtml(): string
     {
         $embed = $this->release->embed;
-        if ($embed === null) return '';
+
+        if ($embed === null) {
+            return '';
+        }
 
         $markup   = htmlspecialchars($embed->toHtml($this->release->title));
         $provider = htmlspecialchars($embed->platform()->displayName());
+        $height   = $embed->height();
 
         return <<<HTML
             <div class="player">
-              <div class="player-consent" data-embed="$markup">
+              <div class="player-consent" style="--player-height:{$height}px" data-embed="$markup">
                 <p class="player-consent-label">$provider player</p>
                 <button class="btn-primary player-consent-btn">Load player</button>
                 <p class="player-consent-hint">Third-party content — clicking connects you to $provider&rsquo;s servers.</p>
@@ -167,14 +172,19 @@ class ReleaseView extends View
         return $cards;
     }
 
-    /** Returns the human-readable metadata string for a given format type. */
+    /**
+     * Returns the human-readable metadata string for a given format type.
+     *
+     * Which formats are lossless is {@link ReleaseFormat::isLossless()}'s to know — listing
+     * them again here would be a second copy of that fact, free to drift from the first.
+     */
     private function formatMeta(ReleaseFormat $format): string
     {
         return match ($format) {
-            ReleaseFormat::FLAC, ReleaseFormat::WAV, ReleaseFormat::AIFF => 'lossless, 24-bit/48kHz',
+            ReleaseFormat::STEMS => 'non-commercial — commercial licensing: neuro.sys@neurosys.gg',
             ReleaseFormat::MP3   => '320 kbps',
             ReleaseFormat::OGG   => 'OGG Vorbis',
-            ReleaseFormat::STEMS => 'non-commercial — commercial licensing: neuro.sys@neurosys.gg',
+            default              => $format->isLossless() ? 'lossless, 24-bit/48kHz' : 'lossy',
         };
     }
 }

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Http;
@@ -15,7 +16,6 @@ readonly class Request
      */
     private function __construct(
         private string $path,
-        private array  $segments,
         private bool   $ajax,
         private string $authUser,
         private string $authPassword,
@@ -31,7 +31,6 @@ readonly class Request
     {
         $path     = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
         $path     = rtrim($path, '/') ?: '/';
-        $segments = array_values(array_filter(explode('/', ltrim($path, '/'))));
 
         $ajax = isset($_SERVER['HTTP_X_REQUESTED_WITH'])
              && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
@@ -40,19 +39,19 @@ readonly class Request
         $pass = $_SERVER['PHP_AUTH_PW']   ?? '';
 
         // Authorization header fallback for hosts that strip PHP_AUTH_* vars
-        if ($user === '' && isset($_SERVER['HTTP_AUTHORIZATION'])
-            && str_starts_with($_SERVER['HTTP_AUTHORIZATION'], 'Basic ')) {
+        if (
+            $user === '' && isset($_SERVER['HTTP_AUTHORIZATION'])
+            && str_starts_with($_SERVER['HTTP_AUTHORIZATION'], 'Basic ')
+        ) {
             [, $b64] = explode(' ', $_SERVER['HTTP_AUTHORIZATION'], 2);
             [$user, $pass] = explode(':', base64_decode($b64), 2) + ['', ''];
         }
 
-        return new static($path, $segments, $ajax, $user, $pass);
+        return new static($path, $ajax, $user, $pass);
     }
 
     /** Returns the normalized request path without trailing slash. */
     public function path(): string         { return $this->path; }
-    /** Returns the path segments split on '/'. */
-    public function segments(): array      { return $this->segments; }
     /** Returns true if the request was made via XMLHttpRequest. */
     public function isAjax(): bool         { return $this->ajax; }
     /** Returns the HTTP Basic Auth username, or an empty string if not provided. */

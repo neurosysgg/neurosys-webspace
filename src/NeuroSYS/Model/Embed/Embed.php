@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Model\Embed;
@@ -19,6 +20,15 @@ interface Embed
 {
     /** Returns the platform this embed loads from. */
     public function platform(): Platform;
+
+    /**
+     * Returns the rendered height of the player in px.
+     *
+     * The consent gate reserves exactly this much space, so swapping the placeholder
+     * for the real player doesn't shift the page. Without it the gate would have to
+     * hardcode one provider's height in CSS.
+     */
+    public function height(): int;
 
     /**
      * Renders the provider's embed markup.

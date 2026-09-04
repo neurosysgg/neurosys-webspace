@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
@@ -26,15 +27,20 @@ readonly class DownloadController implements Controller
      *
      * @param string $slug       The release slug.
      * @param string $formatType The format type value (e.g. 'flac', 'mp3').
+     * @param ReleaseRepository|null $releases The catalogue to read, or null for the
+     *                                         canonical one. Only tests pass this — it
+     *                                         is the seam for exercising the staged
+     *                                         (link-less) branch without a real release.
      */
     public function __construct(
         private string $slug,
         private string $formatType,
+        private ?ReleaseRepository $releases = null,
     ) {}
 
     public function handle(Request $request): Response
     {
-        $release = new ReleaseRepository()->find($this->slug);
+        $release = ($this->releases ?? new ReleaseRepository())->find($this->slug);
 
         if ($release === null) {
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);

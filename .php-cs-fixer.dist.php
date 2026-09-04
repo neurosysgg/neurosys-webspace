@@ -6,6 +6,9 @@ use PhpCsFixer\Config;
 use PhpCsFixer\Finder;
 
 return (new Config())
+    // PHP 8.5 is newer than php-cs-fixer officially supports; without this it refuses to
+    // run at all and needs PHP_CS_FIXER_IGNORE_ENV=1 on every invocation.
+    ->setUnsupportedPhpVersionAllowed(true)
     ->setRiskyAllowed(false)
     ->setRules([
         '@PSR12' => true,

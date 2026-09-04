@@ -1,12 +1,13 @@
 <?php
-declare(strict_types=1);
 
-require __DIR__ . '/../autoload.php';
+declare(strict_types=1);
 
 use NeuroSYS\Http\Request;
 use NeuroSYS\Router;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Support\RouteInitialization;
+
+require __DIR__ . '/../autoload.php';
 
 $request = Request::fromGlobals();
 

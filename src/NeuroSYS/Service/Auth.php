@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Service;
@@ -26,8 +27,10 @@ class Auth
 
         $creds = require $file;
 
-        if ($request->authUser() !== $creds['user']
-            || !password_verify($request->authPassword(), $creds['pass_hash'])) {
+        if (
+            $request->authUser() !== $creds['user']
+            || !password_verify($request->authPassword(), $creds['pass_hash'])
+        ) {
             header('WWW-Authenticate: Basic realm="neuro.SYS"');
             http_response_code(HttpStatusCode::Unauthorized->value);
             exit;

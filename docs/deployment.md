@@ -67,6 +67,16 @@ Paste the output into `data/admin.php` as `pass_hash`, then upload that file.
 
 ## Regular deploy
 
-Right-click `public/` → **Deployment → Upload to Strato (neurosys.gg)**.
+`./deploy.sh` is the current path — it rsyncs `public/`, `src/`, `autoload.php` and `data/` over the
+mounted SFTP in one go, so `data/releases.php` no longer needs a separate manual upload. The script is
+gitignored (it holds the host and account name), so it exists only on the local machine.
 
-When `data/releases.php` changes (new release, new HiDrive URL): upload it manually to `data/` on the server via the Remote Host panel.
+**It deliberately excludes `data/admin.php` and `data/site_auth.php`.** The copies in the repo are
+placeholders — `admin.php` ships an empty `pass_hash` — so syncing them would overwrite the live hashes
+and lock `/admin/stats` out. Upload those two by hand when they actually change.
+
+The PHPStorm route still works if the mount isn't up: right-click `public/` → **Deployment → Upload to
+Strato (neurosys.gg)**, then upload `data/releases.php` manually via the Remote Host panel.
+
+`vendor/` is dev-only tooling and is not in the list above — nothing Composer installs ever reaches the
+server.

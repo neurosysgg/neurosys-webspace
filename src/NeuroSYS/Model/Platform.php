@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace NeuroSYS\Model;
 
 /**
@@ -48,7 +50,7 @@ enum Platform: string
         };
     }
 
-    /** Returns the vendored brand asset path, or '' if the asset isn't vendored yet. */
+    /** Returns the path to the platform's vendored brand asset under public/assets/img/brand/. */
     public function iconSrc(): string
     {
         return match ($this) {

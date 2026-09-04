@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
@@ -10,7 +12,7 @@ use NeuroSYS\Support\Collection;
 /**
  * The Release class. Represents a music release with metadata and available download formats.
  */
-class Release
+readonly class Release
 {
     /**
      * Constructs an instance of {@link self}.

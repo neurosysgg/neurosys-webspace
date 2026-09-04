@@ -13,3 +13,8 @@ deploy.sh
 # Pre-public site auth — dot-prefix the file to disable the gate without losing it
 data/site_auth.php
 data/.site_auth.php
+
+# Composer dev dependencies (PHPUnit) — dev-only, never deployed
+/vendor/
+.phpunit.cache/
+.php-cs-fixer.cache

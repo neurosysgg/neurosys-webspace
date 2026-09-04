@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace NeuroSYS\Service;
@@ -31,7 +32,8 @@ class ProfileRepository
 
     /**
      * Returns the linked platforms paired with their URLs, in enum declaration
-     * order. Platforms with no URL, or with no vendored icon, are skipped.
+     * order. Platforms with no URL are skipped, so an unclaimed profile simply
+     * doesn't render.
      *
      * @return array<array{platform: Platform, url: string}>
      */
@@ -44,7 +46,7 @@ class ProfileRepository
         foreach (Platform::cases() as $platform) {
             $url = $this->links[$platform->value] ?? '';
 
-            if ($url === '' || $platform->iconSrc() === '') {
+            if ($url === '') {
                 continue;
             }
 
