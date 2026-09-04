@@ -31,6 +31,23 @@ enum Platform: string
         };
     }
 
+    /**
+     * Returns the platform's name as it reads in body copy — the plain noun, without
+     * the verb {@link self::label()} carries. Used where the platform is named inside
+     * a sentence, such as the embed consent gate.
+     */
+    public function displayName(): string
+    {
+        return match ($this) {
+            self::SoundCloud => 'SoundCloud',
+            self::Spotify    => 'Spotify',
+            self::AppleMusic => 'Apple Music',
+            self::YouTube    => 'YouTube',
+            self::X          => 'X',
+            self::GitHub     => 'GitHub',
+        };
+    }
+
     /** Returns the vendored brand asset path, or '' if the asset isn't vendored yet. */
     public function iconSrc(): string
     {

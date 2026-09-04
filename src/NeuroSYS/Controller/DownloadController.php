@@ -17,7 +17,7 @@ use NeuroSYS\View\NotFoundView;
  * The DownloadController class. Handles release download requests.
  *
  * Fetches the release and format, logs the download, and issues a redirect
- * to the file host. Returns 503 if the format URL has not yet been configured.
+ * to the file host. Returns 503 if the format has no link configured yet.
  */
 readonly class DownloadController implements Controller
 {
@@ -46,7 +46,7 @@ readonly class DownloadController implements Controller
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);
         }
 
-        if ($format->url === '') {
+        if ($format->link === null) {
             return new PlainTextResponse(
                 HttpStatusCode::ServiceUnavailable,
                 "This file isn't available yet — check back soon.\n",
@@ -55,6 +55,6 @@ readonly class DownloadController implements Controller
 
         new DownloadLogger()->log($this->slug, $this->formatType);
 
-        return new RedirectResponse($format->url);
+        return new RedirectResponse($format->link->url());
     }
 }

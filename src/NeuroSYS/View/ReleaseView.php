@@ -11,6 +11,9 @@ use NeuroSYS\Model\ReleaseFormat;
  */
 class ReleaseView extends View
 {
+    /** Shown when a release has no cover link, and as the onerror fallback for one that fails. */
+    private const string COVER_PLACEHOLDER = '/assets/img/cover-placeholder.svg';
+
     /**
      * Constructs an instance of {@link self}.
      *
@@ -35,12 +38,13 @@ class ReleaseView extends View
     /** Builds the hero section with terminal metadata and cover art. */
     private function heroSection(): string
     {
-        $title    = htmlspecialchars($this->release->title);
-        $bpm      = $this->release->bpm;
-        $key      = htmlspecialchars($this->release->key->value);
-        $genre    = htmlspecialchars($this->release->genre->value);
-        $coverSrc = htmlspecialchars($this->release->coverSrc);
-        $alt      = htmlspecialchars($this->release->title . ' cover art');
+        $title       = htmlspecialchars($this->release->title);
+        $bpm         = $this->release->bpm;
+        $key         = htmlspecialchars($this->release->key->value);
+        $genre       = htmlspecialchars($this->release->genre->value);
+        $coverSrc    = htmlspecialchars($this->release->cover?->url() ?? self::COVER_PLACEHOLDER);
+        $alt         = htmlspecialchars($this->release->title . ' cover art');
+        $placeholder = self::COVER_PLACEHOLDER;
 
         return <<<HTML
             <section class="hero">
@@ -63,7 +67,7 @@ class ReleaseView extends View
               <div class="cover-art">
                 <img
                   src="$coverSrc"
-                  onerror="this.src='/assets/img/cover-placeholder.svg';this.onerror=null"
+                  onerror="this.src='$placeholder';this.onerror=null"
                   alt="$alt"
                 />
               </div>
@@ -114,17 +118,28 @@ class ReleaseView extends View
             : $title . '<span class="bang">' . htmlspecialchars($mark) . '</span>';
     }
 
-    /** Builds the click-to-load SoundCloud consent placeholder. */
+    /**
+     * Builds the click-to-load consent placeholder for the release's embed.
+     *
+     * The markup never reaches the page directly — it is escaped into a data attribute
+     * and only swapped in by player.js once the visitor clicks, so nothing is requested
+     * from the provider until then. The provider is named from the embed rather than
+     * hardcoded, so a non-SoundCloud embed needs no change here.
+     */
     private function playerHtml(): string
     {
-        if ($this->release->soundcloudEmbedHtml === '') return '';
-        $embed = htmlspecialchars($this->release->soundcloudEmbedHtml);
+        $embed = $this->release->embed;
+        if ($embed === null) return '';
+
+        $markup   = htmlspecialchars($embed->toHtml($this->release->title));
+        $provider = htmlspecialchars($embed->platform()->displayName());
+
         return <<<HTML
             <div class="player">
-              <div class="player-consent" data-embed="$embed">
-                <p class="player-consent-label">SoundCloud player</p>
+              <div class="player-consent" data-embed="$markup">
+                <p class="player-consent-label">$provider player</p>
                 <button class="btn-primary player-consent-btn">Load player</button>
-                <p class="player-consent-hint">Third-party content — clicking connects you to SoundCloud&rsquo;s servers.</p>
+                <p class="player-consent-hint">Third-party content — clicking connects you to $provider&rsquo;s servers.</p>
               </div>
             </div>
             HTML;

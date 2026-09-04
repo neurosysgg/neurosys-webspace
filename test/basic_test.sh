@@ -150,6 +150,102 @@ php_ok "ReleaseRepository::find returns a Release for 'hello-world'" \
      \$r instanceof Release or exit(1);"
 
 
+# --- SoundCloudEmbed ---
+
+# The embed generates its own markup, so the track id must survive into the player URL.
+php_ok "SoundCloudEmbed renders an iframe for the right track" \
+    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
+     \$h = new SoundCloudEmbed(trackId: 123, permalink: 'x')->toHtml('t');
+     (str_contains(\$h, '<iframe') && str_contains(\$h, 'soundcloud%3Atracks%3A123')) or exit(1);"
+
+# Options are an enum set; a bare string would silently produce a broken query flag.
+php_ok "SoundCloudEmbed rejects a non-SoundCloudOption" \
+    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
+     use NeuroSYS\Exception\ReleaseVerificationException;
+     try { new SoundCloudEmbed(trackId: 1, permalink: 'x', options: ['show_user']); exit(1); }
+     catch (ReleaseVerificationException \$e) {}"
+
+# Presence in the option list means true, absence means false — both are emitted.
+php_ok "SoundCloudEmbed maps options to true/false query flags" \
+    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
+     use NeuroSYS\Model\Embed\SoundCloudOption;
+     \$on  = new SoundCloudEmbed(trackId: 1, permalink: 'x', options: [SoundCloudOption::ShowComments])->toHtml('t');
+     \$off = new SoundCloudEmbed(trackId: 1, permalink: 'x', options: [])->toHtml('t');
+     (str_contains(\$on, 'show_comments=true') && str_contains(\$off, 'show_comments=false')) or exit(1);"
+
+# The attribution text comes from the release title, never a second hand-typed copy.
+php_ok "SoundCloudEmbed credits the title it is given" \
+    "use NeuroSYS\Model\Embed\SoundCloudEmbed;
+     \$h = new SoundCloudEmbed(trackId: 1, permalink: 'x')->toHtml('my track!');
+     str_contains(\$h, '>my track!</a>') or exit(1);"
+
+# End to end: the view must gate the embed behind the consent placeholder, named per platform.
+php_ok "ReleaseView gates the embed behind a named consent placeholder" \
+    "use NeuroSYS\Service\ReleaseRepository;
+     use NeuroSYS\View\ReleaseView;
+     \$h = new ReleaseView((new ReleaseRepository())->find('ill'), 'ill')->content();
+     (str_contains(\$h, 'player-consent') && str_contains(\$h, 'SoundCloud player')) or exit(1);"
+
+
+# --- HiDriveLink ---
+
+# The share id is the only per-file part; the endpoint is generated around it.
+php_ok "HiDriveLink builds the direct-download URL from a share id" \
+    "use NeuroSYS\Model\Link\HiDriveLink;
+     new HiDriveLink('BXRsy9S7d')->url()
+       === 'https://my.hidrive.com/api/sharelink/download?id=BXRsy9S7d' or exit(1);"
+
+# A truncated or mistyped paste must fail when the data file loads, not 404 later at HiDrive.
+php_ok "HiDriveLink rejects a malformed share id" \
+    "use NeuroSYS\Model\Link\HiDriveLink;
+     use NeuroSYS\Exception\ReleaseVerificationException;
+     \$bad = 0;
+     foreach (['BXRsy9S7', 'BXRsy9S7dd', '', 'BXRsy-9S7', 'https://my.hidrive.com/x'] as \$id) {
+         try { new HiDriveLink(\$id); } catch (ReleaseVerificationException \$e) { \$bad++; }
+     }
+     \$bad === 5 or exit(1);"
+
+# Every link in the catalogue must resolve to the direct-download endpoint, not a share page.
+php_ok "Every release link points at HiDrive direct download" \
+    "use NeuroSYS\Service\ReleaseRepository;
+     \$n = 0;
+     foreach ((new ReleaseRepository())->all() as \$r) {
+         foreach ([\$r->cover, ...array_map(fn(\$f) => \$f->link, \$r->formats->all())] as \$l) {
+             if (\$l === null) continue;
+             str_starts_with(\$l->url(), 'https://my.hidrive.com/api/sharelink/download?id=') or exit(1);
+             \$n++;
+         }
+     }
+     \$n > 0 or exit(1);"
+
+# The staging state: a format declared with no link yet. DownloadController keys its 503
+# branch off exactly this being null, so guard the default rather than the controller
+# (which builds its own ReleaseRepository and can't be handed a synthetic release).
+php_ok "A format declared without a link has a null link" \
+    "use NeuroSYS\Model\Format;
+     use NeuroSYS\Model\Genre;
+     use NeuroSYS\Model\MusicalKey;
+     use NeuroSYS\Model\Release;
+     use NeuroSYS\Model\ReleaseFormat;
+     use NeuroSYS\Support\Collection;
+     \$r = new Release('t', 1, MusicalKey::CMajor, Genre::Dubstep, 'd', null,
+         new Collection(Format::class)->add(new Format(ReleaseFormat::FLAC)));
+     \$r->findFormat('flac')->link === null or exit(1);"
+
+# A release with no cover link renders the placeholder rather than an empty src.
+php_ok "ReleaseView falls back to the cover placeholder" \
+    "use NeuroSYS\Model\Format;
+     use NeuroSYS\Model\Genre;
+     use NeuroSYS\Model\MusicalKey;
+     use NeuroSYS\Model\Release;
+     use NeuroSYS\Support\Collection;
+     use NeuroSYS\View\ReleaseView;
+     \$r = new Release('t', 1, MusicalKey::CMajor, Genre::Dubstep, 'd', null,
+         new Collection(Format::class));
+     \$h = new ReleaseView(\$r, 't')->content();
+     (str_contains(\$h, 'src=\"/assets/img/cover-placeholder.svg\"')
+      && !str_contains(\$h, 'src=\"\"')) or exit(1);"
+
 echo ""
 echo "=== HTTP route checks ==="
 

@@ -23,6 +23,8 @@ src/NeuroSYS/
 ├── Controller/     ← one class per route group; fetches its own data, returns a Response
 ├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse, HttpStatusCode
 ├── Model/          ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
+│   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
+│   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T>, JsonDeserializable interface
 ├── View/           ← View abstract base + one concrete per page; HTML via heredoc, no template files
@@ -63,22 +65,38 @@ Edit `data/releases.php` — that's the only file. Each entry is a typed `Releas
 
 ```php
 'your-slug' => new Release(
-    title:               'track title',
-    bpm:                 140,
-    key:                 MusicalKey::FSharpMajor,   // see MusicalKey enum for all 24 keys
-    genre:               Genre::Dubstep,            // see Genre enum
-    description:         'debut single',
-    soundcloudEmbedHtml: '<iframe ...>...</iframe>', // full embed HTML from SoundCloud Share → Embed; '' to hide
-    coverSrc:            'https://my.hidrive.com/api/sharelink/download?id=...', // HiDrive direct-download link
+    title:       'track title',
+    bpm:         140,
+    key:         MusicalKey::FSharpMajor,   // see MusicalKey enum for all 24 keys
+    genre:       Genre::Dubstep,            // see Genre enum
+    description: 'debut single',
+    cover:       new HiDriveLink('J2FXbB70A'),   // id from Share → Direct download link
     formats: new Collection(Format::class)->add(
-        new Format(ReleaseFormat::FLAC,  'https://my.hidrive.com/...'),
-        new Format(ReleaseFormat::MP3,   'https://my.hidrive.com/...'),
-        new Format(ReleaseFormat::STEMS, 'https://my.hidrive.com/...'),
+        new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
+        new Format(ReleaseFormat::MP3,   new HiDriveLink('CPJy7AVIu')),
+        new Format(ReleaseFormat::STEMS, new HiDriveLink('D2PUDjoII')),
+    ),
+    embed: new SoundCloudEmbed(          // omit entirely to hide the player
+        trackId:     2394077313,         // numeric id from the track's embed URL
+        permalink:   'ill',              // the track's slug on SoundCloud
+        secretToken: 's-dIMAqki109G',    // only for a private/scheduled track; omit when public
     ),
 ),
 ```
 
-Omit a format entry (or leave its URL as `''`) to hide that download card.
+Omit a format entry to hide that download card; keep the entry but omit its `HiDriveLink` to render the card
+in the "not uploaded yet" state, where clicking returns a 503 instead of redirecting.
+
+**Never paste a full HiDrive URL.** `HiDriveLink` takes the 9-character share id and builds the direct-download
+URL around it. It rejects anything that isn't 9 alphanumeric characters, so a truncated paste throws when the
+data file loads rather than 404ing at HiDrive later. `cover` and every `Format` take the same `FileLink`
+interface — another host means a new class implementing it, and no change to `Release`, `Format`,
+`DownloadController` or `ReleaseView`.
+
+**Never paste SoundCloud's embed HTML.** `SoundCloudEmbed` generates it — see `docs/releases.md` for where the
+three ids come from. Player style and the six SoundCloud toggles are `SoundCloudPlayerStyle` /
+`SoundCloudOption` enums with sensible defaults; a normal release never sets them. Adding another provider
+means a new class implementing `Embed`, not a new field on `Release`.
 
 ## Deployment
 

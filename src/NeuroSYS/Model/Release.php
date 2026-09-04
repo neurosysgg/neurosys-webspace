@@ -3,6 +3,8 @@
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Model\Embed\Embed;
+use NeuroSYS\Model\Link\FileLink;
 use NeuroSYS\Support\Collection;
 
 /**
@@ -18,9 +20,9 @@ class Release
      * @param MusicalKey $key                The musical key.
      * @param Genre      $genre              The musical genre.
      * @param string     $description        A short description shown in release listings.
-     * @param string     $soundcloudEmbedHtml Full SoundCloud embed HTML, or empty to hide the player.
-     * @param string     $coverSrc           Direct URL to the cover art image.
+     * @param FileLink|null $cover           The cover art image, or null to use the placeholder.
      * @param Collection<Format> $formats    The available download {@link Format}s.
+     * @param Embed|null $embed              The media player for this release, or null for no player.
      *
      * @throws ReleaseVerificationException if constructed with invalid data.
      */
@@ -30,9 +32,9 @@ class Release
         public MusicalKey $key,
         public Genre $genre,
         public string $description,
-        public string $soundcloudEmbedHtml,
-        public string $coverSrc,
-        public Collection $formats
+        public ?FileLink $cover,
+        public Collection $formats,
+        public ?Embed $embed = null,
     ) {
         $this->verify();
     }
