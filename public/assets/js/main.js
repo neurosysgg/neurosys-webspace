@@ -11,6 +11,7 @@
 // the verify script to catch.
 import './elements/CoverArt.js';
 import './elements/embed/SoundCloudPlayer.js';
+import './elements/embed/SoundCloudProfile.js';
 import './elements/terminal/TerminalWindow.js';
 import './elements/terminal/TerminalCommand.js';
 import './elements/terminal/TerminalField.js';

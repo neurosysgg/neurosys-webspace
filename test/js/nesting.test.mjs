@@ -88,7 +88,8 @@ test('a root element connects anywhere', () => {
   const roots = [...PARENTS].filter(([, parent]) => parent === null).map(([tag]) => tag);
 
   assert.deepEqual(roots, [
-    'soundcloud-player', 'cover-art', 'terminal-window', 'download-list', 'release-list',
+    'soundcloud-player', 'soundcloud-profile', 'cover-art', 'terminal-window',
+    'download-list', 'release-list',
   ]);
 });
 

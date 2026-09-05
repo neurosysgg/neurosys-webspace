@@ -398,6 +398,13 @@ check_body "no iframe before the consent gate"       "$BASE/releases/ill"  '<ifr
 check_body "the widget host is nowhere in the page"  "$BASE/releases/ill"  'w.soundcloud.com'  absent
 check_body "the player element is rendered"          "$BASE/releases/ill"  '<soundcloud-player'
 
+# The home page carries the profile player, which is the same promise on the page most visitors
+# land on first. It is sent even less than the track player is — no id, no handle, no title, since
+# the element mirrors the handle itself — so the artist's own address is absent here too.
+check_body "no iframe on the home page either"       "$BASE/"              '<iframe'           absent
+check_body "the widget host is nowhere on the home page" "$BASE/"          'w.soundcloud.com'  absent
+check_body "the profile element is rendered"         "$BASE/"              '<soundcloud-profile'
+
 # An element the browser has never heard of renders as an inert inline box with no error anywhere,
 # so a tag reaching a page with no registration behind it is invisible. Checked in that direction:
 # every custom tag the server actually serves has to be one the Tag enum names. The reverse is

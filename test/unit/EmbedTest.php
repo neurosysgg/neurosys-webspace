@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Config;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Embed\SoundCloudOption;
 use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
+use NeuroSYS\Model\Embed\SoundCloudProfileEmbed;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Support\Collection;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -16,6 +18,7 @@ use PHPUnit\Framework\TestCase;
 use TypeError;
 
 #[CoversClass(SoundCloudEmbed::class)]
+#[CoversClass(SoundCloudProfileEmbed::class)]
 #[CoversClass(SoundCloudOption::class)]
 #[CoversClass(SoundCloudPlayerStyle::class)]
 final class EmbedTest extends TestCase
@@ -166,6 +169,103 @@ final class EmbedTest extends TestCase
                 $embed->toElement('t')->render(),
             );
         }
+    }
+
+    // ───────────────────────────── the profile embed ─────────────────────────────
+
+    /**
+     * SoundCloudProfileEmbed is the same player pointed at the whole account rather than one track.
+     * It deliberately does not implement Embed — a profile player is a different *resource*, not a
+     * different *provider*, and Release::$embed is typed for the other axis. These cases are here
+     * rather than in a file of their own because they are the same provider's, and because what is
+     * worth asserting is mostly how the two differ.
+     */
+    public function testTheProfileEmbedReportsItsPlatform(): void
+    {
+        self::assertSame(Platform::SoundCloud, new SoundCloudProfileEmbed()->platform());
+    }
+
+    /**
+     * A profile lists, a track shows. The default layout is the opposite of a track's on purpose:
+     * the embed is worth having because several tracks read at once.
+     */
+    public function testTheProfileEmbedListsByDefault(): void
+    {
+        $html = new SoundCloudProfileEmbed()->toElement()->render();
+
+        self::assertStringContainsString('<soundcloud-profile', $html);
+        self::assertStringContainsString('player-style="classic"', $html);
+    }
+
+    /**
+     * The height is the profile embed's own fact, not SoundCloudPlayerStyle's — that enum's 300 and
+     * 166 size a single track, and how tall a list stands is how many rows show.
+     */
+    public function testTheProfileEmbedReservesItsOwnHeightRatherThanTheStylesOne(): void
+    {
+        $embed = new SoundCloudProfileEmbed();
+
+        self::assertSame(SoundCloudProfileEmbed::DEFAULT_HEIGHT, $embed->height());
+        self::assertNotSame($embed->style->height(), $embed->height());
+        self::assertStringContainsString('height="450"', $embed->toElement()->render());
+    }
+
+    public function testTheProfileEmbedTakesTheHeightItIsGiven(): void
+    {
+        $embed = new SoundCloudProfileEmbed(height: 620);
+
+        self::assertSame(620, $embed->height());
+        self::assertStringContainsString('height="620"', $embed->toElement()->render());
+    }
+
+    public function testTheProfileEmbedRejectsANonPositiveHeight(): void
+    {
+        $this->expectException(ReleaseVerificationException::class);
+        new SoundCloudProfileEmbed(height: 0);
+    }
+
+    public function testTheProfileEmbedRejectsACollectionOfSomethingElse(): void
+    {
+        $this->expectException(ReleaseVerificationException::class);
+        new SoundCloudProfileEmbed(options: new Collection(SoundCloudPlayerStyle::class));
+    }
+
+    public function testTheProfileEmbedCarriesTheSameDefaultToggles(): void
+    {
+        self::assertStringContainsString(
+            'options="auto_play show_comments show_user show_teaser"',
+            new SoundCloudProfileEmbed()->toElement()->render(),
+        );
+
+        self::assertEquals(
+            SoundCloudEmbed::defaultOptions(),
+            SoundCloudProfileEmbed::defaultOptions(),
+        );
+    }
+
+    public function testTheProfileEmbedTakesTheTogglesItIsGiven(): void
+    {
+        self::assertStringContainsString(
+            'options="show_user"',
+            new SoundCloudProfileEmbed(
+                options: $this->options(SoundCloudOption::ShowUser),
+            )->toElement()->render(),
+        );
+    }
+
+    /**
+     * The same guarantee the track player has, and the reason the consent gate is worth anything.
+     * Stronger here, in fact: the profile embed is sent no identity at all — no id, no handle, no
+     * title — because the element already mirrors the handle. There is nothing to leak.
+     */
+    public function testTheProfileEmbedNamesNoSoundCloudAddressAndNoArtist(): void
+    {
+        $html = new SoundCloudProfileEmbed()->toElement()->render();
+
+        self::assertStringNotContainsString('<iframe', $html);
+        self::assertStringNotContainsString('soundcloud.com', $html);
+        self::assertStringNotContainsString('https://', $html);
+        self::assertStringNotContainsString(Config::HANDLE, $html);
     }
 
     // ───────────────────────────── escaping ─────────────────────────────

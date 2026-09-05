@@ -1,163 +1,39 @@
-import { Platform, displayName } from '../../model/Platform.js';
-import { SoundCloudOption } from '../../model/SoundCloudOption.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
-import { EmbedAttribute } from '../../model/EmbedAttribute.js';
-import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
-import { Config } from '../../Config.js';
-import { HtmlTag } from '../../model/HtmlTag.js';
 import { Tag } from '../../model/Tag.js';
-import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
+import type { AttributionTarget } from './SoundCloudWidget.js';
+import { SoundCloudWidget } from './SoundCloudWidget.js';
 
 /**
  * <soundcloud-player track-id permalink secret-token player-style options track-title height>
  *
- * The provider's furniture lives here, not in the server's output. ReleaseView sends the release's
- * facts as typed attributes — which track, which layout, which toggles — and this builds the widget
- * URL and the attribution block SoundCloud's own embed dialog produces.
+ * One track, the client-side half of NeuroSYS\Model\Embed\SoundCloudEmbed. ReleaseView sends the
+ * release's facts as typed attributes — which track, which layout, which toggles — and everything
+ * built from them lives in SoundCloudWidget, which this narrows to a single track.
  *
- * The generated markup stays deliberately identical to that dialog's: same query parameters in the
- * same order, same attribution, same styling. Both are their furniture, not ours; see
- * docs/branding.md for the same stance on brand assets. The styles are applied through the CSSOM
- * rather than a style attribute, which is what lets the page's own style-src stay strict.
+ * The URN form of the resource URL is the unusual part and is deliberate: SoundCloud's own dialog
+ * emits `soundcloud:tracks:<id>` rather than a bare id, and it is what the live embeds use.
  */
-export class SoundCloudPlayer extends ConsentGatedEmbed {
-  /**
-   * The player accent, as SoundCloud's `color` parameter wants it.
-   *
-   * Intentionally *not* the site's --accent (#6a00ff), which reads as near-black against the
-   * player's own dark chrome. This is a lighter purple picked to sit in the same family while
-   * staying legible on SoundCloud's background.
-   */
-  private static readonly ACCENT = '#9e55e6';
-
-  /**
-   * The artist's page on SoundCloud, which the attribution credits and links to.
-   *
-   * soundcloud.com rather than Config.PLAYER_HOST, and it stays here rather than in Config: this is
-   * only ever a link target, never loaded, so it needs no CSP entry and is not a fact the server
-   * shares. The handle it is built from is.
-   */
-  private static readonly PROFILE = `https://soundcloud.com/${Config.HANDLE}`;
-
-  /** SoundCloud's own attribution styling, reproduced property for property. */
-  private static readonly ATTRIBUTION_STYLE: Partial<CSSStyleDeclaration> = {
-    fontSize:     '10px',
-    color:        '#cccccc',
-    lineBreak:    'anywhere',
-    wordBreak:    'normal',
-    overflow:     'hidden',
-    whiteSpace:   'nowrap',
-    textOverflow: 'ellipsis',
-    fontFamily:   'Interstate,Lucida Grande,Lucida Sans Unicode,Lucida Sans,Garuda,Verdana,'
-      + 'Tahoma,sans-serif',
-    fontWeight:   '100',
-  };
-
-  private static readonly ATTRIBUTION_LINK_STYLE: Partial<CSSStyleDeclaration> = {
-    color:          '#cccccc',
-    textDecoration: 'none',
-  };
-
-  protected platform(): Platform {
-    return Platform.SoundCloud;
-  }
-
-  protected buildEmbed(): DocumentFragment {
-    const fragment = document.createDocumentFragment();
-    fragment.append(this.buildIframe(), this.buildAttribution());
-
-    return fragment;
-  }
-
-  /**
-   * Builds the player iframe.
-   *
-   * `scrolling` and `frameborder` are deprecated HTML attributes with no property to set them, but
-   * they are what SoundCloud ships and what is verified working, so they stay.
-   */
-  private buildIframe(): HTMLIFrameElement {
-    const iframe = document.createElement(HtmlTag.Iframe);
-
-    iframe.width  = '100%';
-    iframe.height = this.getAttribute(EmbedAttribute.Height) ?? '';
-    iframe.title  = `${this.trackTitle()} on ${displayName(this.platform())}`;
-    iframe.src    = this.playerUrl();
-
-    // allow, scrolling and frameborder are set as attributes rather than properties: the last two
-    // are deprecated and have no property at all, and `allow` is reflected inconsistently enough
-    // that the element tests caught it. What SoundCloud ships is the attribute, either way.
-    iframe.setAttribute('allow', 'autoplay; encrypted-media');
-    iframe.setAttribute('scrolling', 'no');
-    iframe.setAttribute('frameborder', 'no');
-
-    return iframe;
-  }
-
-  /**
-   * Builds the artist · track credit line SoundCloud's embed carries.
-   *
-   * SoundCloud asks that embeds keep this attribution, so it renders whether or not ShowUser is on
-   * — that toggle governs the player chrome, not the credit.
-   */
-  private buildAttribution(): HTMLDivElement {
-    const credit = document.createElement(HtmlTag.Div);
-    Object.assign(credit.style, SoundCloudPlayer.ATTRIBUTION_STYLE);
-
-    credit.append(
-      this.attributionLink(
-        SoundCloudPlayer.PROFILE,
-        Config.NAME,
-      ),
-      ' · ',
-      this.attributionLink(this.trackPermalink(), this.trackTitle()),
-    );
-
-    return credit;
-  }
-
-  /** Builds one attribution link, styled the way SoundCloud styles it. */
-  private attributionLink(href: string, text: string): HTMLAnchorElement {
-    const link = document.createElement(HtmlTag.A);
-
-    link.href        = href;
-    link.title       = text;
-    link.target      = '_blank';
-    link.textContent = text;
-    Object.assign(link.style, SoundCloudPlayer.ATTRIBUTION_LINK_STYLE);
-
-    return link;
-  }
-
-  /** Builds the widget URL the iframe loads, with every option resolved to true/false. */
-  private playerUrl(): string {
-    const params  = new URLSearchParams();
-    const enabled = (this.getAttribute(SoundCloudPlayerAttribute.Options) ?? '').split(/\s+/);
-
-    params.set('url', this.trackUrl());
-    params.set('color', SoundCloudPlayer.ACCENT);
-
-    // Every case, in declaration order — the ones not listed go out as false rather than being
-    // omitted, which is what SoundCloud's dialog produces.
-    for (const option of Object.values(SoundCloudOption)) {
-      params.set(option, String(enabled.includes(option)));
-    }
-
-    params.set('visual', String(isVisual(this.playerStyle())));
-
-    return `${Config.PLAYER_HOST}/player/?${params.toString()}`;
-  }
-
+export class SoundCloudPlayer extends SoundCloudWidget {
   /**
    * Returns the API track reference the player resolves.
    *
    * SoundCloud's dialog emits the `soundcloud:tracks:<id>` URN form rather than a bare id —
    * unusual, but it is what the live embeds use, so it is reproduced as-is.
    */
-  private trackUrl(): string {
+  protected resourceUrl(): string {
     const url   = `https://api.soundcloud.com/tracks/soundcloud:tracks:${this.getAttribute(SoundCloudPlayerAttribute.TrackId) ?? ''}`;
     const token = this.secretToken();
 
     return token === '' ? url : `${url}?secret_token=${token}`;
+  }
+
+  protected subject(): string {
+    return this.trackTitle();
+  }
+
+  /** A track credits the artist and then the track, which is the page the title links to. */
+  protected attributionTarget(): AttributionTarget {
+    return { href: this.trackPermalink(), text: this.trackTitle() };
   }
 
   /** Returns the public track page the attribution links to. */
@@ -174,12 +50,6 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
 
   private trackTitle(): string {
     return this.getAttribute(SoundCloudPlayerAttribute.TrackTitle) ?? '';
-  }
-
-  private playerStyle(): SoundCloudPlayerStyle {
-    return this.getAttribute(SoundCloudPlayerAttribute.PlayerStyle) === SoundCloudPlayerStyle.Classic
-      ? SoundCloudPlayerStyle.Classic
-      : SoundCloudPlayerStyle.Visual;
   }
 }
 

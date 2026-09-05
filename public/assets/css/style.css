@@ -442,9 +442,14 @@ cover-art {
    The element builds the gate itself and then replaces it with the embed in place, so there is no
    wrapper div and no server-rendered innards. With no JS it stays empty; the reserved height below
    still holds the space, so nothing reflows when the script lands.
-   cf. assets/ts/elements/embed/. */
+   cf. assets/ts/elements/embed/.
 
-soundcloud-player {
+   Two tags, one rule: <soundcloud-player> is one track and <soundcloud-profile> is the whole
+   account's latest tracks, and the gate is identical either way — only the reserved height differs,
+   and that arrives per element as an attribute rather than as a second block here. */
+
+soundcloud-player,
+soundcloud-profile {
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -6,7 +6,8 @@
  * is an element the browser has never heard of, which renders as an inert inline box with no error.
  */
 export enum Tag {
-  SoundCloudPlayer = 'soundcloud-player',
+  SoundCloudPlayer  = 'soundcloud-player',
+  SoundCloudProfile = 'soundcloud-profile',
 
   CoverArt = 'cover-art',
 

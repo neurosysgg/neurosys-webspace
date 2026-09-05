@@ -18,7 +18,8 @@ namespace NeuroSYS\View\Html;
  */
 enum Tag: string implements TagName
 {
-    case SoundCloudPlayer = 'soundcloud-player';
+    case SoundCloudPlayer  = 'soundcloud-player';
+    case SoundCloudProfile = 'soundcloud-profile';
 
     case CoverArt = 'cover-art';
 

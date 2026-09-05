@@ -6,10 +6,15 @@ import { Platform, displayName } from '../../model/Platform.js';
 /**
  * Base for a player that loads from someone else's servers.
  *
- * Mirrors the Embed interface on the PHP side: a provider names its platform and builds its own
- * markup, and everything about the consent gate — the wording, the reserved height, the click,
- * the swap — belongs here so no provider has to reimplement it. Adding a provider is a subclass
- * and a customElements.define, the same way it is a new Embed implementation server-side.
+ * Mirrors the shape the PHP side's Embed interface names: a provider names its platform and builds
+ * its own markup, and everything about the consent gate — the wording, the reserved height, the
+ * click, the swap — belongs here so no provider has to reimplement it. Adding a provider is a
+ * subclass and a customElements.define.
+ *
+ * "The shape Embed names" rather than Embed itself, because the gate is the wider of the two.
+ * Embed is what a *release* holds, and SoundCloudProfileEmbed deliberately does not implement it —
+ * a profile player is a different resource, not a different provider, and a release has no business
+ * holding one. It is gated all the same, which is what this class is for.
  *
  * Nothing is requested from the provider until the visitor clicks: buildEmbed() is called from the
  * click handler and nowhere else, so the iframe does not exist before then. That is the whole point

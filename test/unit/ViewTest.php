@@ -18,6 +18,7 @@ use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\View\HomeView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
@@ -285,7 +286,8 @@ final class ViewTest extends TestCase
             'ill',
         )->content()->render()
             . new ReleasesView($this->catalogue())->content()->render()
-            . new NotFoundView('/x')->content()->render();
+            . new NotFoundView('/x')->content()->render()
+            . new HomeView()->content()->render();
 
         preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $m);
 
@@ -300,7 +302,7 @@ final class ViewTest extends TestCase
             [
                 'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
                 'release-card', 'release-list', 'release-meta', 'release-title',
-                'soundcloud-player', 'terminal-window',
+                'soundcloud-player', 'soundcloud-profile', 'terminal-window',
             ],
             $tags,
         );
@@ -322,7 +324,8 @@ final class ViewTest extends TestCase
             'ill',
         )->content()->render()
             . new ReleasesView($this->catalogue())->content()->render()
-            . new NotFoundView('/x')->content()->render();
+            . new NotFoundView('/x')->content()->render()
+            . new HomeView()->content()->render();
 
         $unserved = array_values(array_filter(
             Tag::cases(),

@@ -8,6 +8,7 @@
 export var Tag;
 (function (Tag) {
     Tag["SoundCloudPlayer"] = "soundcloud-player";
+    Tag["SoundCloudProfile"] = "soundcloud-profile";
     Tag["CoverArt"] = "cover-art";
     Tag["TerminalWindow"] = "terminal-window";
     Tag["TerminalCommand"] = "terminal-command";

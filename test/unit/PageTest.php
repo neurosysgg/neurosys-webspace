@@ -187,9 +187,9 @@ final class PageTest extends TestCase
     // ───────────────────────── what the pages promise ─────────────────────────
 
     /**
-     * CLAUDE.md's no-JS note names these three as unaffected with the script off. They are,
-     * because they emit no custom element at all — everything they show is a standard tag the
-     * browser lays out whether or not main.js ever loads.
+     * CLAUDE.md's no-JS note names these as unaffected with the script off. They are, because they
+     * emit no custom element at all — everything they show is a standard tag the browser lays out
+     * whether or not main.js ever loads.
      */
     #[DataProvider('staticPageProvider')]
     public function testTheContentPagesNeedNoScriptToRender(View $view): void
@@ -202,9 +202,30 @@ final class PageTest extends TestCase
 
     public static function staticPageProvider(): iterable
     {
-        yield 'home'    => [new HomeView()];
         yield 'imprint' => [new ImprintView()];
         yield 'privacy' => [new PrivacyView('<p>policy</p>')];
+    }
+
+    /**
+     * The home page used to be on that list and no longer is, which is worth stating rather than
+     * quietly dropping: the profile player is a custom element, so with the script off the home
+     * page shows an empty reserved box under its heading.
+     *
+     * What it still promises is the half that matters — the hero is every word the page says about
+     * itself, and it is all standard tags. The player is the *only* thing on the page that needs
+     * the script, and a no-JS visitor still reaches the profile through the footer's plain link.
+     */
+    public function testTheHomeHeroNeedsNoScriptAndThePlayerIsTheOnlyThingThatDoes(): void
+    {
+        $html = new HomeView()->content()->render();
+        [$hero] = explode('</section>', $html, 2);
+
+        self::assertDoesNotMatchRegularExpression('/<[a-z][a-z0-9]*-[a-z0-9-]+/', $hero);
+        self::assertStringContainsString('electronic music', $hero);
+        self::assertStringContainsString('href="/releases"', $hero);
+
+        preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $custom);
+        self::assertSame(['soundcloud-profile'], array_unique($custom[1]));
     }
 
     /**

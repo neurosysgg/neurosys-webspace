@@ -44,7 +44,7 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.89% of
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.00% of
 lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
@@ -87,7 +87,8 @@ src/NeuroSYS/
 │                     and the two header-name enums
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, Profile, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
-│   ├── Embed/      ← Embed interface + SoundCloudEmbed; generates player markup from typed params
+│   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
+│   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization,
@@ -320,7 +321,8 @@ assets/ts/                    ← sources; outside public/, neither web-served n
 └── elements/                 ← one class per file, named for the class, grouped like src/NeuroSYS/
     ├── NestedElement.ts      ← abstract — the parent guard every content tag inherits
     ├── CoverArt.ts
-    ├── embed/                ← ConsentGatedEmbed, SoundCloudPlayer      (cf. Model/Embed/)
+    ├── embed/                ← ConsentGatedEmbed, SoundCloudWidget,
+    │                           SoundCloudPlayer, SoundCloudProfile     (cf. Model/Embed/)
     ├── terminal/             ← TerminalWindow + its five content tags   (cf. View/Terminal/)
     ├── download/             ← DownloadList, DownloadCard, …
     └── release/              ← ReleaseList, ReleaseCard, …
@@ -369,8 +371,10 @@ existing only as a CSS selector.
 | Module | Tag | Does |
 |---|---|---|
 | `NestedElement.ts` | — (abstract) | refuses to connect outside the element it belongs inside |
-| `embed/ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Mirrors the `Embed` interface |
-| `embed/SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client. Every attribute but `height` is a `SoundCloudPlayerAttribute`; `height` is an `EmbedAttribute`, because the gate that reserves it is every provider's |
+| `embed/ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Every provider's, whatever it plays |
+| `embed/SoundCloudWidget.ts` | — (abstract) | SoundCloud's furniture: the widget URL, the attribution, the accent, the iframe. A subclass answers only which resource it plays |
+| `embed/SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | one track. Every attribute but `height` is a `SoundCloudPlayerAttribute`; `height` is an `EmbedAttribute`, because the gate that reserves it is every provider's |
+| `embed/SoundCloudProfile.ts` | `<soundcloud-profile player-style options height>` | the whole account's latest tracks. Carries no id, handle or title — there is no release to take them from, and the handle is `Config.HANDLE`, which this side already mirrors |
 | `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
 | `terminal/TerminalWindow.ts` | `<terminal-window label command fields [narrow]>` | builds its whole subtree from a declared `Terminal` — the command, every row, the cursor |
 | `terminal/TerminalCommand.ts` | `<terminal-command>` | guard; CSS draws the `$` |
@@ -401,11 +405,15 @@ Two consequences of self-containment worth knowing:
 
 - **With JS off, the self-building elements are empty — and that now includes real content.** A no-JS
   visitor gets no cover image, an empty player frame, and no terminal: no bpm, key or genre on a
-  release, and no error line on a 404. Links, navigation, downloads, titles, taglines and the privacy
-  and imprint pages are all unaffected, and the CSS still reserves every box so nothing reflows when
-  the script lands. This is the accumulated cost of building markup client-side, and it is worth
-  re-reading whenever another fragment moves. A `<noscript>` inside `<terminal-window>` and
-  `<cover-art>`, carrying the same content, buys it back for the price of rendering it twice.
+  release, and no error line on a 404. **The home page is now in that set too**, since the profile
+  player is an element: the hero still reads in full — wordmark, tagline, `releases →` — but under
+  `latest tracks` there is a reserved empty box. What that visitor loses is a convenience rather than
+  a route, because the footer's plain link to the profile is on every page; `PageTest` pins both
+  halves. Links, navigation, downloads, titles, taglines and the privacy and imprint pages are all
+  unaffected, and the CSS still reserves every box so nothing reflows when the script lands. This is
+  the accumulated cost of building markup client-side, and it is worth re-reading whenever another
+  fragment moves. A `<noscript>` inside `<terminal-window>` and `<cover-art>`, carrying the same
+  content, buys it back for the price of rendering it twice.
 - **The consent notice is written by the element**, not the server. That is still sound: the transfer
   it warns about can only be triggered by a click, a click needs the script, and the script writes the
   notice. The provider is the element — `<soundcloud-player>` knows it is SoundCloud — and the wording
@@ -428,8 +436,23 @@ it, so that stays a styling decision.
 facts as attributes, and the element builds the widget URL and the attribution from them. The split is
 that the **server sends the release's facts** and the **element owns the provider's furniture** — the
 accent colour, the artist handle, the attribution styling and the iframe attributes all live in
-`SoundCloudPlayer.ts` now. Adding a provider is an `Embed` implementation and a `ConsentGatedEmbed`
+`SoundCloudWidget.ts` now. Adding a provider is an `Embed` implementation and a `ConsentGatedEmbed`
 subclass, and nothing else.
+
+**There are two axes here, and only one of them is the provider.** A *provider* is SoundCloud versus
+somebody else; a *resource* is one track versus the whole account. The home page carries the second
+kind — `SoundCloudProfileEmbed` → `<soundcloud-profile>` — which is the same player pointed at the
+profile URL, and SoundCloud resolves that to the latest tracks. So the client grew a middle layer:
+`ConsentGatedEmbed` is every provider's gate, `SoundCloudWidget` is SoundCloud's furniture, and each
+of the two subclasses answers only `resourceUrl()`, `subject()` and `attributionTarget()`.
+
+**`SoundCloudProfileEmbed` deliberately does not implement `Embed`.** That interface is what a
+`Release` holds, and `Release::$embed` is typed for it — a profile player assignable to a release
+would be nonsense. It is the release axis, not the gated-player axis, which is why the gate is shared
+client-side and the interface is not shared server-side. It also carries **no id, handle or title**:
+there is no release to take them from, and the handle is `Config::HANDLE`, which the element already
+mirrors. That makes its output strictly emptier than the track player's — both suites assert the
+served page names no SoundCloud address at all, and for the profile, no artist either.
 
 **That claim is why the attribute enums are split in two.** `EmbedAttribute` is what any gated embed
 carries — `height`, which is `Embed::height()` and therefore an embed's fact rather than SoundCloud's,
@@ -483,7 +506,7 @@ keys, the accent and the attribution's font stack — and none of it is a contra
 
 **A mirror is a second copy of a fact, so it is tested.** `test/js/enum-parity.test.mjs` compares each
 one against its PHP original — name, backing value, and the accessors the client mirrors — in
-declaration order, because `SoundCloudEmbed` and `SoundCloudPlayer` both build the query string by
+declaration order, because `SoundCloudEmbed` and `SoundCloudWidget` both build the query string by
 iterating the cases. Add a case on one side only, rename one, retype a backing value or reorder two,
 and it fails.
 

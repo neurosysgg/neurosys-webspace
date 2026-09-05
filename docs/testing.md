@@ -54,7 +54,10 @@ The division matters in a few concrete places:
 - **The embed's markup is built client-side**, so the cases that asserted on it moved with it. What
   stays in `EmbedTest` is the contract the server still has — the element and its attributes; what
   moved to `test/js/soundcloud-player.test.mjs` is the widget URL, the attribution and the
-  SoundCloud-hosts-only rule.
+  SoundCloud-hosts-only rule. `test/js/soundcloud-profile.test.mjs` is the same split for the home
+  page's profile player, and asserts only what differs: the resource the widget resolves, and the
+  attribution crediting the artist once with no dangling separator after it. Everything the two
+  share is `SoundCloudWidget`'s and is pinned in the player's file, not twice.
 
 ## Adding a unit test
 
@@ -243,7 +246,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 97.89% of lines, and what is left is named below
+composer coverage   # PHP  — 98.00% of lines, and what is left is named below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -266,7 +269,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **97.89% of lines** (839/857), 98.53% of methods.
+clover XML and a browsable HTML report. Currently **98.00% of lines** (885/903), 98.61% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,

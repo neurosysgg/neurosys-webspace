@@ -135,9 +135,18 @@ Default options are `AutoPlay`, `ShowComments`, `ShowUser`, `ShowTeaser`. The fu
 
 ### Another platform
 
-Write a class implementing `Embed` (`platform()` + `toHtml(string $title)`) next to `SoundCloudEmbed`, and add
-the platform to the `Platform` enum if it isn't there. Nothing in `Release` or `ReleaseView` needs to change —
-the consent gate names the provider from `platform()->displayName()`.
+Write a class implementing `Embed` (`platform()` + `height()` + `toElement(string $title)`) next to
+`SoundCloudEmbed`, and add the platform to the `Platform` enum if it isn't there. Nothing in `Release` or
+`ReleaseView` needs to change — the consent gate names the provider from `platform()->displayName()`.
+
+### Not the same thing: the profile player
+
+`SoundCloudProfileEmbed` is the home page's player — the whole account's latest tracks rather than one
+release. **It is not something a release can hold**, and it deliberately does not implement `Embed`: a
+provider is SoundCloud versus somebody else, whereas one track versus the whole account is a different axis
+entirely, and `Release::$embed` is typed for the first one. There is nothing to configure per release, and
+nothing here to edit when you add one — SoundCloud resolves the profile URL, so a new track appears in it on
+its own.
 
 ## After editing releases.php
 
