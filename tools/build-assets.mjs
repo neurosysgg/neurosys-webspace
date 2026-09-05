@@ -39,10 +39,22 @@
  * about never. The line is: assets the build generates get a content hash, assets a person drops in
  * keep a date. `public/.htaccess` gives those thirty days.
  *
+ * **The graph and the bytes need not come from the same tree**, which is what `--graph-dir` is for.
+ * `tools/build-prod.mjs` minifies a copy of public/, and terser puts an entire module on one line —
+ * so the whole-line anchoring `SPECIFIER` relies on (see its note) finds no imports there at all,
+ * and this tool would report main.js as reaching nothing. The shape of the graph is a property of
+ * the sources rather than of the formatting, so the readable tree is walked for *which files import
+ * which* and the shipped tree is read for *what is in them*. Every module the walk names must exist
+ * in the shipped tree or the stamp fails, which is the half of "the two trees agree" that matters:
+ * a URL in the manifest with no bytes behind it. The verify script closes the loop from outside, by
+ * diffing the two manifests with the stamp normalised away.
+ *
  * Usage:
  *   node tools/build-assets.mjs                       # stamps public/, writes the manifest
  *   node tools/build-assets.mjs --js-dir <dir> \      # against a scratch tree, for the drift check
  *                              --css <file> --out <path>
+ *   node tools/build-assets.mjs --graph-dir <dir> \   # walk one tree, hash another — the prod build
+ *                              --js-dir <dir> --css <file> --out <path>
  *
  * No dependencies. Exits non-zero with the reason on stderr; it never writes a partial manifest.
  */
@@ -101,10 +113,15 @@ function flag(name, fallback) {
   return at === -1 ? fallback : resolve(process.argv[at + 1] ?? fail(`${name} needs a path`));
 }
 
-const JS_DIR   = flag('--js-dir', join(ROOT, 'public/assets/js'));
+/** The tree whose bytes ship, and whose relative paths become the URLs in the manifest. */
+const JS_DIR = flag('--js-dir', join(ROOT, 'public/assets/js'));
+
+/** The tree the import graph is read from. The same one unless a build has made it unreadable. */
+const GRAPH_DIR = flag('--graph-dir', JS_DIR);
+
 const CSS_FILE = flag('--css', join(ROOT, 'public/assets/css/style.css'));
 const MANIFEST = flag('--out', join(ROOT, 'src/NeuroSYS/AssetManifest.php'));
-const ENTRY    = join(JS_DIR, 'main.js');
+const ENTRY    = join(GRAPH_DIR, 'main.js');
 
 /** Eight hex characters of SHA-256 — 32 bits over forty-two files, so a collision is not a risk. */
 function digest(content) {
@@ -113,7 +130,25 @@ function digest(content) {
 
 /** The unversioned path below the js dir, under the served prefix. */
 function jsUrl(file) {
-  return `${JS_BASE}/${relative(JS_DIR, file).split(/[\\/]/).join('/')}`;
+  return `${JS_BASE}/${relative(GRAPH_DIR, file).split(/[\\/]/).join('/')}`;
+}
+
+/**
+ * The bytes served at a walked file's URL — the same relative path, taken from the shipped tree.
+ *
+ * Identical to reading the file itself when the two trees are one, which is the usual case. When
+ * they differ it is the whole point: the hash has to be over what the browser receives, or a
+ * version segment would name content nobody has.
+ */
+function shipped(file) {
+  const path = join(JS_DIR, relative(GRAPH_DIR, file));
+
+  try {
+    return readFileSync(path, 'utf8');
+  } catch {
+    return fail(`${label(file)} is in the module graph, but ${label(path)} does not exist.\n`
+              + '              The tree being hashed is missing a module the tree being walked has.');
+  }
 }
 
 /**
@@ -208,7 +243,7 @@ walk(ENTRY, 'the build');
 const stamp = digest(
   [...graph.keys()]
     .sort()
-    .map((file) => `${jsUrl(file)}\u0000${readFileSync(file, 'utf8')}`)
+    .map((file) => `${jsUrl(file)}\u0000${shipped(file)}`)
     .concat(`${CSS_BASE}\u0000${readFileSync(CSS_FILE, 'utf8')}`)
     .join('\u0000'),
 );

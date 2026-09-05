@@ -420,6 +420,61 @@ if [[ -x "$TSC" ]]; then
         fail "assets/ts/ does not compile, so its output cannot be checked"
     fi
     rm -rf "$REPO/.tscheck"
+
+    # ── the prod tree ───────────────────────────────────────────────────────────────────────────
+    #
+    # public/ is the debug tree: readable, mapped, committed, and everything above this line is
+    # about keeping it in step with assets/ts/. build/dist/ is what actually ships — the same tree
+    # minified, with the maps dropped, built by tools/build-prod.mjs and rsynced by deploy.sh.
+    #
+    # Nothing above can see it, and neither can PHPUnit. Three failure modes live here and every one
+    # of them is invisible in a browser until it is live:
+    #
+    #   - a surviving `//# sourceMappingURL` is a 404 per module the moment DevTools opens
+    #   - a module minification dropped is a missing preload hint and a broken import
+    #   - a bad mangle is an element that registers and then does nothing
+    #
+    # The last is the one worth the most, and it is checked by re-running the whole client suite
+    # against the minified bytes: test/js/dom.mjs takes the tree from NEUROSYS_JS_DIR, so the
+    # nesting guards, TerminalWindow's subtree, both embeds and Navigation all execute what the
+    # server will send. Nothing else about the tests changes, and the coverage gate is untouched
+    # because it takes the default.
+    #
+    # This runs build-prod.mjs directly rather than `npm run build:prod`, because the block above
+    # has already proven public/ current and rebuilding it here would just be slower.
+    if node "$REPO/tools/build-prod.mjs" >/dev/null 2>&1; then
+        pass "the prod tree builds"
+
+        DIST_JS="$REPO/build/dist/public/assets/js"
+
+        # `find -quit` rather than a count: one map is as wrong as forty-two.
+        if [[ -z "$(find "$REPO/build/dist/public" -name '*.map' -print -quit)" ]] \
+           && ! grep -rq sourceMappingURL "$DIST_JS"; then
+            pass "the prod tree ships no source map, and names none"
+        else
+            fail "the prod tree still carries source maps (see tools/build-prod.mjs)"
+        fi
+
+        if (cd "$REPO" && NEUROSYS_JS_DIR="$DIST_JS" node --test >/dev/null 2>&1); then
+            pass "the client-side tests pass against the minified output"
+        else
+            fail "the minified output fails the client-side tests — a mangle broke something"
+            echo "       reproduce: NEUROSYS_JS_DIR=build/dist/public/assets/js npm test"
+        fi
+
+        # Same URLs, different stamp. The stamp differing is the point — those are different bytes
+        # at those URLs — so it is normalised away and what is left is the module list, which
+        # minification must not have touched.
+        if diff -q <(sed -E 's/v-[0-9a-f]{8}/v-STAMP/g' "$REPO/src/NeuroSYS/AssetManifest.php") \
+                   <(sed -E 's/v-[0-9a-f]{8}/v-STAMP/g' "$REPO/build/dist/src/NeuroSYS/AssetManifest.php") \
+                   >/dev/null 2>&1; then
+            pass "the prod manifest names the same modules as the committed one"
+        else
+            fail "the prod manifest names different modules — minification added or dropped one"
+        fi
+    else
+        fail "the prod tree does not build (run: npm run build:prod)"
+    fi
 else
     echo "  SKIP assets/ts/ checks — no node_modules (run: npm install)"
 fi

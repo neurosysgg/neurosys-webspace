@@ -2,6 +2,11 @@ DirectoryIndex index.php
 
 # Strato runs everything under cgi-bin/ as CGI, which 500s static files without this.
 # Any new asset type must be added here or it will 500 in production while working locally.
+#
+# `map` is listed but nothing here matches it any more: tools/build-prod.mjs deletes every source
+# map from the tree deploy.sh ships, and asserts no module still names one. It stays because this
+# file is deployed as-is out of the debug tree, where the maps do exist — do not read its presence
+# as evidence that a .map is reachable in production. Same for the .map Cache-Control block below.
 <FilesMatch "\.(css|js|map|svg|png|jpe?g|gif|ico|webp|avif|woff2?)$">
     SetHandler default-handler
 </FilesMatch>

@@ -2,11 +2,12 @@
     "name": "neurosys",
     "private": true,
     "type": "module",
-    "description": "Front-end sources for neurosys.gg. Compiles assets/ts/ to public/assets/js/, inlines assets/css/main.css into public/assets/css/style.css, then content-hashes both into src/NeuroSYS/AssetManifest.php.",
+    "description": "Front-end sources for neurosys.gg. Compiles assets/ts/ to public/assets/js/, inlines assets/css/main.css into public/assets/css/style.css, then content-hashes both into src/NeuroSYS/AssetManifest.php. `build:prod` derives build/dist/ from that: the same tree minified, with the source maps dropped, and its own manifest.",
     "scripts": {
         "build": "tsc && node tools/build-css.mjs && node tools/build-assets.mjs",
         "build:css": "node tools/build-css.mjs",
         "build:assets": "node tools/build-assets.mjs",
+        "build:prod": "npm run build && node tools/build-prod.mjs",
         "watch": "tsc --watch",
         "check": "tsc --noEmit",
         "test": "node --test",
@@ -14,6 +15,7 @@
     },
     "devDependencies": {
         "jsdom": "^30.0.1",
+        "terser": "^5.51.2",
         "typescript": "^7.0.2"
     }
 }

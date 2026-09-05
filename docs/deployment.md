@@ -91,20 +91,37 @@ If either is in doubt, ship `StrictTransportSecurity::ONE_DAY` first — one con
 
 ## Regular deploy
 
-`./deploy.sh` is the current path — it rsyncs `public/`, `src/`, `autoload.php` and `data/` over the
-mounted SFTP in one go, so `data/releases.php` no longer needs a separate manual upload. The script is
-gitignored (it holds the host and account name), so it exists only on the local machine.
+`./deploy.sh` is the current path — it rsyncs `build/dist/public/`, `src/`, `autoload.php` and
+`data/` over the mounted SFTP in one go, so `data/releases.php` no longer needs a separate manual
+upload. The script is gitignored (it holds the host and account name), so it exists only on the local
+machine.
+
+**It runs `npm run build:prod` first, so you do not have to.** `build/dist/` is the shipped tree:
+`public/` minified, with all 42 source maps deleted, and a manifest of its own. Building it inside
+the deploy is deliberate — the alternative is a staleness check that is wrong once and then silently
+ships whatever `build/dist/` happened to hold. It also means a forgotten `npm run build` is caught
+before anything is uploaded rather than after. See CLAUDE.md's *Debug and prod builds*.
+
+That is why there is a third rsync: `build/dist/src/NeuroSYS/AssetManifest.php` goes up **after**
+`src/`, over the one file that differs between the two trees. Its stamp is a hash of the minified
+bytes rather than the readable ones, which is correct — a stamp is a claim about content. Order is
+safe: the assets land before the manifest naming them, and `.htaccess` *strips* the version segment
+rather than resolving it, so a document cached with the previous stamp still finds the new files.
 
 **It deliberately excludes `data/admin.php` and `data/site_auth.php`.** The copies in the repo are
 placeholders — `admin.php` ships an empty `pass_hash` — so syncing them would overwrite the live hashes
 and lock `/admin/stats` out. Upload those two by hand when they actually change.
 
 The PHPStorm route still works if the mount isn't up: right-click `public/` → **Deployment → Upload to
-Strato (neurosys.gg)**, then upload `data/releases.php` manually via the Remote Host panel.
+Strato (neurosys.gg)**, then upload `data/releases.php` manually via the Remote Host panel. Note what
+that skips: it uploads the **debug** tree, maps and all, under a manifest stamped for different
+bytes. Nothing breaks — the version segment is stripped, not resolved — but both halves of the prod
+build are silently undone. Use it for one file in a hurry, not for a deploy.
 
-**Run `npm run build` first if you touched anything under `assets/ts/`.** `public/assets/js/` is
-compiled output that is committed and rsynced as-is, so an unbuilt source edit deploys the previous
-JS without a word. `composer verify` catches it — it fails when the committed output has drifted.
+**Run `npm run build` first if you touched anything under `assets/ts/`** and you are deploying any
+way other than `./deploy.sh`. `public/assets/js/` is compiled output that is committed and built
+from as-is, so an unbuilt source edit deploys the previous JS without a word. `composer verify`
+catches it — it fails when the committed output has drifted.
 
 `vendor/` and `node_modules/` are dev-only tooling and are not in the list above — nothing Composer or
 npm installs ever reaches the server.

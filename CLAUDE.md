@@ -395,18 +395,78 @@ assets/ts/                    ← sources; outside public/, neither web-served n
     ├── download/             ← DownloadList, DownloadCard, …
     └── release/              ← ReleaseList, ReleaseCard, …
       ↓ npm run build
-public/assets/js/             ← generated, committed, deployed
+public/assets/js/             ← generated, committed, readable, source-mapped
 src/NeuroSYS/AssetManifest.php ← generated: the stylesheet, the entry, every module, versioned
+      ↓ npm run build:prod
+build/dist/                   ← generated, gitignored, deployed — see below
 ```
 
 **Never hand-edit `public/assets/js/`** — it is build output and the next `npm run build` overwrites it.
 `npm run watch` rebuilds on save; `npm run check` type-checks without emitting. The verify script fails
-if the committed output has drifted from the sources: `deploy.sh` rsyncs `public/` straight from the
-working tree, so a forgotten rebuild would ship stale JS and nothing else would notice.
+if the committed output has drifted from the sources: `deploy.sh` builds the prod tree out of
+`public/`, so a forgotten rebuild would ship stale JS and nothing else would notice.
 
 `npm run build` also builds the stylesheet — see [The stylesheet](#the-stylesheet) — and then the
 asset manifest, below, which has to come last because it hashes both outputs. `npm run watch` does
 neither; `npm run build:css` and `npm run build:assets` are each on its own.
+
+### Debug and prod builds
+
+`public/` is not what ships. It is the **debug** tree, and it is committed because three separate
+things read it by path: `test/js/` imports the modules, `npm run coverage` pins its 100% gate to
+`public/assets/js/**`, and the verify script diffs it byte-for-byte against a fresh `tsc`. All three
+want output a person can read, which is why the version is a path segment and not a rewritten
+specifier — see [Cache versioning](#cache-versioning) for what that already bought.
+
+`npm run build:prod` derives the **prod** tree from it. `tools/build-prod.mjs` copies `public/`
+wholesale, minifies every module with terser, deletes all 42 source maps, and writes a manifest of
+its own:
+
+```
+build/dist/public/                        ← byte-for-byte what lands in the webroot
+build/dist/src/NeuroSYS/AssetManifest.php ← the same URLs under a different stamp
+```
+
+Two things change, and both are only worth doing at the edge:
+
+- **The maps go.** 79,354 bytes across 42 files, three times the JS they describe, and `inlineSources`
+  puts the whole commented TypeScript inside each one. Static assets are served straight by Apache
+  and reach neither auth gate, so those were public files. The source is on GitHub — a reason not to
+  worry about it, not a reason to serve a second copy from Strato.
+- **The JS is minified.** 11,807 gzipped bytes → 9,555, over the 42 separate responses the browser
+  actually makes. `tsconfig` used to argue this was worth ~260 bytes; that is what you measure on a
+  *concatenated* stream, where gzip's window spans the whole graph and does the work mangling would
+  have done. Per file the window is one small module and it does not. On disk: 484K → 292K.
+
+**`keep_classnames` is load-bearing.** `NestedElement.tagOf()` falls back to `constructor.name`, and
+that is the text of the error a misnested tag throws — the whole reason those classes are not empty.
+It is also why terser rather than esbuild: esbuild keeps the same guarantee by injecting a `__name`
+helper into *every file*, which on 42 small modules costs 1,868 of the 2,252 bytes minifying won.
+`mangle.properties` stays off one step further out, because `connectedCallback` and
+`observedAttributes` are contracts with the browser rather than with us.
+
+**The manifest's stamp differs between the two trees, and that is correct** — a stamp is a claim
+about content, and those are different bytes at the same URLs. `deploy.sh` uploads `src/` from the
+working tree and then overlays the prod manifest over the one file that differs.
+
+**Four checks, because every failure here is invisible in a browser until it is live.** The verify
+script builds the prod tree, asserts it ships no map and names none, diffs the two manifests with
+the stamp normalised away — so a module minification dropped fails there — and then re-runs the
+**whole client-side suite against the minified bytes**. That last one is the one worth the most:
+`test/js/dom.mjs` takes its tree from `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s
+subtree, both embeds and `Navigation` all execute what the server will send. `npm test` and
+`npm run coverage` take the default and are exactly what they were.
+
+`build-prod.mjs` also refuses a tree where any module is byte-identical to its readable original —
+the copy is what would deploy, under a stamp saying otherwise, and a page that is quietly bigger
+than it claims has no other symptom.
+
+**Why `build-assets.mjs` grew a `--graph-dir`.** Its import scanner is anchored to whole lines, and
+that anchoring is load-bearing (a looser version once walked out of `export class Config {` into the
+string below it). terser puts an entire module on one line, so walking the minified tree finds no
+imports at all and the tool reports `main.js` as reaching nothing. The graph is a property of the
+sources rather than of the formatting, so the readable tree is walked for *which files import which*
+and the shipped tree is read for *what is in them*.
 
 ### Preloading the module graph
 
@@ -470,13 +530,20 @@ is: assets the build generates get a content hash, assets a person drops in keep
 **Why not bundle instead.** One file would fix the waterfall *and* recover ~5.7KB of per-file gzip
 framing. It would also mean the element tests could no longer import individual modules, and
 `assets/ts/`'s 100% coverage gate is measured against them — so it would cost the property that the
-tests run against the same files the browser loads. Not worth it for 5.7KB. **Why not minify:** with
-comments already stripped by `tsconfig`, a real minifier is worth about 260 gzipped bytes, because
-gzip already does what identifier mangling does. Not a dependency's worth on a project with none.
+tests run against the same files the browser loads. Not worth it for 5.7KB.
+
+That argument is weaker than it was, and worth re-reading rather than repeating: now that prod is a
+[separate tree](#debug-and-prod-builds), a bundler could run there and leave the debug tree — the
+one the tests and the gate read — alone. What it would still cost is the property that the shipped
+files *are* the tested files, which is what re-running the suite against the minified bytes
+currently keeps. **Minification is the same trade taken the other way**, and it is taken at the edge
+for the same reason: 2,252 gzipped bytes, measured per-file rather than over a concatenated stream,
+where the old ~260-byte figure came from.
 
 Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), so DevTools shows
 `Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
-500s any static file it has no `SetHandler` for.
+500s any static file it has no `SetHandler` for. **The prod tree ships none of them**; the handler
+stays for the debug tree, which is what `npm run dev` serves.
 
 **One class per file, named for the class**, the way `src/NeuroSYS/` is — `<terminal-cursor>` is
 `TerminalCursor` in `terminal/TerminalCursor.ts`, and the directory it sits in is the component, not
@@ -770,11 +837,17 @@ means a new class implementing `Embed`, not a new field on `Release`.
 
 `public/` maps to Strato's `htdocs/` (web-exposed). `data/` lives **outside** the webroot — it's uploaded separately and never via the standard deployment mapping.
 
-- Regular deploy: `./deploy.sh` (rsync over the mounted SFTP), or right-click `public/` →
-  **Deployment → Upload to Strato** in PHPStorm
-- `deploy.sh` ships `public/`, `src/`, `autoload.php` and `data/` — but **excludes `data/admin.php` and
-  `data/site_auth.php`**, because the repo copies are placeholders and syncing them would overwrite the
-  live credentials. Upload those two by hand when they change.
+- Regular deploy: `./deploy.sh` (rsync over the mounted SFTP). It runs `npm run build:prod` first,
+  so the tree it uploads is always current — see [Debug and prod builds](#debug-and-prod-builds).
+- **PHPStorm's right-click `public/` → Deployment → Upload to Strato uploads the debug tree**, maps
+  and all, under a manifest stamped for different bytes. It still *works* — the version segment is
+  stripped rather than resolved, so nothing 404s — but it undoes both halves of the prod build
+  silently. Use it to push one file in a hurry, not to deploy.
+- `deploy.sh` ships `build/dist/public/`, `src/`, `autoload.php` and `data/`, then overlays
+  `build/dist/src/NeuroSYS/AssetManifest.php` — the one file in `src/` that differs between the two
+  trees. It **excludes `data/admin.php` and `data/site_auth.php`**, because the repo copies are
+  placeholders and syncing them would overwrite the live credentials. Upload those two by hand when
+  they change.
 - `data/admin.php` holds bcrypt credentials for `/admin/stats`; generate with `php -r "echo password_hash('pw', PASSWORD_BCRYPT);"`
 
 Footer profile links come from `data/profiles.php` — an empty URL hides that link. Brand icons are **vendored** under

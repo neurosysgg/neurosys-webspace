@@ -34,5 +34,7 @@ data/.site_auth.php
 # phpactor writes this on first attach; editor state, not project config
 .phpactor.json
 
-# Merged coverage reports (composer coverage)
+# Merged coverage reports (composer coverage), and build/dist/ — the prod tree deploy.sh ships.
+# Generated on demand by `npm run build:prod`, never committed: what is committed is the readable
+# public/ the tests and the drift check read.
 /build/

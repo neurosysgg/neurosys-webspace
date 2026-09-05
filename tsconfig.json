@@ -35,11 +35,18 @@
     // TypeScript — comments intact — in the map's sourcesContent, so DevTools shows the commented
     // source either way. Keeping them in the .js as well is a copy only the network pays for.
     //
-    // This is the whole of the minification question, and the reason there is no minifier here: a
-    // real one past this point is worth about 260 gzipped bytes, because gzip already does what
-    // identifier mangling and whitespace removal do. Not a dependency's worth on a project with
-    // none. The bytes that are left are better spent by bundling, and the latency by preloading —
-    // neither of which is a minifier's job.
+    // This used to say it was the whole of the minification question — that a real minifier past
+    // this point was worth about 260 gzipped bytes, because gzip already does what identifier
+    // mangling does. That figure was measured over a *concatenated* stream, where gzip's window
+    // spans the whole graph. Nothing here is bundled, so the browser makes 42 separate requests and
+    // each one's window is a single small module. Measured that way: 11,807 gzipped bytes before,
+    // 9,555 after — 2,252 saved, 19.1%. gzip is much less redundant with mangling than it looked.
+    //
+    // So there is a minifier now, and it is deliberately not here. tsc's output is the *debug*
+    // tree: test/js/ imports it by path, the coverage gate is pinned to those paths, and the verify
+    // script diffs it byte-for-byte against a fresh compile — all three want something a person can
+    // read. tools/build-prod.mjs derives build/dist/ from it instead, and that is what deploy.sh
+    // ships. See the note on sourceMap below, and CLAUDE.md's "Debug and prod builds".
     "removeComments": true,
     "newLine": "lf",
 
@@ -47,10 +54,17 @@
     // without assets/ts/ having to be a served directory. Read that precisely: the sources are not
     // web-exposed at their own paths, but they ARE served — /assets/js/Navigation.js.map carries the
     // whole commented original, and static assets never reach PHP, so neither auth gate covers them.
-    // That is fine here because the source is public anyway. It would not be on a project where it
-    // was not, and the fix there is dropping inlineSources rather than assuming the maps are hidden.
-    // Maps are only fetched with DevTools open. public/.htaccess needs a "map" handler or Strato 500s
-    // them.
+    //
+    // **That now applies to local dev and not to the live host.** tools/build-prod.mjs deletes every
+    // map from the tree deploy.sh ships and asserts no module still names one, so what used to be
+    // 79,354 bytes of commented TypeScript on a public URL is 42 files that are not there. The
+    // source is public on GitHub, which was always a reason not to worry about it rather than a
+    // reason to serve a second copy from Strato. On a project where the source is not public the
+    // fix is still dropping inlineSources — a prod-only strip protects what is deployed, not what
+    // is running on a laptop with the dev server bound to something other than localhost.
+    //
+    // Maps are only fetched with DevTools open. public/.htaccess still needs a "map" handler or
+    // Strato 500s them, because the debug tree is what `npm run dev` serves.
     "sourceMap": true,
     "inlineSources": true
   }

@@ -20,6 +20,19 @@ import { dirname, resolve } from 'node:path';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 /**
+ * Which compiled tree to load. `public/assets/js/` unless something says otherwise, so `npm test`
+ * and `npm run coverage` are exactly what they were — the gate is still measured against those
+ * paths, and a stamped or copied one would attribute nowhere.
+ *
+ * The something is the verify script, which points this at `build/dist/` after `build-prod.mjs`
+ * has minified it. Every element test imports from this file and the whole vocabulary arrives
+ * through the one `main.js` below, so re-running the suite with this set is the real proof that
+ * mangling did not break anything — the nesting guards, TerminalWindow's subtree, both embeds and
+ * Navigation, all executing the bytes the server will send. Nothing else about the tests changes.
+ */
+const JS = process.env.NEUROSYS_JS_DIR ?? `${ROOT}/public/assets/js`;
+
+/**
  * The shell Layout.php emits, reduced to the part the scripts look for.
  *
  * <main id="content"> is here because Navigation.forDocument() returns null without it and
@@ -65,4 +78,4 @@ export function uncaughtErrors(fn) {
 
 export { dom, ROOT };
 
-await import(`${ROOT}/public/assets/js/main.js`);
+await import(`${JS}/main.js`);

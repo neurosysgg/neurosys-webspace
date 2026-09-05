@@ -32,13 +32,27 @@ naming the part it came from — edit that part.
 
 ### Why the output is committed
 
-`deploy.sh` rsyncs `public/` straight from the working tree. Nothing builds on the server, so a
-forgotten rebuild would ship stale JS or a stale stylesheet and nothing else would notice. The
-verify script therefore rebuilds both and diffs — a drifted output is a failing test.
+`deploy.sh` builds the shipped tree out of `public/` in the working tree. Nothing builds on the
+server, so a forgotten rebuild would ship stale JS or a stale stylesheet and nothing else would
+notice. The verify script therefore rebuilds both and diffs — a drifted output is a failing test.
 
 The CSS check needs only `node`, so it runs on a bare clone. The TypeScript checks need
 `node_modules` and are **skipped with a printed NOTE** when `npm install` has never run, so
 `composer test` still works without the npm tooling.
+
+### Debug and prod
+
+`public/` is the debug tree and is not what ships. `npm run build:prod` derives `build/dist/` from
+it — every module minified, all 42 source maps deleted, and a manifest of its own — and that is what
+`deploy.sh` uploads. `public/` stays readable because three things read it by path: `test/js/`
+imports the modules, the coverage gate is pinned to `public/assets/js/**`, and the drift check above
+is a byte-for-byte diff.
+
+Worth 2,252 gzipped bytes over the 42 responses the browser makes, and 79,354 bytes of commented
+TypeScript no longer sitting on a public URL. The verify script builds the tree, asserts it ships no
+map, diffs the two manifests with the stamp normalised away, and re-runs the whole client-side suite
+against the minified bytes via `NEUROSYS_JS_DIR`. See CLAUDE.md's *Debug and prod builds* for the
+reasoning, `tools/build-prod.mjs` for the terser settings and why `keep_classnames` is not optional.
 
 ### Why the sources sit outside `public/`
 

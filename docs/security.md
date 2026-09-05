@@ -64,11 +64,19 @@ redirect fixes the *next* request, and HSTS removes there being a next plaintext
 
 Read "every request that reaches PHP" literally, because `.htaccess` passes real files through
 before the rewrite to `index.php`: **static assets are served without either gate**. So while the
-pre-launch gate is up it covers the documents and not `/assets/**` — including the source maps,
-which carry the whole commented TypeScript because `tsconfig` sets `inlineSources`. That is a
-non-issue here, since the source is public regardless; it is written down because "the gate runs on
-every request" is the kind of sentence that gets relied on later. `SecurityHeaders` records the same
-fact for its own half: static assets never reach PHP, so they get no security headers either.
+pre-launch gate is up it covers the documents and not `/assets/**`. It is written down because "the
+gate runs on every request" is the kind of sentence that gets relied on later. `SecurityHeaders`
+records the same fact for its own half: static assets never reach PHP, so they get no security
+headers either.
+
+That used to include the source maps, which carry the whole commented TypeScript because `tsconfig`
+sets `inlineSources` — 79,354 bytes of it, ungated. **The prod build deletes every one of them** and
+asserts no shipped module still names one, so on the live host there is nothing there to be ungated;
+the verify script checks both halves. It was a non-issue either way, since the source is public on
+GitHub, but that was a reason not to worry about it rather than a reason to serve a second copy.
+The maps still exist in `public/`, which is what the dev server serves — so on a dev server bound to
+anything but localhost they are exactly as readable as they ever were, and the fix there is dropping
+`inlineSources` rather than relying on a strip that only happens at the edge.
 
 Two subtleties live here. Strato terminates TLS at its proxy, where `%{HTTPS}` can read `off` on a
 request that was encrypted the whole way; `X-Forwarded-Proto` is the header telling the truth, so the

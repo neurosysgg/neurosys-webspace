@@ -272,11 +272,22 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   to mean remembering to edit a string in `Router` too.
 - **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
   into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
-- **The committed JS is current with `assets/ts/`.** `deploy.sh` rsyncs `public/` straight from the
-  working tree, so editing a `.ts` and forgetting `npm run build` would deploy the previous JS in
-  silence. The check rebuilds into a scratch `outDir` and diffs. That scratch directory has to sit
-  exactly three levels below the repo root, like `public/assets/js/` does, or every source map's
-  `sources` path differs and the diff fails for a reason that has nothing to do with staleness.
+- **The committed JS is current with `assets/ts/`.** `deploy.sh` builds what it ships out of
+  `public/` in the working tree, so editing a `.ts` and forgetting `npm run build` would deploy the
+  previous JS in silence. The check rebuilds into a scratch `outDir` and diffs. That scratch
+  directory has to sit exactly three levels below the repo root, like `public/assets/js/` does, or
+  every source map's `sources` path differs and the diff fails for a reason that has nothing to do
+  with staleness.
+- **The prod tree builds, ships no source map, and still passes.** `public/` is the debug tree;
+  `build/dist/` is what deploy uploads — minified, maps deleted, its own manifest. Every failure
+  here is invisible in a browser until it is live, so there are four checks: the tree builds, it
+  carries no `.map` and no `sourceMappingURL`, its manifest names the same modules as the committed
+  one once the stamp is normalised away, and **the whole client-side suite re-runs against the
+  minified bytes**. That last is the one worth the most — `test/js/dom.mjs` takes its tree from
+  `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s subtree, both embeds and `Navigation`
+  execute what the server will send. `npm test` and `npm run coverage` take the default and are
+  unchanged; the 100% gate is still measured against `public/assets/js/**`, which is why the debug
+  tree stays readable rather than being minified in place.
 - **`assets/ts/` type-checks.** `tsc --noEmit`, with the same config the build uses — `strict`,
   `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. This is the front end's equivalent of the
   typed value objects on the PHP side: the point is that a `data-` attribute rename becomes a compile

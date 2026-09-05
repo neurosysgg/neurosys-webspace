@@ -74,7 +74,7 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 - Download routes issue a 303 to the HiDrive direct-download link — no file passes through PHP.
 - Navigation is SPA-style: `Navigation` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
 - Views emit their own tag vocabulary — `<terminal-window>`, `<cover-art>`, `<soundcloud-player>`, `<download-card>` — rather than divs and classes. The ones with behaviour build their own contents, so a view emits the tag and its attributes and nothing else. They upgrade themselves when `Navigation` swaps `#content`, so nothing re-initialises after a navigation. See [frontend.md](frontend.md) for the full set and the no-JS trade-off.
-- The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`, and `assets/css/` → `style.css`). Both outputs are committed because `deploy.sh` rsyncs `public/` from the working tree; the verify script fails if either has gone stale. See [frontend.md](frontend.md) for the full picture.
+- The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`, and `assets/css/` → `style.css`). Both outputs are committed because the tests and the drift check read them by path; the verify script fails if either has gone stale. `npm run build:prod` then derives `build/dist/` — the same tree minified with the source maps dropped — and that is what `deploy.sh` uploads. See [frontend.md](frontend.md) for the full picture.
 - Release metadata lives in `data/releases.php` as typed `Release` objects. That's the only file you edit to add a release.
 
 ## Download logging
