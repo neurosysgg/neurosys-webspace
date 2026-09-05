@@ -35,6 +35,7 @@ use NeuroSYS\View\ReleasesView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionMethod;
 use ReflectionProperty;
 
 #[CoversClass(ViewResponse::class)]
@@ -75,13 +76,35 @@ final class ResponseTest extends TestCase
         $this->tempFiles = [];
     }
 
-    private function request(string $path, bool $ajax = false): Request
+    private function request(string $path, bool $ajax = false, string $ifNoneMatch = ''): Request
     {
         $_SERVER = ['REQUEST_URI' => $path];
         if ($ajax) {
             $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
         }
+        if ($ifNoneMatch !== '') {
+            $_SERVER['HTTP_IF_NONE_MATCH'] = $ifNoneMatch;
+        }
         return Request::fromGlobals();
+    }
+
+    /** The validator a response would send for $request, asked of the code that computes it. */
+    private function etagFor(ViewResponse $response, Request $request): string
+    {
+        $markup = $this->render($response, $request);
+
+        return (string) new ReflectionMethod(ViewResponse::class, 'etag')->invoke(null, $markup);
+    }
+
+    /** @return list<string> The `Name: value` lines a response would send about caching. */
+    private function cacheHeadersOf(ViewResponse $response, Request $request): array
+    {
+        $markup = $this->render($response, $request);
+
+        /** @var list<Header> $headers */
+        $headers = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup);
+
+        return array_map(static fn(Header $h): string => $h->line(), $headers);
     }
 
     private function render(ViewResponse $response, Request $request): string
@@ -177,6 +200,90 @@ final class ResponseTest extends TestCase
             array_map(static fn(Header $h): string => $h->line(), self::peek($response, 'headers')),
         );
         self::assertStringContainsString('<main', $this->render($response, $this->request('/')));
+    }
+
+    // ───────────────────────────── caching ─────────────────────────────
+
+    /**
+     * A public document says how it may be reused, and the answer is "ask first".
+     *
+     * `header()` is a no-op under CLI, so what a unit test can reach is the list a response would
+     * send; the verify script watches the same three arrive over real HTTP. Both halves are worth
+     * having — this one fails on the day the list is built wrong, that one on the day it is built
+     * right and never sent.
+     */
+    public function testAPublicDocumentSaysHowItMayBeReused(): void
+    {
+        $headers = $this->cacheHeadersOf(new ViewResponse(new HomeView()), $this->request('/'));
+
+        self::assertSame('Cache-Control: no-cache', $headers[0]);
+        self::assertMatchesRegularExpression('/^ETag: "[0-9a-f]+"$/', $headers[1]);
+        self::assertSame('Vary: X-Requested-With', $headers[2]);
+    }
+
+    /**
+     * The document and the fragment are one URL with two bodies, so they must not validate against
+     * each other. `Vary` is what says so to a cache; this is why it holds even where `Vary` is
+     * ignored — the bytes differ, so the hash of the bytes differs.
+     */
+    public function testTheFragmentAndTheDocumentDoNotShareAValidator(): void
+    {
+        $response = new ViewResponse(new HomeView());
+
+        self::assertNotSame(
+            $this->etagFor($response, $this->request('/')),
+            $this->etagFor($response, $this->request('/', ajax: true)),
+        );
+    }
+
+    public function testAMatchingValidatorGetsA304AndNoBody(): void
+    {
+        $response = new ViewResponse(new HomeView());
+        $etag     = $this->etagFor($response, $this->request('/'));
+
+        self::assertSame('', $this->render($response, $this->request('/', ifNoneMatch: $etag)));
+    }
+
+    /** A validator for another page, or for a previous build, is not this response. */
+    public function testAStaleValidatorGetsTheWholePageBack(): void
+    {
+        $html = $this->render(
+            new ViewResponse(new HomeView()),
+            $this->request('/', ifNoneMatch: '"0123456789abcdef"'),
+        );
+
+        self::assertStringStartsWith('<!DOCTYPE html>', $html);
+    }
+
+    /**
+     * A caller that already said how its response may be kept is not argued with.
+     *
+     * StatsController says `no-store, private` because its page sits behind a password. Adding a
+     * validator to that would be offering to revalidate something we just asked not to be stored.
+     */
+    public function testAResponseThatAlreadySaidHowItMayBeKeptIsLeftAlone(): void
+    {
+        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
+            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+        ]);
+
+        self::assertSame([], $this->cacheHeadersOf($response, $this->request('/')));
+    }
+
+    /** And so it cannot be short-circuited into a 304 by a guessed validator either. */
+    public function testAGatedPageNeverAnswers304(): void
+    {
+        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
+            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+        ]);
+
+        $etag = (string) new ReflectionMethod(ViewResponse::class, 'etag')
+            ->invoke(null, $this->render($response, $this->request('/')));
+
+        self::assertStringStartsWith(
+            '<!DOCTYPE html>',
+            $this->render($response, $this->request('/', ifNoneMatch: $etag)),
+        );
     }
 
     // ───────────────────────────── controllers ─────────────────────────────

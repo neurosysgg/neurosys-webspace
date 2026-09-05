@@ -17,6 +17,9 @@ use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\LinkRel;
+use NeuroSYS\View\Html\LinkTarget;
+use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\RawHtml;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Html\Text;
@@ -192,6 +195,50 @@ final class HtmlTest extends TestCase
      * A custom element the browser has never heard of renders as an inert inline box with no error
      * anywhere, so the tag name is a contract with `assets/ts/elements/` that fails in silence.
      */
+    /**
+     * `rel` is the one attribute value on this site that is a set rather than a single fact, so the
+     * enum builds the list and the call site does not. Pinned in the order the markup reads.
+     */
+    public function testLinkRelationsJoinIntoOneAttributeValue(): void
+    {
+        self::assertSame(
+            'noopener noreferrer external',
+            LinkRel::tokens(LinkRel::NoOpener, LinkRel::NoReferrer, LinkRel::External),
+        );
+        self::assertSame('stylesheet', LinkRel::tokens(LinkRel::Stylesheet));
+        self::assertSame('', LinkRel::tokens());
+    }
+
+    /**
+     * A value enum reaches the markup as its backing value with nothing in between —
+     * {@link Element::attr()} unwraps any BackedEnum, which is what lets these be passed as cases
+     * rather than as `->value` at every call site.
+     */
+    #[DataProvider('attributeValueProvider')]
+    public function testAnAttributeValueRendersAsItsBackingValue(
+        AttributeName $attribute,
+        \BackedEnum $value,
+    ): void {
+        self::assertSame(
+            '<a ' . $attribute->attribute() . '="' . $value->value . '"></a>',
+            new Element(HtmlTag::A)->attr($attribute, $value)->render(),
+        );
+    }
+
+    /** @return iterable<string, array{AttributeName, \BackedEnum}> */
+    public static function attributeValueProvider(): iterable
+    {
+        foreach (LinkRel::cases() as $case) {
+            yield 'LinkRel::' . $case->name => [HtmlAttribute::Rel, $case];
+        }
+        foreach (LinkTarget::cases() as $case) {
+            yield 'LinkTarget::' . $case->name => [HtmlAttribute::Target, $case];
+        }
+        foreach (ScriptType::cases() as $case) {
+            yield 'ScriptType::' . $case->name => [HtmlAttribute::Type, $case];
+        }
+    }
+
     public function testEveryCustomTagRendersAsItsBackingValue(): void
     {
         foreach (Tag::cases() as $tag) {

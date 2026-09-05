@@ -43,9 +43,14 @@
     "removeComments": true,
     "newLine": "lf",
 
-    // inlineSources embeds the TypeScript in the map's sourcesContent, so DevTools shows nav.ts without
-    // anything having to serve assets/ts/ — sources stay out of the webroot. Maps are only fetched with
-    // DevTools open. public/.htaccess needs a "map" handler or Strato 500s them.
+    // inlineSources embeds the TypeScript in the map's sourcesContent, so DevTools shows Navigation.ts
+    // without assets/ts/ having to be a served directory. Read that precisely: the sources are not
+    // web-exposed at their own paths, but they ARE served — /assets/js/Navigation.js.map carries the
+    // whole commented original, and static assets never reach PHP, so neither auth gate covers them.
+    // That is fine here because the source is public anyway. It would not be on a project where it
+    // was not, and the fix there is dropping inlineSources rather than assuming the maps are hidden.
+    // Maps are only fetched with DevTools open. public/.htaccess needs a "map" handler or Strato 500s
+    // them.
     "sourceMap": true,
     "inlineSources": true
   }

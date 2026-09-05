@@ -8,6 +8,9 @@ import { RequestedWith } from './model/RequestedWith.js';
 /**
  * SPA navigation: intercept internal link clicks, fetch the page as a content fragment, and swap it
  * into #content. Every link is a real href, so direct loads and no-JS behave identically.
+ *
+ * Only the most recent navigation may write to the page — see the counter below. Everything else
+ * here is stateless, which is why that one field is worth reading before changing anything.
  */
 export class Navigation {
   /**
@@ -38,6 +41,25 @@ export class Navigation {
     `<${HtmlTag.Title}>([\\s\\S]*?)</${HtmlTag.Title}>`,
   );
 
+  /**
+   * Which navigation is the current one.
+   *
+   * Every call to go() takes the next number and checks it is still the holder before it touches
+   * the DOM. Two quick clicks otherwise race: pushState has already put the second URL in the
+   * address bar, and whichever response happens to land last wins the content — so a slow first
+   * click beating a fast second one leaves the page showing one thing and the URL saying another,
+   * with nothing anywhere reporting it.
+   *
+   * A counter rather than only an AbortController, because aborting races too: a fetch can resolve
+   * before the abort is observed, and the assignment below would still run. The abort is worth
+   * having as well — it stops a body nobody will read being downloaded — but the number is what
+   * makes the guarantee.
+   */
+  private navigation = 0;
+
+  /** Aborts the request the previous navigation is still waiting on, if there is one. */
+  private inFlight: AbortController | null = null;
+
   private constructor(private readonly content: HTMLElement) {}
 
   /**
@@ -60,6 +82,11 @@ export class Navigation {
   /** Starts intercepting link clicks and back/forward. */
   public start(): void {
     document.addEventListener('click', (e) => { this.onClick(e); });
+    // pathname only, so a query string or fragment on the entry being returned to is dropped.
+    // Nothing this site emits has either — Element refuses a URL that is not a path of ours, and
+    // no view writes a `?` or a `#` — so today there is nothing to lose. The day one appears, this
+    // wants `location.pathname + location.search + location.hash`, and onClick already does the
+    // equivalent by handing go() the whole resolved href.
     window.addEventListener('popstate', () => { void this.go(location.pathname); });
   }
 
@@ -104,18 +131,33 @@ export class Navigation {
    * DOM XSS here, and nothing in this file would notice.
    */
   private async go(url: string): Promise<void> {
+    this.inFlight?.abort();
+
+    const controller = new AbortController();
+    const navigation = ++this.navigation;
+
+    this.inFlight = controller;
+
     try {
       const response = await fetch(url, {
         credentials: 'same-origin',
-        headers: { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest }
+        headers: { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest },
+        signal: controller.signal
       });
+
+      if (navigation !== this.navigation) return;
 
       if (!response.ok) {
         location.assign(url);
         return;
       }
 
-      const html  = await response.text();
+      const html = await response.text();
+
+      // Checked again after the second await: the body can arrive after a newer click has already
+      // started, and by then this response is for a page the visitor has moved on from.
+      if (navigation !== this.navigation) return;
+
       const title = html.match(Navigation.TITLE)?.[1];
 
       if (title !== undefined) document.title = Navigation.decodeEntities(title);
@@ -125,6 +167,10 @@ export class Navigation {
       document.dispatchEvent(new Event(Navigation.EVENT));
       window.scrollTo(0, 0);
     } catch {
+      // An abort is this file cancelling itself, not a failure — the navigation that replaced this
+      // one is already in flight, and handing the browser a URL the visitor has left would undo it.
+      if (navigation !== this.navigation) return;
+
       // pushState already ran, so the URL points at a page the visitor never got.
       // Hand the navigation back to the browser rather than strand them there.
       location.assign(url);

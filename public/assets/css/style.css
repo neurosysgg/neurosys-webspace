@@ -8,19 +8,32 @@
 /* assets/css/base/tokens.css */
 /* ---------------------------------------------------------------
    neuro.SYS
-   accent   = purple (#6a00ff) — interactive highlights
-   accent-2 = pink   (#ff2eab) — emphasis / the logo dot
+   accent      = purple (#9a6bff) — interactive highlights
+   accent-deep = purple (#6a00ff) — the same hue as a filled ground
+   accent-2    = pink   (#ff2eab) — emphasis / the logo dot
+
+   The accent was #6a00ff for everything, and as a *foreground* that measured 2.85:1 on --bg,
+   2.63 on --surface and 2.44 on --surface-2 — under WCAG AA's 4.5:1 for text and under the 3:1
+   a focus indicator needs. It carries every link, the focus ring, the home page's one call to
+   action, the terminal cursor and the download arrow, so almost every place it appeared was the
+   failing case. Lightened it reads 5.51 / 5.09 / 4.72.
+
+   The deep purple was not wrong, it was wrong in front. Behind white text it measures 5.64:1, so
+   it keeps the one job it was good at: the filled button in utilities.css. Same reasoning
+   SoundCloudWidget.ACCENT already records for the player, where #6a00ff read as near-black
+   against SoundCloud's own dark chrome.
    ---------------------------------------------------------------- */
 
 :root {
-  --bg:        #0b0c10;
-  --surface:   #15161d;
-  --surface-2: #1c1d27;
-  --border:    #262732;
-  --fg:        #e8e8f0;
-  --muted:     #84849c;
-  --accent:    #6a00ff;
-  --accent-2:  #ff2eab;
+  --bg:          #0b0c10;
+  --surface:     #15161d;
+  --surface-2:   #1c1d27;
+  --border:      #262732;
+  --fg:          #e8e8f0;
+  --muted:       #84849c;
+  --accent:      #9a6bff;
+  --accent-deep: #6a00ff;
+  --accent-2:    #ff2eab;
 
   --mono: "IBM Plex Mono", "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
   --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -168,10 +181,13 @@ a {
   border-radius: 6px;
   transition: background 0.15s ease, color 0.15s ease;
 
+  /* The deep purple goes behind the text rather than in front of it — 5.64:1 against --fg, where
+     the same colour as a foreground was 2.85:1. See base/tokens.css. */
   &:hover,
   &:focus-visible {
-    background: var(--accent);
-    color: var(--bg);
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+    color: var(--fg);
     text-decoration: none;
   }
 }

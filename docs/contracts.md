@@ -95,6 +95,7 @@ Three names have no counterpart, and each absence is deliberate.
 | `tone` (`TerminalFieldAttribute`) | `TerminalWindow.ts` | the stylesheet | the server sends the tone *inside* the JSON row, not as an attribute |
 | `--player-height` (`CustomProperty`) | `ConsentGatedEmbed.ts` | the stylesheet | a custom property the gate sets on itself |
 | `loaded` (`EmbedAttribute::Loaded`) | `ConsentGatedEmbed.ts` | the stylesheet | client-written, but it *does* have a PHP case — see below |
+| `If-None-Match` (`RequestHeader::IfNoneMatch`) | the browser | `ViewResponse` | the mirror image of `loaded`: server-read, mirrored client-side so the enum stays comparable case for case. No client code writes it |
 
 The first two are named in TypeScript anyway, even though no test can follow them, because **the
 stylesheet is exactly the kind of reader that fails in silence**: get `--player-height` wrong and the
@@ -108,6 +109,12 @@ It is named so `embed.css`'s `&[loaded]` has something on the other end of it.
 
 `CardAttribute` runs the other way: `slug` and `format` are written by the server and read by nobody
 client-side, because the card tags are guards. No mirror, and none needed.
+
+So do the attribute **value** enums — `LinkRel`, `LinkTarget`, `ScriptType`. They name what the
+server writes into `rel`, `target` and `type`, and nothing client-side reads any of them, so they
+have no mirror and no parity entry. They sit beside `HtmlAttribute` for the reason `RequestedWith`
+sits beside `RequestHeader` and `ContentTypeOptions` beside the header it fills: a value enum lives
+next to the name it fills in.
 
 ---
 
@@ -179,7 +186,15 @@ loud, but for a reason nobody would guess from the message.
 Navigation.go()   →  X-Requested-With: XMLHttpRequest
 Request::fromGlobals()  →  $ajax
 ViewResponse::send()    →  <title>…</title> + the content fragment, not a Document
+                        →  Vary: X-Requested-With
 ```
+
+**That header is part of the contract, not decoration.** One URL answers with two different bodies
+depending on this request header, so a cache that did not know which one it stored would be free to
+hand a fragment to a full navigation — `<title>…</title><section>…</section>` as the whole document.
+It was harmless while nothing cached; it stopped being harmless the moment `ViewResponse` started
+sending an `ETag`. The validators differ too, since they are hashes of the two bodies, which is the
+same guarantee again for a cache that ignores `Vary`.
 
 The server derives the `$_SERVER` key from the enum case rather than retyping it —
 `'HTTP_' . str_replace('-', '_', strtoupper(RequestHeader::RequestedWith->value))` — so PHP's

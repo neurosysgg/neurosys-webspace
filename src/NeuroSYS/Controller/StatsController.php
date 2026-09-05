@@ -56,11 +56,17 @@ class StatsController implements Controller
     /**
      * Wraps a stats view in a response the browser is told not to keep.
      *
-     * Every other page here is public and cacheable. This one is reached by handing over a password,
-     * so `no-store` keeps it out of the disk cache a shared or borrowed machine would leave it in.
-     * `private` says the same thing to anything in between. Neither is load-bearing today — the page
-     * shows aggregate counts and nothing else — but the rule wants to be attached to the gate rather
-     * than to what happens to be behind it right now.
+     * Every other page here is public and says `no-cache` — keep it, but ask before reusing it, and
+     * usually be told 304. This one is reached by handing over a password, so it says `no-store`
+     * instead: not "revalidate", but "do not write this to disk at all", which is what keeps it out
+     * of the cache a shared or borrowed machine would leave it in. `private` says the same to
+     * anything in between.
+     *
+     * Passing it here is also what makes {@link \NeuroSYS\Http\ViewResponse} stand down: a response
+     * whose caller already said how it may be kept gets no validator and can never answer a 304, so
+     * a gated page cannot be handed back on the strength of a guessed ETag. Neither part is
+     * load-bearing today — the page shows aggregate counts and nothing else — but the rule wants to
+     * be attached to the gate rather than to what happens to be behind it right now.
      */
     private static function response(StatsView $view): ViewResponse
     {

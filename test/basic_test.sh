@@ -126,6 +126,33 @@ check_spa_fragment() {
     fi
 }
 
+# Assert that a URL revalidates: it hands out an ETag, and handing that ETag back gets a 304 with
+# no body. Two requests, because that is the whole mechanism — one to be given a validator, one to
+# spend it. Only observable over real HTTP; header() is a no-op under CLI and so is the 304.
+check_revalidates() {
+    local desc="$1"; local url="$2"
+    local etag status body
+    etag=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - "$url" 2>/dev/null | tr -d '\r' \
+           | grep -i '^etag:' | sed 's/^[Ee][Tt][Aa][Gg]: //') || true
+
+    if [[ -z "$etag" ]]; then
+        fail "$desc (no ETag to revalidate with)"
+        return
+    fi
+
+    local tmp; tmp=$(mktemp)
+    status=$(curl "${CURL_ARGS[@]}" -H "If-None-Match: $etag" -o "$tmp" -w "%{http_code}" "$url" 2>/dev/null) || true
+    body=$(cat "$tmp"); rm -f "$tmp"
+
+    if [[ "$status" != "304" ]]; then
+        fail "$desc (expected 304 for a matching ETag, got $status)"
+    elif [[ -n "$body" ]]; then
+        fail "$desc (304 carried a body)"
+    else
+        pass "$desc"
+    fi
+}
+
 # Build curl args — include Basic Auth credentials if site_auth.php is active.
 CURL_ARGS=(-s)
 if [[ -f "$REPO/data/site_auth.php" ]]; then
@@ -192,7 +219,7 @@ php_ok "every class under src/ actually loads" \
          if (\$f->getExtension() !== 'php') continue;
          \$rel = substr(\$f->getPathname(), strlen('$REPO/src/'));
          \$class = str_replace('/', chr(92), substr(\$rel, 0, -4));
-         if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class)) \$bad[] = \$class;
+         if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class) && !trait_exists(\$class)) \$bad[] = \$class;
      }
      \$bad === [] or exit(1);"
 
@@ -590,6 +617,37 @@ check_header "a page declares its type and encoding"  "$BASE/"             "^con
 check_header "  the 404 does too"                     "$BASE/nope"         "^content-type: text/html; charset=utf-8"
 check_header "  and the 405 says plain text"          "$BASE/"             "^content-type: text/plain; charset=utf-8" "POST"
 
+
+echo ""
+echo "=== Caching ==="
+# Documents carry no Cache-Control at all until this block passes. The pairing that makes it worth
+# having is that a document names last build's asset URLs, and .htaccess marked those immutable for
+# a year — so a stale document plus a fresh deploy is old JS against new HTML. `no-cache` removes
+# the window rather than bounding it: the browser keeps the page and asks, and usually gets a 304.
+
+check_header "a document says it must be revalidated" "$BASE/"       "^cache-control: no-cache"
+check_header "  and hands out a validator to do it with" "$BASE/"    "^etag: \""
+check_header "  and names the header its body depends on" "$BASE/"   "^vary: X-Requested-With"
+check_revalidates "an unchanged document comes back as a 304" "$BASE/"
+check_revalidates "  and so does a release page" "$BASE/releases/ill"
+check_revalidates "  and the 404, which is a document like any other" "$BASE/nope"
+
+# One URL, two bodies. Vary is what tells a cache; the validators differing is the belt to that
+# brace, and is what would still hold in a cache that ignored it.
+DOC_ETAG=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - "$BASE/" 2>/dev/null | tr -d '\r' | grep -i '^etag:')
+FRAG_ETAG=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" -o /dev/null -D - "$BASE/" 2>/dev/null \
+            | tr -d '\r' | grep -i '^etag:')
+if [[ -n "$DOC_ETAG" && "$DOC_ETAG" != "$FRAG_ETAG" ]]; then
+    pass "the fragment and the document do not share a validator"
+else
+    fail "the fragment and the document share a validator ($DOC_ETAG)"
+fi
+
+# The gated page opts out of all of it, and the three responses that never become a ViewResponse
+# carry none of it either.
+check_no_header "the gated page hands out no validator"   "$BASE/admin/stats"        "^etag:"
+check_no_header "a 303 is not cacheable"                  "$BASE/releases/ill/flac"  "^cache-control:"
+check_no_header "  and neither is the 405"                "$BASE/"                   "^cache-control:" "POST"
 
 echo ""
 echo "=== Read-only method gate ==="

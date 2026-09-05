@@ -11,6 +11,7 @@ use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
 
@@ -35,7 +36,7 @@ class NotFoundView extends View
             ->containing(
                 new Terminal(
                     label:   'error.log',
-                    command: 'find ' . $this->path,
+                    command: new TerminalCommand('find', $this->path),
                     fields:  new Collection(TerminalField::class)
                         ->with(new TerminalField('error', '404 — not found', TerminalTone::Error)),
                     narrow:  true,

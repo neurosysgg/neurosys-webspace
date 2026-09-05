@@ -25,10 +25,13 @@
   border-radius: 6px;
   transition: background 0.15s ease, color 0.15s ease;
 
+  /* The deep purple goes behind the text rather than in front of it — 5.64:1 against --fg, where
+     the same colour as a foreground was 2.85:1. See base/tokens.css. */
   &:hover,
   &:focus-visible {
-    background: var(--accent);
-    color: var(--bg);
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+    color: var(--fg);
     text-decoration: none;
   }
 }

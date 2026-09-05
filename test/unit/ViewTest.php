@@ -27,6 +27,7 @@ use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\StatsView;
 use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalAttribute;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
@@ -239,14 +240,59 @@ final class ViewTest extends TestCase
     {
         $this->expectException(ReleaseVerificationException::class);
 
-        new Terminal('release.log', './x', new Collection(Format::class));
+        new Terminal('release.log', new TerminalCommand('./x'), new Collection(Format::class));
+    }
+
+    /**
+     * The command line quotes what it interpolates, which the two concatenations it replaced could
+     * not: a quote written into a literal is just a character.
+     */
+    #[DataProvider('commandProvider')]
+    public function testACommandLineQuotesItsValuesAndLeavesItsFlagsAlone(
+        string $expected,
+        string $program,
+        string ...$arguments,
+    ): void {
+        self::assertSame($expected, new TerminalCommand($program, ...$arguments)->render());
+    }
+
+    /** @return iterable<string, array<int, string>> */
+    public static function commandProvider(): iterable
+    {
+        yield 'a program on its own'   => ['./release', './release'];
+        yield 'a flag stays bare'      => ['./release --track "ill."', './release', '--track', 'ill.'];
+        yield 'a short flag too'       => ['ls -l "/tmp"', 'ls', '-l', '/tmp'];
+        yield 'a value is always quoted, space or not'
+                                       => ['find "/nope"', 'find', '/nope'];
+        yield 'a space is contained'   => ['find "/some odd path"', 'find', '/some odd path'];
+        yield 'an embedded quote is escaped' => [
+            './release --track "rock \"n\" roll"',
+            './release',
+            '--track',
+            'rock "n" roll',
+        ];
+        yield 'and so is a backslash'  => ['find "C:\\\\x"', 'find', 'C:\\x'];
+        yield 'an empty value is still a value'
+                                       => ['find ""', 'find', ''];
+    }
+
+    /**
+     * The 404's command line is built from the request path, which is the one string on this site a
+     * visitor writes in full. Quoting is what keeps it a legible line rather than a smeared one —
+     * the escaping that keeps it *safe* is Text's, and is asserted separately.
+     */
+    public function testTheNotFoundCommandContainsThePathItWasGiven(): void
+    {
+        $html = new NotFoundView('/some odd path')->content()->render();
+
+        self::assertStringContainsString('find &quot;/some odd path&quot;', $html);
     }
 
     public function testATerminalWithNoRowsRendersAnEmptyFieldList(): void
     {
         self::assertStringContainsString(
             'fields="[]"',
-            new Terminal('error.log', 'find /x')->toElement()->render(),
+            new Terminal('error.log', new TerminalCommand('find', '/x'))->toElement()->render(),
         );
     }
 
@@ -255,7 +301,7 @@ final class ViewTest extends TestCase
     {
         $html = new Terminal(
             label:   'release.log',
-            command: './x',
+            command: new TerminalCommand('./x'),
             fields:  new Collection(TerminalField::class)
                 ->with(new TerminalField('title', '" onload="alert(1)', TerminalTone::Ok)),
         )->toElement()->render();

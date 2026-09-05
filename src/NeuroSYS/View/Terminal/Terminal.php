@@ -25,17 +25,21 @@ final readonly class Terminal
      * Constructs an instance of {@link self}.
      *
      * @param string                    $label   The window's title, shown in its bar.
-     * @param string                    $command The command line above the output.
+     * @param TerminalCommand           $command The command line above the output. An object rather
+     *                                           than a string because the two views that build one
+     *                                           interpolate a release title and a request path into
+     *                                           it, and neither could quote what it interpolated —
+     *                                           see {@link TerminalCommand}.
      * @param Collection<TerminalField> $fields  The output rows, in order.
      * @param bool                      $narrow  Constrain the window's width.
      *
      * @throws ReleaseVerificationException if the collection holds something else.
      */
     public function __construct(
-        public string     $label,
-        public string     $command,
-        public Collection $fields = new Collection(TerminalField::class),
-        public bool       $narrow = false,
+        public string          $label,
+        public TerminalCommand $command,
+        public Collection      $fields = new Collection(TerminalField::class),
+        public bool            $narrow = false,
     ) {
         // Collection::with() rejects the wrong item; only its element type is left to check, which
         // is the one thing a PHP generic cannot say. Same guard as Release::verify().
@@ -56,7 +60,7 @@ final readonly class Terminal
 
         return new Element(Tag::TerminalWindow)
             ->attr(TerminalAttribute::Label, $this->label)
-            ->attr(TerminalAttribute::Command, $this->command)
+            ->attr(TerminalAttribute::Command, $this->command->render())
             ->attr(TerminalAttribute::Fields, $fields)
             ->attr(TerminalAttribute::Narrow, $this->narrow);
     }

@@ -232,7 +232,7 @@ click on a[href^="/"]
   → dispatch neurosys:navigate, scroll to top
 ```
 
-### The three things to understand before touching it
+### The four things to understand before touching it
 
 **1. The selector matches the href *attribute*; the code uses the resolved `link.href`.**
 `//evil.example/x` starts with a slash exactly as `/releases` does — a protocol-relative URL is a
@@ -246,17 +246,34 @@ every URL attribute is scheme-checked. The guarantee is *inherited*, not enforce
 that ever puts markup into `#content` from another source reopens DOM XSS, and nothing in that file
 would notice.
 
-**3. Nothing re-runs after a swap.** The browser upgrades any custom element it parses, including
+**3. Only the most recent navigation may write to the page.** `pushState` runs before the fetch, so
+the address bar already says where the *last* click went — and without a guard whichever response
+lands last wins `#content`, so a slow first click beating a fast second one leaves the URL and the
+page disagreeing with nothing reporting it. `go()` takes a number on the way in and checks it is
+still the current one after each `await`. There is an `AbortController` as well, but the counter is
+what makes the guarantee: a fetch can resolve in the instant before an abort is observed, and then
+only the number stands between a stale response and the page. `navigation.test.mjs` stages that gap
+deliberately, one microtask wide.
+
+**4. Nothing re-runs after a swap.** The browser upgrades any custom element it parses, including
 markup assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. The
 `neurosys:navigate` event stays for anything that is *not* an element — subscribe with
 `Navigation.onNavigate()` rather than the string.
 
 ### Failure is always "hand it back to the browser"
 
-A non-`ok` response or a thrown fetch calls `location.assign(url)`. `pushState` has already run by
+A non-`ok` response or a thrown fetch calls `location.assign(url)` — except an abort, which is the
+router cancelling itself rather than a failure, and handing the browser a URL the visitor has
+already left would undo the navigation that replaced it. `pushState` has already run by
 then, so leaving the visitor there would strand them on a page they never got. Likewise
 `forDocument()` returns `null` when there is no `#content`, which switches the whole router off with
 every link still working.
+
+One known limit, left as is because nothing here can reach it: the `popstate` handler re-fetches
+`location.pathname`, so a query string or fragment on the entry being returned to would be dropped.
+No view on this site emits either — `Element` refuses an `href` that is not a path of ours, and
+nothing writes a `?` or a `#` — so there is currently nothing to lose. `onClick` already does the
+right thing, handing `go()` the whole resolved href.
 
 ---
 

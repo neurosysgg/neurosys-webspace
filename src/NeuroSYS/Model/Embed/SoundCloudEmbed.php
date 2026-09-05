@@ -99,7 +99,7 @@ final readonly class SoundCloudEmbed implements Embed
             // ?: so a public track sends no attribute at all rather than an empty one — null is
             // absent, '' is a real empty value, and the client reads those differently.
             ->attr(SoundCloudPlayerAttribute::SecretToken, $this->secretToken ?: null)
-            ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style->value)
+            ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style)
             ->attr(SoundCloudPlayerAttribute::Options, $options)
             ->attr(SoundCloudPlayerAttribute::TrackTitle, $title)
             // EmbedAttribute, not SoundCloudPlayerAttribute: the height is what the gate reserves,

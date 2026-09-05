@@ -20,6 +20,7 @@ use NeuroSYS\View\Html\LinkAttribute;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Terminal\Terminal;
+use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
 
@@ -56,7 +57,7 @@ class ReleaseView extends View
 
         $terminal = new Terminal(
             label:   'release.log',
-            command: './release --track "' . $release->title . '"',
+            command: new TerminalCommand('./release', '--track', $release->title),
             fields:  new Collection(TerminalField::class)->with(
                 new TerminalField('artist', Config::NAME),
                 new TerminalField('bpm', (string) $release->bpm),
@@ -120,7 +121,7 @@ class ReleaseView extends View
         $type = $format->type;
 
         return new Element(Tag::DownloadCard)
-            ->attr(CardAttribute::Format, $type->value)
+            ->attr(CardAttribute::Format, $type)
             ->containing(
                 new Element(HtmlTag::A)
                     ->attr(LinkAttribute::NoSpa)

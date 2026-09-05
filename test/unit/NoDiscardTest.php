@@ -105,10 +105,15 @@ final class NoDiscardTest extends TestCase
     }
 
     /**
-     * Every class, interface and enum under `src/`, derived from its path.
+     * Every class, interface, enum and trait under `src/`, derived from its path.
      *
      * The autoloader maps the two onto each other, so a file this cannot name is a file the site
      * could not have loaded either.
+     *
+     * Traits are included because they are where a `#[\NoDiscard]` could most easily hide: PHP
+     * flattens a trait's methods into the using class, so `getDeclaringClass()` below names the
+     * class and the trait's own file is never otherwise visited. A trait carrying one would be
+     * counted twice rather than not at all, which is the direction this test can survive.
      *
      * @return list<class-string>
      */
@@ -129,7 +134,12 @@ final class NoDiscardTest extends TestCase
             $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
             $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
 
-            if (class_exists($class) || interface_exists($class) || enum_exists($class)) {
+            if (
+                class_exists($class)
+                || interface_exists($class)
+                || enum_exists($class)
+                || trait_exists($class)
+            ) {
                 /** @var class-string $class */
                 $classes[] = $class;
             }

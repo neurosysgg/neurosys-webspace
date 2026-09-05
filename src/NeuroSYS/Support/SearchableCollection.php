@@ -8,7 +8,6 @@ use ArrayIterator;
 use Countable;
 use IteratorAggregate;
 use Traversable;
-use TypeError;
 
 /**
  * The SearchableCollection class. A type-safe, string-keyed collection of objects.
@@ -18,39 +17,30 @@ use TypeError;
  *
  * Immutable for the same reason and in the same way — see {@link Collection}.
  *
+ * The store, the declared type and the type check live in {@link TypedItems}, shared with
+ * {@link Collection}. What is here is what makes this one a **map**: `with()` takes a key, `find()`
+ * exists at all, and iteration yields that key alongside the item — which is the whole reason
+ * `ReleasesView` can name each release by its slug while listing it.
+ *
  * @template T of object
  * @implements IteratorAggregate<string, T>
  */
 class SearchableCollection implements Countable, IteratorAggregate
 {
-    /** @var array<string, T> */
-    private array $items = [];
-
-    /**
-     * Constructs an instance of {@link self}.
-     *
-     * @param class-string<T> $type The fully-qualified class name this collection holds.
-     */
-    public function __construct(public readonly string $type) {}
+    /** @use TypedItems<T> */
+    use TypedItems;
 
     /**
      * Returns a copy of this collection with $item stored under $key.
      *
      * @param string $key  The key to store the item under.
      * @param T      $item The item to store.
-     * @throws TypeError if $item is not an instance of the declared type.
+     * @throws \TypeError if $item is not an instance of the declared type.
      */
     #[\NoDiscard('with() copies rather than stores, so a call whose result goes nowhere does nothing')]
     public function with(string $key, mixed $item): static
     {
-        if (!($item instanceof $this->type)) {
-            throw new TypeError(sprintf(
-                '%s expects %s, got %s',
-                static::class,
-                $this->type,
-                get_debug_type($item),
-            ));
-        }
+        $this->guard($item);
 
         $copy               = clone $this;
         $copy->items[$key]  = $item;
@@ -71,8 +61,6 @@ class SearchableCollection implements Countable, IteratorAggregate
 
     /** @return array<string, T> */
     public function all(): array { return $this->items; }
-
-    public function count(): int { return count($this->items); }
 
     /** @return ArrayIterator<string, T> */
     public function getIterator(): Traversable { return new ArrayIterator($this->items); }

@@ -58,9 +58,17 @@ new Router(RouteInitialization::routes())->dispatch($request)->send($request);  
 `public/.htaccess` redirects `http://` to `https://` before any PHP runs, and
 `Strict-Transport-Security` (one year, `includeSubDomains`) tells the browser never to try plaintext
 again. Both halves are load-bearing and neither is optional: both auth gates are HTTP Basic, Basic
-is base64 rather than encryption, and the pre-launch gate runs on **every** request. A request that
-arrives in plaintext has already put its credentials on the wire — the redirect fixes the *next*
-request, and HSTS removes there being a next plaintext one at all.
+is base64 rather than encryption, and the pre-launch gate runs on **every request that reaches
+PHP**. A request that arrives in plaintext has already put its credentials on the wire — the
+redirect fixes the *next* request, and HSTS removes there being a next plaintext one at all.
+
+Read "every request that reaches PHP" literally, because `.htaccess` passes real files through
+before the rewrite to `index.php`: **static assets are served without either gate**. So while the
+pre-launch gate is up it covers the documents and not `/assets/**` — including the source maps,
+which carry the whole commented TypeScript because `tsconfig` sets `inlineSources`. That is a
+non-issue here, since the source is public regardless; it is written down because "the gate runs on
+every request" is the kind of sentence that gets relied on later. `SecurityHeaders` records the same
+fact for its own half: static assets never reach PHP, so they get no security headers either.
 
 Two subtleties live here. Strato terminates TLS at its proxy, where `%{HTTPS}` can read `off` on a
 request that was encrypted the whole way; `X-Forwarded-Proto` is the header telling the truth, so the
@@ -89,6 +97,20 @@ Referrer-Policy: strict-origin-when-cross-origin
 X-Content-Type-Options: nosniff
 Permissions-Policy: geolocation=(), camera=(), microphone=(), payment=(), usb=(), midi=(), interest-cohort=()
 ```
+
+Those five are `SecurityHeader`'s whole set, and a test asserts the enum and what is sent match
+exactly. A document carries three more, which are about caching rather than security and so live in
+`ResponseHeader`:
+
+```
+Cache-Control: no-cache
+ETag: "…"
+Vary: X-Requested-With
+```
+
+`no-cache` is not `no-store` — it means keep the copy and revalidate before reusing it. The one page
+behind the admin gate says `no-store, private` instead, and opting out that way is also what stops
+`ViewResponse` giving it a validator at all. See `ViewResponse::cacheHeaders()`.
 
 The CSP's **absences** are the interesting part, because each is a scheme source someone debugging a
 broken asset would paste straight back in:

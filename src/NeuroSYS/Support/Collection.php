@@ -8,7 +8,6 @@ use ArrayIterator;
 use Countable;
 use IteratorAggregate;
 use Traversable;
-use TypeError;
 
 /**
  * The Collection class. A type-safe generic collection for objects of a single class.
@@ -20,20 +19,17 @@ use TypeError;
  * {@link \NeuroSYS\Http\Security\ContentSecurityPolicy::allow()}, and named for it: `with` reads
  * as a copy where `add` would read as a mutation, so a discarded return value looks wrong.
  *
+ * The store, the declared type and the type check live in {@link TypedItems}, shared with
+ * {@link SearchableCollection} — see that trait for why it is a trait and not a base class. What is
+ * here is what makes this one a **list**: `with()` appends, and iteration yields integer keys.
+ *
  * @template T of object
  * @implements IteratorAggregate<int, T>
  */
 class Collection implements Countable, IteratorAggregate
 {
-    /** @var list<T> */
-    private array $items = [];
-
-    /**
-     * Constructs an instance of {@link self}.
-     *
-     * @param class-string<T> $type The fully-qualified class name this collection holds.
-     */
-    public function __construct(public readonly string $type) {}
+    /** @use TypedItems<T> */
+    use TypedItems;
 
     /**
      * Returns a copy of this collection with one or more items appended.
@@ -49,23 +45,20 @@ class Collection implements Countable, IteratorAggregate
         $copy = clone $this;
 
         foreach ($items as $item) {
-            if (!($item instanceof $this->type)) {
-                throw new TypeError(sprintf(
-                    '%s expects %s, got %s',
-                    static::class,
-                    $this->type,
-                    get_debug_type($item),
-                ));
-            }
+            $this->guard($item);
             $copy->items[] = $item;
         }
         return $copy;
     }
 
-    /** @return list<T> */
+    /**
+     * `with()` only ever appends to an array that started empty, so this is always a list — the
+     * trait's store is typed `array-key` because it is shared with the map, not because this one
+     * can grow holes.
+     *
+     * @return list<T>
+     */
     public function all(): array { return $this->items; }
-
-    public function count(): int { return count($this->items); }
 
     /** @return ArrayIterator<int, T> */
     public function getIterator(): Traversable { return new ArrayIterator($this->items); }

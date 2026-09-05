@@ -112,7 +112,7 @@ final readonly class SoundCloudProfileEmbed
         ));
 
         return new Element(Tag::SoundCloudProfile)
-            ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style->value)
+            ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style)
             ->attr(SoundCloudPlayerAttribute::Options, $options)
             // EmbedAttribute, not SoundCloudPlayerAttribute: the height is what the gate reserves,
             // and the gate is every provider's.

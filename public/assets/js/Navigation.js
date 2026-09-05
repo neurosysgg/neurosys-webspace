@@ -9,6 +9,8 @@ export class Navigation {
     static EVENT = 'neurosys:navigate';
     static INTERNAL_LINK = `${HtmlTag.A}[${HtmlAttribute.Href}^="/"]`;
     static TITLE = new RegExp(`<${HtmlTag.Title}>([\\s\\S]*?)</${HtmlTag.Title}>`);
+    navigation = 0;
+    inFlight = null;
     constructor(content) {
         this.content = content;
     }
@@ -38,16 +40,25 @@ export class Navigation {
         void this.go(link.href);
     }
     async go(url) {
+        this.inFlight?.abort();
+        const controller = new AbortController();
+        const navigation = ++this.navigation;
+        this.inFlight = controller;
         try {
             const response = await fetch(url, {
                 credentials: 'same-origin',
-                headers: { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest }
+                headers: { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest },
+                signal: controller.signal
             });
+            if (navigation !== this.navigation)
+                return;
             if (!response.ok) {
                 location.assign(url);
                 return;
             }
             const html = await response.text();
+            if (navigation !== this.navigation)
+                return;
             const title = html.match(Navigation.TITLE)?.[1];
             if (title !== undefined)
                 document.title = Navigation.decodeEntities(title);
@@ -58,6 +69,8 @@ export class Navigation {
             window.scrollTo(0, 0);
         }
         catch {
+            if (navigation !== this.navigation)
+                return;
             location.assign(url);
         }
     }

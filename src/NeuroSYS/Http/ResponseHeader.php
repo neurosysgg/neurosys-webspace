@@ -24,8 +24,36 @@ enum ResponseHeader: string implements HeaderName
     /** The Basic Auth challenge, sent with a 401. */
     case WwwAuthenticate = 'WWW-Authenticate';
 
-    /** How long a response may be kept. Sent with the pages that sit behind a gate. */
+    /**
+     * Whether a response may be reused, and on what terms.
+     *
+     * Two answers on this site, and they are opposites. Every public document says `no-cache`,
+     * which is not `no-store`: keep it, but ask before reusing it — see {@link ViewResponse}.
+     * The one page behind a gate says `no-store, private` instead, and {@link
+     * \NeuroSYS\Controller\StatsController} sets that itself.
+     */
     case CacheControl = 'Cache-Control';
+
+    /**
+     * A validator for the body, so a revalidation can come back as a 304 instead of the page.
+     *
+     * {@link ViewResponse} hashes what it is about to send. That is the whole trick behind the
+     * caching here: a document embeds every versioned asset URL, so a rebuild changes the body,
+     * which changes this, which retires the cached copy — no coupling to the build stamp needed,
+     * because the dependency is already in the bytes.
+     */
+    case ETag = 'ETag';
+
+    /**
+     * Which request headers the stored response depends on.
+     *
+     * Load-bearing here rather than decorative: {@link ViewResponse} answers one URL with two
+     * different bodies depending on `X-Requested-With` — a whole document to a browser, a
+     * fragment to `Navigation`. Without this a cache is entitled to hand either one to the other,
+     * and the fragment landing on a navigation is a blank page. It was harmless while nothing
+     * cached; it stopped being harmless the moment {@link self::ETag} appeared.
+     */
+    case Vary = 'Vary';
 
     /**
      * The one case here that names a header the site does **not** send.

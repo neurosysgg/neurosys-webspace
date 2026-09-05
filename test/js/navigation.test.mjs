@@ -29,7 +29,29 @@ let handedBack = [];
 /** What the next fetch resolves to. */
 let respond;
 
-globalThis.fetch = (url, init) => { requests.push({ url, init }); return respond(); };
+/**
+ * The fetch double honours init.signal, because Navigation aborts the request a newer navigation
+ * replaces — and a stub that ignored the signal would leave that path unexercised while looking
+ * exercised.
+ */
+globalThis.fetch = (url, init) => {
+  requests.push({ url, init });
+
+  const response = respond();
+
+  return new Promise((resolve, reject) => {
+    init.signal.addEventListener('abort', () => { reject(new Error('aborted')); });
+    response.then(resolve, reject);
+  });
+};
+
+/** A promise this test resolves by hand, so two navigations can be made to overlap. */
+function deferred() {
+  let settle;
+  const promise = new Promise((resolve, reject) => { settle = { resolve, reject }; });
+
+  return { promise, ...settle };
+}
 
 const fragment = (body, { ok = true } = {}) => () =>
   Promise.resolve({ ok, text: () => Promise.resolve(body) });
@@ -328,6 +350,79 @@ test('subscribers are told once the content has been replaced', async () => {
 
   assert.equal(seen.length, 1);
   assert.match(seen[0], /<p>fragment<\/p>/, 'fired before the swap, not after');
+});
+
+// ───────────────────────── overlapping navigations ─────────────────────────
+
+/*
+ * pushState runs before the fetch, so the address bar already says where the *last* click went.
+ * Without a guard, whichever response happens to land last writes #content — and a slow first
+ * click beating a fast second one leaves the URL and the page disagreeing, silently. Each of the
+ * three tests below parks one navigation at a different await and lets a newer one overtake it.
+ */
+
+/**
+ * The case the AbortController cannot cover, and the reason the counter exists as well as it.
+ * A fetch that has already resolved is past aborting — the response is in hand and only the
+ * continuation is pending — so a click landing in that gap leaves a settled stale response with
+ * nothing but the counter between it and #content. Staged by resolving the first fetch and
+ * clicking again in the same tick, before its continuation gets to run.
+ */
+test('a response resolved just as a newer click starts is dropped', async () => {
+  const first = deferred();
+
+  respond = () => first.promise;
+  click(link('/releases'));
+  await settle();
+
+  respond = fragment('<title>imprint</title><p>second</p>');
+
+  first.resolve({ ok: true, text: () => Promise.resolve('<title>releases</title><p>first</p>') });
+
+  // One microtask, and exactly one: enough for the fetch promise to settle — so the abort below
+  // has nothing left to cancel — but not enough for its continuation to run. That gap is the race.
+  await Promise.resolve();
+  click(link('/imprint'));
+
+  await settle();
+
+  assert.match(content.innerHTML, /second/, 'the stale response overwrote the newer one');
+  assert.equal(document.title, 'imprint');
+});
+
+test('a body that arrives after a newer click has started is dropped', async () => {
+  const body = deferred();
+
+  // The fetch resolves at once; it is reading the body that outlives the navigation.
+  respond = () => Promise.resolve({ ok: true, text: () => body.promise });
+  click(link('/releases'));
+  await settle();
+
+  respond = fragment('<title>imprint</title><p>second</p>');
+  await navigate(link('/imprint'));
+
+  body.resolve('<title>releases</title><p>first</p>');
+  await settle();
+
+  assert.match(content.innerHTML, /second/, 'the stale body overwrote the newer one');
+  assert.equal(document.title, 'imprint');
+});
+
+/**
+ * The abort is Navigation cancelling itself. Handing that to location.assign() would turn every
+ * double-click into a full page load of the URL the visitor already left.
+ */
+test('the request a newer click cancels is not handed back to the browser', async () => {
+  respond = () => deferred().promise;
+  click(link('/releases'));
+  await settle();
+
+  respond = fragment('<title>imprint</title><p>second</p>');
+  await navigate(link('/imprint'));
+
+  assert.deepEqual(handedBack, []);
+  assert.match(content.innerHTML, /second/);
+  assert.equal(requests.length, 2, 'both navigations should have started a fetch');
 });
 
 // ───────────────────────── switching itself off ─────────────────────────

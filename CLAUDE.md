@@ -100,12 +100,13 @@ src/NeuroSYS/
 │   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
-├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable), Route, RouteInitialization,
-│                     JsonDeserializable, Charset
+├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable) + the TypedItems trait
+│                     they share, Route, RouteInitialization, JsonDeserializable, Charset
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document, Doctype
-│   │                 + Tag/HtmlTag and the attribute enums they compose
-│   └── Terminal/   ← Terminal, TerminalField + the enums they compose
+│   │                 + Tag/HtmlTag, the attribute-name enums, and the attribute-value enums
+│   │                   LinkRel / LinkTarget / ScriptType
+│   └── Terminal/   ← Terminal, TerminalCommand, TerminalField + the enums they compose
 ├── Config.php      ← the facts about this site: identity, origins, paths, switches
 ├── Layout.php      ← static wrap(View): Document — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
@@ -137,7 +138,7 @@ naming a header the site does not send. Only the verify script can see it: `head
 **`Strict-Transport-Security` is the one header about the connection rather than the document**, and
 `public/.htaccess` redirects `http://` to `https://` ahead of it. Both halves are needed and neither
 is optional: the two auth gates are HTTP Basic, Basic is base64 rather than encryption, and the
-pre-launch gate runs on *every* request. A plaintext request has already put the credentials on the
+pre-launch gate runs on *every request that reaches PHP*. A plaintext request has already put the credentials on the
 wire before any redirect can be read, so the redirect fixes that request and the header stops there
 being another. It is a year with `includeSubDomains`; `StrictTransportSecurity::ONE_DAY` exists for
 ramping an estate you have not checked, and `preload` is deliberately not offered — see the class.
@@ -238,6 +239,16 @@ inert inline box, a misspelled attribute is a null the client reads as nothing, 
 an injection, and a mismatched closing tag is a document the browser reinterprets. The last one a
 tree removes outright — there is no closing tag to get wrong, because there is no text form to write.
 
+**The attribute's *value* is typed too, wherever it is a fixed vocabulary rather than data.**
+`attr()` accepts any `BackedEnum` and unwraps it, so `rel`, `target` and `type` are `LinkRel`,
+`LinkTarget` and `ScriptType` cases rather than strings — the same move `RequestedWith` and
+`ContentTypeOptions` already made beside the headers they fill. It earns its place on the same
+grounds the names did: misspell `modulepreload` and forty-one preload hints stop preloading in
+silence, misspell `noopener` and a security boundary on every outbound link is quietly not there,
+and drop `module` from the script tag and `import` becomes a syntax error. `rel` is a token list, so
+`LinkRel::tokens(…)` builds it variadically the way `HttpMethod::allowed()` builds the `Allow`
+header. These are server-only, so they have no TypeScript mirror and none is wanted.
+
 `Element::attr()` is the whole attribute API. What you pass decides what renders: a string or int is
 a value, `true` is a bare boolean attribute, and `false`/`null` leave it off. `''` and `null` are
 deliberately different — `options=""` is a real empty value, `secret-token` absent is not.
@@ -289,8 +300,22 @@ content, and without it `<h1>ill<span>.</span></h1>` would gain a space inside t
 `Collection<T>` and `SearchableCollection<T>` are the only shapes a group of objects takes. A bare
 `array` with a `foreach`-and-`instanceof` check in a constructor is the thing they replace — that
 loop existed three times, in `Release`, `Terminal` and `SoundCloudEmbed`, and it is now
-`Collection::with()`'s single `TypeError`. What is left to check by hand is the *element type*, the
+`TypedItems::guard()`'s single `TypeError`. What is left to check by hand is the *element type*, the
 one thing a PHP generic cannot say: `$this->fields->type !== TerminalField::class`.
+
+**What they share is a trait, `Support/TypedItems`, and not a base class** — the codebase's only
+trait, and the reason is worth stating. The two are not substitutable and never should be: one is a
+list and one is a map, their `with()` methods take different arguments, and nothing anywhere holds
+"either kind of collection". `extends` would announce a common type that nothing wants; `use`
+announces shared plumbing, which is all it is. Two mechanical consequences follow: `$items` stays
+`private`, because PHP flattens a trait's members into the using class where a parent's private
+member would have had to become `protected`; and `static::class` still names the collection rather
+than the trait, so the `TypeError` reads exactly as it did when the `sprintf` sat in both files.
+`SupportTest` asserts that message, which is what would catch a later slip to `self::class`.
+
+What stayed behind in each class is what genuinely differs — `with()`, `find()`, and `all()`
+/`getIterator()`, whose bodies are identical but whose return types are `list<T>` against
+`array<string, T>`. That difference is the reason there are two classes at all.
 
 **`with()` copies; it does not append.** That is what makes a collection safe to hold inside a
 `readonly` value object: `readonly` protects the reference, not what it points at, so a mutable
@@ -516,9 +541,17 @@ Two consequences of self-containment worth knowing:
 
 ### The terminal
 
-`ReleaseView::heroSection()` declares a `Terminal` — a label, a command line and typed
+`ReleaseView::heroSection()` declares a `Terminal` — a label, a `TerminalCommand` and typed
 `TerminalField` rows — and emits one tag. `<terminal-window>` builds the command, every row and the
-cursor. The rows cross as JSON in an attribute, which is the only shape that stays generic across a
+cursor.
+
+**The command line is an object rather than a string**, because both views that build one
+interpolate something they cannot quote: a release title, and — on the 404 — the request path, which
+is the one string on this site a visitor writes in full. `new TerminalCommand('find', $path)` quotes
+the value and leaves a leading-dash flag bare, so `find "/some odd path"` reads as the shell
+transcript it is dressed as. It is **not** a security boundary and must not be read as one: the
+result is assigned to `textContent` by `<terminal-window>`, so it was never at risk of being
+anything but text. What quoting buys is legibility, including when what it is quoting is hostile. The rows cross as JSON in an attribute, which is the only shape that stays generic across a
 release's five metadata rows and a 404's single error line.
 
 `TerminalTone` decides how a row reads, and the stylesheet decides which half of it that colours:
@@ -570,7 +603,7 @@ nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`.
 | `SoundCloudPlayerAttribute`, `EmbedAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
 | `TerminalFieldKey` | the JSON keys a terminal row arrives under |
 | `CssClass`, `ElementId` | what the stylesheet and the SPA router look for |
-| `RequestHeader`, `RequestedWith` | the header that asks for a fragment |
+| `RequestHeader`, `RequestedWith` | the header that asks for a fragment, and the one that revalidates |
 
 The kinds fail differently, which is worth knowing before renaming any of them. A wrong **value**
 usually shows: a broken widget URL, a tone that does not colour. A wrong **name** shows as nothing —
@@ -737,7 +770,16 @@ usage rules.
 Beyond the `SetHandler` allow-list and the HTTPS redirect, `public/.htaccess` shapes every static
 response. Measured on the live host 2026-09-05: Strato compresses **nothing** and sets **no
 `Cache-Control`** — `main.js` arrived byte-identical to the file on disk, with only an `ETag` and a
-`Last-Modified`. Both blocks are `<IfModule>`-guarded, which means an absent module is silence rather
+`Last-Modified`.
+
+**Note what that block does and does not reach.** Every `Header set` here sits inside a
+`<FilesMatch>` keyed on a file extension, so it applies to what Apache serves and never to a
+document, which `index.php` produces. Documents answer for themselves — `ViewResponse` sends
+`Cache-Control: no-cache`, an `ETag` over the rendered body and `Vary: X-Requested-With`, so a
+returning visitor revalidates and usually gets a 304. The two halves fit together deliberately: a
+document embeds the versioned asset URLs, so a cached document naming *last* build's URLs would be
+served last build's JS out of the year-long immutable cache below. `no-cache` means there is no
+window in which that can happen, rather than a bounded one. Both blocks are `<IfModule>`-guarded, which means an absent module is silence rather
 than a 500, and equally means a missing `mod_deflate` would leave the block doing nothing with no
 sign. **Re-check after deploying**, since this is not something either test suite can see:
 
