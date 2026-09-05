@@ -90,4 +90,5 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 - [releases.md](releases.md) — adding and updating releases
 - [testing.md](testing.md) — the two test suites and the invariants they protect
 - [branding.md](branding.md) — vendored brand assets and profile links
+- [security.md](security.md) — the security posture, hardenings, and assessment findings
 - [testing.md](testing.md) — unit tests and the verify script

@@ -20,7 +20,7 @@ final readonly class CspHost implements CspSource
      * Scheme, optional `*.` subdomain wildcard, dotted host, optional port. No path, no query,
      * no fragment, no trailing slash.
      */
-    private const string ORIGIN_PATTERN = '#^https?://(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d{1,5})?$#i';
+    private const string ORIGIN_PATTERN = '#^https?://(\*\.)?[a-z0-9-]+(\.[a-z0-9-]+)+(:\d{1,5})?\z#i';
 
     /**
      * Constructs an instance of {@link self}.

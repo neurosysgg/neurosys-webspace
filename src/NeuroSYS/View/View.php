@@ -51,7 +51,7 @@ abstract class View
      */
     protected static function accented(string $text): array
     {
-        if (preg_match('/[!.?]$/', $text, $matches) !== 1) {
+        if (preg_match('/[!.?]\z/', $text, $matches) !== 1) {
             return [$text];
         }
 

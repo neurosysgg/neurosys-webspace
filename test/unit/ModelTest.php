@@ -178,6 +178,7 @@ final class ModelTest extends TestCase
         yield 'hyphen'         => ['BXRsy-9S7'];
         yield 'whole url'      => ['https://my.hidrive.com/x'];
         yield 'trailing space' => ['BXRsy9S7 '];
+        yield 'newline'        => ["BXRsy9S7d\n"];
         yield 'query fragment' => ['?id=BXRsy9'];
         yield 'unicode'        => ['BXRsy9S7é'];
     }

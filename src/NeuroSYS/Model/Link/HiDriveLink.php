@@ -31,7 +31,7 @@ final readonly class HiDriveLink implements FileLink
      * rather than silently 404ing from HiDrive when a visitor clicks. If HiDrive ever
      * changes the format, this pattern is the only thing that needs widening.
      */
-    private const string ID_PATTERN = '/^[A-Za-z0-9]{9}$/';
+    private const string ID_PATTERN = '/^[A-Za-z0-9]{9}\z/';
 
     /**
      * Constructs an instance of {@link self}.

@@ -40,7 +40,7 @@ final readonly class MimeType
      * registered subtype has ever used; a value carrying one is a paste that went wrong, and there
      * is more to be had from saying so than from accepting it.
      */
-    private const string SUBTYPE_PATTERN = '#^[a-z0-9][a-z0-9+._-]{0,126}$#i';
+    private const string SUBTYPE_PATTERN = '#^[a-z0-9][a-z0-9+._-]{0,126}\z#i';
 
     /**
      * Constructs an instance of {@link self}.

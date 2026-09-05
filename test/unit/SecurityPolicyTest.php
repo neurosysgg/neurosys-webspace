@@ -134,6 +134,7 @@ final class SecurityPolicyTest extends TestCase
         yield 'empty'           => [''];
         yield 'a keyword'       => ["'self'"];
         yield 'space'           => ['https://exa mple.com'];
+        yield 'newline'         => ["https://example.com\n"];
         yield 'javascript'      => ['javascript:alert(1)'];
     }
 

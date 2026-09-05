@@ -413,6 +413,7 @@ final class ResponseTest extends TestCase
         yield 'leading dot'    => ['.html'];
         yield 'a token char no subtype uses' => ['ht!ml'];
         yield 'past the cap'   => [str_repeat('a', 128)];
+        yield 'newline'        => ["html\n"];
     }
 
     /** Mirrors CspHost: a bad paste has to fail where it is written, not on the wire. */

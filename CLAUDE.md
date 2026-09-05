@@ -660,4 +660,5 @@ Footer profile links come from `data/profiles.php` — an empty URL hides that l
 usage rules.
 
 See `docs/deployment.md` for first-time FTP setup, `docs/releases.md` for the full release checklist,
-`docs/branding.md` for brand assets and profile links, and `docs/testing.md` for the two test suites.
+`docs/branding.md` for brand assets and profile links, `docs/testing.md` for the two test suites, and
+`docs/security.md` for the security posture and the assessment findings.
