@@ -229,6 +229,22 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   unlike the TypeScript checks this one runs on a clone that has never seen `npm install`. The build
   itself refuses a part imported twice, an import that does not resolve, an absolute import, and a
   rule sitting in a manifest.
+- **The generated module list is current with the module graph.** `src/NeuroSYS/ModuleGraph.php` is
+  walked out of the compiled JS and read by `Layout` to emit the `<link rel="modulepreload">` list.
+  Stale, it is the quiet kind of wrong — the page still works, it just hints a module that is gone
+  and misses one that is not, so the five-round-trip waterfall the list exists to flatten comes back
+  with nothing anywhere reporting it. Like the stylesheet check this reads only committed files, so
+  it runs on a clone that has never seen `npm install`. Proved by deleting an entry and watching it
+  fail.
+- **Every preloaded module resolves.** The drift check proves the list matches the graph; it cannot
+  prove the list points at anything, because the href is a graph path under a URL base written by
+  hand in `tools/build-preload.mjs`. So the verify script asks the dev server for all 41, and
+  `ViewTest` asks the filesystem the same question — which fails in the fast suite, without a server.
+  A preload that 404s is the quietest failure here: the module is simply fetched late, the slow way,
+  and the console offers at most an unused-preload notice.
+- **The entry point is not also preloaded.** `main.js` is the `<script src>` already in flight, so
+  hinting it too is a second instruction to fetch a file the browser is on its way to fetching.
+  Asserted in both suites, on the generated list and on the served page.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.
@@ -263,7 +279,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 98.00% of lines, and what is left is named below
+composer coverage   # PHP  — 98.01% of lines, and what is left is named below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -286,7 +302,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.00% of lines** (880/898), 98.62% of methods.
+clover XML and a browsable HTML report. Currently **98.01% of lines** (887/905), 98.63% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,

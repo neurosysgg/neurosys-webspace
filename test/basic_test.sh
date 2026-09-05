@@ -299,6 +299,30 @@ else
     echo "  SKIP assets/css/ drift check — no node on PATH"
 fi
 
+# src/NeuroSYS/ModuleGraph.php is generated from the compiled module graph and committed, because
+# Layout reads it to emit the <link rel="modulepreload"> list. Stale, it is the quiet kind of wrong:
+# the page still works, it just hints a module that no longer exists and misses one that does, so
+# the request waterfall it exists to flatten comes back with nothing anywhere saying it did. Like
+# build-css.mjs this reads only committed files, so it runs on a clone with no node_modules.
+if command -v node >/dev/null 2>&1; then
+    GRAPHOUT="$REPO/.preloadcheck/ModuleGraph.php"
+    rm -rf "$REPO/.preloadcheck"
+    if graph_error=$(node "$REPO/tools/build-preload.mjs" --out "$GRAPHOUT" 2>&1 >/dev/null); then
+        if diff -q "$GRAPHOUT" "$REPO/src/NeuroSYS/ModuleGraph.php" >/dev/null 2>&1; then
+            pass "src/NeuroSYS/ModuleGraph.php is current with public/assets/js/"
+        else
+            fail "src/NeuroSYS/ModuleGraph.php has drifted from the module graph (run: npm run build)"
+            diff "$GRAPHOUT" "$REPO/src/NeuroSYS/ModuleGraph.php" | head -20 | sed 's/^/       /'
+        fi
+    else
+        fail "the module graph does not walk, so the preload list cannot be checked"
+        echo "$graph_error" | sed 's/^/       /'
+    fi
+    rm -rf "$REPO/.preloadcheck"
+else
+    echo "  SKIP module graph drift check — no node on PATH"
+fi
+
 # public/assets/js/ is generated from assets/ts/ and committed, because deploy.sh rsyncs public/
 # straight from the working tree. Both checks need the npm dev tooling; without it they are skipped
 # rather than failed, so `composer test` still runs on a clone that has never seen `npm install`.
@@ -446,6 +470,26 @@ if [[ -n "$served" && -z "$unregistered" ]]; then
 else
     fail "custom tags served with no element behind them:$unregistered"
 fi
+# The drift check above proves the list matches the graph. It cannot prove the list points at
+# anything: the href is the graph path under a URL base the tool writes by hand, so every entry can
+# be perfectly in step and still 404. That is the quietest failure available here — the page works,
+# the module is simply fetched late the slow way, and the console offers at most an unused-preload
+# notice nobody is reading. So ask the server for each one.
+preloaded=$(curl "${CURL_ARGS[@]}" "$BASE/" 2>/dev/null \
+            | grep -oE 'rel="modulepreload" href="[^"]+"' | sed 's/.*href="//; s/"$//')
+unresolved=""
+for module in $preloaded; do
+    code=$(curl "${CURL_ARGS[@]}" -o /dev/null -w "%{http_code}" "$BASE$module") || true
+    [[ "$code" == 200 ]] || unresolved="$unresolved $module($code)"
+done
+if [[ -n "$preloaded" && -z "$unresolved" ]]; then
+    pass "every preloaded module resolves ($(wc -w <<< "$preloaded") hinted)"
+else
+    fail "modulepreload hints that do not resolve:$unresolved"
+fi
+# The entry point is the <script src>; hinting it too would be a redundant fetch instruction.
+check_body "the entry point is not also preloaded"  "$BASE/"  'modulepreload" href="/assets/js/main.js"'  absent
+
 # A PHP notice or warning leaking into the page means something is broken upstream.
 check_body "no PHP errors leak into the home page"   "$BASE/"              'Warning'   absent
 check_body "no PHP errors leak into a release page"  "$BASE/releases/ill"  'Fatal'     absent

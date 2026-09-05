@@ -1,10 +1,3 @@
-/**
- * Mirrors NeuroSYS\View\Html\Tag — every custom element the site emits or builds.
- *
- * The server writes these tag names and this side registers and creates them, so they are the same
- * fact stated twice. test/js/enum-parity.test.mjs compares the two: a tag renamed on one side only
- * is an element the browser has never heard of, which renders as an inert inline box with no error.
- */
 export var Tag;
 (function (Tag) {
     Tag["SoundCloudPlayer"] = "soundcloud-player";

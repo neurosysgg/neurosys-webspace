@@ -1,23 +1,7 @@
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 import { Tag } from '../../model/Tag.js';
 import { SoundCloudWidget } from './SoundCloudWidget.js';
-/**
- * <soundcloud-player track-id permalink secret-token player-style options track-title height>
- *
- * One track, the client-side half of NeuroSYS\Model\Embed\SoundCloudEmbed. ReleaseView sends the
- * release's facts as typed attributes — which track, which layout, which toggles — and everything
- * built from them lives in SoundCloudWidget, which this narrows to a single track.
- *
- * The URN form of the resource URL is the unusual part and is deliberate: SoundCloud's own dialog
- * emits `soundcloud:tracks:<id>` rather than a bare id, and it is what the live embeds use.
- */
 export class SoundCloudPlayer extends SoundCloudWidget {
-    /**
-     * Returns the API track reference the player resolves.
-     *
-     * SoundCloud's dialog emits the `soundcloud:tracks:<id>` URN form rather than a bare id —
-     * unusual, but it is what the live embeds use, so it is reproduced as-is.
-     */
     resourceUrl() {
         const url = `https://api.soundcloud.com/tracks/soundcloud:tracks:${this.getAttribute(SoundCloudPlayerAttribute.TrackId) ?? ''}`;
         const token = this.secretToken();
@@ -26,11 +10,9 @@ export class SoundCloudPlayer extends SoundCloudWidget {
     subject() {
         return this.trackTitle();
     }
-    /** A track credits the artist and then the track, which is the page the title links to. */
     attributionTarget() {
         return { href: this.trackPermalink(), text: this.trackTitle() };
     }
-    /** Returns the public track page the attribution links to. */
     trackPermalink() {
         const url = `${SoundCloudPlayer.PROFILE}/${this.getAttribute(SoundCloudPlayerAttribute.Permalink) ?? ''}`;
         const token = this.secretToken();

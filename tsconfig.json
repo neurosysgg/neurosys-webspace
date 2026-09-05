@@ -30,9 +30,17 @@
     // A type error must never leave stale or half-written JS sitting in public/ waiting to deploy.
     "noEmitOnError": true,
 
-    // The comments explain *why* (CSP, entity decoding, layout jump). Keeping them means the file
-    // that ships still reads like the hand-written one it replaced.
-    "removeComments": false,
+    // Comments are half of what ships and the second copy of something already sent: 49,925 bytes
+    // raw and 24,350 gzipped with them, 24,770 and 11,298 without. inlineSources below embeds the
+    // TypeScript — comments intact — in the map's sourcesContent, so DevTools shows the commented
+    // source either way. Keeping them in the .js as well is a copy only the network pays for.
+    //
+    // This is the whole of the minification question, and the reason there is no minifier here: a
+    // real one past this point is worth about 260 gzipped bytes, because gzip already does what
+    // identifier mangling and whitespace removal do. Not a dependency's worth on a project with
+    // none. The bytes that are left are better spent by bundling, and the latency by preloading —
+    // neither of which is a minifier's job.
+    "removeComments": true,
     "newLine": "lf",
 
     // inlineSources embeds the TypeScript in the map's sourcesContent, so DevTools shows nav.ts without

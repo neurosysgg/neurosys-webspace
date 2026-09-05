@@ -1,4 +1,3 @@
-/** Mirrors NeuroSYS\View\Html\CoverArtAttribute — what the server tells <cover-art>. */
 export var CoverArtAttribute;
 (function (CoverArtAttribute) {
     CoverArtAttribute["Src"] = "src";

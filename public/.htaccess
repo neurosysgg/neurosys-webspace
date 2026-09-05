@@ -6,6 +6,73 @@ DirectoryIndex index.php
     SetHandler default-handler
 </FilesMatch>
 
+# Compress what compresses. Measured on the live host 2026-09-05: Strato sends no Content-Encoding
+# at all, so main.js arrived as 1,589 bytes of plain text, byte-identical to the file on disk. The
+# whole module graph is ~50 KB raw and ~24 KB gzipped, and the stylesheet another 13 KB — so this
+# block is worth more than any build-side change we can make, and costs nothing to ship.
+#
+# Listed by the type the server actually sends, not the type we assume: .js comes back as
+# `text/javascript` here, so `application/javascript` alone would silently match nothing.
+#
+# Deliberately absent: png, jpe?g, gif, ico, webp, avif, woff2. Those are already compressed, and
+# running DEFLATE over them spends CPU to make them very slightly larger.
+#
+# <IfModule> means an absent module is silence rather than a 500 — which cuts both ways, since a
+# Strato that lacks mod_deflate would leave this doing nothing with no sign. Re-check with
+# `curl -sI -H 'Accept-Encoding: gzip' https://neurosys.gg/assets/js/main.js | grep -i encoding`
+# after deploying; a missing content-encoding line means the module is not there.
+<IfModule mod_deflate.c>
+    AddOutputFilterByType DEFLATE text/html text/plain text/css text/javascript \
+                                  application/javascript application/json \
+                                  application/xml image/svg+xml
+</IfModule>
+
+# Brotli beats gzip by roughly 15-20% on text and every browser that reaches this site supports it.
+#
+# Measured on the live host 2026-09-05: mod_brotli is NOT loaded, so this block currently does
+# nothing and mod_deflate above is what answers. Kept rather than deleted — it costs nothing while
+# absent and starts working the day Strato loads the module, which is worth asking them about. Do
+# not read its presence as evidence it is in effect; ask the server:
+#   curl -sI -H 'Accept-Encoding: br' https://neurosys.gg/assets/js/main.js | grep -i encoding
+<IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/javascript \
+                                          application/javascript application/json \
+                                          application/xml image/svg+xml
+</IfModule>
+
+# Cache lifetimes, and why they are this short.
+#
+# Nothing here is fingerprinted: the browser asks for /assets/js/main.js and /assets/css/style.css
+# by those exact names on every deploy. So a long max-age is not "cache the current file for a
+# year", it is "keep serving the old file for a year after we replace it" — and the stale pairing
+# that produces is the dangerous one. A cached main.js against a freshly deployed document is
+# exactly the mirror drift the parity tests exist to prevent, arriving by a route no test can see:
+# an element that does not know a new attribute, or a Tag case the stylesheet has moved on from.
+#
+# So: an hour for the two files that carry behaviour, which covers a browsing session and bounds
+# any post-deploy mismatch to an hour. Thirty days for images and fonts, where the same staleness
+# is cosmetic rather than breaking.
+#
+# `immutable` and a year are the correct answer, and they unlock the moment a content hash enters
+# the filename. That is the natural companion to the module-graph build step, since whatever walks
+# the graph to emit the modulepreload list already knows every file and every specifier that would
+# have to be rewritten.
+<IfModule mod_headers.c>
+    <FilesMatch "\.(css|js)$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+
+    <FilesMatch "\.(svg|png|jpe?g|gif|ico|webp|avif|woff2?)$">
+        Header set Cache-Control "public, max-age=2592000"
+    </FilesMatch>
+
+    # Source maps are fetched only with DevTools open, and a stale one is a confusing debugging
+    # session rather than a broken page. Same hour as the JS it describes, so the pair stays in step.
+    <FilesMatch "\.map$">
+        Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+</IfModule>
+
 RewriteEngine On
 RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 

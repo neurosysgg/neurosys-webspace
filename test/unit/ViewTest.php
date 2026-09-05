@@ -7,6 +7,7 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Config;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Layout;
+use NeuroSYS\ModuleGraph;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
@@ -457,6 +458,60 @@ final class ViewTest extends TestCase
         self::assertNotEmpty($loaded);
         foreach ($loaded as $url) {
             self::assertStringStartsWith('/', $url, "Layout fetches $url from a remote host on load");
+        }
+    }
+
+    // ──────────────────────── the module preload list ────────────────────────
+
+    /**
+     * The point of the list is that it is complete.
+     *
+     * An ES module graph is discovered a wave at a time, and this one is five deep — so a module
+     * left out is not a smaller hint, it is the whole waterfall back for everything downstream of
+     * it. Nothing observable says so: the page works, just later.
+     */
+    public function testEveryModuleInTheGraphIsPreloaded(): void
+    {
+        $html = Layout::wrap(new NotFoundView('/x'))->render();
+
+        self::assertNotEmpty(ModuleGraph::MODULES, 'the generated graph is empty');
+        foreach (ModuleGraph::MODULES as $module) {
+            self::assertStringContainsString(
+                sprintf('<link rel="modulepreload" href="%s">', $module),
+                $html,
+                "$module is in the graph but never preloaded",
+            );
+        }
+    }
+
+    /**
+     * The entry point is the `<script src>` already being fetched, so hinting it as well is a
+     * second instruction to fetch the file the browser is on its way to fetch.
+     */
+    public function testTheEntryPointIsNotAlsoPreloaded(): void
+    {
+        self::assertNotContains(Config::SCRIPT, ModuleGraph::MODULES);
+        self::assertStringNotContainsString(
+            sprintf('<link rel="modulepreload" href="%s">', Config::SCRIPT),
+            Layout::wrap(new NotFoundView('/x'))->render(),
+        );
+    }
+
+    /**
+     * A preload href is a graph path under a URL base written by hand in the build tool, so the
+     * list can be exactly in step with the module graph and still name nothing. The verify script
+     * asks a real server the same question; this asks the filesystem, so it fails in the fast suite
+     * and without one running.
+     */
+    public function testEveryPreloadedModuleIsAFileThatExists(): void
+    {
+        $public = dirname(__DIR__, 2) . '/public';
+
+        foreach (ModuleGraph::MODULES as $module) {
+            self::assertFileExists(
+                $public . $module,
+                "$module is preloaded but no such file is served",
+            );
         }
     }
 

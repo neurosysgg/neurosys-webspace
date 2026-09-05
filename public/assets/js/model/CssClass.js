@@ -1,9 +1,3 @@
-/**
- * Mirrors NeuroSYS\View\Html\CssClass — every class name the site puts on an element.
- *
- * A misspelled class errors nowhere; the element just renders unstyled. The PHP side additionally
- * checks these against style.css, in both directions.
- */
 export var CssClass;
 (function (CssClass) {
     CssClass["SiteHeader"] = "site-header";

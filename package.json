@@ -4,8 +4,9 @@
     "type": "module",
     "description": "Front-end sources for neurosys.gg. Compiles assets/ts/ to public/assets/js/ and inlines assets/css/main.css into public/assets/css/style.css.",
     "scripts": {
-        "build": "tsc && node tools/build-css.mjs",
+        "build": "tsc && node tools/build-preload.mjs && node tools/build-css.mjs",
         "build:css": "node tools/build-css.mjs",
+        "build:preload": "node tools/build-preload.mjs",
         "watch": "tsc --watch",
         "check": "tsc --noEmit",
         "test": "node --test",

@@ -1,10 +1,3 @@
-/**
- * Mirrors NeuroSYS\View\Html\HtmlAttribute — the standard attributes this site emits.
- *
- * Read here for the link selector Navigation intercepts on, which has to name the same href the
- * server writes. Most cases are server-side only; the parity test is what makes carrying the whole
- * list cheaper than carrying half of one.
- */
 export var HtmlAttribute;
 (function (HtmlAttribute) {
     HtmlAttribute["ClassName"] = "class";

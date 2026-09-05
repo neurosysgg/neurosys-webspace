@@ -1,6 +1,3 @@
-/**
- * Mirrors NeuroSYS\View\Terminal\TerminalFieldKey — the JSON keys a terminal row arrives under.
- */
 export var TerminalFieldKey;
 (function (TerminalFieldKey) {
     TerminalFieldKey["Key"] = "key";

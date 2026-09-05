@@ -48,7 +48,7 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.00% of
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.01% of
 lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
@@ -350,6 +350,7 @@ assets/ts/                    ← sources; outside public/, neither web-served n
     └── release/              ← ReleaseList, ReleaseCard, …
       ↓ npm run build
 public/assets/js/             ← generated, committed, deployed
+src/NeuroSYS/ModuleGraph.php  ← generated from that graph: every module, as a URL
 ```
 
 **Never hand-edit `public/assets/js/`** — it is build output and the next `npm run build` overwrites it.
@@ -357,8 +358,44 @@ public/assets/js/             ← generated, committed, deployed
 if the committed output has drifted from the sources: `deploy.sh` rsyncs `public/` straight from the
 working tree, so a forgotten rebuild would ship stale JS and nothing else would notice.
 
-`npm run build` also builds the stylesheet — see [The stylesheet](#the-stylesheet). `npm run watch` does
-not; `npm run build:css` is the CSS on its own.
+`npm run build` also builds the stylesheet — see [The stylesheet](#the-stylesheet) — and the module
+preload list, below. `npm run watch` does neither; `npm run build:css` and `npm run build:preload` are
+each on its own.
+
+### Preloading the module graph
+
+An ES module graph is discovered a wave at a time, and this one is **five waves deep**: the browser
+learns it needs `model/CssClass.js` only after parsing `ConsentGatedEmbed.js`, which it learned about
+from `SoundCloudWidget.js`, from `SoundCloudPlayer.js`, from `main.js`. Five sequential round trips
+before the last module starts downloading, and none of it is bytes — compressing and stripping
+comments leave the number exactly where it was.
+
+`tools/build-preload.mjs` walks the compiled graph and generates `src/NeuroSYS/ModuleGraph.php`;
+`Layout::modulePreloads()` renders one `<link rel="modulepreload">` per entry, after the stylesheet
+because that one blocks rendering and these do not. The preload scanner then sees all 41 at once and
+the five waves become one. Cost is 402 gzipped bytes per page.
+
+`modulepreload` rather than `preload as="script"`: it fetches, parses, compiles *and* inserts into
+the module map, so the module is instantiated by the time `main.js` asks. The list is every module
+rather than the first wave — the spec lets a browser follow a preloaded module's own imports and
+Chrome does, but it is not obliged to and Safari has been uneven, so leaning on it would make the
+fix silently partial. `main.js` is deliberately absent: it is the `<script src>` already in flight.
+
+Three checks, because the two failure modes are different. The verify script **rebuilds the list and
+diffs** it (a module missing from a stale list brings its whole subtree's waterfall back), and
+**asks the server for every hinted URL** (the list can be perfectly in step with the graph and still
+point at nothing, since the URL base is written by hand in the tool). `ViewTest` asserts the same
+existence question against the filesystem, so it fails in the fast suite without a server running.
+
+**Neither failure is visible in a browser** — the page works, it is just slower — which is why all
+three exist. It is the same instinct as the `Tag`↔CSS parity check.
+
+**Why not bundle instead.** One file would fix the waterfall *and* recover ~5.7KB of per-file gzip
+framing. It would also mean the element tests could no longer import individual modules, and
+`assets/ts/`'s 100% coverage gate is measured against them — so it would cost the property that the
+tests run against the same files the browser loads. Not worth it for 5.7KB. **Why not minify:** with
+comments already stripped by `tsconfig`, a real minifier is worth about 260 gzipped bytes, because
+gzip already does what identifier mangling does. Not a dependency's worth on a project with none.
 
 Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), so DevTools shows
 `Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
@@ -658,6 +695,30 @@ means a new class implementing `Embed`, not a new field on `Release`.
 Footer profile links come from `data/profiles.php` — an empty URL hides that link. Brand icons are **vendored** under
 `public/assets/img/brand/`, never hot-linked from a platform CDN; see `docs/branding.md` for why and for each platform's
 usage rules.
+
+### What `.htaccess` does to a response
+
+Beyond the `SetHandler` allow-list and the HTTPS redirect, `public/.htaccess` shapes every static
+response. Measured on the live host 2026-09-05: Strato compresses **nothing** and sets **no
+`Cache-Control`** — `main.js` arrived byte-identical to the file on disk, with only an `ETag` and a
+`Last-Modified`. Both blocks are `<IfModule>`-guarded, which means an absent module is silence rather
+than a 500, and equally means a missing `mod_deflate` would leave the block doing nothing with no
+sign. **Re-check after deploying**, since this is not something either test suite can see:
+
+```bash
+curl -sI -H 'Accept-Encoding: gzip, br' https://neurosys.gg/assets/js/main.js | grep -i 'encoding\|cache'
+```
+
+Cache lifetimes are deliberately short — an hour for `.css`/`.js`, thirty days for images and fonts —
+because **nothing here is fingerprinted**. The browser asks for `/assets/js/main.js` by that exact
+name on every deploy, so a long `max-age` does not mean "keep this file for a year", it means "keep
+serving the old one for a year after we replace it". A cached `main.js` against a freshly deployed
+document is exactly the mirror drift the parity tests exist to catch, arriving by the one route no
+test can see. `immutable` and a year are the right answer and unlock the moment a content hash enters
+the filename — the natural companion to `tools/build-preload.mjs`, which already walks every file and
+every specifier that would have to be rewritten.
+
+The live host serves **HTTP/2** (no HTTP/3 — no `Alt-Svc`), Apache 2.4.68.
 
 See `docs/deployment.md` for first-time FTP setup, `docs/releases.md` for the full release checklist,
 `docs/branding.md` for brand assets and profile links, `docs/testing.md` for the two test suites, and
