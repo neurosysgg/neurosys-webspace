@@ -108,6 +108,30 @@ final class SecurityHeaders
      * documented exfiltration channel for an attacker who has already found an injection.
      * The site's own images are the placeholder and whatever HiDrive serves, and those are what
      * it now says.
+     *
+     * **There is deliberately no `report-uri` or `report-to`**, and the reason is worth having
+     * written down, because on a policy this strict a reporting endpoint is the obvious next
+     * suggestion. It would be a good one on most sites. Here it collides with three things this
+     * one has decided on purpose:
+     *
+     * - A report is a **POST**. {@link \NeuroSYS\Router::dispatch()} answers anything but GET and
+     *   HEAD with a 405, the `Allow` header is derived from {@link HttpMethod::isReadOnly()} so it
+     *   cannot claim otherwise, and both suites assert it. A first-party endpoint means carving an
+     *   exception into the one gate whose whole value is having none.
+     * - A third-party collector is a third-party origin, receiving a request from every visitor,
+     *   before any consent. That is the arrangement `docs/branding.md` vendors the brand icons to
+     *   avoid and the arrangement `<soundcloud-player>`'s gate exists to defer.
+     * - A report carries `document-uri`, `referrer` and `blocked-uri`. Collecting those is a
+     *   privacy-policy decision before it is a code one, on exactly the terms
+     *   {@link Config::DOWNLOAD_LOGGING} is switched off on: `data/privacy.html` makes no such
+     *   claim, so it would have to be amended first.
+     *
+     * `report-to` also wants a `Reporting-Endpoints` header, which would be a sixth
+     * {@link SecurityHeader} case naming an endpoint that does not exist. What stands in for
+     * reporting here is that the policy is asserted rather than observed: `SecurityTest` pins the
+     * hosts it names, `ViewTest` and the verify script both fail on an inline style or handler, and
+     * `HtmlTest` checks every `Tag` case against the stylesheet. A future change that would violate
+     * this policy fails the build instead of a stranger's browser.
      */
     public static function contentSecurityPolicy(): ContentSecurityPolicy
     {

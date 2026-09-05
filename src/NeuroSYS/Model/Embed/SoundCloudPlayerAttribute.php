@@ -9,6 +9,10 @@ use NeuroSYS\View\Html\AttributeName;
 /**
  * The SoundCloudPlayerAttribute enum. What {@link SoundCloudEmbed} tells `<soundcloud-player>`.
  *
+ * SoundCloud's own facts, and only those. What every embed carries whoever it is for — the reserved
+ * height, and the `loaded` flag the gate sets — is {@link EmbedAttribute}, so the provider-agnostic
+ * half of the client has no reason to know this enum exists.
+ *
  * These names are the whole interface between the two halves of the player: the server writes them,
  * `assets/ts/elements/embed/SoundCloudPlayer.ts` reads them, and a typo on either side is a silent
  * `null` — a widget URL missing its track, or an iframe with no height. So the names live in one
@@ -34,9 +38,6 @@ enum SoundCloudPlayerAttribute: string implements AttributeName
 
     /** The track title, for the iframe's accessible name and the attribution. */
     case TrackTitle = 'track-title';
-
-    /** The player height, which the gate reserves so the page does not jump. */
-    case Height = 'height';
 
     public function attribute(): string
     {

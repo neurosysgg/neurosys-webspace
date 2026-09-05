@@ -12,6 +12,5 @@ export var SoundCloudPlayerAttribute;
     SoundCloudPlayerAttribute["PlayerStyle"] = "player-style";
     SoundCloudPlayerAttribute["Options"] = "options";
     SoundCloudPlayerAttribute["TrackTitle"] = "track-title";
-    SoundCloudPlayerAttribute["Height"] = "height";
 })(SoundCloudPlayerAttribute || (SoundCloudPlayerAttribute = {}));
 //# sourceMappingURL=SoundCloudPlayerAttribute.js.map

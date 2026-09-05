@@ -115,7 +115,7 @@ class ReleaseView extends View
      * `data-no-spa` has to land on a real link or the SPA router fetches the 303 and swallows it.
      * That is why the card wraps the anchor rather than replacing it.
      */
-    private function downloadCard(\NeuroSYS\Model\Format $format): Element
+    private function downloadCard(Format $format): Element
     {
         $type = $format->type;
 

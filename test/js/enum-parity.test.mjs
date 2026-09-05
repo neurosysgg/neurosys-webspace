@@ -21,6 +21,7 @@ import { SoundCloudPlayerStyle, isVisual } from '../../public/assets/js/model/So
 import { TerminalTone } from '../../public/assets/js/model/TerminalTone.js';
 import { Tag } from '../../public/assets/js/model/Tag.js';
 import { SoundCloudPlayerAttribute } from '../../public/assets/js/model/SoundCloudPlayerAttribute.js';
+import { EmbedAttribute } from '../../public/assets/js/model/EmbedAttribute.js';
 import { TerminalAttribute } from '../../public/assets/js/model/TerminalAttribute.js';
 import { CoverArtAttribute } from '../../public/assets/js/model/CoverArtAttribute.js';
 import { LinkAttribute } from '../../public/assets/js/model/LinkAttribute.js';
@@ -95,13 +96,15 @@ test('TerminalTone mirrors NeuroSYS\\View\\Terminal\\TerminalTone', () => {
  * returns null and the element carries on with its fallback, or the browser meets a tag it has
  * never heard of and renders an inert inline box. Neither reaches a console.
  *
- * Not covered here, and worth knowing: `tone` and `loaded` are written by an element and read only
- * by the stylesheet, so they have no PHP side and no test can follow them. See
- * TerminalFieldAttribute and EmbedAttribute.
+ * Not covered here, and worth knowing: `tone` and `--player-height` are written by an element and
+ * read only by the stylesheet, so they have no PHP side and no test can follow them. See
+ * TerminalFieldAttribute and CustomProperty. `loaded` was a third until EmbedAttribute gained a PHP
+ * side — it is still written only by the client, but it now has a case to be compared against.
  */
 const MIRRORED_NAMES = [
   ['Tag', Tag, 'NeuroSYS\\View\\Html\\Tag'],
   ['SoundCloudPlayerAttribute', SoundCloudPlayerAttribute, 'NeuroSYS\\Model\\Embed\\SoundCloudPlayerAttribute'],
+  ['EmbedAttribute', EmbedAttribute, 'NeuroSYS\\Model\\Embed\\EmbedAttribute'],
   ['TerminalAttribute', TerminalAttribute, 'NeuroSYS\\View\\Terminal\\TerminalAttribute'],
   ['CoverArtAttribute', CoverArtAttribute, 'NeuroSYS\\View\\Html\\CoverArtAttribute'],
   ['LinkAttribute', LinkAttribute, 'NeuroSYS\\View\\Html\\LinkAttribute'],

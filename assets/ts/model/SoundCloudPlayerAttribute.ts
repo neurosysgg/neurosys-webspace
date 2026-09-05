@@ -11,5 +11,4 @@ export enum SoundCloudPlayerAttribute {
   PlayerStyle = 'player-style',
   Options     = 'options',
   TrackTitle  = 'track-title',
-  Height      = 'height',
 }

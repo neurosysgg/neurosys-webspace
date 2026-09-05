@@ -137,6 +137,31 @@ header is built from `HttpMethod::allowed()`, which filters the cases by `isRead
 header cannot claim something the gate does not do, which a hand-written `'Allow: GET, HEAD'` could.
 An unrecognised method is `null` rather than a guess, and null is not read-only.
 
+**There is no CSRF surface here, and that is a property rather than an oversight.** It rests on
+three independent facts, any one of which would be enough on its own: the site sets **no cookie**
+and starts **no session**, so there is no ambient credential for a cross-site request to ride;
+there is **no `<form>` anywhere**, and the only state-changing verb is refused by the 405 gate
+above; and the one authenticated route is HTTP Basic, where the browser sends credentials because
+of the realm rather than because of the origin. So no token, no `SameSite` attribute and no
+double-submit anything — there is nothing for them to protect. The CSP still carries
+`form-action 'self'`, which on a site with no forms is belt over braces, and stays because the
+day a form appears is not the day anyone will remember to add it.
+
+**There is deliberately no CSP `report-uri`/`report-to`** either — a report is a POST, which the
+405 gate refuses; a third-party collector is a third-party origin receiving a request from every
+visitor before any consent; and a report's `document-uri`/`referrer`/`blocked-uri` is data the
+privacy policy does not claim, on the same terms `DOWNLOAD_LOGGING` is off on. See the docblock on
+`SecurityHeaders::contentSecurityPolicy()`, which is also where the standing-in-for-it is listed:
+the policy is asserted at build time rather than observed at run time.
+
+`Request::path()` is the one place a malformed request target is dealt with, and it is worth
+knowing it does two different things. `parse_url()` signals failure with `false` rather than null —
+so `?? '/'` read as a guard and was not one, and the `false` reached `rtrim()` as an uncaught
+`TypeError`: `GET ///` was a 500, ahead of the router and ahead of the 405 gate. `///` now comes
+back as the root, because that is what it is. A target that genuinely will not parse comes back
+**verbatim**, so it matches no route and 404s — answering it with the home page would be the
+quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning null rather than guessing GET.
+
 Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
 place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
 purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
@@ -221,8 +246,13 @@ thing standing in front of. Two rules:
   is the wrong tool for a URL and always was — `javascript:alert(1)` contains not one character
   `htmlspecialchars` touches. `AttributeName::isUrl()` says which attributes those are, case by case
   and not enum by enum, since `href` and `class` live in the same one. The allowlist is
-  site-relative, `https:` and `mailto:`; `//host` is refused as the different origin it is, and
-  `HtmlTest` pins the marked set in both directions.
+  site-relative, `https:` and `mailto:`. **Both spellings of a bare authority are refused** —
+  `//host` and `/\host`, which are the same URL: the WHATWG parser treats `\` as `/` for as long
+  as it is hunting for an authority, so both resolve to `https://host` and only one of them looks
+  like it might. `Element::AUTHORITY_PREFIXES` lists them and `HtmlTest` pins both, along with the
+  marked attribute set in both directions. `Navigation.ts` refuses the same two on the client, but
+  by resolving the href and comparing origins — the stronger way round, available there only
+  because the browser has already parsed the URL.
 
 `Profile::url` is checked a second time at its own constructor, the way `HiDriveLink`'s share id is.
 The renderer is the backstop and reports the fault on whatever page draws the footer; the constructor
@@ -340,7 +370,7 @@ existing only as a CSS selector.
 |---|---|---|
 | `NestedElement.ts` | — (abstract) | refuses to connect outside the element it belongs inside |
 | `embed/ConsentGatedEmbed.ts` | — (abstract) | the gate: its wording, the reserved height, the click, the swap. Mirrors the `Embed` interface |
-| `embed/SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client |
+| `embed/SoundCloudPlayer.ts` | `<soundcloud-player track-id permalink secret-token player-style options track-title height>` | builds the widget URL and the attribution — SoundCloud's furniture, on the client. Every attribute but `height` is a `SoundCloudPlayerAttribute`; `height` is an `EmbedAttribute`, because the gate that reserves it is every provider's |
 | `CoverArt.ts` | `<cover-art src fallback alt>` | builds its `<img>`, falls back to the placeholder when the file host 404s |
 | `terminal/TerminalWindow.ts` | `<terminal-window label command fields [narrow]>` | builds its whole subtree from a declared `Terminal` — the command, every row, the cursor |
 | `terminal/TerminalCommand.ts` | `<terminal-command>` | guard; CSS draws the `$` |
@@ -401,6 +431,14 @@ accent colour, the artist handle, the attribution styling and the iframe attribu
 `SoundCloudPlayer.ts` now. Adding a provider is an `Embed` implementation and a `ConsentGatedEmbed`
 subclass, and nothing else.
 
+**That claim is why the attribute enums are split in two.** `EmbedAttribute` is what any gated embed
+carries — `height`, which is `Embed::height()` and therefore an embed's fact rather than SoundCloud's,
+plus the `loaded` flag the gate sets. `SoundCloudPlayerAttribute` is SoundCloud's own. The height used
+to live in the second one, which meant `ConsentGatedEmbed` — the provider-agnostic base class —
+imported one provider's enum to find out how much space to reserve, and a second provider would have
+had to emit an attribute named after the first. Nothing about the wire format changed: it is still
+`height="300"`.
+
 That means the server's output carries no SoundCloud address at all, which is a stronger version of
 the old guarantee: there is nothing for a browser to preconnect or prefetch before the visitor agrees.
 
@@ -411,7 +449,7 @@ nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`.
 |---|---|
 | `Platform`, `SoundCloudOption`, `SoundCloudPlayerStyle`, `TerminalTone` | values the client resolves |
 | `Tag`, `HtmlTag`, `HtmlAttribute` | what it creates and selects on |
-| `SoundCloudPlayerAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
+| `SoundCloudPlayerAttribute`, `EmbedAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
 | `TerminalFieldKey` | the JSON keys a terminal row arrives under |
 | `CssClass`, `ElementId` | what the stylesheet and the SPA router look for |
 | `RequestHeader`, `RequestedWith` | the header that asks for a fragment |
@@ -426,10 +464,13 @@ The worst of them is `X-Requested-With`. Drift on either side and the server ans
 a whole document, which `Navigation` then writes into `<main>` — a page broken in a way nothing
 reports, from two strings that used to sit in different languages with nothing between them.
 
-Three names have no PHP side and so no parity test — `tone`, `loaded` and `--player-height` are
-written by an element and read only by the stylesheet. `TerminalFieldAttribute`, `EmbedAttribute` and
-`CustomProperty` name them anyway, because the stylesheet is exactly the kind of reader that fails in
-silence. `CssClass` is the one that *can* be checked against it: `HtmlTest` parses `style.css` and
+Two names have no PHP side and so no parity test — `tone` and `--player-height` are written by an
+element and read only by the stylesheet. `TerminalFieldAttribute` and `CustomProperty` name them
+anyway, because the stylesheet is exactly the kind of reader that fails in silence. `loaded` was a
+third until `EmbedAttribute` gained a PHP side: it is still written only by the client, but it now
+has a case on the other end for the parity test to compare against — the same arrangement as
+`ResponseHeader::PoweredBy`, which names a header the site does not send. **A view must never emit
+it**; it is named so the stylesheet's `&[loaded]` has something to point at. `CssClass` is the one that *can* be checked against it: `HtmlTest` parses `style.css` and
 asserts the sets match in both directions, so a class with no rule and a rule with no class both
 fail.
 

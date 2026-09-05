@@ -3,7 +3,6 @@ import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
 import { Platform, displayName } from '../../model/Platform.js';
-import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 /**
  * Base for a player that loads from someone else's servers.
  *
@@ -32,7 +31,7 @@ export class ConsentGatedEmbed extends HTMLElement {
      * CSP needs no 'unsafe-inline' for our own markup.
      */
     reserveHeight() {
-        const height = this.getAttribute(SoundCloudPlayerAttribute.Height);
+        const height = this.getAttribute(EmbedAttribute.Height);
         // The stylesheet carries its own fallback, so bailing out here is safe — an empty attribute
         // would otherwise set --player-height to "undefinedpx", which CSS drops.
         if (height === null || height === '')

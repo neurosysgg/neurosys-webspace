@@ -370,6 +370,15 @@ check_status "GET /releases/no-such-slug         → 404" "$BASE/releases/no-suc
 check_status "GET /releases/hello-world/badformat→ 404" "$BASE/releases/hello-world/badformat" 404
 check_status "GET /notfound                      → 404" "$BASE/notfound"                       404
 
+# Targets parse_url() will not parse. Every one of these was a 500 before Request::normalisePath():
+# parse_url() returns false on failure, `?? '/'` only catches null, and the false reached rtrim() as
+# an uncaught TypeError — in fromGlobals(), so ahead of the router and ahead of the read-only gate.
+# Worth a real request rather than only a unit test: what was wrong was the status code, and PHPUnit
+# sees an exception either way.
+check_status "GET /// is the root                → 200" "$BASE///"                             200
+check_status "GET //host:notaport/x              → 404" "$BASE//host:notaport/x"               404
+check_method "POST /// is still refused          → 405" POST "$BASE///"                        405
+
 # Auth::requireAdminAuth() calls exit, so only a real request can prove it gates.
 check_status "GET /admin/stats (no creds)        → 401" "$BASE/admin/stats"                    401
 check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"                    401

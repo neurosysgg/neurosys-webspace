@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
-use NeuroSYS\Config;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Support\Charset;
@@ -12,7 +11,6 @@ use NeuroSYS\View\Html\Document;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\ElementId;
-use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;

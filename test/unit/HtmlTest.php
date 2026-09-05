@@ -611,6 +611,13 @@ final class HtmlTest extends TestCase
         // same trap the SPA router has on the other side; see Navigation.onClick().
         yield 'protocol-relative'  => ['//evil.example/x'];
 
+        // The same URL, spelled the way that does not look like it. The WHATWG parser treats `\`
+        // as `/` for as long as it is hunting for an authority, so both of these resolve to
+        // https://evil.example — `new URL('/\evil.example/x', 'https://neurosys.gg/')` says so.
+        // Listed separately from the one above because guarding `//` alone is how this gets missed.
+        yield 'backslash authority'      => ['/\evil.example/x'];
+        yield 'backslash authority, deep' => ['/\\\\evil.example'];
+
         yield 'plaintext http'     => ['http://evil.example/x'];
         yield 'no scheme at all'   => ['evil.example/x'];
         yield 'empty'              => [''];

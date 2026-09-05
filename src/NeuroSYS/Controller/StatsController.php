@@ -12,7 +12,6 @@ use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadLogEntry;
-use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\View\StatsView;
 
 /**

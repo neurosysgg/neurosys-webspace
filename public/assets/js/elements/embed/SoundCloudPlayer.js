@@ -1,6 +1,7 @@
 import { Platform, displayName } from '../../model/Platform.js';
 import { SoundCloudOption } from '../../model/SoundCloudOption.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
+import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
 import { Config } from '../../Config.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
@@ -69,7 +70,7 @@ export class SoundCloudPlayer extends ConsentGatedEmbed {
     buildIframe() {
         const iframe = document.createElement(HtmlTag.Iframe);
         iframe.width = '100%';
-        iframe.height = this.getAttribute(SoundCloudPlayerAttribute.Height) ?? '';
+        iframe.height = this.getAttribute(EmbedAttribute.Height) ?? '';
         iframe.title = `${this.trackTitle()} on ${displayName(this.platform())}`;
         iframe.src = this.playerUrl();
         // allow, scrolling and frameborder are set as attributes rather than properties: the last two

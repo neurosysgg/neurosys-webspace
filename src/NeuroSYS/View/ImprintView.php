@@ -7,7 +7,6 @@ namespace NeuroSYS\View;
 use NeuroSYS\Config;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;

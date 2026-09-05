@@ -102,7 +102,9 @@ final readonly class SoundCloudEmbed implements Embed
             ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style->value)
             ->attr(SoundCloudPlayerAttribute::Options, $options)
             ->attr(SoundCloudPlayerAttribute::TrackTitle, $title)
-            ->attr(SoundCloudPlayerAttribute::Height, $this->height());
+            // EmbedAttribute, not SoundCloudPlayerAttribute: the height is what the gate reserves,
+            // and the gate is every provider's. See Embed::height().
+            ->attr(EmbedAttribute::Height, $this->height());
     }
 
     /**

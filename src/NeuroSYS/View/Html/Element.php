@@ -53,6 +53,22 @@ final readonly class Element implements Node
     private const array URL_SCHEMES = ['https:', 'mailto:'];
 
     /**
+     * The two spellings of an authority a path-shaped URL can open with.
+     *
+     * `//evil.example` is a different origin wearing a path's clothes: it passes every "starts with
+     * a slash" test written to mean "somewhere on this site". `/\evil.example` is the *same URL* —
+     * the WHATWG parser treats `\` as `/` for as long as it is looking for an authority, so both
+     * resolve to `https://evil.example`, and only one of them looks like it might.
+     *
+     * Two entries rather than one, because a list of the spelling that occurred to us is the shape
+     * of mistake this class is arranged to avoid. Neither is anything this site needs to emit.
+     * `Navigation.ts` refuses both on the client, though it gets there by resolving the href and
+     * comparing origins rather than by matching text — which is the stronger way round, and is
+     * available there only because the browser has already parsed the URL for it.
+     */
+    private const array AUTHORITY_PREFIXES = ['//', '/\\'];
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param TagName $tag The element to build.
@@ -216,11 +232,13 @@ final readonly class Element implements Node
     /** True if $value is a site-relative path or names an allowed scheme. */
     private static function isAllowedUrl(string $value): bool
     {
-        // Checked before the `/` case below, and separately from it, because `//evil.example` is a
-        // different origin wearing a path's clothes: it passes every `starts with a slash` test
-        // written to mean "somewhere on this site", which is the same trap Navigation.ts has on
-        // the client. A protocol-relative URL is never something this site needs to emit.
-        if (str_starts_with($value, '//')) {
+        // Checked before the `/` case below, and separately from it — see AUTHORITY_PREFIXES.
+        $opensAnAuthority = array_any(
+            self::AUTHORITY_PREFIXES,
+            static fn(string $prefix): bool => str_starts_with($value, $prefix),
+        );
+
+        if ($opensAnAuthority) {
             return false;
         }
 

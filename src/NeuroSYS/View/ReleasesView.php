@@ -65,7 +65,11 @@ class ReleasesView extends View
             ->attr(CardAttribute::Slug, $slug)
             ->containing(
                 new Element(HtmlTag::A)
-                    ->attr(HtmlAttribute::Href, '/releases/' . $slug . '/')
+                    // No trailing slash: Request::path() rtrims one, so both forms resolve, but the
+                    // catalogue is how most visitors arrive and its href is what pushState puts in
+                    // the address bar. The download cards on the page it lands on are built without
+                    // one — two spellings of the same page is one more than the site needs.
+                    ->attr(HtmlAttribute::Href, '/releases/' . $slug)
                     ->containing(
                         new Element(Tag::ReleaseTitle)->containing($release->title),
                         new Element(Tag::ReleaseMeta)->containing($meta),

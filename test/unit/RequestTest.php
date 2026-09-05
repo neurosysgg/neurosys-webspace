@@ -45,6 +45,19 @@ final class RequestTest extends TestCase
         yield 'fragment stripped'      => ['/releases#top', '/releases'];
         yield 'bare slash stays root'  => ['/', '/'];
         yield 'deep path'              => ['/releases/ill/flac', '/releases/ill/flac'];
+
+        // parse_url() signals failure with false, not null, so `?? '/'` read as a guard and was not
+        // one: the false reached rtrim() as an uncaught TypeError under strict_types, and every one
+        // of these was a 500 rather than a page. They are ordinary request targets — the first is
+        // three slashes — and they died in fromGlobals(), ahead of the read-only gate.
+        //
+        // Note the two different answers. `///` is the root written wastefully, and comes back as
+        // the root. The second is a target we could not read, and comes back verbatim so that it
+        // matches no route and 404s — answering it with the home page would be a quieter wrong.
+        yield 'only slashes'              => ['///', '/'];
+        yield 'unparseable authority'     => ['//host:notaport/x', '//host:notaport/x'];
+        yield 'unparseable, trailing slash' => ['//host:notaport/x/', '//host:notaport/x'];
+        yield 'empty'                     => ['', '/'];
     }
 
     #[DataProvider('pathProvider')]
