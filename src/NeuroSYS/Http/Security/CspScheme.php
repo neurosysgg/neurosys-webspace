@@ -11,7 +11,13 @@ namespace NeuroSYS\Http\Security;
  */
 enum CspScheme: string implements CspSource
 {
-    /** Inline `data:` URIs. Needed by the cover placeholder SVG's own referenced assets. */
+    /**
+     * Inline `data:` URIs.
+     *
+     * Nothing on this site emits one, and `img-src` deliberately no longer allows it — see
+     * {@link \NeuroSYS\Http\SecurityHeaders::contentSecurityPolicy()}. The case stays because
+     * this enum is the vocabulary a policy may be written in, not a list of what is switched on.
+     */
     case Data = 'data:';
 
     /** Any origin, as long as it is HTTPS. Broad — prefer a named host. */

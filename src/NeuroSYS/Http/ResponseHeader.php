@@ -27,6 +27,15 @@ enum ResponseHeader: string implements HeaderName
     /** How long a response may be kept. Sent with the pages that sit behind a gate. */
     case CacheControl = 'Cache-Control';
 
+    /**
+     * The one case here that names a header the site does **not** send.
+     *
+     * PHP adds it, with its exact patch version, before any of our code runs.
+     * {@link SecurityHeaders::send()} removes it. It is named here rather than written as a
+     * string literal there for the same reason every other header name is.
+     */
+    case PoweredBy = 'X-Powered-By';
+
     public function headerName(): string
     {
         return $this->value;

@@ -44,7 +44,7 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.90% of
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.89% of
 lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
@@ -113,7 +113,16 @@ validates it got a bare origin, the way `HiDriveLink` validates a share id. The 
 only from HiDrive and frames only from SoundCloud; `script-src` is strict, and no view emits an
 inline style or event handler (a test enforces that). `style-src` is strict too: it carried
 `'unsafe-inline'` only for SoundCloud's attribution markup, and `<soundcloud-player>` sets those
-properties through the CSSOM instead — same styling, nothing for the allowance to cover.
+properties through the CSSOM instead — same styling, nothing for the allowance to cover. `img-src`
+went the same way: it allowed `data:` on the strength of a comment saying the cover placeholder
+needed it, and the placeholder references nothing at all. **Both suites assert the absence**, because
+a scheme source is what gets pasted back in by anyone debugging an image that will not load.
+
+`SecurityHeaders::send()` also *removes* one header. PHP appends `X-Powered-By` with its exact patch
+version before any of this code runs, so `expose_php` — php.ini's, not ours on shared hosting — is
+only half the switch; `header_remove()` is the half we have. It is the one `ResponseHeader` case
+naming a header the site does not send. Only the verify script can see it: `header()` and
+`header_remove()` are both no-ops under CLI, so PHPUnit cannot tell either way.
 
 **`Strict-Transport-Security` is the one header about the connection rather than the document**, and
 `public/.htaccess` redirects `http://` to `https://` ahead of it. Both halves are needed and neither

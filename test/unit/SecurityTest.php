@@ -178,9 +178,23 @@ final class SecurityTest extends TestCase
     public function testOnlyTheFileHostMayServeImages(): void
     {
         self::assertMatchesRegularExpression(
-            "#img-src 'self' data: https://my\.hidrive\.com#",
+            "#img-src 'self' https://my\.hidrive\.com;#",
             self::policy(),
         );
+    }
+
+    /**
+     * The allowance that covered nothing.
+     *
+     * `data:` sat in `img-src` on the strength of a comment saying the cover placeholder needed
+     * it. The placeholder references nothing, and no page or stylesheet emits a `data:` image, so
+     * the directive was wider than the site for no benefit. Asserted as an absence because that
+     * is the whole claim — and because a scheme source is exactly the kind of thing that gets
+     * pasted back in by anyone debugging an image that will not load.
+     */
+    public function testImagesMayNotBeInlinedAsDataUris(): void
+    {
+        self::assertStringNotContainsString('data:', self::policy());
     }
 
     public function testOnlySoundCloudMayBeFramed(): void

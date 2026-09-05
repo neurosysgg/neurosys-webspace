@@ -78,6 +78,19 @@ check_header() {
     fi
 }
 
+# Assert a header is absent, or present but not matching. The counterpart to check_header, for
+# the things whose whole claim is that they are not there.
+check_no_header() {
+    local desc="$1"; local url="$2"; local pattern="$3"; local method="${4:-HEAD}"
+    local headers
+    headers=$(curl "${CURL_ARGS[@]}" -X "$method" -o /dev/null -D - "$url" 2>/dev/null | tr -d '\r') || true
+    if echo "$headers" | grep -qi -- "$pattern"; then
+        fail "$desc (header matching '$pattern' is being sent)"
+    else
+        pass "$desc"
+    fi
+}
+
 # Assert an HTTP status code for a given method.
 check_method() {
     local desc="$1"; local method="$2"; local url="$3"; local expected="$4"
@@ -419,12 +432,19 @@ check_header "  and covers subdomains"                "$BASE/"             "incl
 check_header "Content-Security-Policy is sent"        "$BASE/"             "^content-security-policy:"
 check_header "  script-src is strict"                 "$BASE/"             "script-src 'self'"
 check_header "  style-src is strict too"                "$BASE/"             "style-src 'self';"
-check_header "  only HiDrive may serve images"        "$BASE/"             "img-src 'self' data: https://my.hidrive.com"
+check_header "  only HiDrive may serve images"        "$BASE/"             "img-src 'self' https://my.hidrive.com;"
+# data: in img-src covered nothing here and widens where bytes may come from. Asserted over HTTP as
+# well as in SecurityTest because a scheme source is what gets pasted back in to debug a broken image.
+check_no_header "  and no image may be a data: URI"  "$BASE/"             "^content-security-policy:.*data:"
 check_header "  only SoundCloud may be framed"        "$BASE/"             "frame-src https://w.soundcloud.com"
 check_header "  the site may not be framed"           "$BASE/"             "frame-ancestors 'none'"
 check_header "Referrer-Policy is set"                 "$BASE/"             "^referrer-policy: strict-origin-when-cross-origin"
 check_header "X-Content-Type-Options is set"          "$BASE/"             "^x-content-type-options: nosniff"
 check_header "Permissions-Policy is set"              "$BASE/"             "^permissions-policy:"
+# PHP appends this before any of our code runs, so SecurityHeaders::send() removes it. Only visible
+# on a real server -- header() and header_remove() are both no-ops under CLI, so PHPUnit cannot see
+# either. expose_php is On in this dev server's ini, which is what makes the assertion mean anything.
+check_no_header "no PHP version is disclosed"         "$BASE/"             "^x-powered-by:"
 # A download redirect is where the Referer would otherwise leak to the file host.
 check_header "headers reach a 303 too"                "$BASE/releases/ill/flac" "^referrer-policy:"
 check_header "transport policy reaches a 401 too"     "$BASE/admin/stats"  "^strict-transport-security:"

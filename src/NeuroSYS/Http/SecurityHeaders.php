@@ -10,7 +10,6 @@ use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
 use NeuroSYS\Http\Security\CspHost;
 use NeuroSYS\Http\Security\CspKeyword;
-use NeuroSYS\Http\Security\CspScheme;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
@@ -34,9 +33,22 @@ use NeuroSYS\Http\Security\StrictTransportSecurity;
  */
 final class SecurityHeaders
 {
-    /** Sends every security header. Safe to call before any output. */
+    /**
+     * Sends every security header, and unsends the one PHP adds by itself.
+     *
+     * `X-Powered-By` carries the exact patch version — `PHP/8.5.9`, not `PHP/8.5` — and PHP
+     * appends it before any of this code runs, which is why it is removed here rather than
+     * simply absent from {@link self::headers()}. The real switch is `expose_php`, and that is
+     * php.ini's, which is not ours to set on shared hosting; `header_remove()` is the half of it
+     * we control. Nothing needs the header, and a version string is free reconnaissance: it
+     * turns "find a PHP bug" into "look up the CVEs for 8.5.9".
+     *
+     * Safe to call before any output.
+     */
     public static function send(): void
     {
+        header_remove(ResponseHeader::PoweredBy->value);
+
         foreach (self::headers() as $name => $value) {
             header(new Header(SecurityHeader::from($name), $value)->line());
         }
@@ -87,6 +99,15 @@ final class SecurityHeaders
      * block is built by `<soundcloud-player>` now, which sets the same properties through the
      * CSSOM — element.style, which CSP does not govern — so the styling is unchanged and the
      * allowance has nothing left to cover. Nothing else emits an inline style; a test enforces it.
+     *
+     * `img-src` carried {@link Security\CspScheme::Data} on the same terms, and lost it for the same
+     * reason. The comment on that case said the cover placeholder needed it; the placeholder is a
+     * self-contained SVG that references nothing at all, and no page, stylesheet or element on
+     * this site emits a `data:` image. So the allowance covered nothing while widening the one
+     * directive that governs where bytes may be fetched from — and `data:` in `img-src` is a
+     * documented exfiltration channel for an attacker who has already found an injection.
+     * The site's own images are the placeholder and whatever HiDrive serves, and those are what
+     * it now says.
      */
     public static function contentSecurityPolicy(): ContentSecurityPolicy
     {
@@ -94,12 +115,7 @@ final class SecurityHeaders
             ->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::StyleSrc, CspKeyword::SelfOrigin)
-            ->allow(
-                CspDirective::ImgSrc,
-                CspKeyword::SelfOrigin,
-                CspScheme::Data,
-                new CspHost(Config::FILE_HOST),
-            )
+            ->allow(CspDirective::ImgSrc, CspKeyword::SelfOrigin, new CspHost(Config::FILE_HOST))
             ->allow(CspDirective::FrameSrc, new CspHost(Config::PLAYER_HOST))
             ->allow(CspDirective::BaseUri, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FormAction, CspKeyword::SelfOrigin)
