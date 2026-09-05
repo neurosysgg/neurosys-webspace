@@ -17,7 +17,7 @@ return [
         bpm:         140,
         key:         MusicalKey::DSharpMinor,
         genre:       Genre::Dubstep,
-        description: 'second single',
+        description: 'wub wub',
         cover:       new HiDriveLink('J2FXbB70A'),
         formats: new Collection(Format::class)->with(
             new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
