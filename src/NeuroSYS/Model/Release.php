@@ -67,12 +67,7 @@ readonly class Release
      */
     public function findFormat(ReleaseFormat $type): ?Format
     {
-        foreach ($this->formats as $format) {
-            if ($format->type === $type) {
-                return $format;
-            }
-        }
-        return null;
+        return $this->formats->first(static fn(Format $format): bool => $format->type === $type);
     }
 
     /**

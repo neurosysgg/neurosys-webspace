@@ -53,9 +53,9 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.86% of
-lines**; of the twenty-five that are left, thirteen are deliberate and named in `docs/testing.md`.
-The other twelve are a gap rather than a decision — guard-clause `throw`s and one unused factory on
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.84% of
+lines**; of the twenty-four that are left, thirteen are deliberate and named in `docs/testing.md`.
+The other eleven are a gap rather than a decision — guard-clause `throw`s and one unused factory on
 the header-value classes `867372f` added, which nothing has exercised yet. The deliberate count fell
 from eighteen: `DownloadLogger::log()`'s locked append moved into `Support\File::append()`, where it
 is tested directly, leaving only the lines behind the switch itself unreachable.
@@ -358,9 +358,44 @@ member would have had to become `protected`; and `static::class` still names the
 than the trait, so the `TypeError` reads exactly as it did when the `sprintf` sat in both files.
 `SupportTest` asserts that message, which is what would catch a later slip to `self::class`.
 
-What stayed behind in each class is what genuinely differs — `with()`, `find()`, and `all()`
+What stayed behind in each class is what genuinely differs — `with()`, `find()`, `all()`
 /`getIterator()`, whose bodies are identical but whose return types are `list<T>` against
-`array<string, T>`. That difference is the reason there are two classes at all.
+`array<string, T>`, and `rebuilt()`, which is the trait's one abstract member. That difference is the
+reason there are two classes at all.
+
+**The trait also holds the six query methods, and they are the default way this codebase handles a
+group of things:** `where()`, `map()`, `join()`, `first()`, `keys()`, `isEmpty()`. They were written
+because `all()` had quietly become the escape hatch *out* of the type — sixteen call sites reached
+for it or hand-rolled a `foreach`, and nine of those unwrapped the collection for no purpose but to
+hand the array to `array_map`. A collection that must be unwrapped before it can be asked anything
+only types its own construction.
+
+Three decisions are worth knowing before adding a seventh:
+
+- **The callback takes the value first and the key second.** That is the order PHP's own
+  `array_find`, `array_any` and `array_all` use — `Element::renderChildren()` already calls one —
+  and the order `ARRAY_FILTER_USE_BOTH` passes. It is also what keeps a one-argument callback a
+  first-class callable, since PHP hands a userland callback extra arguments harmlessly:
+  `$links->map(self::profileLink(...))` needs no closure around it. Key-first would have broken
+  every such site, and `ReleasesView::card()` had its own parameters swapped to match rather than
+  become the exception.
+- **`map()` answers with a `list`, not a collection.** A collection is defined by a `class-string`,
+  and most call sites map to a `string` or an `array` — neither is a class, and every one of them
+  spreads into `containing(...)` or joins. So `where()` returns `static` and chains; `map()` and
+  `join()` end the chain.
+- **`rebuilt()` is abstract because `where()` cannot decide for both.** A `Collection` is a `list<T>`
+  and `array_filter` preserves keys, so it reindexes; a `SearchableCollection` keeps them, which is
+  what it is for.
+
+All six carry `#[\NoDiscard]` — they are pure, so a dropped result is never anything but a bug — and
+`NoDiscardTest` pins them three times each, since PHP reports a trait's members on both using classes
+*and* on the trait.
+
+**What deliberately stays a plain array.** `Preflight`'s findings, `ReleaseFolder::missing()`'s
+filter over `Fact::cases()`, `FlpFile::all()` — none crosses a public boundary, and the rule below
+already says a collection does not replace a variadic. PHP's own `array_find`/`array_any`/`array_all`
+are the API there. `CurlTransport::parts()` keeps its `foreach` for a different reason: it rekeys by
+field name, which is not a `map`.
 
 **`with()` copies; it does not append.** That is what makes a collection safe to hold inside a
 `readonly` value object: `readonly` protects the reference, not what it points at, so a mutable
@@ -948,12 +983,39 @@ code with one argument different. Four decisions are worth knowing before runnin
   the one this codebase applies everywhere: a name is typed when getting it wrong is *silent*. An
   API drops a field it does not recognise, so `track[titel]` uploads the file and leaves an
   untitled track; a misspelled `code_challenge_method` is refused in words, in a browser, before
-  anything is sent.
+  anything is sent. `Client::authorized()` is where all three readings of `refresh_token` meet — a
+  grant type, a request field name and a `TokenKey` — and a comment there says they coincide rather
+  than repeat.
+- **The keys a response is *read* under are enums too, for the stronger half of the same reason.**
+  `TrackKey` and `TokenKey` name what comes back, where `TrackField` names what goes out — the same
+  fact under the provider's two spellings (`track[permalink]` up, `permalink` down). This is the one
+  place a misread name is silent *and* plausible: `permalink_url` misspelled reads as an empty
+  string, and an empty string looks like a track that simply has no page. `UploadedTrack`'s docblock
+  had said exactly that for as long as it read the five keys as literals. `TokenKey` holds both
+  `expires_in` (SoundCloud's, a duration on the wire) and `expires_at` (ours, an instant in the
+  store), because they are two forms of one fact and splitting them is how the store and the wire
+  drift apart.
+- **Nothing reaches into a decoded body by string.** `Response::json()` hands back a `JsonBody`,
+  which takes a `BackedEnum` and nothing else — deliberately narrower than `FormField::of()`, since a
+  field name is sometimes an OAuth parameter this repo leaves literal and a response key never is.
+  Its two readers answer `''` and `0` for a key that is absent or wrongly typed, which is what the
+  nine hand-written `is_string($body['x'] ?? null)` reads it replaced each did for themselves.
 - **A request's headers are the site's own `Header`s**, so `Accept` is a `MimeType` that renders
   `application/json; charset=utf-8` and `Authorization` is an `OAuthCredential` — SoundCloud's
   scheme is `OAuth`, not `Bearer`, which is exactly the sort of thing that reads as a typo and so is
   written down once in a class named for it. Its body is a `Collection<FormField>`, checked at the
-  boundary the way every other collection here is.
+  boundary the way every other collection here is — including the token exchange, which took an
+  `array<string, string>` and looped it into one inside `Client`.
+- **Its target is a `Url`**, absolute and https, parsed by `ext/uri` rather than matched by a
+  pattern. `Endpoint::url()` and `Endpoint::track()` build them, and `Request` takes nothing else.
+  The site checks every address it emits — `Location`, `CspHost`, `Element`'s scheme allowlist — and
+  this was the one with nothing looking at it, on the one request that carries a client secret and a
+  rotating refresh token. It is not `Location`: that is a header the *site* sends and it lives under
+  `src/`, which `deploy.sh` uploads.
+- **`Attempt` names what the client was doing when the API said no.** Four operations, each backed
+  by the phrase its failure message reads it back as. It was a `string $what` threaded through two
+  private methods, and `SoundCloudException::refused()` had to describe the format it wanted in
+  prose — which is what a missing type looks like.
 
 **The audio is a port, and the FL Studio half of it deliberately refuses.** `Exporter` has two
 implementations: `PreparedExport`, which hands back a file already in the release folder — which is

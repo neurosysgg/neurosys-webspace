@@ -62,6 +62,24 @@ class SearchableCollection implements Countable, IteratorAggregate
         return $this->items[$key] ?? null;
     }
 
+    /**
+     * A copy holding $items, with their keys.
+     *
+     * The counterpart to {@link Collection::rebuilt()}, and the opposite decision: `array_filter`
+     * already preserves keys, and a map that lost them on the way through `where()` would have
+     * stopped being one.
+     *
+     * @param array<array-key, T> $items
+     * @return static
+     */
+    private function rebuilt(array $items): static
+    {
+        $copy        = clone $this;
+        $copy->items = $items;
+
+        return $copy;
+    }
+
     /** @return array<string, T> */
     public function all(): array { return $this->items; }
 

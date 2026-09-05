@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
+use NeuroSYS\Tool\Http\Url;
+
 /**
  * The Authorization class. One authorization attempt: the secret it keeps and the URL it sends you
  * to.
@@ -76,19 +78,22 @@ final readonly class Authorization
     /**
      * The URL to open in a browser.
      *
+     * A {@link Url} rather than a string, for the same reason a request target is one: this
+     * address carries the client id and the challenge, and it is pasted into a browser by hand.
+     *
      * @param Credentials $credentials
-     * @return string
+     * @return Url
      */
-    public function url(Credentials $credentials): string
+    public function url(Credentials $credentials): Url
     {
-        return Endpoint::Authorize->value . '?' . http_build_query([
+        return new Url(Endpoint::Authorize->value . '?' . http_build_query([
             'client_id'             => $credentials->clientId,
             'redirect_uri'          => $credentials->redirectUri,
             'response_type'         => self::RESPONSE_TYPE,
             'code_challenge'        => $this->challenge(),
             'code_challenge_method' => self::CHALLENGE_METHOD,
             'state'                 => $this->state,
-        ]);
+        ]));
     }
 
     /**

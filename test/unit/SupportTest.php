@@ -15,13 +15,16 @@ use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Support\TypedItems;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 use TypeError;
 
 #[CoversClass(Collection::class)]
 #[CoversClass(SearchableCollection::class)]
+#[CoversTrait(TypedItems::class)]
 #[CoversClass(File::class)]
 #[CoversClass(Directory::class)]
 final class SupportTest extends TestCase
@@ -257,6 +260,240 @@ final class SupportTest extends TestCase
     {
         self::assertSame([], new SearchableCollection(stdClass::class)->all());
     }
+    // ─────────────────────────── The query methods ───────────────────────────
+
+    /**
+     * The store both collections share, and so the one place the six query methods are written.
+     *
+     * They are exercised through both classes rather than through one, because the two differ in
+     * exactly the way {@link TypedItems::rebuilt()} exists to handle: a list has to be reindexed
+     * after a filter and a map has to keep its keys. Everything else here is shared by construction.
+     *
+     * @return void
+     */
+    public function testIsEmptyAnswersForBothShapes(): void
+    {
+        self::assertTrue(new Collection(stdClass::class)->isEmpty());
+        self::assertTrue(new SearchableCollection(stdClass::class)->isEmpty());
+        self::assertFalse(new Collection(stdClass::class)->with(new stdClass())->isEmpty());
+        self::assertFalse(new SearchableCollection(stdClass::class)->with('k', new stdClass())->isEmpty());
+    }
+
+    /**
+     * @return void
+     */
+    public function testWhereKeepsOnlyTheMatches(): void
+    {
+        [$a, $b, $c] = [self::numbered(1), self::numbered(2), self::numbered(3)];
+
+        $kept = new Collection(stdClass::class)
+            ->with($a, $b, $c)
+            ->where(static fn(stdClass $item): bool => $item->n !== 2);
+
+        self::assertSame([$a, $c], $kept->all());
+    }
+
+    /**
+     * A `Collection` is a `list<T>`, and `array_filter` preserves keys — so dropping the middle item
+     * of three would leave `[0 => …, 2 => …]` if nothing reindexed. This is the assertion that says
+     * something does.
+     *
+     * @return void
+     */
+    public function testWhereReindexesAList(): void
+    {
+        $kept = new Collection(stdClass::class)
+            ->with(self::numbered(1), self::numbered(2), self::numbered(3))
+            ->where(static fn(stdClass $item): bool => $item->n !== 2);
+
+        self::assertSame([0, 1], $kept->keys());
+    }
+
+    /**
+     * The other half of the same decision: a map that lost its keys on the way through `where()`
+     * would have stopped being one.
+     *
+     * @return void
+     */
+    public function testWhereKeepsTheKeysOfAMap(): void
+    {
+        $kept = new SearchableCollection(stdClass::class)
+            ->with('a', self::numbered(1))
+            ->with('b', self::numbered(2))
+            ->where(static fn(stdClass $item): bool => $item->n === 2);
+
+        self::assertSame(['b'], $kept->keys());
+    }
+
+    /**
+     * @return void
+     */
+    public function testWhereReturnsACopyAndLeavesTheOriginalAlone(): void
+    {
+        $collection = new Collection(stdClass::class)->with(new stdClass(), new stdClass());
+
+        (void) $collection->where(static fn(): bool => false);
+
+        self::assertCount(2, $collection);
+    }
+
+    /**
+     * @return void
+     */
+    public function testMapAnswersWithAList(): void
+    {
+        $mapped = new Collection(stdClass::class)
+            ->with(self::numbered(1), self::numbered(2))
+            ->map(static fn(stdClass $item): int => $item->n);
+
+        self::assertSame([1, 2], $mapped);
+    }
+
+    /**
+     * The value first and the key second — the order `array_find` and `ARRAY_FILTER_USE_BOTH` use,
+     * and the order that lets a one-argument callback stay a first-class callable.
+     *
+     * @return void
+     */
+    public function testMapHandsOverTheValueThenTheKey(): void
+    {
+        $mapped = new SearchableCollection(stdClass::class)
+            ->with('a', self::numbered(1))
+            ->with('b', self::numbered(2))
+            ->map(static fn(stdClass $item, string $key): string => $key . $item->n);
+
+        self::assertSame(['a1', 'b2'], $mapped);
+    }
+
+    /**
+     * The property the value-first order was chosen for: PHP hands a userland callback the extra
+     * argument harmlessly, so a callback that only wants the item does not have to declare a key it
+     * will not read. Nine call sites depend on this.
+     *
+     * @return void
+     */
+    public function testAOneArgumentCallbackNeedsNoClosureAroundIt(): void
+    {
+        $mapped = new SearchableCollection(stdClass::class)
+            ->with('a', self::numbered(7))
+            ->map(self::plainNumber(...));
+
+        self::assertSame([7], $mapped);
+    }
+
+    /**
+     * Keyed or not, `map()` answers with a list — because `array_map` given two arrays returns one,
+     * and because every caller spreads or joins the result, where a key would mean nothing.
+     *
+     * @return void
+     */
+    public function testMapDiscardsTheKeysOfAMap(): void
+    {
+        $mapped = new SearchableCollection(stdClass::class)
+            ->with('z', self::numbered(1))
+            ->with('a', self::numbered(2))
+            ->map(static fn(stdClass $item): int => $item->n);
+
+        self::assertSame([0, 1], array_keys($mapped));
+    }
+
+    /**
+     * @return void
+     */
+    public function testJoinMapsAndThenImplodes(): void
+    {
+        $joined = new Collection(stdClass::class)
+            ->with(self::numbered(1), self::numbered(2), self::numbered(3))
+            ->join(' · ', static fn(stdClass $item): string => (string) $item->n);
+
+        self::assertSame('1 · 2 · 3', $joined);
+    }
+
+    /**
+     * @return void
+     */
+    public function testJoinAnswersEmptyForAnEmptyCollection(): void
+    {
+        self::assertSame('', new Collection(stdClass::class)->join(', ', static fn(): string => 'x'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testFirstAnswersTheFirstMatch(): void
+    {
+        [$a, $b] = [self::numbered(2), self::numbered(2)];
+
+        $collection = new Collection(stdClass::class)->with(self::numbered(1), $a, $b);
+
+        self::assertSame($a, $collection->first(static fn(stdClass $item): bool => $item->n === 2));
+    }
+
+    /**
+     * @return void
+     */
+    public function testFirstWithNoPredicateAnswersTheFirstItem(): void
+    {
+        $a = new stdClass();
+
+        self::assertSame($a, new Collection(stdClass::class)->with($a, new stdClass())->first());
+    }
+
+    /**
+     * Null for both ways of not finding anything, which is what every call site collapses them to.
+     *
+     * @return void
+     */
+    public function testFirstAnswersNullWhenThereIsNothingToAnswerWith(): void
+    {
+        self::assertNull(new Collection(stdClass::class)->first());
+        self::assertNull(new Collection(stdClass::class)->with(new stdClass())->first(static fn(): bool => false));
+    }
+
+    /**
+     * @return void
+     */
+    public function testKeysAnswersIndicesForAListAndNamesForAMap(): void
+    {
+        self::assertSame(
+            [0, 1],
+            new Collection(stdClass::class)->with(new stdClass(), new stdClass())->keys(),
+        );
+        self::assertSame(
+            ['a', 'b'],
+            new SearchableCollection(stdClass::class)
+                ->with('a', new stdClass())
+                ->with('b', new stdClass())
+                ->keys(),
+        );
+    }
+
+    /**
+     * An object carrying one number, so a test can say which item it got back.
+     *
+     * @param int $n
+     * @return stdClass
+     */
+    private static function numbered(int $n): stdClass
+    {
+        $item    = new stdClass();
+        $item->n = $n;
+
+        return $item;
+    }
+
+    /**
+     * Declares one parameter on purpose — see
+     * {@link self::testAOneArgumentCallbackNeedsNoClosureAroundIt()}.
+     *
+     * @param stdClass $item
+     * @return int
+     */
+    private static function plainNumber(stdClass $item): int
+    {
+        return $item->n;
+    }
+
     // ───────────────────────────── File and Directory ─────────────────────────────
 
     /**

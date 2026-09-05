@@ -116,10 +116,7 @@ final readonly class SoundCloudProfileEmbed
      */
     public function toElement(): Element
     {
-        $options = implode(' ', array_map(
-            static fn (SoundCloudOption $option): string => $option->value,
-            $this->options->all(),
-        ));
+        $options = $this->options->join(' ', static fn (SoundCloudOption $option): string => $option->value);
 
         return new Element(Tag::SoundCloudProfile)
             ->attr(SoundCloudPlayerAttribute::PlayerStyle, $this->style)

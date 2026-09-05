@@ -292,7 +292,7 @@ final readonly class ReleaseFolder
      */
     public function formats(): array
     {
-        return array_map(ReleaseFormat::from(...), array_keys($this->audio->all()));
+        return array_map(ReleaseFormat::from(...), $this->audio->keys());
     }
 
     /**

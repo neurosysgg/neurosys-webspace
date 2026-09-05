@@ -6,6 +6,7 @@ namespace NeuroSYS\Tool\SoundCloud;
 
 use JsonException;
 use NeuroSYS\Support\Directory;
+use NeuroSYS\Tool\Http\JsonBody;
 use NeuroSYS\Support\File;
 
 /**
@@ -67,8 +68,8 @@ final readonly class TokenStore
         }
 
         try {
-            /** @var array<string, mixed> $stored */
-            $stored = (array) json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
+            /** @var array<string, mixed> $decoded */
+            $decoded = (array) json_decode($raw, true, 8, JSON_THROW_ON_ERROR);
         } catch (JsonException $exception) {
             // Loud rather than treated as absent. The remedy — authorizing again — overwrites this
             // file, so a truncated one that read as "no token" would be destroyed by the fix.
@@ -80,7 +81,7 @@ final readonly class TokenStore
             ));
         }
 
-        return AccessToken::fromArray($stored);
+        return AccessToken::fromArray(new JsonBody($decoded));
     }
 
     /**

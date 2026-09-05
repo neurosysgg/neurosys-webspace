@@ -34,18 +34,20 @@ final class SoundCloudException extends RuntimeException
      * The body is trimmed to a length that fits a terminal and no further: an API's own words about
      * what it refused are the most useful thing on the screen at that moment.
      *
-     * @param string   $what     What was being attempted, as a phrase — `the upload`.
+     * @param Attempt  $what     What was being attempted, whose value is the phrase this reads it
+     *                            back as. It was a `string` needing this line to describe its own
+     *                            format, which is the argument the enum was written on.
      * @param Response $response
      * @return self
      */
-    public static function refused(string $what, Response $response): self
+    public static function refused(Attempt $what, Response $response): self
     {
         $reason = $response->code()?->name ?? 'an unnamed status';
 
         return new self(
             sprintf(
                 "SoundCloud refused %s with %d (%s):\n  %s",
-                $what,
+                $what->value,
                 $response->status,
                 $reason,
                 mb_substr(trim($response->body), 0, 500) ?: '(no body)',

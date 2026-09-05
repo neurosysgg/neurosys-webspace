@@ -145,7 +145,7 @@ class Layout
         $footer = new Element(HtmlTag::Footer)->attr(HtmlAttribute::ClassName, CssClass::SiteFooter);
         $links  = new ProfileRepository()->all();
 
-        if ($links->count() > 0) {
+        if (!$links->isEmpty()) {
             // Deliberately not a pipe chain. `|>` takes a single value and a callable; this needs a
             // spread into a method on an object built here, which is neither — the IDE's quick-fix
             // for it produced something that parses and cannot run.
@@ -153,7 +153,7 @@ class Layout
                 new Element(HtmlTag::Nav)
                     ->attr(HtmlAttribute::ClassName, CssClass::ProfileLinks)
                     ->attr(HtmlAttribute::AriaLabel, 'Profiles')
-                    ->containing(...array_map(self::profileLink(...), $links->all())),
+                    ->containing(...$links->map(self::profileLink(...))),
             );
         }
 

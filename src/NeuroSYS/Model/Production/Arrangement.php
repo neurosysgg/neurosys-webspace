@@ -54,7 +54,7 @@ final readonly class Arrangement
      */
     public function isEmpty(): bool
     {
-        return $this->sections->all() === [];
+        return $this->sections->isEmpty();
     }
 
     /**
@@ -82,17 +82,12 @@ final readonly class Arrangement
      */
     public function positions(int $bpm): array
     {
-        $span      = $this->lastStart($bpm);
-        $positions = [];
+        $span = $this->lastStart($bpm);
 
-        foreach ($this->sections as $section) {
-            $positions[] = [
-                'section' => $section,
-                // A single-section arrangement has no span to divide by and sits at the start.
-                'offset'  => $span > 0.0 ? $section->seconds($bpm, $this->ppq) / $span : 0.0,
-            ];
-        }
-
-        return $positions;
+        return $this->sections->map(fn(Section $section): array => [
+            'section' => $section,
+            // A single-section arrangement has no span to divide by and sits at the start.
+            'offset'  => $span > 0.0 ? $section->seconds($bpm, $this->ppq) / $span : 0.0,
+        ]);
     }
 }

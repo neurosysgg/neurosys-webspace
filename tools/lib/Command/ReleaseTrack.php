@@ -246,7 +246,7 @@ final readonly class ReleaseTrack implements Command
         $store         = TokenStore::default();
 
         $output->error("\n  open this, approve it, then paste back the address the browser ends on:\n\n");
-        $output->error(sprintf("  %s\n\n", $authorization->url($credentials)));
+        $output->error(sprintf("  %s\n\n", $authorization->url($credentials)->render()));
         $output->error('  > ');
 
         $redirected = fgets($this->stdin ?? STDIN);

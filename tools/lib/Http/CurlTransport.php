@@ -59,10 +59,10 @@ final readonly class CurlTransport implements Transport
             );
         }
 
-        $handle = curl_init($request->url);
+        $handle = curl_init($request->url->render());
 
         if ($handle === false) {
-            throw new TransportException(sprintf('curl cannot handle the URL %s.', $request->url));
+            throw new TransportException(sprintf('curl cannot handle the URL %s.', $request->url->render()));
         }
 
         curl_setopt_array($handle, $this->options($request));
@@ -75,7 +75,7 @@ final readonly class CurlTransport implements Transport
             throw new TransportException(sprintf(
                 '%s %s never produced a response: %s',
                 $request->method->value,
-                $request->url,
+                $request->url->render(),
                 $error !== '' ? $error : 'curl gave no reason',
             ));
         }
@@ -104,7 +104,7 @@ final readonly class CurlTransport implements Transport
             CURLOPT_LOW_SPEED_TIME  => self::STALL_TIMEOUT,
         ];
 
-        if ($request->fields->count() === 0) {
+        if ($request->fields->isEmpty()) {
             return $options;
         }
 
@@ -143,9 +143,6 @@ final readonly class CurlTransport implements Transport
      */
     private function headers(Request $request): array
     {
-        return array_values(array_map(
-            static fn(Header $header): string => $header->line(),
-            $request->headers->all(),
-        ));
+        return $request->headers->map(static fn(Header $header): string => $header->line());
     }
 }

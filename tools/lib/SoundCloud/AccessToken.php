@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
+use NeuroSYS\Tool\Http\JsonBody;
+
 /**
  * The AccessToken class. A token, when it stops working, and what to get the next one with.
  *
@@ -44,14 +46,18 @@ final readonly class AccessToken
     /**
      * Reads a token endpoint's answer.
      *
-     * @param array<string, mixed> $body
-     * @param int                  $now Unix time when the answer arrived.
+     * {@link TokenKey::ExpiresIn} is the wire's form of the expiry — a duration — and this is where
+     * it becomes {@link TokenKey::ExpiresAt}, the instant everything downstream compares against.
+     * That conversion is the reason both live in one enum.
+     *
+     * @param JsonBody $body
+     * @param int      $now Unix time when the answer arrived.
      * @return self
      * @throws SoundCloudException if the answer carries no access token.
      */
-    public static function fromResponse(array $body, int $now): self
+    public static function fromResponse(JsonBody $body, int $now): self
     {
-        $value = is_string($body['access_token'] ?? null) ? $body['access_token'] : '';
+        $value = $body->string(TokenKey::AccessToken);
 
         if ($value === '') {
             throw new SoundCloudException(
@@ -61,9 +67,9 @@ final readonly class AccessToken
 
         return new self(
             $value,
-            $now + (is_numeric($body['expires_in'] ?? null) ? (int) $body['expires_in'] : 0),
-            is_string($body['refresh_token'] ?? null) ? $body['refresh_token'] : '',
-            is_string($body['scope'] ?? null) ? $body['scope'] : '',
+            $now + $body->int(TokenKey::ExpiresIn),
+            $body->string(TokenKey::RefreshToken),
+            $body->string(TokenKey::Scope),
         );
     }
 
@@ -96,30 +102,35 @@ final readonly class AccessToken
     public function toArray(): array
     {
         return [
-            'access_token'  => $this->value,
-            'expires_at'    => $this->expiresAt,
-            'refresh_token' => $this->refreshToken,
-            'scope'         => $this->scope,
+            TokenKey::AccessToken->value  => $this->value,
+            TokenKey::ExpiresAt->value    => $this->expiresAt,
+            TokenKey::RefreshToken->value => $this->refreshToken,
+            TokenKey::Scope->value        => $this->scope,
         ];
     }
 
     /**
      * The token as {@link TokenStore} read it back, or null for a file that says nothing usable.
      *
-     * @param array<string, mixed> $stored
+     * The mirror of {@link self::toArray()}, and the same keys — {@link TokenKey::ExpiresAt} here
+     * rather than `ExpiresIn`, because what was written was an instant.
+     *
+     * @param JsonBody $stored
      * @return self|null
      */
-    public static function fromArray(array $stored): ?self
+    public static function fromArray(JsonBody $stored): ?self
     {
-        if (!is_string($stored['access_token'] ?? null) || $stored['access_token'] === '') {
+        $value = $stored->string(TokenKey::AccessToken);
+
+        if ($value === '') {
             return null;
         }
 
         return new self(
-            $stored['access_token'],
-            is_numeric($stored['expires_at'] ?? null) ? (int) $stored['expires_at'] : 0,
-            is_string($stored['refresh_token'] ?? null) ? $stored['refresh_token'] : '',
-            is_string($stored['scope'] ?? null) ? $stored['scope'] : '',
+            $value,
+            $stored->int(TokenKey::ExpiresAt),
+            $stored->string(TokenKey::RefreshToken),
+            $stored->string(TokenKey::Scope),
         );
     }
 }

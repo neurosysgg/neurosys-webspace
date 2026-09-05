@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use InvalidArgumentException;
 use ArrayObject;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Genre;
@@ -11,19 +12,24 @@ use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Http\FilePart;
 use NeuroSYS\Tool\Http\FormField;
+use NeuroSYS\Tool\Http\JsonBody;
 use NeuroSYS\Tool\Http\OutboundHeader;
 use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Response;
 use NeuroSYS\Tool\Http\Transport;
 use NeuroSYS\Tool\SoundCloud\AccessToken;
+use NeuroSYS\Tool\Http\Url;
+use NeuroSYS\Tool\SoundCloud\Attempt;
 use NeuroSYS\Tool\SoundCloud\Authorization;
 use NeuroSYS\Tool\SoundCloud\Client;
 use NeuroSYS\Tool\SoundCloud\CredentialVariable;
 use NeuroSYS\Tool\SoundCloud\Credentials;
 use NeuroSYS\Tool\SoundCloud\Endpoint;
 use NeuroSYS\Tool\SoundCloud\SoundCloudException;
+use NeuroSYS\Tool\SoundCloud\TokenKey;
 use NeuroSYS\Tool\SoundCloud\TokenStore;
 use NeuroSYS\Tool\SoundCloud\TrackField;
+use NeuroSYS\Tool\SoundCloud\TrackKey;
 use NeuroSYS\Tool\SoundCloud\TrackSharing;
 use NeuroSYS\Tool\SoundCloud\TrackUpload;
 use NeuroSYS\Tool\SoundCloud\UploadedTrack;
@@ -177,7 +183,7 @@ final class SoundCloudTest extends TestCase
     public function testTheAuthorizeUrlCarriesTheChallengeAndNeverTheVerifier(): void
     {
         $authorization = Authorization::begin('the-verifier-nobody-else-may-see', 'the-state');
-        $url           = $authorization->url($this->credentials());
+        $url           = $authorization->url($this->credentials())->render();
 
         self::assertStringStartsWith(Endpoint::Authorize->value . '?', $url);
         self::assertStringContainsString('code_challenge=' . $authorization->challenge(), $url);
@@ -283,7 +289,7 @@ final class SoundCloudTest extends TestCase
 
         $fields = self::sent($request);
 
-        self::assertSame(Endpoint::Tracks->value, $request->url);
+        self::assertSame(Endpoint::Tracks->value, $request->url->render());
         self::assertSame('POST', $request->method->value);
         self::assertTrue($request->multipart);
         self::assertSame(
@@ -402,7 +408,7 @@ final class SoundCloudTest extends TestCase
         /** @var Request $upload */
         $upload = $sent[1];
 
-        self::assertSame(Endpoint::Token->value, $refresh->url);
+        self::assertSame(Endpoint::Token->value, $refresh->url->render());
         self::assertSame('refresh_token', self::sent($refresh)['grant_type']);
         self::assertSame('the-old-refresh', self::sent($refresh)['refresh_token']);
         self::assertSame(
@@ -433,7 +439,7 @@ final class SoundCloudTest extends TestCase
         )->upload($this->upload());
 
         self::assertCount(1, $sent);
-        self::assertSame(Endpoint::Tracks->value, $sent[0]->url);
+        self::assertSame(Endpoint::Tracks->value, $sent[0]->url->render());
     }
 
     /**
@@ -479,7 +485,7 @@ final class SoundCloudTest extends TestCase
             $this->store(),
         )->upload($this->upload());
 
-        self::assertSame(Endpoint::track(2394077313), $sent[1]->url);
+        self::assertSame(Endpoint::track(2394077313)->render(), $sent[1]->url->render());
         self::assertSame('s-dIMAqki109G', $track->secretToken);
     }
 
@@ -490,12 +496,12 @@ final class SoundCloudTest extends TestCase
      */
     public function testAnUploadedTrackBecomesTheSitesOwnEmbed(): void
     {
-        $embed = UploadedTrack::fromResponse([
+        $embed = UploadedTrack::fromResponse(new JsonBody([
             'id'           => 2394077313,
             'permalink'    => 'ill',
             'secret_token' => 's-dIMAqki109G',
             'sharing'      => 'private',
-        ])->embed();
+        ]))->embed();
 
         self::assertSame(2394077313, $embed->trackId);
         self::assertSame('ill', $embed->permalink);
@@ -511,7 +517,7 @@ final class SoundCloudTest extends TestCase
     {
         $this->expectException(ReleaseVerificationException::class);
 
-        UploadedTrack::fromResponse(['permalink' => 'ill'])->embed();
+        UploadedTrack::fromResponse(new JsonBody(['permalink' => 'ill']))->embed();
     }
 
     /**
@@ -585,7 +591,7 @@ final class SoundCloudTest extends TestCase
     {
         $this->expectException(SoundCloudException::class);
 
-        AccessToken::fromResponse(['expires_in' => 3600], 1_800_000_000);
+        AccessToken::fromResponse(new JsonBody(['expires_in' => 3600]), 1_800_000_000);
     }
 
     /**
@@ -601,5 +607,130 @@ final class SoundCloudTest extends TestCase
         self::assertFalse($token->isExpired(900));
         self::assertTrue($token->isExpired(950));
         self::assertTrue($token->isExpired(1_000));
+    }
+
+    // ─────────────────── The names a response is read under ───────────────────
+
+    /**
+     * A key that is absent, null, or carries the wrong type all read as the same absence.
+     *
+     * That is not new behaviour: it is what each of the nine hand-written
+     * `is_string($body['x'] ?? null) ? … : ''` reads collapsed to before {@link JsonBody} existed.
+     * Pinned because the whole value of moving them into one class is that they now fail together.
+     *
+     * @return void
+     */
+    public function testAnUnreadableKeyAnswersWithTheEmptyValueForItsType(): void
+    {
+        $body = new JsonBody(['permalink' => null, 'secret_token' => 42, 'id' => 'not a number']);
+
+        self::assertSame('', $body->string(TrackKey::Permalink));
+        self::assertSame('', $body->string(TrackKey::SecretToken));
+        self::assertSame('', $body->string(TrackKey::PermalinkUrl));
+        self::assertSame(0, $body->int(TrackKey::Id));
+    }
+
+    /**
+     * A JSON number that arrived quoted is still the number the provider meant.
+     *
+     * @return void
+     */
+    public function testANumberIsReadWhicheverWayItArrived(): void
+    {
+        self::assertSame(7, new JsonBody(['id' => 7])->int(TrackKey::Id));
+        self::assertSame(7, new JsonBody(['id' => '7'])->int(TrackKey::Id));
+    }
+
+    /**
+     * The store's keys are {@link TokenKey}'s, so a token written by one run is readable by the next.
+     *
+     * The round trip is the assertion rather than the literal spellings: what would break this is
+     * {@link AccessToken::toArray()} and {@link AccessToken::fromArray()} disagreeing, which is
+     * exactly what happened while the four keys were written out twice.
+     *
+     * @return void
+     */
+    public function testATokenSurvivesTheRoundTripThroughItsStoredForm(): void
+    {
+        $token  = new AccessToken('the-value', 1_800_000_000, 'the-refresh', 'non-expiring');
+        $stored = $token->toArray();
+
+        self::assertSame(
+            ['access_token', 'expires_at', 'refresh_token', 'scope'],
+            array_keys($stored),
+        );
+
+        $read = AccessToken::fromArray(new JsonBody($stored));
+
+        self::assertSame('the-value', $read?->value);
+        self::assertSame(1_800_000_000, $read?->expiresAt);
+        self::assertSame('the-refresh', $read?->refreshToken);
+        self::assertSame('non-expiring', $read?->scope);
+    }
+
+    /**
+     * The wire says how long the token lasts; the store says when it stops. Both are
+     * {@link TokenKey} cases, and this is the line that turns one into the other.
+     *
+     * @return void
+     */
+    public function testTheWiresDurationBecomesTheStoresInstant(): void
+    {
+        $token = AccessToken::fromResponse(
+            new JsonBody([TokenKey::ExpiresIn->value => 3_600, TokenKey::AccessToken->value => 'v']),
+            1_800_000_000,
+        );
+
+        self::assertSame(1_800_003_600, $token->expiresAt);
+    }
+
+    /**
+     * Each attempt reads back as the phrase its failure message needs.
+     *
+     * @return void
+     */
+    public function testARefusalNamesWhatWasBeingAttempted(): void
+    {
+        $refused = SoundCloudException::refused(Attempt::Upload, new Response(422, 'no'));
+
+        self::assertStringContainsString('refused the upload with 422', $refused->getMessage());
+        self::assertSame(422, $refused->status);
+    }
+
+    // ──────────────────────── The addresses it sends to ────────────────────────
+
+    /**
+     * Every address this tooling aims a request at is absolute and https.
+     *
+     * The one address on the site with nothing looking at it, before {@link Url}: the target of a
+     * request carrying a client secret and a rotating refresh token.
+     *
+     * @return void
+     */
+    public function testEveryEndpointIsAnAbsoluteHttpsAddress(): void
+    {
+        foreach (Endpoint::cases() as $endpoint) {
+            self::assertSame($endpoint->value, $endpoint->url()->render());
+        }
+
+        self::assertSame(
+            Endpoint::Tracks->value . '/2394077313',
+            Endpoint::track(2394077313)->render(),
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testAnAddressThatIsNotAbsoluteHttpsIsRefused(): void
+    {
+        foreach (['http://api.soundcloud.com/tracks', '/tracks', 'not a url', 'https://', ''] as $bad) {
+            try {
+                new Url($bad);
+                self::fail(sprintf("Url accepted '%s'", $bad));
+            } catch (InvalidArgumentException $exception) {
+                self::assertStringContainsString('absolute https://', $exception->getMessage());
+            }
+        }
     }
 }

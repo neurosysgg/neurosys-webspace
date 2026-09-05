@@ -7,6 +7,7 @@ namespace NeuroSYS\View;
 use NeuroSYS\Config;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Release;
+use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
@@ -136,7 +137,6 @@ class ReleaseView extends View
     {
         $release   = $this->release;
         $timeSpent = $release->timeSpent;
-        $madeWith  = $release->madeWith->all();
 
         $fields = [
             new TerminalField('artist', Config::NAME),
@@ -149,10 +149,10 @@ class ReleaseView extends View
             $fields[] = new TerminalField('time', $timeSpent->render());
         }
 
-        if ($madeWith !== []) {
+        if (!$release->madeWith->isEmpty()) {
             $fields[] = new TerminalField(
                 'made with',
-                implode(', ', array_map(static fn($plugin): string => $plugin->name, $madeWith)),
+                $release->madeWith->join(', ', static fn(Plugin $plugin): string => $plugin->name),
             );
         }
 
@@ -180,9 +180,8 @@ class ReleaseView extends View
 
         return new Element(Tag::ReleaseArrangement)->containing(
             new Element(HtmlTag::H2)->containing('arrangement'),
-            ...array_map(
+            ...$arrangement->sections->map(
                 fn(Section $section): Element => $this->section($section, $bpm, $arrangement->ppq),
-                $arrangement->sections->all(),
             ),
         );
     }
@@ -220,7 +219,7 @@ class ReleaseView extends View
     {
         return new Element(Tag::DownloadList)->containing(
             new Element(HtmlTag::H2)->containing('downloads'),
-            ...array_map($this->downloadCard(...), $this->release->formats->all()),
+            ...$this->release->formats->map($this->downloadCard(...)),
         );
     }
 

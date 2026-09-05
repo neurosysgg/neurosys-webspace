@@ -6,6 +6,7 @@ namespace NeuroSYS\Tool\SoundCloud;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
+use NeuroSYS\Tool\Http\JsonBody;
 
 /**
  * The UploadedTrack class. What SoundCloud says exists now.
@@ -41,24 +42,27 @@ final readonly class UploadedTrack
     /**
      * Reads a track resource.
      *
-     * The keys are the provider's and are read defensively, because a key read wrongly here is
-     * *silent* in the way {@link TrackField} describes: `permalink_url` misspelled is an empty
-     * string, and an empty string is a plausible-looking absence. What stops that reaching
-     * `data/releases.php` is {@link self::embed()}, where the two ids that matter meet
-     * `SoundCloudEmbed`'s own constructor and its verification.
+     * The keys are the provider's, and they are {@link TrackKey} cases because a key read wrongly
+     * here is *silent* in the way {@link TrackField} describes: `permalink_url` misspelled is an
+     * empty string, and an empty string is a plausible-looking absence. This paragraph said exactly
+     * that while the five keys below were still string literals; the enum is it being acted on.
      *
-     * @param array<string, mixed> $body
+     * Still read defensively — {@link JsonBody} answers `''` and `0` for a key that is absent or
+     * carries the wrong type, which is what each of these lines used to do for itself. What stops a
+     * plausible absence reaching `data/releases.php` is {@link self::embed()}, where the two ids
+     * that matter meet `SoundCloudEmbed`'s own constructor and its verification.
+     *
+     * @param JsonBody $body
      * @return self
      */
-    public static function fromResponse(array $body): self
+    public static function fromResponse(JsonBody $body): self
     {
         return new self(
-            is_numeric($body['id'] ?? null) ? (int) $body['id'] : 0,
-            is_string($body['permalink'] ?? null) ? $body['permalink'] : '',
-            is_string($body['secret_token'] ?? null) ? $body['secret_token'] : '',
-            is_string($body['permalink_url'] ?? null) ? $body['permalink_url'] : '',
-            TrackSharing::tryFrom(is_string($body['sharing'] ?? null) ? $body['sharing'] : '')
-                ?? TrackSharing::Private,
+            $body->int(TrackKey::Id),
+            $body->string(TrackKey::Permalink),
+            $body->string(TrackKey::SecretToken),
+            $body->string(TrackKey::PermalinkUrl),
+            TrackSharing::tryFrom($body->string(TrackKey::Sharing)) ?? TrackSharing::Private,
         );
     }
 

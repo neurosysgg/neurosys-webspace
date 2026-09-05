@@ -69,7 +69,7 @@ final readonly class Terminal
     {
         try {
             $fields = json_encode(
-                array_map(static fn (TerminalField $f): array => $f->toArray(), $this->fields->all()),
+                $this->fields->map(static fn (TerminalField $f): array => $f->toArray()),
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
             );
         } catch (JsonException $exception) {

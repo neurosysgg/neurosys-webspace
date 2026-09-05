@@ -36,19 +36,13 @@ class ReleasesView extends View
      */
     public function content(): Node
     {
-        $cards = [];
-
-        foreach ($this->releases as $slug => $release) {
-            $cards[] = self::card($slug, $release);
-        }
-
         return new Element(HtmlTag::Section)
             ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
             ->containing(
                 new Element(HtmlTag::H2)
                     ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
                     ->containing('releases'),
-                new Element(Tag::ReleaseList)->containing(...$cards),
+                new Element(Tag::ReleaseList)->containing(...$this->releases->map(self::card(...))),
             );
     }
 
@@ -58,11 +52,15 @@ class ReleasesView extends View
      * The anchor stays native and server-rendered: a catalogue that only works with JS is not a
      * catalogue. The card wraps it and names which release it is for.
      *
-     * @param string $slug
+     * The release first and its slug second, which is the order
+     * {@link \NeuroSYS\Support\TypedItems::map()} hands them over — so this stays a first-class
+     * callable at its one call site rather than growing a closure to reverse it.
+     *
      * @param Release $release
+     * @param string  $slug
      * @return Element
      */
-    private static function card(string $slug, Release $release): Element
+    private static function card(Release $release, string $slug): Element
     {
         $meta = implode(' · ', [
             $release->bpm . ' bpm',

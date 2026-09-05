@@ -237,6 +237,16 @@ id="content">`, footer with the profile links, and one `<script type="module">`.
 `Collection<T>` and `SearchableCollection<T>` (int-keyed and string-keyed), `File` and `Directory`,
 `Route`, `RouteInitialization`, `JsonDeserializable`, `Charset`.
 
+Both collections share `TypedItems`, which holds the store, the type check, and the six query
+methods that are **the site's default way of handling a group of things**: `where()`, `map()`,
+`join()`, `first()`, `keys()`, `isEmpty()`. They exist because `all()` had become the escape hatch
+out of the type — sixteen call sites reached for it or hand-rolled a `foreach`, nine of them only to
+hand the array to `array_map`. The callback takes the **value first and the key second**, which is
+the order `array_find`/`array_any`/`ARRAY_FILTER_USE_BOTH` use and the order that lets a one-argument
+callback stay a first-class callable. `map()` answers with a `list` rather than a collection, because
+a collection is defined by a `class-string` and most call sites map to a `string` or an `array`;
+`where()` returns `static` and chains, `map()` ends the chain.
+
 `File` is where a path stops being a string. `Config::dataFile()` hands one back, and the five
 classes that read `data/` stop each asking `is_file()` in their own words — a collapse that also
 removed a real fault, since `is_file()` says nothing about a file that is present and unreadable and
@@ -287,9 +297,11 @@ knowing the implementation.
 object — `readonly` protects the reference, not what it points at.
 
 The name is chosen so a dropped result reads as wrong, and PHP 8.5 now enforces what the name only
-suggested: `with()`, `allow()`, `attr()`, `containing()` and `Auth::accepts()` all carry
-`#[\NoDiscard]`, and `phpunit.xml.dist` sets `failOnWarning`, so a discarded result is a failing
-test. `NoDiscardTest` pins the set in both directions.
+suggested: `with()`, `allow()`, `attr()`, `containing()`, the six query methods above and
+`Auth::accepts()` all carry `#[\NoDiscard]`, and `phpunit.xml.dist` sets `failOnWarning`, so a
+discarded result is a failing test. `NoDiscardTest` pins the set in both directions — the query
+methods appear three times each there, since PHP flattens a trait's members into both using classes
+and the trait is scanned as well.
 
 **When *not* to reach for a collection:** `PermissionsPolicy::$denied` and
 `ContentSecurityPolicy::$directives` are private, never escape, and are only ever built through a

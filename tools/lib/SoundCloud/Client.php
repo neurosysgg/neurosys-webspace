@@ -11,6 +11,7 @@ use NeuroSYS\Http\TopLevelType;
 use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Tool\Http\FormField;
+use NeuroSYS\Tool\Http\JsonBody;
 use NeuroSYS\Tool\Http\OutboundHeader;
 use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Response;
@@ -58,14 +59,14 @@ final readonly class Client
      */
     public function exchange(Authorization $authorization, string $redirected): AccessToken
     {
-        return $this->tokenRequest('the authorization', [
-            'grant_type'    => 'authorization_code',
-            'client_id'     => $this->credentials->clientId,
-            'client_secret' => $this->credentials->clientSecret,
-            'redirect_uri'  => $this->credentials->redirectUri,
-            'code_verifier' => $authorization->verifier,
-            'code'          => $authorization->code($redirected),
-        ]);
+        return $this->tokenRequest(Attempt::Authorization, new Collection(FormField::class)->with(
+            FormField::of('grant_type', 'authorization_code'),
+            FormField::of('client_id', $this->credentials->clientId),
+            FormField::of('client_secret', $this->credentials->clientSecret),
+            FormField::of('redirect_uri', $this->credentials->redirectUri),
+            FormField::of('code_verifier', $authorization->verifier),
+            FormField::of('code', $authorization->code($redirected)),
+        ));
     }
 
     /**
@@ -83,9 +84,9 @@ final readonly class Client
     public function upload(TrackUpload $upload): UploadedTrack
     {
         $track = UploadedTrack::fromResponse($this->json(
-            'the upload',
+            Attempt::Upload,
             $this->transport->send(Request::multipart(
-                Endpoint::Tracks->value,
+                Endpoint::Tracks->url(),
                 $upload->fields(),
                 ...$this->headers($this->authorized()),
             )),
@@ -108,7 +109,7 @@ final readonly class Client
     public function track(int $id): UploadedTrack
     {
         return UploadedTrack::fromResponse($this->json(
-            'the track',
+            Attempt::Track,
             $this->transport->send(Request::get(
                 Endpoint::track($id),
                 ...$this->headers($this->authorized()),
@@ -145,12 +146,16 @@ final readonly class Client
             );
         }
 
-        return $this->tokenRequest('the refresh', [
-            'grant_type'    => 'refresh_token',
-            'client_id'     => $this->credentials->clientId,
-            'client_secret' => $this->credentials->clientSecret,
-            'refresh_token' => $token->refreshToken,
-        ]);
+        // `refresh_token` is three different things in this file — a grant type, a request field
+        // name and a TokenKey — and they coincide rather than repeat. The first two stay literals
+        // for the reason Authorization's docblock gives: an OAuth parameter misspelled is refused in
+        // words, before anything is sent. Only the third is silent when wrong, and only it is typed.
+        return $this->tokenRequest(Attempt::Refresh, new Collection(FormField::class)->with(
+            FormField::of('grant_type', 'refresh_token'),
+            FormField::of('client_id', $this->credentials->clientId),
+            FormField::of('client_secret', $this->credentials->clientSecret),
+            FormField::of('refresh_token', $token->refreshToken),
+        ));
     }
 
     /**
@@ -161,23 +166,21 @@ final readonly class Client
      * that was spent. Anything between reading the answer and storing it is a window in which the
      * account has to be authorized by hand again.
      *
-     * @param string                $what   What is being attempted, for the failure message.
-     * @param array<string, string> $fields
+     * @param Attempt               $what   What is being attempted, for the failure message.
+     * @param Collection<FormField> $fields The body, built by the caller the way every other body
+     *                                      in this repo is. This took an `array<string, string>`
+     *                                      and looped it into one right here, which made it the
+     *                                      only request in the repository whose fields were not
+     *                                      checked at the boundary the collection is for.
      * @return AccessToken
      * @throws SoundCloudException if the endpoint refuses, or answers with no token.
      */
-    private function tokenRequest(string $what, array $fields): AccessToken
+    private function tokenRequest(Attempt $what, Collection $fields): AccessToken
     {
-        $form = new Collection(FormField::class);
-
-        foreach ($fields as $name => $value) {
-            $form = $form->with(new FormField($name, $value));
-        }
-
         $token = AccessToken::fromResponse(
             $this->json($what, $this->transport->send(Request::form(
-                Endpoint::Token->value,
-                $form,
+                Endpoint::Token->url(),
+                $fields,
                 new Header(OutboundHeader::Accept, self::accept()),
             ))),
             time(),
@@ -191,12 +194,12 @@ final readonly class Client
     /**
      * A response's body, or the exception for a response that failed.
      *
-     * @param string   $what
+     * @param Attempt  $what
      * @param Response $response
-     * @return array<string, mixed>
+     * @return JsonBody
      * @throws SoundCloudException if the status is not a success, or the body is not JSON.
      */
-    private function json(string $what, Response $response): array
+    private function json(Attempt $what, Response $response): JsonBody
     {
         if (!$response->isOk()) {
             throw SoundCloudException::refused($what, $response);
@@ -206,7 +209,11 @@ final readonly class Client
             return $response->json();
         } catch (JsonException $exception) {
             throw new SoundCloudException(
-                sprintf('SoundCloud answered %s with something that is not JSON: %s', $what, $exception->getMessage()),
+                sprintf(
+                    'SoundCloud answered %s with something that is not JSON: %s',
+                    $what->value,
+                    $exception->getMessage(),
+                ),
                 $response->status,
                 $response->body,
             );

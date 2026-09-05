@@ -54,6 +54,24 @@ class Collection implements Countable, IteratorAggregate
     }
 
     /**
+     * A copy holding $items, reindexed.
+     *
+     * The reindex is the whole reason this is not shared with {@link SearchableCollection}:
+     * `array_filter` preserves keys, so a `where()` that dropped the second of three items would
+     * leave `[0 => …, 2 => …]` — an array PHP will still iterate and a `list<T>` it is not.
+     *
+     * @param array<array-key, T> $items
+     * @return static
+     */
+    private function rebuilt(array $items): static
+    {
+        $copy        = clone $this;
+        $copy->items = array_values($items);
+
+        return $copy;
+    }
+
+    /**
      * `with()` only ever appends to an array that started empty, so this is always a list — the
      * trait's store is typed `array-key` because it is shared with the map, not because this one
      * can grow holes.

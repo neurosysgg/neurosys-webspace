@@ -34,7 +34,7 @@ final readonly class Request
      * Constructs an instance of {@link self}.
      *
      * @param HttpMethod $method
-     * @param string     $url
+     * @param Url        $url
      * @param SearchableCollection<Header> $headers Keyed by header name, which is what keeps the
      *                                       last write: a request cannot end up carrying two
      *                                       `Authorization`s because two callers each added one.
@@ -44,7 +44,7 @@ final readonly class Request
      */
     private function __construct(
         public HttpMethod $method,
-        public string     $url,
+        public Url        $url,
         public SearchableCollection $headers,
         public Collection $fields,
         public bool       $multipart,
@@ -53,11 +53,11 @@ final readonly class Request
     /**
      * A request with no body.
      *
-     * @param string $url
+     * @param Url    $url
      * @param Header ...$headers
      * @return self
      */
-    public static function get(string $url, Header ...$headers): self
+    public static function get(Url $url, Header ...$headers): self
     {
         return new self(
             HttpMethod::Get,
@@ -71,12 +71,12 @@ final readonly class Request
     /**
      * A `POST` whose body is form-encoded — the shape every OAuth token request takes.
      *
-     * @param string $url
+     * @param Url    $url
      * @param Collection<FormField> $fields
      * @param Header ...$headers
      * @return self
      */
-    public static function form(string $url, Collection $fields, Header ...$headers): self
+    public static function form(Url $url, Collection $fields, Header ...$headers): self
     {
         return new self(
             HttpMethod::Post,
@@ -100,12 +100,12 @@ final readonly class Request
      * belongs to whatever assembles the body, and a header written beside it would be a second
      * answer to a settled question — see {@link OutboundHeader::ContentType}.
      *
-     * @param string $url
+     * @param Url    $url
      * @param Collection<FormField> $fields
      * @param Header ...$headers
      * @return self
      */
-    public static function multipart(string $url, Collection $fields, Header ...$headers): self
+    public static function multipart(Url $url, Collection $fields, Header ...$headers): self
     {
         return new self(HttpMethod::Post, $url, self::headers(...$headers), $fields, true);
     }
@@ -119,10 +119,8 @@ final readonly class Request
     {
         $pairs = [];
 
-        foreach ($this->fields as $field) {
-            if (!$field->isFile()) {
-                $pairs[$field->name] = $field->value;
-            }
+        foreach ($this->fields->where(static fn(FormField $field): bool => !$field->isFile()) as $field) {
+            $pairs[$field->name] = $field->value;
         }
 
         return http_build_query($pairs);
