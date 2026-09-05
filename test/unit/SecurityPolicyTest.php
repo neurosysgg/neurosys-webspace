@@ -214,7 +214,7 @@ final class SecurityPolicyTest extends TestCase
         $this->expectException(SecurityPolicyException::class);
         $this->expectExceptionMessage('CspKeyword::None');
 
-        new ContentSecurityPolicy()->allow(CspDirective::ScriptSrc);
+        (void) new ContentSecurityPolicy()->allow(CspDirective::ScriptSrc);
     }
 
     /** A browser honours the first occurrence, so a second one would silently do nothing. */
@@ -223,7 +223,7 @@ final class SecurityPolicyTest extends TestCase
         $this->expectException(SecurityPolicyException::class);
         $this->expectExceptionMessage('already set');
 
-        new ContentSecurityPolicy()
+        (void) new ContentSecurityPolicy()
             ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::ScriptSrc, CspKeyword::UnsafeInline);
     }

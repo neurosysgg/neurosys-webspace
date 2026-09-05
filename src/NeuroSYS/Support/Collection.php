@@ -43,6 +43,7 @@ class Collection implements Countable, IteratorAggregate
      * @throws \TypeError if any item is not an instance of the declared type. The copy is
      *                     discarded with the exception, so a rejected batch cannot half-apply.
      */
+    #[\NoDiscard('with() copies rather than appends, so a call whose result goes nowhere does nothing')]
     public function with(mixed ...$items): static
     {
         $copy = clone $this;

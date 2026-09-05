@@ -111,7 +111,7 @@ final class EmbedTest extends TestCase
     public function testRejectsSomethingThatIsNotASoundCloudOption(): void
     {
         $this->expectException(TypeError::class);
-        $this->options()->with('show_user');
+        (void) $this->options()->with('show_user');
     }
 
     /**

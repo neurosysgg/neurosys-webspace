@@ -149,6 +149,25 @@ else
     fail "PHP $(php -r 'echo PHP_VERSION;') is below the 8.5 autoload.php requires"
 fi
 
+# ext/uri ships with 8.5 and is what Element and Request parse URLs with. Bundled is not the same
+# as present — a host can build without it — and the failure would be a fatal on every request, so
+# it is asked for by name here as well as in composer.json. Checked on the live host before it was
+# relied on; see docs/deployment.md.
+if php -r 'exit(class_exists("Uri\\WhatWg\\Url") && class_exists("Uri\\Rfc3986\\Uri") ? 0 : 1);'; then
+    pass "ext/uri is present — Element and Request have a URL parser"
+else
+    fail "ext/uri is missing; Element::isAllowedUrl() and Request::normalisePath() need it"
+fi
+
+# #[\NoDiscard] is what enforces that a copy-returning builder's result is used. It is an attribute,
+# so a runtime without it ignores it silently rather than erroring — which is the whole guarantee
+# quietly gone, with every test still green.
+if php -r 'exit(class_exists("NoDiscard") ? 0 : 1);'; then
+    pass "#[\\NoDiscard] exists — a discarded builder result is a warning"
+else
+    fail "#[\\NoDiscard] is missing; discarded builder results would pass unnoticed"
+fi
+
 
 echo ""
 echo "=== Production autoloader ==="

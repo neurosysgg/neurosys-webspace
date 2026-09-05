@@ -4,8 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Stack
 
-Plain PHP 8.5 / HTML / CSS, no framework, **no runtime dependencies**. The pipe operator (`|>`) is
-used in `autoload.php` and requires PHP ≥ 8.5.
+Plain PHP 8.5 / HTML / CSS, no framework, **no runtime dependencies**. Three things need PHP ≥ 8.5
+and each is load-bearing: the pipe operator (`|>`) in `autoload.php`, `#[\NoDiscard]` on the
+copy-returning builders, and **`ext/uri`** — the WHATWG and RFC 3986 parsers `Element` and `Request`
+put their URL questions to. The extension is bundled with 8.5 rather than optional, but bundled is
+not the same as present, so `composer.json` names it and the verify script asks for it out loud.
+Checked on the live host (Strato, PHP 8.5.9, `cgi-fcgi`) before either was relied on.
 
 Nothing on the PHP side is built or transpiled. The front end does have a build — TypeScript
 compiles, and the stylesheet is assembled from its parts — but both outputs are committed, so what
@@ -156,12 +160,15 @@ privacy policy does not claim, on the same terms `DOWNLOAD_LOGGING` is off on. S
 the policy is asserted at build time rather than observed at run time.
 
 `Request::path()` is the one place a malformed request target is dealt with, and it is worth
-knowing it does two different things. `parse_url()` signals failure with `false` rather than null —
-so `?? '/'` read as a guard and was not one, and the `false` reached `rtrim()` as an uncaught
-`TypeError`: `GET ///` was a 500, ahead of the router and ahead of the 405 gate. `///` now comes
-back as the root, because that is what it is. A target that genuinely will not parse comes back
-**verbatim**, so it matches no route and 404s — answering it with the home page would be the
-quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning null rather than guessing GET.
+knowing it does two different things. It used to be `parse_url()`, which signals failure with
+`false` rather than null — so `?? '/'` read as a guard and was not one, and the `false` reached
+`rtrim()` as an uncaught `TypeError`: `GET ///` was a 500, ahead of the router and ahead of the 405
+gate. It is `Uri\Rfc3986\Uri::parse()` now, which returns **null** on a target it cannot read —
+the thing `??` was looking for all along — so the trap is gone rather than guarded against, and
+`///` comes back as the root because that parser can actually read it. A target that genuinely will
+not parse comes back **verbatim**, so it matches no route and 404s — answering it with the home page
+would be the quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning null rather than
+guessing GET.
 
 Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
 place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
@@ -247,13 +254,17 @@ thing standing in front of. Two rules:
   is the wrong tool for a URL and always was — `javascript:alert(1)` contains not one character
   `htmlspecialchars` touches. `AttributeName::isUrl()` says which attributes those are, case by case
   and not enum by enum, since `href` and `class` live in the same one. The allowlist is
-  site-relative, `https:` and `mailto:`. **Both spellings of a bare authority are refused** —
-  `//host` and `/\host`, which are the same URL: the WHATWG parser treats `\` as `/` for as long
-  as it is hunting for an authority, so both resolve to `https://host` and only one of them looks
-  like it might. `Element::AUTHORITY_PREFIXES` lists them and `HtmlTest` pins both, along with the
-  marked attribute set in both directions. `Navigation.ts` refuses the same two on the client, but
-  by resolving the href and comparing origins — the stronger way round, available there only
-  because the browser has already parsed the URL.
+  site-relative, `https:` and `mailto:`. **A leading slash is not the same claim as "somewhere on
+  this site", so it is asked rather than assumed.** This used to be a two-entry list of the prefixes
+  an authority can open with — `//host` and `/\host`, the same URL spelled the way that does not
+  look like it — and a list of the spellings that occurred to us is the shape of mistake this class
+  exists to avoid. It had missed one: the WHATWG parser strips tab, CR and LF from a URL *before*
+  parsing it, so `/\r\n/host` is `//host` is `https://host`, and every "starts with a slash" test
+  in the world calls it a path of ours. PHP 8.5 ships that parser, so `Element::staysOnThisOrigin()`
+  resolves the value the way a browser would and asks whether it landed where it started.
+  `Navigation.ts` has done it this way round on the client all along — for want of a URL parser it
+  was the stronger half, and now both halves are the same check. `HtmlTest` pins every spelling,
+  the two whitespace ones included, along with the marked attribute set in both directions.
 
 `Profile::url` is checked a second time at its own constructor, the way `HiDriveLink`'s share id is.
 The renderer is the backstop and reports the fault on whatever page draws the footer; the constructor
@@ -281,6 +292,17 @@ one thing a PHP generic cannot say: `$this->fields->type !== TerminalField::clas
 collection would leave every `Release`, `Terminal` and `SoundCloudEmbed` appendable by anyone
 holding one. The name is deliberate too — a discarded `$c->add(…)` reads as correct, a discarded
 `$c->with(…)` reads as wrong. Same shape as `ContentSecurityPolicy::allow()`.
+
+**That naming convention was doing a compiler's job, and now the compiler does it.** `with()`,
+`allow()`, `attr()` and `containing()` all carry `#[\NoDiscard]` with a sentence saying why the
+dropped call did nothing, so a result that goes nowhere is an `E_WARNING` — and `phpunit.xml.dist`
+sets `failOnWarning`, which makes it a failing test rather than a line in a log. `Auth::accepts()`
+carries one too, and is the only member that is not a builder: it is the gate's entire decision, and
+the two `require*` methods are only the challenge wrapped around it. `NoDiscardTest` pins the set in
+both directions and asserts each attribute carries a message, because the default warning has none.
+The deliberate discards are all in the tests — proving a builder did not mutate what it was called
+on, or that a bad argument threw — and each is spelled `(void)`, which says out loud what the test
+is there to demonstrate.
 
 Not everything with a `list<…>` in its docblock wants one. `PermissionsPolicy::$denied` and
 `ContentSecurityPolicy::$directives` are private, never escape, and are built only through a

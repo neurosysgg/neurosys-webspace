@@ -6,6 +6,7 @@ namespace NeuroSYS\View\Html;
 
 use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
+use Uri\WhatWg\Url;
 
 /**
  * The Element class. One element: a {@link TagName}, typed attributes, and child {@link Node}s.
@@ -53,20 +54,19 @@ final readonly class Element implements Node
     private const array URL_SCHEMES = ['https:', 'mailto:'];
 
     /**
-     * The two spellings of an authority a path-shaped URL can open with.
+     * The host a site-relative URL is resolved against, and that host on its own.
      *
-     * `//evil.example` is a different origin wearing a path's clothes: it passes every "starts with
-     * a slash" test written to mean "somewhere on this site". `/\evil.example` is the *same URL* —
-     * the WHATWG parser treats `\` as `/` for as long as it is looking for an authority, so both
-     * resolve to `https://evil.example`, and only one of them looks like it might.
+     * Not this site's origin, and deliberately not: the question a path-shaped value has to answer
+     * is "does this stay wherever the page is served from?", which no address of ours is needed to
+     * ask. `.invalid` is reserved by RFC 2606 and resolves nowhere, so nothing here can be mistaken
+     * for somewhere to fetch from, and the class stays uncoupled from where the site is deployed.
      *
-     * Two entries rather than one, because a list of the spelling that occurred to us is the shape
-     * of mistake this class is arranged to avoid. Neither is anything this site needs to emit.
-     * `Navigation.ts` refuses both on the client, though it gets there by resolving the href and
-     * comparing origins rather than by matching text — which is the stronger way round, and is
-     * available there only because the browser has already parsed the URL for it.
+     * The host is its own constant because {@link self::staysOnThisOrigin()} compares against it
+     * rather than against a second parse — which is what keeps that method free of a null branch
+     * nothing can reach.
      */
-    private const array AUTHORITY_PREFIXES = ['//', '/\\'];
+    private const string BASE_HOST     = 'relative.invalid';
+    private const string RELATIVE_BASE = 'https://' . self::BASE_HOST;
 
     /**
      * Constructs an instance of {@link self}.
@@ -110,6 +110,7 @@ final readonly class Element implements Node
      * This only normalises and stores. Escaping and the URL check both happen in
      * {@link self::render()}, so neither can be got around by building an element another way.
      */
+    #[\NoDiscard('attr() returns a copy carrying the attribute; the element it was called on is unchanged')]
     public function attr(
         AttributeName $attribute,
         string|int|bool|BackedEnum|null $value = true,
@@ -143,6 +144,7 @@ final readonly class Element implements Node
      *
      * @throws MarkupException if the element is void; `<img>` cannot contain anything.
      */
+    #[\NoDiscard('containing() returns a copy holding the children; the element it was called on is unchanged')]
     public function containing(Node|string ...$children): self
     {
         if ($this->tag->isVoid() && $children !== []) {
@@ -232,18 +234,10 @@ final readonly class Element implements Node
     /** True if $value is a site-relative path or names an allowed scheme. */
     private static function isAllowedUrl(string $value): bool
     {
-        // Checked before the `/` case below, and separately from it — see AUTHORITY_PREFIXES.
-        $opensAnAuthority = array_any(
-            self::AUTHORITY_PREFIXES,
-            static fn(string $prefix): bool => str_starts_with($value, $prefix),
-        );
-
-        if ($opensAnAuthority) {
-            return false;
-        }
-
+        // A leading slash is not the same claim as "somewhere on this site", so it is asked rather
+        // than assumed — see staysOnThisOrigin(). Everything else has to name a scheme we allow.
         if (str_starts_with($value, '/')) {
-            return true;
+            return self::staysOnThisOrigin($value);
         }
 
         $lower = strtolower($value);
@@ -252,6 +246,31 @@ final readonly class Element implements Node
             self::URL_SCHEMES,
             static fn(string $scheme): bool => str_starts_with($lower, $scheme),
         );
+    }
+
+    /**
+     * True if a path-shaped $value resolves to the origin it was resolved against.
+     *
+     * This used to be a two-entry list of the prefixes an authority can open with — `//` and `/\`,
+     * the second being the same URL spelled the way that does not look like it. A list of the
+     * spellings that occurred to us is exactly the shape of mistake this class is arranged to
+     * avoid, and it had missed one: the WHATWG parser strips tab, CR and LF from a URL *before*
+     * parsing it, so `/\r\n/evil.example` is `//evil.example` is `https://evil.example`, and every
+     * "starts with a slash" test in the world says it is a path on this site.
+     *
+     * PHP 8.5 ships that parser, so the question is now put to it instead of pattern-matched: the
+     * value is resolved the way a browser would resolve it, and the answer is whether it landed
+     * where it started. `Navigation.ts` has done it this way round on the client all along — for
+     * want of a URL parser it was the stronger half, and now both halves are the same check.
+     */
+    private static function staysOnThisOrigin(string $value): bool
+    {
+        // A null base makes a relative reference unparseable, so the null this returns fails the
+        // comparison below rather than needing a branch of its own. The constant is a literal
+        // origin; it parses.
+        $resolved = Url::parse($value, Url::parse(self::RELATIVE_BASE));
+
+        return $resolved?->getAsciiHost() === self::BASE_HOST;
     }
 
     /**

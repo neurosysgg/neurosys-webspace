@@ -70,7 +70,7 @@ final class SupportTest extends TestCase
             formats:     new Collection(Format::class)->with(new Format(ReleaseFormat::FLAC)),
         );
 
-        $release->formats->with(new Format(ReleaseFormat::MP3));
+        (void) $release->formats->with(new Format(ReleaseFormat::MP3));
 
         self::assertCount(1, $release->formats);
     }
@@ -85,20 +85,20 @@ final class SupportTest extends TestCase
     public function testRejectsAnItemOfTheWrongType(): void
     {
         $this->expectException(TypeError::class);
-        new Collection(DateTime::class)->with(new stdClass());
+        (void) new Collection(DateTime::class)->with(new stdClass());
     }
 
     public function testRejectsAScalar(): void
     {
         $this->expectException(TypeError::class);
-        new Collection(stdClass::class)->with('not an object');
+        (void) new Collection(stdClass::class)->with('not an object');
     }
 
     public function testTheTypeErrorNamesBothTypes(): void
     {
         $this->expectException(TypeError::class);
         $this->expectExceptionMessage(DateTime::class);
-        new Collection(DateTime::class)->with(new stdClass());
+        (void) new Collection(DateTime::class)->with(new stdClass());
     }
 
     /** The copy is discarded with the exception, so the good items in a bad batch go with it. */
@@ -107,7 +107,7 @@ final class SupportTest extends TestCase
         $collection = new Collection(stdClass::class)->with(new stdClass());
 
         try {
-            $collection->with(new stdClass(), 'not an object');
+            (void) $collection->with(new stdClass(), 'not an object');
         } catch (TypeError) {
             // expected
         }
@@ -166,7 +166,7 @@ final class SupportTest extends TestCase
     public function testSearchableRejectsAnItemOfTheWrongType(): void
     {
         $this->expectException(TypeError::class);
-        new SearchableCollection(DateTime::class)->with('k', new stdClass());
+        (void) new SearchableCollection(DateTime::class)->with('k', new stdClass());
     }
 
     public function testKeysWithSlashesAndDotsAreJustKeys(): void

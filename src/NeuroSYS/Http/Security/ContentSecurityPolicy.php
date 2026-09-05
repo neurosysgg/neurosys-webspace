@@ -34,6 +34,7 @@ final readonly class ContentSecurityPolicy
      *
      * @throws SecurityPolicyException if $sources is empty, or $directive is already set.
      */
+    #[\NoDiscard('allow() returns a copy carrying the directive; a discarded one never reaches the header')]
     public function allow(CspDirective $directive, CspSource ...$sources): self
     {
         if ($sources === []) {

@@ -40,6 +40,7 @@ class SearchableCollection implements Countable, IteratorAggregate
      * @param T      $item The item to store.
      * @throws TypeError if $item is not an instance of the declared type.
      */
+    #[\NoDiscard('with() copies rather than stores, so a call whose result goes nowhere does nothing')]
     public function with(string $key, mixed $item): static
     {
         if (!($item instanceof $this->type)) {

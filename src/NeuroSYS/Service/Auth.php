@@ -52,6 +52,7 @@ class Auth
      * @param Request $request The request whose Basic Auth credentials to check.
      * @param string  $file    A credentials file returning `['user' => …, 'pass_hash' => …]`.
      */
+    #[\NoDiscard('this is the gate\'s decision and nothing else; dropping it is a door left open')]
     public static function accepts(Request $request, string $file): bool
     {
         /** @var array{user: string, pass_hash: string} $creds */

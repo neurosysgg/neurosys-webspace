@@ -314,8 +314,8 @@ final class ResponseTest extends TestCase
         // renderer indents each of its lines, so equality would fail on the whitespace instead of
         // on what this is about — that the file was read, whole, rather than defaulted to ''.
         self::assertNotSame([], $lines);
-        self::assertStringContainsString($lines[0], $html);
-        self::assertStringContainsString($lines[array_key_last($lines)], $html);
+        self::assertStringContainsString((string) array_first($lines), $html);
+        self::assertStringContainsString((string) array_last($lines), $html);
         self::assertStringContainsString('HiDrive', $html);
     }
 

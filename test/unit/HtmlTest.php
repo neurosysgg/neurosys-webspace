@@ -121,8 +121,8 @@ final class HtmlTest extends TestCase
     public function testBuildingDoesNotMutateTheElementBuiltFrom(): void
     {
         $empty = new Element(Tag::CoverArt);
-        $empty->attr(CoverArtAttribute::Src, '/a.png');
-        $empty->containing('x');
+        (void) $empty->attr(CoverArtAttribute::Src, '/a.png');
+        (void) $empty->containing('x');
 
         self::assertSame('<cover-art></cover-art>', $empty->render());
     }
@@ -245,7 +245,7 @@ final class HtmlTest extends TestCase
         $this->expectException(MarkupException::class);
         $this->expectExceptionMessage('<img>');
 
-        new Element(HtmlTag::Img)->containing('x');
+        (void) new Element(HtmlTag::Img)->containing('x');
     }
 
     /** A custom element is never void: no closing tag means the browser swallows what follows. */
@@ -617,6 +617,15 @@ final class HtmlTest extends TestCase
         // Listed separately from the one above because guarding `//` alone is how this gets missed.
         yield 'backslash authority'      => ['/\evil.example/x'];
         yield 'backslash authority, deep' => ['/\\\\evil.example'];
+
+        // And the two the enumerated prefix list did not have, which is why there is no longer a
+        // list. The WHATWG parser strips tab, CR and LF from a URL *before* parsing it, so by the
+        // time anything resolves these they are `//evil.example` — while every "starts with a
+        // slash" test, including the one this class used to run, says they are paths on this site.
+        // Element asks the parser now, so it refuses whatever the parser calls an authority rather
+        // than whatever somebody thought to write down.
+        yield 'authority behind a newline' => ["/\r\n/evil.example"];
+        yield 'authority behind a tab'     => ["/\t/evil.example"];
 
         yield 'plaintext http'     => ['http://evil.example/x'];
         yield 'no scheme at all'   => ['evil.example/x'];

@@ -99,7 +99,7 @@ final class ServiceTest extends TestCase
         $links = new ProfileRepository($file)->all();
 
         self::assertCount(1, $links);
-        self::assertSame(Platform::GitHub, $links->all()[0]->platform);
+        self::assertSame(Platform::GitHub, array_first($links->all())?->platform);
     }
 
     public function testReturnsNothingWhenNoProfilesAreConfigured(): void

@@ -42,6 +42,12 @@ The division matters in a few concrete places:
 - **`autoload.php` uses the `|>` pipe operator**, which is a parse error below PHP 8.5. PHPUnit never
   touches that file (it boots from Composer), so the verify script exercises it directly and checks
   every class under `src/` actually resolves through it.
+- **Two more 8.5 features are asked for by name**, in the same Environment block and for opposite
+  reasons. `ext/uri` is what `Element` and `Request` parse URLs with; it is bundled with 8.5 but a
+  host can build without it, and its absence is a fatal on every request. `#[\NoDiscard]` fails the
+  other way — an attribute a runtime does not know is *ignored*, so the guarantee that a builder's
+  result gets used would be quietly gone with every test still green. A loud check for each beats
+  finding out either way in production.
 - **The 503 "not uploaded yet" branch** needs a release with a link-less format, which the live
   catalogue doesn't have. The unit test builds a synthetic one and hands it to `DownloadController`
   through its optional `ReleaseRepository` parameter — that argument exists purely as this seam.
@@ -66,11 +72,12 @@ Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_
 
 Files are grouped by layer, not one-per-class: `ModelTest`, `EmbedTest`, `HtmlTest`, `ViewTest`,
 `PageTest`, `ServiceTest`, `SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `ConfigTest`,
-`SecurityTest`, `SecurityPolicyTest`, `AdminTest`.
+`SecurityTest`, `SecurityPolicyTest`, `AdminTest`, `NoDiscardTest`.
 
-Two of those are named for a path rather than a layer, because that is what they are about: `PageTest`
-covers the pages that are only content — the home hero, the imprint, the privacy policy — and
-`AdminTest` covers the gate and the log it protects.
+Three of those are named for something other than a layer, because that is what they are about:
+`PageTest` covers the pages that are only content — the home hero, the imprint, the privacy policy —
+`AdminTest` covers the gate and the log it protects, and `NoDiscardTest` is named for a fact that
+spans four namespaces at once and belongs to none of them.
 
 ## Adding a front-end test
 
@@ -100,6 +107,16 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   reference, not what it points at, so `Collection::with()` returning a copy is what actually makes
   `Release::$formats`, `Terminal::$fields` and `SoundCloudEmbed::$options` immutable. `SupportTest`
   builds a `Release`, calls `with()` on its formats and asserts the release still has one.
+- **A copy-returning builder's result cannot be dropped.** The half of that guarantee the compiler
+  can hold: `with()`, `allow()`, `attr()` and `containing()` carry `#[\NoDiscard]`, `failOnWarning`
+  turns the resulting `E_WARNING` into a failing test, and `NoDiscardTest` pins which methods carry
+  it in both directions — plus `Auth::accepts()`, the one that is not a builder and the one where a
+  dropped result is a gate that never ran. The deliberate discards are the tests that prove a
+  builder did *not* mutate its receiver, and each is spelled `(void)`.
+- **A path-shaped URL really is a path on this site.** `HtmlTest` walks every spelling of a bare
+  authority past `Element` — `//host`, `/\host`, and the two that hide one behind a tab or a
+  newline, which the enumerated prefix list this replaced let through. `Element` puts the question
+  to PHP 8.5's WHATWG parser now, so the answer covers spellings nobody wrote down.
 - **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
 - **A wrong admin password is refused.** This one had never run. `data/admin.php` ships with an empty
@@ -269,7 +286,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.00% of lines** (885/903), 98.61% of methods.
+clover XML and a browsable HTML report. Currently **98.00% of lines** (880/898), 98.62% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,

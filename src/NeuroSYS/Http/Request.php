@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use Uri\Rfc3986\Uri;
+
 /**
  * The Request class. Represents an incoming HTTP request.
  *
@@ -60,13 +62,17 @@ readonly class Request
     /**
      * The request target's path, with any trailing slash taken off.
      *
-     * `is_string()` rather than `?? '/'`, and that is the whole point of the method. `parse_url()`
-     * signals failure with **false**, not null — so a null coalesce reads as a guard and is not one,
-     * and under `strict_types=1` the false went on to `rtrim()` as an uncaught TypeError. What
-     * produced it is not exotic: `GET ///` was enough, and so was any target whose authority will
-     * not parse. That was a 500 where the router's 404 belongs, and it happened here in
-     * {@link self::fromGlobals()} — ahead of {@link \NeuroSYS\Router::dispatch()}, so the read-only
-     * method gate never ran on it either.
+     * This was `parse_url()` and an `is_string()` guard, and the guard was the whole point of the
+     * method: `parse_url()` signals failure with **false**, not null, so the `?? '/'` it replaced
+     * read as a guard and was not one, and under `strict_types=1` the false went on to `rtrim()`
+     * as an uncaught TypeError. What produced it was not exotic — `GET ///` was enough — and it
+     * was a 500 where the router's 404 belongs, raised here in {@link self::fromGlobals()}, ahead
+     * of {@link \NeuroSYS\Router::dispatch()} and so ahead of the read-only method gate too.
+     *
+     * PHP 8.5's URI parser removes the trap rather than guarding against it: {@link Uri::parse()}
+     * returns **null** on a target it cannot read, which is what `??` was always looking for. It
+     * also reads one this could not: `///` is the root written wastefully and now comes back as
+     * the root, instead of failing and falling through.
      *
      * **The fallback is the target verbatim, not `/`.** A target this could not read is not a
      * request for the home page, and answering one with the home page is the quiet kind of wrong:
@@ -75,14 +81,14 @@ readonly class Request
      * than guessing GET. An *absent* `REQUEST_URI` is the different case and is still the root —
      * that default is applied by the caller, before this ever sees it.
      *
+     * Raw, not decoded: a route matches the target as it was sent, the way `parse_url()` gave it.
+     *
      * @param string $uri The raw request target, as `REQUEST_URI` carries it.
      */
     private static function normalisePath(string $uri): string
     {
-        $path = parse_url($uri, PHP_URL_PATH);
-
         // `?:` so a target of only slashes comes back as the root rather than as an empty string.
-        return rtrim(is_string($path) ? $path : $uri, '/') ?: '/';
+        return rtrim(Uri::parse($uri)?->getRawPath() ?? $uri, '/') ?: '/';
     }
 
     /** Returns the HTTP method, or null if it is not one {@link HttpMethod} recognises. */
