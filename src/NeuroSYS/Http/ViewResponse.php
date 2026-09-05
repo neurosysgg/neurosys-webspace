@@ -26,17 +26,6 @@ use NeuroSYS\View\View;
 readonly class ViewResponse implements Response
 {
     /**
-     * How the body is fingerprinted for the `ETag`.
-     *
-     * xxh128 rather than sha256: nothing here is a security claim — the value is compared against
-     * one this same code sent a moment ago, never against one an attacker chose — and this runs on
-     * every page render, where a non-cryptographic hash is several times faster over the same
-     * bytes. `HttpStatusCode` picking the wrong page is not a threat model, it is a collision at
-     * 1 in 2^128.
-     */
-    private const string ETAG_ALGORITHM = 'xxh128';
-
-    /**
      * Constructs an instance of {@link self}.
      *
      * @param View           $view    The view to render.
@@ -75,7 +64,7 @@ readonly class ViewResponse implements Response
 
         // A validator the browser already holds means the copy it already holds is current. 304 and
         // nothing else — no Content-Type, because there is no content to describe.
-        if ($cache !== [] && $request->ifNoneMatch() === self::etag($markup)) {
+        if ($cache !== [] && ETag::forBody($markup)->matches($request->ifNoneMatch())) {
             http_response_code(HttpStatusCode::NotModified->value);
             self::sendAll($cache);
 
@@ -83,7 +72,7 @@ readonly class ViewResponse implements Response
         }
 
         http_response_code($this->status->value);
-        header(new Header(ResponseHeader::ContentType, MimeType::html()->render())->line());
+        header(new Header(ResponseHeader::ContentType, MimeType::html())->line());
 
         self::sendAll($cache);
         self::sendAll($this->headers);
@@ -138,16 +127,10 @@ readonly class ViewResponse implements Response
         }
 
         return [
-            new Header(ResponseHeader::CacheControl, 'no-cache'),
-            new Header(ResponseHeader::ETag, self::etag($markup)),
-            new Header(ResponseHeader::Vary, RequestHeader::RequestedWith->value),
+            new Header(ResponseHeader::CacheControl, CacheControl::revalidate()),
+            new Header(ResponseHeader::ETag, ETag::forBody($markup)),
+            new Header(ResponseHeader::Vary, Vary::on(RequestHeader::RequestedWith)),
         ];
-    }
-
-    /** The validator for a body: a quoted hash of exactly the bytes about to be sent. */
-    private static function etag(string $markup): string
-    {
-        return '"' . hash(self::ETAG_ALGORITHM, $markup) . '"';
     }
 
     /** @param list<Header> $headers */

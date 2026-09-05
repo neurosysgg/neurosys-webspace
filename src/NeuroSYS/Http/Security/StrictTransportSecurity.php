@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Http\HeaderValue;
 
 /**
  * The StrictTransportSecurity class. A `Strict-Transport-Security` header, built from its parts.
@@ -29,7 +30,7 @@ use NeuroSYS\Exception\SecurityPolicyException;
  * maintains and then a wait for browsers to ship the change. That is a decision to make on purpose
  * with a working HTTPS estate behind it, not a boolean to pass here on the way past.
  */
-final readonly class StrictTransportSecurity
+final readonly class StrictTransportSecurity implements HeaderValue
 {
     /** One year — the value the preload guidance asks for, and the right end state. */
     public const int ONE_YEAR = 31_536_000;

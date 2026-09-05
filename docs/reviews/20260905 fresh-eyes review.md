@@ -368,3 +368,40 @@ A: This should be noted in the relevant places, but kept as is until needed fixe
   Worth doing as its own pass rather than folded into this one: it touches every `new Header(…)` on
   the site, and `SecurityHeaders::headers()` returns `array<string, string>`, which would want to
   become a list of `Header` first.
+
+  → **DONE in pass 2.** `HeaderValue` is one method, `render()`. The four that already had it gained
+  one line each; `ReferrerPolicy` and `ContentTypeOptions` gained a one-line `render()`; and the six
+  values that were still being assembled at the call site became types — `CacheControl` (over a
+  `CacheDirective` enum), `ETag`, `Vary`, `Allow`, `BasicChallenge` and `Location`.
+  `SecurityPolicyTest` pins the set in both directions and renders every one. Three things fell out
+  that were not the point but are worth more than it:
+
+  - `SecurityHeaders::send()` flattened each case to a string and parsed it back with
+    `SecurityHeader::from()` one line later, purely because the value beside it was a string. Gone.
+    `headers()` keeps its `array<string, string>` shape, because that is what its readers want —
+    including `test/js/soundcloud-player.test.mjs`, which shells out to PHP for one of them.
+  - `HttpMethod::allowed()` is retired: `Allow::readOnly()` derives the same list from the same
+    predicate, so the string version was production code with no production caller.
+  - **`Location` is now checked.** It was the one address the site emits that nothing looked at —
+    every `href` goes through `Element`'s scheme guard and every profile URL through `Profile`, but
+    the `Location:` on a download 303 went out as whatever string it was handed. It must now be an
+    absolute `https://` URL, with the same `\S`/`\z` details as `Profile::URL_PATTERN`.
+
+## PhpStorm, pass 2
+
+Two systemic sources, both fixed:
+
+- **The four exceptions extended `Exception`, which PhpStorm treats as *checked*.** Its
+  unhandled-exception inspection then flags every call site that neither catches nor redeclares —
+  65 `containing()` calls alone, plus every `Release`, `HiDriveLink`, `Profile`, `SoundCloudEmbed`
+  and `Terminal` construction. They now extend `LogicException`, which is in PhpStorm's default
+  unchecked list *and* is the honest classification: nothing on this site catches any of them, and
+  every case is "something in this repository is written wrong" rather than a condition a caller
+  recovers from. Checked first that nothing catches them — the only `catch` in the tree is a
+  `Throwable` in a dev tool.
+- **`JetBrains\PhpStorm\NoReturn` was an undefined class**, imported by `RedirectResponse` and
+  `PlainTextResponse` from a package this project does not require and does not have. Both methods
+  already declared native `never`, which says the same thing to every analyser, and
+  `Auth::challenge()` had always been plain `never`. Removed.
+
+Anything still showing in the IDE is not something this pass could see from outside it.

@@ -55,8 +55,8 @@ enum LinkRel: string
      *
      * `rel` is a space-separated token list, so it is the one attribute value on this site that is
      * a *set* rather than a single fact. Built here rather than at the call site for the reason
-     * {@link \NeuroSYS\Http\HttpMethod::allowed()} builds the `Allow` header here rather than there
-     * — a list assembled by hand is a list that can disagree with the enum it came from.
+     * {@link \NeuroSYS\Http\Allow} builds its header value from the enum rather than at the call
+     * site — a list assembled by hand is a list that can disagree with the enum it came from.
      *
      * Order is the order given, because that is the order the markup reads in and the tests pin.
      */

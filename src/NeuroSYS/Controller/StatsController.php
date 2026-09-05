@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Controller;
 
 use NeuroSYS\Config;
+use NeuroSYS\Http\CacheControl;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
@@ -71,7 +72,7 @@ class StatsController implements Controller
     private static function response(StatsView $view): ViewResponse
     {
         return new ViewResponse($view, headers: [
-            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
         ]);
     }
 

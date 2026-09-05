@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
-use JetBrains\PhpStorm\NoReturn;
-
 /**
  * The RedirectResponse class. Issues an HTTP redirect to the given URL and terminates.
  */
@@ -22,10 +20,18 @@ readonly class RedirectResponse implements Response
         private HttpStatusCode $status = HttpStatusCode::SeeOther,
     ) {}
 
-    #[NoReturn]
+    /**
+     * Sends the redirect and ends the request.
+     *
+     * `never` rather than `void`, and that is the whole declaration: the caller cannot have code
+     * after this, and the engine knows it. It carried a `#[JetBrains\PhpStorm\NoReturn]` alongside
+     * for a while, from a package this project does not require and does not have — so it was an
+     * undefined class in the one place a reader looks for a type, restating what the native return
+     * type already says. {@link \NeuroSYS\Service\Auth::challenge()} has always been plain `never`.
+     */
     public function send(Request $request): never
     {
-        header(new Header(ResponseHeader::Location, $this->url)->line(), true, $this->status->value);
+        header(new Header(ResponseHeader::Location, new Location($this->url))->line(), true, $this->status->value);
         exit;
     }
 }

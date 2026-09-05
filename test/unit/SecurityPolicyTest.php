@@ -5,7 +5,21 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Http\Allow;
+use NeuroSYS\Http\BasicChallenge;
+use NeuroSYS\Http\CacheControl;
+use NeuroSYS\Http\CacheDirective;
+use NeuroSYS\Http\ETag;
+use NeuroSYS\Http\Header;
+use NeuroSYS\Http\HeaderValue;
+use NeuroSYS\Http\HttpMethod;
+use NeuroSYS\Http\Location;
+use NeuroSYS\Http\MimeType;
+use NeuroSYS\Http\RequestHeader;
+use NeuroSYS\Http\ResponseHeader;
+use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\Security\ContentSecurityPolicy;
+use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
 use NeuroSYS\Http\Security\CspHost;
 use NeuroSYS\Http\Security\CspKeyword;
@@ -13,14 +27,14 @@ use NeuroSYS\Http\Security\CspScheme;
 use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
+use NeuroSYS\Http\Security\ReferrerPolicy;
 use NeuroSYS\Http\Security\StrictTransportSecurity;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\SecurityHeader;
+use NeuroSYS\Http\Vary;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 #[CoversClass(ContentSecurityPolicy::class)]
 #[CoversClass(CspHost::class)]
@@ -280,11 +294,198 @@ final class SecurityPolicyTest extends TestCase
 
     // ───────────────────────── SecurityHeader ─────────────────────────
 
+    // ───────────────────────────── header values ─────────────────────────────
+
+    /**
+     * Every header value is an object that knows its own grammar, and `Header` will not take
+     * anything else. Pinned in both directions: each of these must implement the interface, and
+     * nothing that reaches `Header` may be a bare string.
+     */
+    #[DataProvider('headerValueProvider')]
+    public function testAHeaderValueRendersItsOwnGrammar(string $expected, HeaderValue $value): void
+    {
+        self::assertSame($expected, $value->render());
+    }
+
+    /** @return iterable<string, array{string, HeaderValue}> */
+    public static function headerValueProvider(): iterable
+    {
+        yield 'the revalidating document' => ['no-cache', CacheControl::revalidate()];
+        yield 'the gated page'            => ['no-store, private', CacheControl::doNotStore()];
+        yield 'one directive'             => ['private', CacheControl::of(CacheDirective::Private)];
+
+        // The quotes are grammar, not decoration: `ETag: abc` is a different header from `ETag: "abc"`.
+        yield 'a validator is quoted'     => ['"' . hash('xxh128', 'x') . '"', ETag::forBody('x')];
+
+        yield 'what the body depends on'  => ['X-Requested-With', Vary::on(RequestHeader::RequestedWith)];
+        yield 'what the site accepts'     => ['GET, HEAD', Allow::readOnly()];
+        yield 'the realm, quoted'         => ['Basic realm="neuro.SYS"', new BasicChallenge('neuro.SYS')];
+        yield 'where a download goes'     => ['https://x.example/f?id=1', new Location('https://x.example/f?id=1')];
+        yield 'a media type'              => ['text/html; charset=utf-8', MimeType::html()];
+        yield 'a single-value enum'       => ['nosniff', ContentTypeOptions::NoSniff];
+
+        // The four that already rendered before the interface existed. They are here as well as in
+        // their own tests above, because this table is the one place that answers "what can the
+        // site put after a colon?" — and the audit below is what keeps it able to answer.
+        yield 'the transport policy'      => [
+            'max-age=31536000; includeSubDomains',
+            new StrictTransportSecurity(),
+        ];
+        yield 'a content policy'          => [
+            "default-src 'self'",
+            new ContentSecurityPolicy()->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin),
+        ];
+        yield 'a referrer policy'         => [
+            'strict-origin-when-cross-origin',
+            ReferrerPolicy::StrictOriginWhenCrossOrigin,
+        ];
+        yield 'a denied feature'          => [
+            'geolocation=()',
+            PermissionsPolicy::deny(PermissionsPolicyFeature::Geolocation),
+        ];
+    }
+
+    /**
+     * The set of header values, pinned in both directions.
+     *
+     * The same instinct as {@link NoDiscardTest}'s list and {@link HtmlTest}'s URL-attribute audit:
+     * a value that reaches {@link Header} without implementing the interface can no longer compile,
+     * but a *new* implementer that nobody remembered to cover would be a grammar nothing checks.
+     * Adding one means adding it to {@link self::headerValueProvider()} too, and this is what says
+     * so.
+     */
+    public function testExactlyTheseAreHeaderValues(): void
+    {
+        $found = [];
+
+        foreach (self::classesUnderSrc() as $class) {
+            if (is_a($class, HeaderValue::class, allow_string: true)) {
+                $found[] = $class;
+            }
+        }
+        sort($found);
+
+        self::assertSame(
+            [
+                'NeuroSYS\Http\Allow',
+                'NeuroSYS\Http\BasicChallenge',
+                'NeuroSYS\Http\CacheControl',
+                'NeuroSYS\Http\ETag',
+                'NeuroSYS\Http\Location',
+                'NeuroSYS\Http\MimeType',
+                'NeuroSYS\Http\Security\ContentSecurityPolicy',
+                'NeuroSYS\Http\Security\ContentTypeOptions',
+                'NeuroSYS\Http\Security\PermissionsPolicy',
+                'NeuroSYS\Http\Security\ReferrerPolicy',
+                'NeuroSYS\Http\Security\StrictTransportSecurity',
+                'NeuroSYS\Http\Vary',
+            ],
+            $found,
+        );
+    }
+
+    /** And every one of them is exercised above. */
+    public function testEveryHeaderValueIsCovered(): void
+    {
+        $covered = [];
+
+        foreach (self::headerValueProvider() as [, $value]) {
+            $covered[] = $value::class;
+        }
+
+        $found = [];
+        foreach (self::classesUnderSrc() as $class) {
+            if (is_a($class, HeaderValue::class, allow_string: true)) {
+                $found[] = $class;
+            }
+        }
+
+        self::assertSame([], array_values(array_diff($found, $covered)));
+    }
+
+    /**
+     * Every class, interface, enum and trait under `src/`, derived from its path.
+     *
+     * The same walk {@link NoDiscardTest::classesUnderSrc()} does, and for the same reason: the
+     * autoloader maps path to name, so a file this cannot name is one the site could not load.
+     *
+     * @return list<class-string>
+     */
+    private static function classesUnderSrc(): array
+    {
+        $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+        );
+
+        $classes = [];
+
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
+            $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
+
+            if (class_exists($class) || enum_exists($class)) {
+                /** @var class-string $class */
+                $classes[] = $class;
+            }
+        }
+
+        return $classes;
+    }
+
+    /** An empty list is a malformed header rather than a permissive one — the same rule PermissionsPolicy has. */
+    public function testAnEmptyCacheControlIsRefused(): void
+    {
+        $this->expectException(SecurityPolicyException::class);
+        $this->expectExceptionMessage('at least one directive');
+
+        CacheControl::of();
+    }
+
+    public function testAnEmptyVaryIsRefused(): void
+    {
+        $this->expectException(SecurityPolicyException::class);
+        $this->expectExceptionMessage('at least one header');
+
+        Vary::on();
+    }
+
+    /**
+     * A `Location` is the one address the site emits that nothing used to look at.
+     *
+     * Narrower than the spec on purpose: every redirect here goes to the file host, absolute and
+     * over TLS. The newline case is the one that would matter most — PHP's `header()` refuses one
+     * anyway, but a validator that does not mean what it says is worth closing regardless.
+     */
+    #[DataProvider('badLocationProvider')]
+    public function testALocationMustBeAnAbsoluteHttpsUrl(string $url): void
+    {
+        $this->expectException(SecurityPolicyException::class);
+
+        new Location($url);
+    }
+
+    /** @return iterable<string, array{string}> */
+    public static function badLocationProvider(): iterable
+    {
+        yield 'relative'          => ['/releases'];
+        yield 'protocol-relative' => ['//evil.example/x'];
+        yield 'plaintext'         => ['http://x.example/'];
+        yield 'a scheme that runs script' => ['javascript:alert(1)'];
+        yield 'trailing newline'  => ["https://x.example/\n"];
+        yield 'an embedded space' => ['https://x.example/a b'];
+        yield 'empty'             => [''];
+    }
+
     public function testAHeaderFormatsItsOwnLine(): void
     {
         self::assertSame(
             'X-Content-Type-Options: nosniff',
-            new Header(SecurityHeader::ContentTypeOptions, 'nosniff')->line(),
+            new Header(SecurityHeader::ContentTypeOptions, ContentTypeOptions::NoSniff)->line(),
         );
     }
 
@@ -293,7 +494,7 @@ final class SecurityPolicyTest extends TestCase
     {
         self::assertSame(
             'Allow: GET, HEAD',
-            new Header(ResponseHeader::Allow, HttpMethod::allowed())->line(),
+            new Header(ResponseHeader::Allow, Allow::readOnly())->line(),
         );
     }
 

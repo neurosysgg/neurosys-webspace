@@ -49,29 +49,53 @@ final class SecurityHeaders
     {
         header_remove(ResponseHeader::PoweredBy->value);
 
-        foreach (self::headers() as $name => $value) {
-            header(new Header(SecurityHeader::from($name), $value)->line());
+        foreach (self::all() as $header) {
+            header($header->line());
         }
+    }
+
+    /**
+     * Every header this class sends, as the typed pairs it sends them as.
+     *
+     * This used to be {@link self::headers()} keyed by name, and `send()` turned each key back into
+     * a {@link SecurityHeader} with `from()` to build the {@link Header} — a case flattened to a
+     * string and parsed back one line later, purely because the value beside it had nowhere typed
+     * to live. Now that a value is a {@link HeaderValue}, the round trip has nothing to be for.
+     *
+     * @return list<Header>
+     */
+    public static function all(): array
+    {
+        return [
+            new Header(SecurityHeader::StrictTransportSecurity, self::strictTransportSecurity()),
+            new Header(SecurityHeader::ContentSecurityPolicy, self::contentSecurityPolicy()),
+            new Header(SecurityHeader::ReferrerPolicy, self::referrerPolicy()),
+            new Header(SecurityHeader::ContentTypeOptions, ContentTypeOptions::NoSniff),
+            new Header(SecurityHeader::PermissionsPolicy, self::permissionsPolicy()),
+        ];
     }
 
     /**
      * Returns every header this class sends, keyed by header name.
      *
-     * Public because it is the honest answer to "what does the site send?" — {@link self::send()}
-     * is only the `header()` loop over it, and the test suite asserts against this rather than
-     * reaching through reflection.
+     * Public because it is the honest answer to "what does the site send?" — and it stays a
+     * name-to-string map rather than becoming a list of objects, because that is the shape its
+     * readers want: the tests ask it what a named header says, and so does
+     * `test/js/soundcloud-player.test.mjs`, which shells out to PHP for the `Permissions-Policy`
+     * to check the player is not denied something it needs. Rendering {@link self::all()} is a
+     * view over the typed list, not a second statement of it.
      *
      * @return array<string, string>
      */
     public static function headers(): array
     {
-        return [
-            SecurityHeader::StrictTransportSecurity->value => self::strictTransportSecurity()->render(),
-            SecurityHeader::ContentSecurityPolicy->value => self::contentSecurityPolicy()->render(),
-            SecurityHeader::ReferrerPolicy->value        => self::referrerPolicy()->value,
-            SecurityHeader::ContentTypeOptions->value    => ContentTypeOptions::NoSniff->value,
-            SecurityHeader::PermissionsPolicy->value     => self::permissionsPolicy()->render(),
-        ];
+        $rendered = [];
+
+        foreach (self::all() as $header) {
+            $rendered[$header->name->headerName()] = $header->value->render();
+        }
+
+        return $rendered;
     }
 
     /**

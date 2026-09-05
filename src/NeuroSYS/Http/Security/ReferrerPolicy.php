@@ -4,13 +4,15 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http\Security;
 
+use NeuroSYS\Http\HeaderValue;
+
 /**
  * The ReferrerPolicy enum. The values `Referrer-Policy` accepts, per the W3C Referrer Policy spec.
  *
  * Only one is used, but the rest are here so switching is a one-token change rather than a
  * re-read of the spec — and so a typo is a parse error instead of a header the browser ignores.
  */
-enum ReferrerPolicy: string
+enum ReferrerPolicy: string implements HeaderValue
 {
     /** Never send a referrer. */
     case NoReferrer = 'no-referrer';
@@ -35,4 +37,16 @@ enum ReferrerPolicy: string
 
     /** Always send the full URL. The browser default, and a leak. */
     case UnsafeUrl = 'unsafe-url';
+
+    /**
+     * The policy name as the header carries it.
+     *
+     * A one-line `render()` so the case can be handed to {@link \NeuroSYS\Http\Header} directly.
+     * Same arrangement as {@link ContentTypeOptions}: an enum whose backing value *is* the whole
+     * header value has nothing to compose, so the interface costs it one method.
+     */
+    public function render(): string
+    {
+        return $this->value;
+    }
 }

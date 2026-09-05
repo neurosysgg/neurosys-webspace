@@ -151,7 +151,7 @@ Everything about a request or a response is a typed value here, not a string.
 | `ViewResponse` | renders a `View`; the only response that returns rather than exiting |
 | `RedirectResponse` | `Location` + status, then `exit` |
 | `PlainTextResponse` | body + status + extra headers, then `exit` |
-| `Header` | a `HeaderName` and a value; formats `Name: value` in one place |
+| `Header` | a `HeaderName` and a `HeaderValue`; formats `Name: value` in one place |
 | `MimeType` | a `TopLevelType`, a validated subtype, and a `Charset` |
 | `HttpStatusCode` | every status code, backed by its number |
 | `HttpMethod` | the eight methods, and which of them only read |
@@ -165,6 +165,14 @@ verify script exists — see [testing.md](testing.md).
 `SecurityHeaders::headers()` sends exactly its cases. `ResponseHeader` is everything else. Folding
 them together would make the exhaustiveness assertion meaningless. `RequestHeader` is the inbound
 direction; all three implement `HeaderName`, so `Header` formats any of them.
+
+**Header *values* are typed too.** `HeaderValue` is one method, `render()`, and its implementations
+are the objects that know each header's grammar: `ContentSecurityPolicy`, `PermissionsPolicy`,
+`StrictTransportSecurity`, `ReferrerPolicy`, `ContentTypeOptions` and `MimeType`, plus
+`CacheControl`, `ETag`, `Vary`, `Allow`, `BasicChallenge` and `Location`. `Header` accepts nothing
+else, so a value can no longer be assembled as a string at the call site. `SecurityPolicyTest` pins
+the set in both directions — every implementer must be rendered by its table, and the table must
+name every implementer.
 
 ### `Controller/` — one class per route group
 

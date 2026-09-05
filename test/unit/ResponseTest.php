@@ -13,6 +13,8 @@ use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
+use NeuroSYS\Http\CacheControl;
+use NeuroSYS\Http\ETag;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\MimeType;
@@ -91,9 +93,7 @@ final class ResponseTest extends TestCase
     /** The validator a response would send for $request, asked of the code that computes it. */
     private function etagFor(ViewResponse $response, Request $request): string
     {
-        $markup = $this->render($response, $request);
-
-        return (string) new ReflectionMethod(ViewResponse::class, 'etag')->invoke(null, $markup);
+        return ETag::forBody($this->render($response, $request))->render();
     }
 
     /** @return list<string> The `Name: value` lines a response would send about caching. */
@@ -192,7 +192,7 @@ final class ResponseTest extends TestCase
     public function testExtraHeadersAreSentAlongsideTheBody(): void
     {
         $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
-            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
         ]);
 
         self::assertSame(
@@ -264,7 +264,7 @@ final class ResponseTest extends TestCase
     public function testAResponseThatAlreadySaidHowItMayBeKeptIsLeftAlone(): void
     {
         $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
-            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
         ]);
 
         self::assertSame([], $this->cacheHeadersOf($response, $this->request('/')));
@@ -274,11 +274,10 @@ final class ResponseTest extends TestCase
     public function testAGatedPageNeverAnswers304(): void
     {
         $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
-            new Header(ResponseHeader::CacheControl, 'no-store, private'),
+            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
         ]);
 
-        $etag = (string) new ReflectionMethod(ViewResponse::class, 'etag')
-            ->invoke(null, $this->render($response, $this->request('/')));
+        $etag = ETag::forBody($this->render($response, $this->request('/')))->render();
 
         self::assertStringStartsWith(
             '<!DOCTYPE html>',

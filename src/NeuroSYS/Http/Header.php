@@ -8,25 +8,32 @@ namespace NeuroSYS\Http;
  * The Header class. One response header, ready to send.
  *
  * Replaces the raw `'Allow: GET, HEAD'` a response used to be handed — a string carrying both the
- * name and the value, with nothing checking either. The name is a {@link HeaderName} case, and the
- * `Name: value` formatting happens here rather than at each `header()` call.
+ * name and the value, with nothing checking either. The `Name: value` formatting happens here
+ * rather than at each `header()` call, and **both halves are typed**: a {@link HeaderName} case and
+ * a {@link HeaderValue}.
+ *
+ * The value was a string for longer than the name was, on the reasoning that a header value is just
+ * text. So is a header name. The difference is that a value has a *grammar* — a quoted ETag, a
+ * comma-separated method list, `Basic realm="…"`, `max-age=…; includeSubDomains` — and every one of
+ * those was being assembled at a `new Header(…)` call site, which is the one place a grammar cannot
+ * be checked. See {@link HeaderValue}.
  */
 final readonly class Header
 {
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param HeaderName $name  The header to send.
-     * @param string     $value Its value.
+     * @param HeaderName  $name  The header to send.
+     * @param HeaderValue $value Its value, as the object that knows how to write it.
      */
     public function __construct(
-        public HeaderName $name,
-        public string     $value,
+        public HeaderName  $name,
+        public HeaderValue $value,
     ) {}
 
     /** Formats the header for {@link \header()}: `Name: value`. */
     public function line(): string
     {
-        return $this->name->headerName() . ': ' . $this->value;
+        return $this->name->headerName() . ': ' . $this->value->render();
     }
 }

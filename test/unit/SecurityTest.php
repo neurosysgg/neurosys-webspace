@@ -11,6 +11,7 @@ use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
+use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\SecurityHeader;
@@ -105,7 +106,7 @@ final class SecurityTest extends TestCase
         ));
 
         self::assertSame([HttpMethod::Get, HttpMethod::Head], $readOnly);
-        self::assertSame('GET, HEAD', HttpMethod::allowed());
+        self::assertSame('GET, HEAD', Allow::readOnly()->render());
     }
 
     public function testAMissingRequestMethodDefaultsToGet(): void
@@ -357,7 +358,7 @@ final class SecurityTest extends TestCase
     {
         self::assertSame(
             'Allow: GET, HEAD',
-            new Header(ResponseHeader::Allow, HttpMethod::allowed())->line(),
+            new Header(ResponseHeader::Allow, Allow::readOnly())->line(),
         );
     }
 

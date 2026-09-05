@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Http\HeaderValue;
 
 /**
  * The ContentSecurityPolicy class. A Content-Security-Policy assembled from typed parts.
@@ -16,7 +17,7 @@ use NeuroSYS\Exception\SecurityPolicyException;
  * Immutable: {@link self::allow()} returns a new instance, so a policy can be built up in a
  * readable chain without any step being able to mutate an earlier one.
  */
-final readonly class ContentSecurityPolicy
+final readonly class ContentSecurityPolicy implements HeaderValue
 {
     /**
      * Constructs an instance of {@link self}.

@@ -81,7 +81,9 @@ not yet checked.
 
 `SecurityHeaders::send()` is the first statement, so the policy covers **every** response, including
 the `401` the auth gate exits with, the `303` a download redirects with, and the `405` the method
-gate refuses with. Every header is a typed object — `CspDirective`, `CspKeyword`/`CspScheme`/`CspHost`
+gate refuses with. Every header is a typed object on both halves — a `HeaderName` and a
+`HeaderValue`, so neither the name nor the grammar of the value is assembled as a string at a call
+site. On the value side that is `CspDirective`, `CspKeyword`/`CspScheme`/`CspHost`
 behind a `CspSource` interface, `ReferrerPolicy`, `PermissionsPolicyFeature`,
 `StrictTransportSecurity`, `MimeType` — so a misspelled directive or an unquoted `'self'` is a parse
 error at build time, not a header the browser silently drops.

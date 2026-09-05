@@ -176,9 +176,25 @@ not parse comes back **verbatim**, so it matches no route and 404s — answering
 would be the quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning null rather than
 guessing GET.
 
-Every header a response sends is a `Header` — a `HeaderName` case and a value, formatted in one
-place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
+Every header a response sends is a `Header` — a `HeaderName` case and a `HeaderValue`, formatted in
+one place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
 purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
+
+**Both halves are typed, and the value half arrived second.** The name was an enum first because a
+misspelled header name is silent; the value stayed a string on the reasoning that a value is just
+text. So is a name. The difference is that a header value has a **grammar** — a quoted `ETag`, a
+comma-separated `Allow`, `Basic realm="…"`, `max-age=…; includeSubDomains`, `no-store, private` —
+and every one of those was being assembled at a `new Header(…)` call site, which is the one place a
+grammar cannot be checked. `ContentSecurityPolicy`, `PermissionsPolicy`, `StrictTransportSecurity`
+and `MimeType` already had `render()` and only ever lacked the interface saying what it was for;
+`CacheControl`, `ETag`, `Vary`, `Allow`, `BasicChallenge` and `Location` are the ones that had
+nowhere typed to live. `SecurityPolicyTest` pins the set in both directions and renders every one.
+
+Two things fell out of it. `SecurityHeaders::send()` used to flatten each case to a string and parse
+it back with `SecurityHeader::from()` one line later, purely because the value beside it was a
+string — that round trip is gone. And `Location` is now checked: an absolute `https://` URL, the
+same shape `Profile` demands, which makes it the one address the site emits that used to have
+nothing looking at it.
 
 `Content-Type` is a `MimeType` — a `TopLevelType` case, a validated subtype and a `Charset` — and not
 a string with `; charset=utf-8` stapled onto it. A class rather than an enum for the reason

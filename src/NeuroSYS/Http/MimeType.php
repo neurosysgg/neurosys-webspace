@@ -28,7 +28,7 @@ use NeuroSYS\Support\Charset;
  * down anywhere — awkward in particular for the AJAX fragment, which carries no charset
  * declaration of its own, so the header is all a browser has to go on.
  */
-final readonly class MimeType
+final readonly class MimeType implements HeaderValue
 {
     /**
      * A subtype: an alphanumeric first character, then alphanumerics and the three separators real

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Http\HeaderValue;
 
 /**
  * The PermissionsPolicy class. A `Permissions-Policy` header built from typed features.
@@ -13,7 +14,7 @@ use NeuroSYS\Exception\SecurityPolicyException;
  * single {@link self::deny()} constructor rather than a general allow-list builder. If a
  * feature ever needs granting, that is a new named constructor, not a string edit.
  */
-final readonly class PermissionsPolicy
+final readonly class PermissionsPolicy implements HeaderValue
 {
     /**
      * Constructs an instance of {@link self}.

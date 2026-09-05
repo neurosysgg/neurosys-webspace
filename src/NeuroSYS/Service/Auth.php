@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\Config;
+use NeuroSYS\Http\BasicChallenge;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\Request;
@@ -27,12 +28,17 @@ use NeuroSYS\Http\ResponseHeader;
 class Auth
 {
     /**
-     * The Basic Auth realm both gates challenge with.
+     * The challenge both gates answer a 401 with.
      *
-     * One constant rather than the same quoted string twice: the browser keys stored credentials by
-     * realm, so two that differ by a character are two separate prompts to the visitor.
+     * One value rather than the same one built twice: the browser keys stored credentials by realm,
+     * so two challenges differing by a character are two separate prompts to the same visitor.
+     * {@link BasicChallenge} owns the quoting around the realm, which is grammar rather than
+     * decoration.
      */
-    private const string CHALLENGE = 'Basic realm="' . Config::NAME . '"';
+    private static function challengeValue(): BasicChallenge
+    {
+        return new BasicChallenge(Config::NAME);
+    }
 
     /**
      * True if $request carries the credentials $file holds.
@@ -116,7 +122,7 @@ class Auth
     /** Sends the Basic Auth challenge and ends the request. */
     private static function challenge(): never
     {
-        header(new Header(ResponseHeader::WwwAuthenticate, self::CHALLENGE)->line());
+        header(new Header(ResponseHeader::WwwAuthenticate, self::challengeValue())->line());
         http_response_code(HttpStatusCode::Unauthorized->value);
         exit;
     }
