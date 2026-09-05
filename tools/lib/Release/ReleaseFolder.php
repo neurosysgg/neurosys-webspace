@@ -11,10 +11,14 @@ use NeuroSYS\Model\ReleaseFormat;
 /**
  * The ReleaseFolder class. Everything a prepared release folder says about itself.
  *
- * Six of a `Release`'s nine facts are already in the folder it was exported into — in the master's
- * Vorbis comments, in the filename convention, and in which files exist at all. This reads them, and
- * records **where each one came from**, because a bpm taken from a tag and a bpm taken from a
- * filename are not equally trustworthy. See `docs/authoring.md`.
+ * Six of a `Release`'s nine facts are already in the folder it was exported into — in the FL Studio
+ * project, in the master's Vorbis comments, in the filename convention, and in which files exist at
+ * all. This reads them, and records **where each one came from**, because a bpm taken from a tag
+ * and a bpm taken from a filename are not equally trustworthy. See `docs/authoring.md`.
+ *
+ * The project is read first wherever the folder keeps one, because FL Studio is what wrote the tags
+ * underneath it — {@link Source} sets out why that ordering is a fact about the chain rather than a
+ * preference, and {@link ProjectFile} how the project is found.
  *
  * Each fact reads its sources in order and stops at the first hit. Where none hits, the property is
  * null and {@link Preflight} says so — nothing is guessed, on the same reasoning that has
@@ -39,6 +43,7 @@ final readonly class ReleaseFolder
      * @param Cover|null  $cover
      * @param string|null $date     The master's `DATE`, which `Release` has no field for.
      * @param array<string, string> $audio ReleaseFormat value => path, in the order the catalogue lists them.
+     * @param ProjectFile|null $projectFile The FL Studio project, where the folder keeps one.
      * @param array<string, string> $raw   Fact value => the string that resolved to nothing.
      * @param array<string, Source> $sources Fact value => where it was read from.
      */
@@ -52,6 +57,7 @@ final readonly class ReleaseFolder
         public ?Cover $cover,
         public ?string $date,
         public array $audio,
+        public ?ProjectFile $projectFile = null,
         private array $raw = [],
         private array $sources = [],
     ) {}
@@ -59,10 +65,12 @@ final readonly class ReleaseFolder
     /**
      * Reads a folder.
      *
-     * @param string $path
+     * @param string      $path
+     * @param string|null $projectPath The FL Studio project named by `--project`, where the folder
+     *                                 does not hold one — see {@link ProjectFile}.
      * @return self
      */
-    public static function at(string $path): self
+    public static function at(string $path, ?string $projectPath = null): self
     {
         $path    = rtrim($path, '/');
         $master  = self::fileWith($path, [ReleaseFormat::FLAC->value]);
@@ -70,27 +78,51 @@ final readonly class ReleaseFolder
         $sources = [];
         $raw     = [];
 
-        $title = $tags[FlacTag::Title->value] ?? null;
+        // The project first, because FL Studio is what wrote the tags below it — see Source.
+        $projectFile = $projectPath !== null ? ProjectFile::at($projectPath) : ProjectFile::in($path);
+        $project     = $projectFile?->project;
+
+        // The title is the one fact the project does **not** outrank, and the exception is the rule
+        // stated properly: bpm, key and genre are facts about the music, which the project defines
+        // and the export copies into a tag. A title is a fact about the *release*. `ill.`'s project
+        // is called `ill`, because that is a working name — the trailing dot is a decision taken at
+        // export, and `ReleaseView` splits it off to accent it. So the tag wins and the project is
+        // the fallback for a master that was never tagged, which is what the older ones were.
+        $title = $tags[FlacTag::Title->value] ?? $project?->title ?? null;
 
         if ($title !== null) {
-            $sources[Fact::Title->value] = Source::FlacTitleTag;
-            $sources[Fact::Slug->value]  = Source::DerivedFromTitle;
+            $sources[Fact::Title->value] = isset($tags[FlacTag::Title->value])
+                ? Source::FlacTitleTag
+                : Source::FlpTitle;
+            $sources[Fact::Slug->value] = Source::DerivedFromTitle;
         }
 
-        $bpm    = isset($tags[FlacTag::Bpm->value]) ? (int) $tags[FlacTag::Bpm->value] : null;
-        $rawKey = $tags[FlacTag::InitialKey->value] ?? null;
+        // A tempo is a float in the project and an int on a Release; every project tested is whole,
+        // and one that is not says so in the report rather than being silently rounded away.
+        $bpm = $project?->tempo !== null ? (int) round($project->tempo) : null;
 
         if ($bpm !== null) {
+            $sources[Fact::Bpm->value] = Source::FlpTempo;
+        } elseif (isset($tags[FlacTag::Bpm->value])) {
+            $bpm                       = (int) $tags[FlacTag::Bpm->value];
             $sources[Fact::Bpm->value] = Source::FlacBpmTag;
         }
 
-        if ($rawKey !== null) {
+        // The project hands back a MusicalKey rather than a string to parse: its scale marker was
+        // resolved by ScaleNotation on the way out, and only where every marker agreed.
+        $key    = $project?->key;
+        $rawKey = null;
+
+        if ($key !== null) {
+            $sources[Fact::Key->value] = Source::FlpKeyLock;
+        } elseif (isset($tags[FlacTag::InitialKey->value])) {
+            $rawKey                    = $tags[FlacTag::InitialKey->value];
             $sources[Fact::Key->value] = Source::FlacKeyTag;
         }
 
         // The filename convention — `140 D#Min ill remix package.zip` — was the older releases' only
         // record of either fact, so it stays as a fallback now that both masters carry the tags.
-        if ($bpm === null || $rawKey === null) {
+        if ($bpm === null || ($key === null && $rawKey === null)) {
             foreach (glob($path . '/*') ?: [] as $file) {
                 if (preg_match('/(\d{2,3})\s+([A-G][#b]?(?:maj|min))/i', basename($file), $match) !== 1) {
                     continue;
@@ -101,7 +133,7 @@ final readonly class ReleaseFolder
                     $sources[Fact::Bpm->value] = Source::Filename;
                 }
 
-                if ($rawKey === null) {
+                if ($key === null && $rawKey === null) {
                     $rawKey                    = $match[2];
                     $sources[Fact::Key->value] = Source::Filename;
                 }
@@ -110,13 +142,15 @@ final readonly class ReleaseFolder
             }
         }
 
-        $rawGenre = $tags[FlacTag::Genre->value] ?? null;
+        $rawGenre = $project?->genre ?? $tags[FlacTag::Genre->value] ?? null;
 
         if ($rawGenre !== null) {
-            $sources[Fact::Genre->value] = Source::FlacGenreTag;
+            $sources[Fact::Genre->value] = $project?->genre !== null ? Source::FlpGenre : Source::FlacGenreTag;
         }
 
-        $key   = $rawKey !== null ? KeyNotation::parse($rawKey) : null;
+        // ??=, not =: a key already resolved from the project's own scale marker outranks anything
+        // a filename or a tag could be parsed into, and this line used to be the only assignment.
+        $key ??= $rawKey !== null ? KeyNotation::parse($rawKey) : null;
         $genre = $rawGenre !== null ? Genre::tryFrom($rawGenre) : null;
 
         // The string that resolved to nothing is kept beside the null, so the report can say what
@@ -138,17 +172,18 @@ final readonly class ReleaseFolder
         $sources[Fact::Formats->value] = Source::FilesPresent;
 
         return new self(
-            path:    $path,
-            master:  $master,
-            title:   $title,
-            bpm:     $bpm,
-            key:     $key,
-            genre:   $genre,
-            cover:   $cover,
-            date:    $tags[FlacTag::Date->value] ?? null,
-            audio:   self::audioIn($path),
-            raw:     $raw,
-            sources: $sources,
+            path:        $path,
+            master:      $master,
+            title:       $title,
+            bpm:         $bpm,
+            key:         $key,
+            genre:       $genre,
+            cover:       $cover,
+            date:        $tags[FlacTag::Date->value] ?? null,
+            audio:       self::audioIn($path),
+            projectFile: $projectFile,
+            raw:         $raw,
+            sources:     $sources,
         );
     }
 

@@ -42,6 +42,9 @@ enum CssClass: string
     case Tagline     = 'tagline';
     case BackHome    = 'back-home';
 
+    case SectionTime  = 'section-time';
+    case SectionLabel = 'section-label';
+
     case StatsSub   = 'stats-sub';
     case StatsTable = 'stats-table';
     case StatsCount = 'stats-count';

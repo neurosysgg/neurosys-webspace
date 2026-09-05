@@ -511,3 +511,80 @@ download-list {
     margin: 0 0 0.9rem;
   }
 }
+
+/* assets/css/elements/arrangement.css */
+/* The arrangement: how a release is laid out in time, drawn from its own project's markers.
+   Both tags — <release-arrangement> and <arrangement-section> — are guards that build nothing, so
+   everything here is what the server already rendered. cf. assets/ts/elements/release/. */
+
+release-arrangement {
+  display: block;
+  margin: 2rem 0 0;
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    text-transform: lowercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin: 0 0 0.9rem;
+  }
+}
+
+/* A row per section rather than a horizontal timeline, deliberately: the labels are free text a
+   person typed, so `BUILDDOWN` and `SWITCH 1` have to be readable at any width, and a track's
+   sections are not evenly spaced enough for a proportional bar to be worth the reflow. */
+arrangement-section {
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  align-items: baseline;
+  gap: 0.75rem;
+  padding: 0.4rem 0.7rem;
+  border-left: 2px solid var(--border);
+  background: linear-gradient(to right, var(--surface) 0%, transparent 60%);
+
+  & + arrangement-section {
+    margin-top: 2px;
+  }
+
+  .section-time {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .section-label {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.06em;
+    color: var(--fg);
+  }
+}
+
+/* The accents. A section whose label matched no SectionKind carries no `kind` attribute at all, so
+   none of these match and it draws in the plain style above — which is the point of letting
+   SectionKind::classify() return null rather than inventing a case per spelling. */
+arrangement-section[kind="intro"],
+arrangement-section[kind="outro"] {
+  border-left-color: var(--muted);
+}
+
+arrangement-section[kind="build"],
+arrangement-section[kind="builddown"] {
+  border-left-color: var(--accent-deep);
+}
+
+arrangement-section[kind="drop"] {
+  border-left-color: var(--accent-2);
+
+  .section-label {
+    color: var(--accent-2);
+  }
+}
+
+arrangement-section[kind="break"],
+arrangement-section[kind="bridge"],
+arrangement-section[kind="switch"] {
+  border-left-color: var(--accent);
+}

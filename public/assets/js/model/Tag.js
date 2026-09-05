@@ -13,6 +13,8 @@ export var Tag;
     Tag["DownloadCard"] = "download-card";
     Tag["DownloadLabel"] = "download-label";
     Tag["DownloadMeta"] = "download-meta";
+    Tag["ReleaseArrangement"] = "release-arrangement";
+    Tag["ArrangementSection"] = "arrangement-section";
     Tag["ReleaseList"] = "release-list";
     Tag["ReleaseCard"] = "release-card";
     Tag["ReleaseTitle"] = "release-title";

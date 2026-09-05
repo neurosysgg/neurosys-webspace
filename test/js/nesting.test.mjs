@@ -66,6 +66,7 @@ test('every nested tag names the element it belongs inside', () => {
     ['download-card',    'download-list'],
     ['download-label',   'download-card'],
     ['download-meta',    'download-card'],
+    ['arrangement-section', 'release-arrangement'],
     ['release-card',     'release-list'],
     ['release-title',    'release-card'],
     ['release-meta',     'release-card'],
@@ -89,7 +90,7 @@ test('a root element connects anywhere', () => {
 
   assert.deepEqual(roots, [
     'soundcloud-player', 'soundcloud-profile', 'cover-art', 'terminal-window',
-    'download-list', 'release-list',
+    'download-list', 'release-arrangement', 'release-list',
   ]);
 });
 

@@ -28,6 +28,8 @@ import { LinkAttribute } from '../../public/assets/js/model/LinkAttribute.js';
 import { HtmlTag } from '../../public/assets/js/model/HtmlTag.js';
 import { HtmlAttribute } from '../../public/assets/js/model/HtmlAttribute.js';
 import { CssClass } from '../../public/assets/js/model/CssClass.js';
+import { SectionKind } from '../../public/assets/js/model/SectionKind.js';
+import { ArrangementAttribute } from '../../public/assets/js/model/ArrangementAttribute.js';
 import { ElementId } from '../../public/assets/js/model/ElementId.js';
 import { RequestHeader } from '../../public/assets/js/model/RequestHeader.js';
 import { RequestedWith } from '../../public/assets/js/model/RequestedWith.js';
@@ -115,6 +117,8 @@ const MIRRORED_NAMES = [
   ['RequestHeader', RequestHeader, 'NeuroSYS\\Http\\RequestHeader'],
   ['RequestedWith', RequestedWith, 'NeuroSYS\\Http\\RequestedWith'],
   ['TerminalFieldKey', TerminalFieldKey, 'NeuroSYS\\View\\Terminal\\TerminalFieldKey'],
+  ['SectionKind', SectionKind, 'NeuroSYS\\Model\\Production\\SectionKind'],
+  ['ArrangementAttribute', ArrangementAttribute, 'NeuroSYS\\View\\Html\\ArrangementAttribute'],
 ];
 
 for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {

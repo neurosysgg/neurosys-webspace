@@ -18,9 +18,24 @@ namespace NeuroSYS\Tool\Release;
  *
  * The four FLAC rungs are separate cases rather than one carrying a tag name, because they *are*
  * four different answers to "where did this come from".
+ *
+ * **The four FL rungs sit above them**, and that ordering is the point rather than a preference.
+ * `docs/authoring.md` says it plainly — *FL Studio writes the tags this reads* — so a fact taken
+ * from the project is not a rival answer to the one in the tag, it is the thing the tag was written
+ * from. The corpus shows it exactly: `alien house.flp` carries the genre `bass house?`, which is
+ * the same free text that ends up in `GENRE` and the same reason `Genre` has no fallback.
+ *
+ * One rung is deliberately missing. The notes of a project imply a key well enough to be worth
+ * saying out loud — see `KeyEstimate` — but a value nothing wrote down is not a source, and this
+ * enum is the record of where a fact *came from*. So the estimate reaches the report as a WARN a
+ * person accepts, and never as a rung a fact can quietly arrive on.
  */
 enum Source: string
 {
+    case FlpTitle         = 'FL project title';
+    case FlpTempo         = 'FL project tempo';
+    case FlpGenre         = 'FL project genre';
+    case FlpKeyLock       = 'FL piano roll key lock';
     case FlacTitleTag     = 'FLAC TITLE tag';
     case FlacBpmTag       = 'FLAC BPM tag';
     case FlacKeyTag       = 'FLAC INITIALKEY tag';

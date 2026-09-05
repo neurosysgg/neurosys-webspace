@@ -7,10 +7,18 @@ namespace NeuroSYS\Model;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\Embed;
 use NeuroSYS\Model\Link\FileLink;
+use NeuroSYS\Model\Production\Arrangement;
+use NeuroSYS\Model\Production\Plugin;
+use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Support\Collection;
 
 /**
  * The Release class. Represents a music release with metadata and available download formats.
+ *
+ * The last three parameters are what the project file adds, and all three are optional so that an
+ * entry written before `tools/lib/Flp/` existed stays valid unchanged — the same half-state a null
+ * `cover` and a linkless `Format` already model. They are the facts nothing but a `.flp` knows: how
+ * the track is laid out, how long it took, and what made it. See `docs/authoring.md`.
  */
 readonly class Release
 {
@@ -25,6 +33,9 @@ readonly class Release
      * @param FileLink|null $cover           The cover art image, or null to use the placeholder.
      * @param Collection<Format> $formats    The available download {@link Format}s.
      * @param Embed|null $embed              The media player for this release, or null for no player.
+     * @param Arrangement|null $arrangement  How the track is laid out in time, or null to show none.
+     * @param ProductionTime|null $timeSpent How long it took, or null where it was not recorded.
+     * @param Collection<Plugin> $madeWith   The instruments and effects to credit; empty for none.
      *
      * @throws ReleaseVerificationException if constructed with invalid data.
      */
@@ -37,6 +48,9 @@ readonly class Release
         public ?FileLink $cover,
         public Collection $formats,
         public ?Embed $embed = null,
+        public ?Arrangement $arrangement = null,
+        public ?ProductionTime $timeSpent = null,
+        public Collection $madeWith = new Collection(Plugin::class),
     ) {
         $this->verify();
     }
@@ -70,6 +84,11 @@ readonly class Release
         if ($this->formats->type !== Format::class) {
             throw new ReleaseVerificationException(
                 'Release::formats must be a Collection of \Format.'
+            );
+        }
+        if ($this->madeWith->type !== Plugin::class) {
+            throw new ReleaseVerificationException(
+                'Release::madeWith must be a Collection of \Plugin.'
             );
         }
         if ($this->bpm <= 0) {

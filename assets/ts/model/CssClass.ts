@@ -24,6 +24,9 @@ export enum CssClass {
   ReleaseInfo  = 'release-info',
   Tagline      = 'tagline',
   BackHome     = 'back-home',
+  SectionTime  = 'section-time',
+  SectionLabel = 'section-label',
+
   StatsSub     = 'stats-sub',
   StatsTable   = 'stats-table',
   StatsCount   = 'stats-count',

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
+use NeuroSYS\Config;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -47,7 +48,7 @@ final readonly class StageRelease implements Command
      */
     public function usage(): string
     {
-        return '<folder> [--check]';
+        return '<folder> [--check] [--project <file>]';
     }
 
     /**
@@ -87,7 +88,7 @@ final readonly class StageRelease implements Command
             return ExitCode::Usage;
         }
 
-        $folder   = ReleaseFolder::at($path);
+        $folder   = ReleaseFolder::at($path, $input->value(StageReleaseOption::Project));
         $findings = Preflight::check($folder);
 
         $output->error(sprintf("\n%s\n\n", $folder->path));
@@ -110,9 +111,43 @@ final readonly class StageRelease implements Command
         }
 
         $output->error("  paste into data/releases.php, newest first:\n\n");
+        $this->reportImports($folder, $output);
         $output->out(EntryWriter::write($folder) . "\n");
 
         return ExitCode::Success;
+    }
+
+    /**
+     * The classes the entry names, and whether `data/releases.php` already imports them.
+     *
+     * The entry is written with short names, because that is how every entry beside it is written —
+     * so a class the file has never imported is a parse error rather than a missing feature. That
+     * was not hypothetical: the arrangement and the time spent are `Model\Production` types, and no
+     * entry written before them imports anything from there.
+     *
+     * @param ReleaseFolder $folder
+     * @param Output        $output
+     * @return void
+     */
+    private function reportImports(ReleaseFolder $folder, Output $output): void
+    {
+        $data    = @file_get_contents(Config::dataPath('releases.php')) ?: '';
+        $missing = array_values(array_filter(
+            EntryWriter::imports($folder),
+            static fn(string $class): bool => !str_contains($data, 'use ' . $class . ';'),
+        ));
+
+        if ($missing === []) {
+            return;
+        }
+
+        $output->error("  data/releases.php does not import these yet:\n\n");
+
+        foreach ($missing as $class) {
+            $output->error(sprintf("      use %s;\n", $class));
+        }
+
+        $output->error("\n");
     }
 
     /**

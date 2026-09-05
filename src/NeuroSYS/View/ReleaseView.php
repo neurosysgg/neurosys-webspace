@@ -7,8 +7,10 @@ namespace NeuroSYS\View;
 use NeuroSYS\Config;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Release;
+use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\View\Html\ArrangementAttribute;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\CssClass;
@@ -68,13 +70,7 @@ class ReleaseView extends View
         $terminal = new Terminal(
             label:   'release.log',
             command: new TerminalCommand('./release', '--track', $release->title),
-            fields:  new Collection(TerminalField::class)->with(
-                new TerminalField('artist', Config::NAME),
-                new TerminalField('bpm', (string) $release->bpm),
-                new TerminalField('key', $release->key->value),
-                new TerminalField('genre', $release->genre->value),
-                new TerminalField('status', 'ready', TerminalTone::Ok),
-            ),
+            fields:  new Collection(TerminalField::class)->with(...$this->terminalFields()),
         );
 
         $cover = new Element(Tag::CoverArt)
@@ -111,11 +107,112 @@ class ReleaseView extends View
             $section = $section->containing($embed->toElement($this->release->title));
         }
 
+        // Between the player and the downloads: it is about the track rather than about getting it.
+        $arrangement = $this->release->arrangement;
+
+        if ($arrangement !== null && !$arrangement->isEmpty()) {
+            $section = $section->containing($this->arrangement());
+        }
+
         return $section->containing($this->downloads());
     }
 
     /**
      * Builds the download group: a heading and one card per format.
+     *
+     * @return Element
+     */
+    /**
+     * The terminal's rows, with the two the project file fills added where a release carries them.
+     *
+     * Built as one list rather than spread into `with()` beside the others, because `status` has to
+     * stay last and PHP forbids a positional argument after an unpacked one. A release staged
+     * before `tools/lib/Flp/` existed renders exactly the five rows it always did — the terminal is
+     * the page's fact table, and a fact nothing knows is one it should not have a blank row for.
+     *
+     * @return list<TerminalField>
+     */
+    private function terminalFields(): array
+    {
+        $release   = $this->release;
+        $timeSpent = $release->timeSpent;
+        $madeWith  = $release->madeWith->all();
+
+        $fields = [
+            new TerminalField('artist', Config::NAME),
+            new TerminalField('bpm', (string) $release->bpm),
+            new TerminalField('key', $release->key->value),
+            new TerminalField('genre', $release->genre->value),
+        ];
+
+        if ($timeSpent !== null) {
+            $fields[] = new TerminalField('time', $timeSpent->render());
+        }
+
+        if ($madeWith !== []) {
+            $fields[] = new TerminalField(
+                'made with',
+                implode(', ', array_map(static fn($plugin): string => $plugin->name, $madeWith)),
+            );
+        }
+
+        $fields[] = new TerminalField('status', 'ready', TerminalTone::Ok);
+
+        return $fields;
+    }
+
+    /**
+     * The arrangement, as the project's own markers describe it.
+     *
+     * **Server-rendered, and that is a decision rather than an oversight.** Every self-building
+     * element on this site costs a visitor with no JS the content inside it, and `CLAUDE.md` asks
+     * for that cost to be re-read whenever another fragment moves. The release page has already
+     * spent it twice, on the cover and the player; a list of section names is text, and text that
+     * only appears for people running scripts is a worse trade than the one the terminal made.
+     * So `<release-arrangement>` follows `<release-list>` — a name, a guard, and nothing built.
+     *
+     * @return Element
+     */
+    private function arrangement(): Element
+    {
+        $arrangement = $this->release->arrangement;
+        $bpm         = $this->release->bpm;
+
+        return new Element(Tag::ReleaseArrangement)->containing(
+            new Element(HtmlTag::H2)->containing('arrangement'),
+            ...array_map(
+                fn(Section $section): Element => $this->section($section, $bpm, $arrangement->ppq),
+                $arrangement->sections->all(),
+            ),
+        );
+    }
+
+    /**
+     * One section, named and timed.
+     *
+     * @param Section $section
+     * @param int     $bpm
+     * @param int     $ppq
+     * @return Element
+     */
+    private function section(Section $section, int $bpm, int $ppq): Element
+    {
+        return new Element(Tag::ArrangementSection)
+            // A kind of null leaves the attribute off entirely, so the stylesheet's
+            // `[kind]` rules simply do not match and the section draws plainly.
+            ->attr(ArrangementAttribute::Kind, $section->kind?->value)
+            ->containing(
+                new Element(HtmlTag::Span)
+                    ->attr(HtmlAttribute::ClassName, CssClass::SectionTime)
+                    ->containing($section->timestamp($bpm, $ppq)),
+                new Element(HtmlTag::Span)
+                    ->attr(HtmlAttribute::ClassName, CssClass::SectionLabel)
+                    ->containing($section->label),
+            );
+    }
+
+    /**
+     * The download cards, one per format the release offers.
      *
      * @return Element
      */

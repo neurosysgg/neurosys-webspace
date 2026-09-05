@@ -35,10 +35,136 @@ final readonly class Preflight
 
         return [
             ...self::facts($folder),
+            ...self::project($folder),
             ...self::audio($folder),
             ...self::stems($folder),
             ...self::cover($folder),
         ];
+    }
+
+    /**
+     * The project against the tags exported from it.
+     *
+     * These are the checks that only exist because the `.flp` is read at all, and they are worth
+     * more than the facts it supplies. A tag is written once, at export; the project keeps moving
+     * afterwards. So a project at 150 beside a FLAC tagged 140 is not a disagreement about what the
+     * tempo is — it is a master that was exported before the last change and never re-exported,
+     * which nothing else in this folder can notice.
+     *
+     * @param ReleaseFolder $folder
+     * @return list<Finding>
+     */
+    private static function project(ReleaseFolder $folder): array
+    {
+        $file = $folder->projectFile;
+
+        if ($file === null) {
+            return [Finding::warn(
+                'project: no .flp in the folder, so bpm, key and genre rest on the tags alone',
+            )];
+        }
+
+        if ($file->project === null) {
+            return [Finding::fail(sprintf('project: %s could not be read — %s', $file->name, $file->error))];
+        }
+
+        $project  = $file->project;
+        $findings = [];
+
+        // The canary. Every project tested carries a tempo, across four FL Studio versions, so an
+        // absent one means the walk lost its footing rather than that the project has no tempo —
+        // see FlpFile, where this is the only guard against a desynchronised read.
+        if ($project->tempo === null) {
+            return [Finding::fail(sprintf(
+                'project: %s parsed but carries no tempo, which means an event was sized wrongly — '
+                . 'this FL Studio version writes something tools/lib/Flp/ does not know about yet',
+                $file->name,
+            ))];
+        }
+
+        $tags = $folder->master !== null ? Probe::tags($folder->master) : [];
+
+        $findings[] = self::agrees(
+            'bpm',
+            isset($tags[FlacTag::Bpm->value]) ? (string) (int) $tags[FlacTag::Bpm->value] : null,
+            (string) (int) round($project->tempo),
+        );
+
+        $findings[] = self::agrees(
+            'genre',
+            $tags[FlacTag::Genre->value] ?? null,
+            $project->genre,
+        );
+
+        $findings[] = self::agrees(
+            'key',
+            isset($tags[FlacTag::InitialKey->value])
+                ? KeyNotation::parse($tags[FlacTag::InitialKey->value])?->value
+                : null,
+            $project->key?->value,
+        );
+
+        $findings[] = $project->hasKeyLock()
+            ? Finding::ok(sprintf('project: %s, key lock set', $file->name))
+            : Finding::warn(sprintf(
+                'project: %s sets no key lock in the piano roll%s',
+                $file->name,
+                self::estimated($folder),
+            ));
+
+        return array_values(array_filter($findings));
+    }
+
+    /**
+     * One project fact against the tag exported from it.
+     *
+     * Silent when either side has nothing to say: a missing tag is already the fact ladder's
+     * business, and a project field left blank is not a disagreement.
+     *
+     * @param string      $fact
+     * @param string|null $tagged
+     * @param string|null $inProject
+     * @return Finding|null
+     */
+    private static function agrees(string $fact, ?string $tagged, ?string $inProject): ?Finding
+    {
+        if ($tagged === null || $inProject === null || $tagged === $inProject) {
+            return null;
+        }
+
+        return Finding::fail(sprintf(
+            "%s: the project says '%s' and the FLAC is tagged '%s' — re-export the master, or "
+            . 'correct the tag',
+            $fact,
+            $inProject,
+            $tagged,
+        ));
+    }
+
+    /**
+     * What the notes suggest, for a project whose piano roll locks nothing.
+     *
+     * Offered as a sentence in a WARN and never as a value: the estimate agreed with three of the
+     * four projects whose key is independently known, which is worth saying to a person and not
+     * worth writing into `data/releases.php` unasked. See `KeyEstimate`.
+     *
+     * @param ReleaseFolder $folder
+     * @return string
+     */
+    private static function estimated(ReleaseFolder $folder): string
+    {
+        $estimate = $folder->projectFile?->project?->keyEstimate;
+
+        if ($estimate === null || !$estimate->isConfident()) {
+            return '';
+        }
+
+        return sprintf(
+            ' — its notes suggest %s (r=%.2f over %d notes), which is a guess, not a reading',
+            $estimate->key->value,
+            $estimate->correlation,
+            $estimate->notes,
+        );
     }
 
     /**

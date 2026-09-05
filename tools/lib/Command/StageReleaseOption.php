@@ -17,6 +17,17 @@ enum StageReleaseOption: string implements Option
     case Check = 'check';
 
     /**
+     * The FL Studio project, where it is not in the release folder — which is nearly always.
+     *
+     * A `.flp` references its samples by absolute path, so projects are kept together and zipped
+     * rather than filed beside the masters they exported: these live under `neuro.SYS PROJECTS/`
+     * while the releases live under `Music/neuro.SYS/releases/`. {@link ProjectFile} still looks in
+     * the folder first, because a remix package is a reasonable place to put one, but pointing at
+     * the real project is what this is for. Takes the `.flp` or the zip holding it.
+     */
+    case Project = 'project';
+
+    /**
      * @return string
      */
     public function flag(): string
@@ -29,6 +40,6 @@ enum StageReleaseOption: string implements Option
      */
     public function takesValue(): bool
     {
-        return false;
+        return $this === self::Project;
     }
 }

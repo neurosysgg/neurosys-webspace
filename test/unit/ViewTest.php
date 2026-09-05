@@ -16,6 +16,10 @@ use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\Link\HiDriveLink;
 use NeuroSYS\Model\MusicalKey;
+use NeuroSYS\Model\Production\Arrangement;
+use NeuroSYS\Model\Production\Plugin;
+use NeuroSYS\Model\Production\ProductionTime;
+use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
@@ -58,6 +62,7 @@ final class ViewTest extends TestCase
      * @param ?SoundCloudEmbed $embed
      * @param ?HiDriveLink     $cover
      * @param list<Format>     $formats
+     * @param ?Arrangement     $arrangement
      * @return Release
      */
     private function release(
@@ -65,6 +70,7 @@ final class ViewTest extends TestCase
         ?SoundCloudEmbed $embed = null,
         ?HiDriveLink $cover = null,
         array $formats = [],
+        ?Arrangement $arrangement = null,
     ): Release {
         return new Release(
             title:       $title,
@@ -75,7 +81,23 @@ final class ViewTest extends TestCase
             cover:       $cover,
             formats:     new Collection(Format::class)->with(...$formats),
             embed:       $embed,
+            arrangement: $arrangement,
+            timeSpent:   ProductionTime::of(60, 7),
+            madeWith:    new Collection(Plugin::class)->with(new Plugin('Serum 2')),
         );
+    }
+
+    /**
+     * An arrangement, for the tests that need the release page rendered whole.
+     *
+     * @return Arrangement
+     */
+    private function arrangement(): Arrangement
+    {
+        return new Arrangement(new Collection(Section::class)->with(
+            Section::named('INTRO', 0),
+            Section::named('DROP', 12288),
+        ));
     }
 
     // ───────────────────────── title accent mark ─────────────────────────
@@ -425,8 +447,9 @@ final class ViewTest extends TestCase
     {
         $html = new ReleaseView(
             $this->release(
-                embed:   new SoundCloudEmbed(trackId: 1, permalink: 'x'),
-                formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+                embed:       new SoundCloudEmbed(trackId: 1, permalink: 'x'),
+                formats:     [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+                arrangement: $this->arrangement(),
             ),
             'ill',
         )->content()->render()
@@ -447,8 +470,9 @@ final class ViewTest extends TestCase
             |> (fn($x) => self::assertSame([], $x));
         self::assertSame(
             [
-                'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
-                'release-card', 'release-list', 'release-meta', 'release-title',
+                'arrangement-section', 'cover-art', 'download-card', 'download-label',
+                'download-list', 'download-meta', 'release-arrangement', 'release-card',
+                'release-list', 'release-meta', 'release-title',
                 'soundcloud-player', 'soundcloud-profile', 'terminal-window',
             ],
             $tags,
@@ -467,8 +491,9 @@ final class ViewTest extends TestCase
     {
         $html = new ReleaseView(
             $this->release(
-                embed:   new SoundCloudEmbed(trackId: 1, permalink: 'x'),
-                formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+                embed:       new SoundCloudEmbed(trackId: 1, permalink: 'x'),
+                formats:     [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+                arrangement: $this->arrangement(),
             ),
             'ill',
         )->content()->render()

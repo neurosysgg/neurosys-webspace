@@ -53,10 +53,12 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.06% of
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.30% of
 lines**; of the twenty-nine that are left, eighteen are deliberate and named in `docs/testing.md`.
 The other eleven are a gap rather than a decision — three guard-clause `throw`s and one unused
-factory on the header-value classes `867372f` added, which nothing has exercised yet.
+factory on the header-value classes `867372f` added, which nothing has exercised yet. The figure
+rose without that count changing: `Model/Production/` arrived fully covered, so only the
+denominator moved.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -98,6 +100,7 @@ src/NeuroSYS/
 │                     and the two header-name enums
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, Profile, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
+│   ├── Production/ ← what the .flp knows: Arrangement + Section + SectionKind, ProductionTime, Plugin
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
 │   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
@@ -395,6 +398,7 @@ assets/ts/                    ← sources; outside public/, neither web-served n
     │                           SoundCloudPlayer, SoundCloudProfile     (cf. Model/Embed/)
     ├── terminal/             ← TerminalWindow + its five content tags   (cf. View/Terminal/)
     ├── download/             ← DownloadList, DownloadCard, …
+    ├── arrangement/          ← ReleaseArrangement, ArrangementSection  (cf. Model/Production/)
     └── release/              ← ReleaseList, ReleaseCard, …
       ↓ npm run build
 public/assets/js/             ← generated, committed, readable, source-mapped
@@ -588,6 +592,8 @@ existing only as a CSS selector.
 | `terminal/TerminalCursor.ts` | `<terminal-cursor>` | guard; CSS draws the `$` and the blink |
 | `download/DownloadList.ts` | `<download-list>` | nothing, deliberately — see below |
 | `download/DownloadCard.ts` … | `<download-card format>` `<download-label>` `<download-meta>` | guards only |
+| `arrangement/ReleaseArrangement.ts` | `<release-arrangement>` | nothing, deliberately — the sections are server-rendered, see below |
+| `arrangement/ArrangementSection.ts` | `<arrangement-section kind>` | guard; `kind` decides which accent the stylesheet gives it |
 | `release/ReleaseList.ts` | `<release-list>` | nothing, deliberately — see below |
 | `release/ReleaseCard.ts` … | `<release-card slug>` `<release-title>` `<release-meta>` | guards only |
 
@@ -619,6 +625,12 @@ Two consequences of self-containment worth knowing:
   the accumulated cost of building markup client-side, and it is worth re-reading whenever another
   fragment moves. A `<noscript>` inside `<terminal-window>` and `<cover-art>`, carrying the same
   content, buys it back for the price of rendering it twice.
+
+  **The arrangement is what re-reading it decided.** It is the newest fragment on the release page
+  and the obvious candidate for a self-building element — a JSON attribute and a subtree, exactly
+  what `<terminal-window>` does. It is server-rendered instead, because the list of sections is
+  text, and the page had already spent this twice. `<release-arrangement>` follows `<release-list>`:
+  a name, a guard, and nothing built.
 - **The consent notice is written by the element**, not the server. That is still sound: the transfer
   it warns about can only be triggered by a click, a click needs the script, and the script writes the
   notice. The provider is the element — `<soundcloud-player>` knows it is SoundCloud — and the wording
@@ -687,7 +699,7 @@ nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`.
 | `Tag`, `HtmlTag`, `HtmlAttribute` | what it creates and selects on |
 | `SoundCloudPlayerAttribute`, `EmbedAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
 | `TerminalFieldKey` | the JSON keys a terminal row arrives under |
-| `CssClass`, `ElementId` | what the stylesheet and the SPA router look for |
+| `CssClass`, `ElementId`, `SectionKind`, `ArrangementAttribute` | what the stylesheet and the SPA router look for |
 | `RequestHeader`, `RequestedWith` | the header that asks for a fragment, and the one that revalidates |
 
 The kinds fail differently, which is worth knowing before renaming any of them. A wrong **value**
@@ -759,8 +771,8 @@ assets/css/                   ← sources; outside public/, neither web-served n
 ├── base/                     ← tokens.css (:root), elements.css (* html body a)
 ├── layout/                   ← shell.css (what Layout.php emits), utilities.css
 ├── views/                    ← home.css, release.css, stats.css        (cf. src/NeuroSYS/View/)
-└── elements/                 ← card.css, terminal.css, CoverArt.css,
-                                embed.css, download.css                 (cf. assets/ts/elements/)
+└── elements/                 ← card.css, terminal.css, CoverArt.css, embed.css,
+                                download.css, arrangement.css           (cf. assets/ts/elements/)
       ↓ npm run build
 public/assets/css/style.css   ← generated, committed, deployed
 ```
@@ -788,7 +800,8 @@ which on a dark page reads as a layout bug rather than a typo.
 entry and the download entry genuinely share a look across `release/` and `download/`. It is meant to
 be conspicuous the way `RawHtml` is: `HtmlTest` pins the list to that one file, so a second has to be
 argued for in a test named for the fact. What falls out of it is worth reading — there is no
-`elements/release.css`, because every `release-*` tag *is* card and nothing else.
+`elements/release.css`: the `release-*` tags are card, apart from `<release-arrangement>`, which is
+its own component and lives in `arrangement.css` with the section tag it wraps.
 
 Two things did not move to a runtime: **the CSS never arrives via JavaScript.** Shadow DOM or
 `adoptedStyleSheets` would be the literal way to bundle a stylesheet with its element, and it would
@@ -800,7 +813,9 @@ is a property of the sources; the browser still gets one static file under a str
 
 Edit `data/releases.php` — that's the only file. `php tools/stage-release.php <folder>` writes most
 of the entry for you from a prepared release folder, and checks the folder is fit to upload first;
-see `docs/authoring.md` for what it can and cannot derive. Each entry is a typed `Release` object:
+see `docs/authoring.md` for what it can and cannot derive. Add `--project <file>` to point it at the
+`.flp` or the zip holding it, which is where bpm, key, genre, the arrangement and the time spent
+then come from. Each entry is a typed `Release` object:
 
 ```php
 'your-slug' => new Release(
@@ -820,8 +835,21 @@ see `docs/authoring.md` for what it can and cannot derive. Each entry is a typed
         permalink:   'ill',              // the track's slug on SoundCloud
         secretToken: 's-dIMAqki109G',    // only for a private/scheduled track; omit when public
     ),
+    // The last three come from the .flp, and all three are optional — an entry written before
+    // tools/lib/Flp/ existed is still valid exactly as it stands.
+    arrangement: new Arrangement(new Collection(Section::class)->with(
+        Section::named('INTRO', 0),      // the label renders; SectionKind only picks the accent
+        Section::named('DROP', 12288),   // a tick, at the project's ppq — not a time
+    )),
+    timeSpent: ProductionTime::of(60, 7),
+    madeWith: new Collection(Plugin::class)->with(new Plugin('Serum 2')),
 ),
 ```
+
+**`madeWith` is hand-authored, like `description`.** The tool emits a candidate list **commented
+out**, because a hosted plugin's real name is buried in its wrapper blob at an offset that varies
+per plugin — so the scan finds `Serum2` and `Xfer Records` alongside some wreckage, and a person
+keeps the ones worth crediting. Nothing guessed reaches the page.
 
 Omit a format entry to hide that download card; keep the entry but omit its `HiDriveLink` to render the card
 in the "not uploaded yet" state, where clicking returns a 503 instead of redirecting.
@@ -852,7 +880,11 @@ tools/
 └── lib/
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
     ├── Command/          ← the two commands and their option enums
-    └── Release/          ← ReleaseFolder, Preflight, EntryWriter + the enums they read with
+    ├── Flp/              ← the FL Studio project reader: FlpFile + EventId/EventWidth/Event,
+    │                       Project, TimeMarker/MarkerType, ScaleNotation, KeyEstimate, Plugins
+    ├── Php/              ← the expression tree EntryWriter emits through, so nothing builds
+    │                       PHP source from a string: Expression, Value, Call, Argument, Entry
+    └── Release/          ← ReleaseFolder, Preflight, EntryWriter, ProjectFile + the enums they read
 ```
 
 **A second autoloader, and it is not optional.** The site's maps `NeuroSYS\` to `src/NeuroSYS/`, and

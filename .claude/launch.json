@@ -4,7 +4,7 @@
     {
       "name": "neurosys",
       "runtimeExecutable": "php",
-      "runtimeArgs": ["-S", "localhost:8080", "-t", "public"],
+      "runtimeArgs": ["-S", "localhost:8080", "-t", "public", "tools/dev-router.php"],
       "port": 8080
     }
   ]

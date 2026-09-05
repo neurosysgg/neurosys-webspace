@@ -11,6 +11,8 @@ import './elements/download/DownloadList.js';
 import './elements/download/DownloadCard.js';
 import './elements/download/DownloadLabel.js';
 import './elements/download/DownloadMeta.js';
+import './elements/arrangement/ReleaseArrangement.js';
+import './elements/arrangement/ArrangementSection.js';
 import './elements/release/ReleaseList.js';
 import './elements/release/ReleaseCard.js';
 import './elements/release/ReleaseTitle.js';

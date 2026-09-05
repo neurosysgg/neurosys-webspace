@@ -19,6 +19,8 @@ export var CssClass;
     CssClass["ReleaseInfo"] = "release-info";
     CssClass["Tagline"] = "tagline";
     CssClass["BackHome"] = "back-home";
+    CssClass["SectionTime"] = "section-time";
+    CssClass["SectionLabel"] = "section-label";
     CssClass["StatsSub"] = "stats-sub";
     CssClass["StatsTable"] = "stats-table";
     CssClass["StatsCount"] = "stats-count";

@@ -23,6 +23,9 @@ export enum Tag {
   DownloadLabel = 'download-label',
   DownloadMeta  = 'download-meta',
 
+  ReleaseArrangement = 'release-arrangement',
+  ArrangementSection = 'arrangement-section',
+
   ReleaseList  = 'release-list',
   ReleaseCard  = 'release-card',
   ReleaseTitle = 'release-title',

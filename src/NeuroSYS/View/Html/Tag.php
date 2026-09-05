@@ -35,6 +35,9 @@ enum Tag: string implements TagName
     case DownloadLabel = 'download-label';
     case DownloadMeta  = 'download-meta';
 
+    case ReleaseArrangement = 'release-arrangement';
+    case ArrangementSection = 'arrangement-section';
+
     case ReleaseList  = 'release-list';
     case ReleaseCard  = 'release-card';
     case ReleaseTitle = 'release-title';
