@@ -6,6 +6,7 @@ namespace NeuroSYS\Service;
 
 use NeuroSYS\Config;
 use NeuroSYS\Model\Release;
+use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
 
 /**
@@ -16,19 +17,19 @@ use NeuroSYS\Support\SearchableCollection;
  */
 class ReleaseRepository
 {
-    private readonly string $dataFile;
+    private readonly File $dataFile;
     /** @var SearchableCollection<Release>|null */
     private ?SearchableCollection $collection = null;
 
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string|null $dataFile Absolute path to the releases PHP data file,
+     * @param File|null $dataFile The releases PHP data file,
      *                              or null to use the default (data/releases.php).
      */
-    public function __construct(?string $dataFile = null)
+    public function __construct(?File $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? Config::dataPath('releases.php');
+        $this->dataFile = $dataFile ?? Config::dataFile('releases.php');
     }
 
     /**
@@ -58,7 +59,10 @@ class ReleaseRepository
     private function load(): SearchableCollection
     {
         /** @var array<string, Release> $data */
-        $data       = require $this->dataFile;
+        // Unguarded, unlike ProfileRepository's: a missing releases.php is a broken deployment
+        // and `require` says so loudly, where an empty catalogue would render as a working site
+        // with nothing in it. `require` takes a path — see File.
+        $data       = require $this->dataFile->path;
         $collection = new SearchableCollection(Release::class);
 
         foreach ($data as $slug => $release) {

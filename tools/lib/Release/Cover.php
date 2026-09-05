@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
+use NeuroSYS\Support\File;
+
 /**
  * The Cover class. The image a release will publish, and which rung of the ladder it came off.
  *
@@ -15,17 +17,17 @@ final readonly class Cover
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string $path
+     * @param File   $file
      * @param Source $source
      */
-    public function __construct(public string $path, public Source $source) {}
+    public function __construct(public File $file, public Source $source) {}
 
     /**
      * @return string
      */
     public function name(): string
     {
-        return basename($this->path);
+        return $this->file->name();
     }
 
     /**

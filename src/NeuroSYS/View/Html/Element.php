@@ -6,6 +6,7 @@ namespace NeuroSYS\View\Html;
 
 use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
+use NeuroSYS\Support\SearchableCollection;
 use NoDiscard;
 use Uri\WhatWg\Url;
 
@@ -24,8 +25,8 @@ use Uri\WhatWg\Url;
  * **Every guarantee is applied in {@link self::render()}, not in the builders.** That is what makes
  * this class the trust boundary it claims to be: `render()` is the only code on the site that turns
  * a node into markup, so a guarantee enforced there holds for *any* element however it was built —
- * including one assembled by handing the constructor an array, which the builders would otherwise
- * be the only thing standing in front of. Two are enforced:
+ * including one assembled by handing the constructor its attributes outright, which the builders
+ * would otherwise be the only thing standing in front of. Two are enforced:
  *
  * - **escaping**, by rendering each value as a {@link Text}, which is the site's single
  *   call to `htmlspecialchars`;
@@ -70,25 +71,32 @@ final readonly class Element implements Node
     private const string RELATIVE_BASE = 'https://' . self::BASE_HOST;
 
     /**
+     * The attributes, keyed by name.
+     *
+     * Keyed rather than listed, which is what keeps **the last write and the declaration order**:
+     * setting `class` twice leaves one attribute, where the first one was written. Not promoted,
+     * for the reason {@link \NeuroSYS\Model\Embed\SoundCloudEmbed::$options} is not — the default
+     * is a `new`, and a parameter default has to be a constant expression.
+     *
+     * @var SearchableCollection<Attribute>
+     */
+    private SearchableCollection $attributes;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param TagName $tag The element to build.
-     * @param array<string,array{AttributeName,string|null}> $attributes The attributes, keyed by
-     *                                         name — which keeps the last write and the declaration
-     *                                         order — each holding the {@link AttributeName} it was
-     *                                         set with and its **raw, unescaped** value. A null
-     *                                         value is a boolean attribute, distinct from `''`,
-     *                                         which is a real empty value like `options=""`. The
-     *                                         name is carried alongside so that `render()` can ask
-     *                                         it whether it is a URL. Built with {@link self::attr()};
-     *                                         normally left empty.
+     * @param SearchableCollection<Attribute>|null $attributes Normally left null and built with
+     *                                         {@link self::attr()}. Keyed by the attribute's name.
      * @param list<Node> $children The element's content. Built with {@link self::containing()}.
      */
     public function __construct(
         private TagName $tag,
-        private array   $attributes = [],
+        ?SearchableCollection $attributes = null,
         private array   $children   = [],
-    ) {}
+    ) {
+        $this->attributes = $attributes ?? new SearchableCollection(Attribute::class);
+    }
 
     /**
      * Returns a copy carrying the given attribute.
@@ -132,10 +140,10 @@ final readonly class Element implements Node
 
         return new self(
             $this->tag,
-            [
-                ...$this->attributes,
-                $attribute->attribute() => [$attribute, $value === true ? null : (string) $value],
-            ],
+            $this->attributes->with(
+                $attribute->attribute(),
+                new Attribute($attribute, $value === true ? null : (string) $value),
+            ),
             $this->children,
         );
     }
@@ -206,11 +214,13 @@ final readonly class Element implements Node
     {
         $rendered = '';
 
-        foreach ($this->attributes as $name => [$attribute, $value]) {
-            if ($value === null) {
+        foreach ($this->attributes as $name => $attribute) {
+            if ($attribute->isBoolean()) {
                 $rendered .= ' ' . $name;
                 continue;
             }
+
+            $value = (string) $attribute->value;
 
             if ($attribute->isUrl()) {
                 $this->verifyUrl($name, $value);

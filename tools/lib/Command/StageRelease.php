@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
-use NeuroSYS\Config;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -16,6 +15,7 @@ use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use NeuroSYS\Tool\Release\ReleasesFile;
 
 /**
  * The StageRelease command. Stages a `data/releases.php` entry from a prepared release folder.
@@ -91,7 +91,7 @@ final readonly class StageRelease implements Command
         $folder   = ReleaseFolder::at($path, $input->value(StageReleaseOption::Project));
         $findings = Preflight::check($folder);
 
-        $output->error(sprintf("\n%s\n\n", $folder->path));
+        $output->error(sprintf("\n%s\n\n", $folder->directory->path));
         $this->reportFacts($folder, $output);
         $this->reportFindings($findings, $output);
 
@@ -131,11 +131,7 @@ final readonly class StageRelease implements Command
      */
     private function reportImports(ReleaseFolder $folder, Output $output): void
     {
-        $data    = @file_get_contents(Config::dataPath('releases.php')) ?: '';
-        $missing = array_values(array_filter(
-            EntryWriter::imports($folder),
-            static fn(string $class): bool => !str_contains($data, 'use ' . $class . ';'),
-        ));
+        $missing = ReleasesFile::default()->missingImports(EntryWriter::imports($folder));
 
         if ($missing === []) {
             return;

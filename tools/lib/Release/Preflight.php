@@ -209,11 +209,15 @@ final readonly class Preflight
                 continue;
             }
 
-            $file   = (string) $folder->fileFor($format);
-            $probed = Probe::stream($file);
+            $file   = $folder->fileFor($format);
+            $probed = $file !== null ? Probe::stream($file) : null;
 
-            if ($probed === null) {
-                $findings[] = Finding::fail(sprintf('%s: %s could not be probed', $format->value, basename($file)));
+            if ($probed === null || $file === null) {
+                $findings[] = Finding::fail(sprintf(
+                    '%s: %s could not be probed',
+                    $format->value,
+                    $file?->name() ?? 'the file',
+                ));
                 continue;
             }
 
@@ -271,7 +275,7 @@ final readonly class Preflight
 
         // Root the walk where the zip is rooted, so both sides name their files the same way.
         $root  = strtok((string) array_key_first($entries), '/');
-        $loose = $root !== false ? self::filesUnder($folder->path . '/' . $root, $root) : [];
+        $loose = $root !== false ? self::filesUnder($folder->directory->path . '/' . $root, $root) : [];
 
         if ($loose === []) {
             return [Finding::ok(sprintf(

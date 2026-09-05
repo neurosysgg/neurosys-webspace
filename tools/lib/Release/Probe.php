@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
+use NeuroSYS\Support\File;
 use ZipArchive;
 
 /**
@@ -38,14 +39,14 @@ final readonly class Probe
      * A comment this tooling has no case for is dropped rather than carried as a string, so what
      * comes back is exactly the vocabulary the rest of the code knows how to ask about.
      *
-     * @param string $flac
+     * @param File $flac
      * @return array<string, string> FlacTag value => comment value.
      */
-    public static function tags(string $flac): array
+    public static function tags(File $flac): array
     {
         $tags = [];
 
-        foreach (self::run(['metaflac', '--export-tags-to=-', $flac]) as $line) {
+        foreach (self::run(['metaflac', '--export-tags-to=-', $flac->path]) as $line) {
             if (!str_contains($line, '=')) {
                 continue;
             }
@@ -63,10 +64,10 @@ final readonly class Probe
     /**
      * Reads an audio file's stream properties.
      *
-     * @param string $file
+     * @param File $file
      * @return AudioStream|null null if the file cannot be probed at all.
      */
-    public static function stream(string $file): ?AudioStream
+    public static function stream(File $file): ?AudioStream
     {
         $values = self::ffprobe($file, 'stream=codec_name,sample_rate,bits_per_raw_sample:format=duration');
 
@@ -88,12 +89,12 @@ final readonly class Probe
     /**
      * Whether a FLAC carries an embedded cover picture.
      *
-     * @param string $flac
+     * @param File $flac
      * @return bool
      */
-    public static function hasPicture(string $flac): bool
+    public static function hasPicture(File $flac): bool
     {
-        return self::run(['metaflac', '--list', '--block-type=PICTURE', $flac]) !== [];
+        return self::run(['metaflac', '--list', '--block-type=PICTURE', $flac->path]) !== [];
     }
 
     /**
@@ -103,10 +104,10 @@ final readonly class Probe
      * tree — a remix package is a stems folder *and* whatever sits beside it, and `hello world!`
      * keeps a MIDI there.
      *
-     * @param string $zip
+     * @param File $zip
      * @return array<string, int>|null null if the zip cannot be read at all.
      */
-    public static function zipEntries(string $zip): ?array
+    public static function zipEntries(File $zip): ?array
     {
         if (!class_exists(ZipArchive::class)) {
             return null;
@@ -114,7 +115,7 @@ final readonly class Probe
 
         $archive = new ZipArchive();
 
-        if ($archive->open($zip) !== true) {
+        if ($archive->open($zip->path) !== true) {
             return null;
         }
 
@@ -136,15 +137,15 @@ final readonly class Probe
     /**
      * One ffprobe invocation, asking for named entries off the first audio stream.
      *
-     * @param string $file
+     * @param File   $file
      * @param string $entries
      * @return list<string>
      */
-    private static function ffprobe(string $file, string $entries): array
+    private static function ffprobe(File $file, string $entries): array
     {
         return self::run([
             'ffprobe', '-v', 'error', '-select_streams', 'a:0',
-            '-show_entries', $entries, '-of', 'default=noprint_wrappers=1:nokey=1', $file,
+            '-show_entries', $entries, '-of', 'default=noprint_wrappers=1:nokey=1', $file->path,
         ]);
     }
 }

@@ -53,6 +53,12 @@ The division matters in a few concrete places:
   through its optional `ReleaseRepository` parameter — that argument exists purely as this seam.
 - **Escaping** is unit-tested because it needs hostile inputs (`<script>`, `&`, quotes, multibyte)
   that the real catalogue will never contain.
+- **The SoundCloud client has never made a request**, and the tests are why that is fine rather than
+  a gap. `Http\Transport` is an interface and `Client` takes one, so `SoundCloudTest` answers every
+  request from an array and asserts what went out. No app is registered yet; when one is, the same
+  tests still describe the contract. `ReleaseTrackTest` stops where `ReleaseFolderTest` stops — the
+  command's uploading branch needs a folder whose audio `metaflac` and `ffprobe` can read, so what
+  is covered there is every path that *refuses*.
 - **The front end is compiled**, so PHPUnit never sees `assets/ts/`: `test/js/` covers what the
   elements build, and the verify script runs it. The front-end checks are skipped with a printed NOTE
   when `node_modules/` is absent, so `composer test` still runs end to end on a clone that has only
@@ -95,6 +101,19 @@ needs the moment a link is clicked.
 The files are `soundcloud-player`, `terminal-window`, `cover-art`, `nesting`, `navigation`,
 `vocabulary` and `enum-parity`.
 
+## Fixtures on disk
+
+Several suites need real files: a credentials file for the gates, a data file for a repository, a
+folder that reads as a release. They all build them the same way now —
+`Directory::temporary('neurosys-admin-')` in `setUp()`, `->file('x.php')->write(…)` for each fixture,
+`->remove()` in `tearDown()` — rather than each opening with its own three lines of `sys_get_temp_dir()`,
+`mkdir()`, `glob()`, `unlink()`, `rmdir()`.
+
+The directory is random per call, so two suites running at once cannot collide, and prefixed, so
+anything left behind by a test that died says which suite left it. `remove()` refuses to recurse: a
+fixture is one level deep, and a recursive delete is not something to have lying around where
+somebody could reach for it with a path they had not checked.
+
 ## Invariants worth keeping green
 
 A few tests exist to stop a specific mistake coming back, not to cover a line:
@@ -130,8 +149,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   the explicit guard is documentation rather than behaviour — and the test asserts the behaviour, so
   it holds whichever of the two is doing the work.
 - **A truncated log line costs that line and nothing else.** The downloads log is append-only and a
-  crash can cut it mid-write, so `parseLog()` skips what `DownloadLogEntry::fromJson()` rejects
-  rather than failing the page that reads it — the only place anyone would find out.
+  crash can cut it mid-write, so `DownloadStats::fromLines()` skips what
+  `DownloadLogEntry::fromJson()` rejects rather than failing the page that reads it — the only place
+  anyone would find out.
 - **The imprint states one address, four times.** It is a legal document, and one built from four
   copies of an address is one with a wrong address eventually. `PageTest` asserts the four rendered
   blocks are byte-identical, not merely present.
@@ -190,6 +210,24 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **`RawHtml` is constructed in exactly one place.** It is the one node that does not escape, so its
   call sites are pinned rather than trusted: `HtmlTest` scans `src/` and asserts the list is
   `['PrivacyView.php']`. A second one has to be argued for by editing that assertion.
+- **Nothing under `src/` makes an outbound request.** `index.php` answers requests and never issues
+  one, which is what lets the privacy policy claim no server-side call reaches a third party. The
+  verify script greps `src/` for `curl_*`, `fsockopen` and `stream_socket_client`. Proved by
+  dropping an `fsockopen` into `src/` and watching it fail.
+- **curl is called in one place under `tools/lib/`.** The SoundCloud upload is the only outbound
+  request this repo makes, and `Http\CurlTransport` is the only class that makes it — the same
+  arrangement `Release\Probe` has for shelling out. Options set once cannot disagree between call
+  sites, and two of them matter: certificates are verified, and redirects are not followed with a
+  credential and a 50 MB body attached.
+- **Every multipart field an upload sends is a `TrackField` case.** An API drops a field it does not
+  recognise rather than refusing the request over one, so `track[titel]` uploads the file, answers
+  201 and leaves an untitled track. `SoundCloudTest` asserts the whole field map, keys included,
+  against what `TrackUpload` builds — and the OAuth parameter names beside it stay literals on
+  purpose, because misspelling one of those is refused in words before anything is sent.
+- **A rotated refresh token reaches disk before the next request goes out.** SoundCloud's refresh
+  tokens are single-use: the response carrying the next one has already voided the one that was
+  spent, so losing it costs a browser round trip to recover from. The test asserts the *order* — the
+  store holds the new token, and the upload that follows carries the new access token.
 - **A void element refuses children.** `<img>text</img>` is not markup a browser fixes, it is markup
   it reinterprets, so `Element::containing()` throws rather than emitting it.
 - **No attribute value reaches the markup unescaped.** `Element` escapes once, in one place, rather
@@ -298,7 +336,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 97.06% of lines, and what is left is named below
+composer coverage   # PHP  — 97.86% of lines, and what is left is named below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -321,7 +359,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **97.06% of lines** (958/987), 97.20% of methods.
+clover XML and a browsable HTML report. Currently **97.86% of lines** (1097/1121), 97.29% of
+methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
@@ -338,36 +377,42 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Eighteen lines, in three groups, none of which a test can reach as the repository stands:
+Thirteen lines, in four groups, none of which a test can reach as the repository stands:
 
-- **`DownloadLogger::log()`'s body (13 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
+- **`DownloadLogger::log()`'s body (7 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
   the switch injectable, which is exactly the guarantee that assertion exists to make — so the lines
-  stay uncovered and the switch stays a constant.
-- **`StatsController::handle()`'s body (4 lines)** needs an admin login to succeed, and
+  stay uncovered and the switch stays a constant. It used to be thirteen: the locked append moved
+  into `Support\File::append()`, which is tested directly, so what is left behind the switch is the
+  switch and the entry it does not build.
+- **`StatsController::handle()`'s body (3 lines)** needs an admin login to succeed, and
   `data/admin.php` in the repository is a placeholder with an empty `pass_hash` — the real
-  credentials are uploaded by hand and `deploy.sh` excludes the file. `parseLog()`, which is all the
-  logic, is fully unit-tested through the controller's optional `$logFile` parameter.
+  credentials are uploaded by hand and `deploy.sh` excludes the file. The counting is all in
+  `DownloadStats::fromLines()`, which is fully unit-tested against a log file on disk.
 - **`Auth::requireSiteAuth()`'s challenge (1 line)** is only reachable when `data/site_auth.php`
   exists, and it is gitignored precisely so the repository copy cannot switch pre-launch auth on.
   The admin gate's identical branch *is* covered, over HTTP, by the verify script.
+- **`File::write()`'s chmod branch (2 lines)** fires when a file this process just created cannot
+  have its mode set. `chmod()` on a file you own fails only under conditions a test would have to be
+  root to arrange, and the branch exists so a credential is never left readable — the rename branch
+  beside it *is* covered, by writing at a name a directory already holds.
 
-#### Eleven more, which are a gap rather than a decision
+#### Twelve more, which are a gap rather than a decision
 
-Measured 2026-09-05. These arrived with the header-value classes in `867372f` and nothing has
-exercised them since, so they are listed here to be closed rather than justified:
+These arrived with the header-value classes in `867372f` and nothing has exercised them since, so
+they are listed here to be closed rather than justified:
 
-- **`CacheControl::of()` (4)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — three guard
-  clauses that throw `SecurityPolicyException` on an empty or malformed value, plus
-  `CacheControl::doNotStore()`, a factory no call site uses yet. `HiDriveLink`'s equivalent throw is
-  tested by `badShareIdProvider` in `ModelTest`, which is the shape these want.
+- **`CacheControl` (5)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — guard clauses that
+  throw `SecurityPolicyException` on an empty or malformed value, plus `CacheControl::doNotStore()`,
+  a factory no call site uses yet. `HiDriveLink`'s equivalent throw is tested by
+  `badShareIdProvider` in `ModelTest`, which is the shape these want.
 
 The rest of this document's claim — that every uncovered line is deliberate — held when it was
 written and does not now. Four small tests in `ResponseTest` would restore it.
 
 ### The development tooling
 
-`tools/lib/` has two test files and is **deliberately outside the coverage source**. The figure above
+`tools/lib/` has four test files and is **deliberately outside the coverage source**. The figure above
 is a claim about the shipped site; folding in code whose job is to shell out to `metaflac` and
 `ffprobe` would either drop the number or invite contrived tests to prop it up.
 
@@ -379,6 +424,13 @@ is a claim about the shipped site; folding in code whose job is to shell out to 
   enharmonic key parser, slug derivation, format ordering, and the shape of the emitted entry. The
   last of these `eval`s the generated block and asserts it produces a renderable `Release`, so a
   staged entry cannot be merely plausible.
+- `test/unit/SoundCloudTest.php` — the upload client, against a `Transport` that answers from an
+  array. No app is registered yet, so nothing has ever been sent; what is pinned is what *would* be
+  — the URL, the `OAuth` scheme, every multipart field under its declared name, and the order in
+  which a rotated refresh token reaches disk.
+- `test/unit/ReleaseTrackTest.php` — the export port and every path `release-track` *refuses* on.
+  Its uploading branch runs only on a folder that passes its preflight, which means real audio that
+  `metaflac` and `ffprobe` can read; that half is exercised by running the tool.
 
 What reads a real folder is exercised by running the tool. The verify script asserts every class
 under `tools/lib/` loads, which is the one thing nothing else would catch — a namespace that

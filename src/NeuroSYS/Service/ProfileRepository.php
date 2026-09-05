@@ -8,6 +8,7 @@ use NeuroSYS\Config;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\File;
 
 /**
  * The ProfileRepository class. Loads the site's external profile links.
@@ -18,19 +19,19 @@ use NeuroSYS\Support\Collection;
  */
 class ProfileRepository
 {
-    private readonly string $dataFile;
+    private readonly File $dataFile;
     /** @var array<string, string>|null */
     private ?array $links = null;
 
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string|null $dataFile Absolute path to the profiles data file,
-     *                              or null to use the default (data/profiles.php).
+     * @param File|null $dataFile The profiles data file, or null for the default
+     *                            (`data/profiles.php`).
      */
-    public function __construct(?string $dataFile = null)
+    public function __construct(?File $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? Config::dataPath('profiles.php');
+        $this->dataFile = $dataFile ?? Config::dataFile('profiles.php');
     }
 
     /**
@@ -41,7 +42,8 @@ class ProfileRepository
      */
     public function all(): Collection
     {
-        $this->links ??= is_file($this->dataFile) ? require $this->dataFile : [];
+        // `require` takes a path: this file is PHP that returns an array, not bytes to read.
+        $this->links ??= $this->dataFile->exists() ? require $this->dataFile->path : [];
 
         $linked = new Collection(Profile::class);
 

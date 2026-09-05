@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Flp;
 
+use NeuroSYS\Support\File;
+
 /**
  * The FlpFile class. A parsed `.flp` — its header, and every event in its data chunk.
  *
@@ -57,16 +59,16 @@ final readonly class FlpFile
     /**
      * Reads a `.flp` from disk.
      *
-     * @param string $path
+     * @param File $file
      * @return self
      * @throws FlpException if the file cannot be read or does not parse.
      */
-    public static function open(string $path): self
+    public static function open(File $file): self
     {
-        $bytes = @file_get_contents($path);
+        $bytes = $file->read();
 
-        if ($bytes === false) {
-            throw new FlpException(sprintf('cannot read %s', $path));
+        if ($bytes === null) {
+            throw new FlpException(sprintf('cannot read %s', $file->path));
         }
 
         return self::read($bytes);

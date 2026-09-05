@@ -29,6 +29,8 @@ use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Support\Charset;
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
@@ -60,8 +62,8 @@ final class ResponseTest extends TestCase
     /** @var array<string, mixed> */
     private array $serverBackup;
 
-    /** @var list<string> */
-    private array $tempFiles = [];
+    /** @var list<File> */
+    private array $fixtures = [];
 
     /**
      * @return void
@@ -78,12 +80,10 @@ final class ResponseTest extends TestCase
     {
         $_SERVER = $this->serverBackup;
 
-        foreach ($this->tempFiles as $file) {
-            if (is_file($file)) {
-                unlink($file);
-            }
+        foreach ($this->fixtures as $file) {
+            $file->directory()->remove();
         }
-        $this->tempFiles = [];
+        $this->fixtures = [];
     }
 
     /**
@@ -472,8 +472,9 @@ final class ResponseTest extends TestCase
      */
     private function stagedCatalogue(): ReleaseRepository
     {
-        $file = tempnam(sys_get_temp_dir(), 'neurosys-staged') . '.php';
-        file_put_contents($file, <<<'PHP'
+        $file = Directory::temporary('neurosys-staged-')->file('releases.php');
+
+        $file->write(<<<'PHP'
             <?php
             use NeuroSYS\Model\{Format, Genre, MusicalKey, Release, ReleaseFormat};
             use NeuroSYS\Support\Collection;
@@ -483,7 +484,7 @@ final class ResponseTest extends TestCase
             )];
             PHP);
 
-        $this->tempFiles[] = $file;
+        $this->fixtures[] = $file;
 
         return new ReleaseRepository($file);
     }
@@ -530,7 +531,7 @@ final class ResponseTest extends TestCase
         $response = new PrivacyController()->handle($this->request('/privacy'));
         $html     = self::peek($response, 'view')->content()->render();
 
-        $lines = explode("\n", (string)file_get_contents(Config::dataPath('privacy.html')))
+        $lines = explode("\n", (string) Config::dataFile('privacy.html')->read())
                 |> (fn($x) => array_map(trim(...), $x))
                 |> array_filter(...)
                 |> array_values(...);

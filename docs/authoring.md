@@ -105,16 +105,20 @@ layer described in `CLAUDE.md` under *The tooling*:
 
 ```
 tools/lib/
+├── Export/             ← where the audio comes from — see "Phase 4" below
 ├── Flp/                ← the project reader — see "Phase 3" below
+├── Http/               ← the one outbound-request site — see "Phase 4" below
 ├── Php/                ← Expression, Value, ClassConstant, Argument, Call, Entry
-└── Release/
-    ├── ReleaseFolder.php   ← reads a folder, and records where each fact came from
-    ├── ProjectFile.php     ← finds the .flp, loose or inside a zip
-    ├── Preflight.php       ← judges it
-    ├── EntryWriter.php     ← emits the data/releases.php block
-    ├── Probe.php           ← the one metaflac/ffprobe shell-out site
-    ├── AudioStream.php  Cover.php  Finding.php     ← what those three hand back
-    └── Fact.php  Source.php  FlacTag.php  Level.php  KeyNotation.php
+├── Release/
+│   ├── ReleaseFolder.php   ← reads a folder, and records where each fact came from
+│   ├── ProjectFile.php     ← finds the .flp, loose or inside a zip
+│   ├── Preflight.php       ← judges it
+│   ├── EntryWriter.php     ← emits the data/releases.php block
+│   ├── ReleasesFile.php    ← reads data/releases.php, only to say which imports it lacks
+│   ├── Probe.php           ← the one metaflac/ffprobe shell-out site
+│   ├── AudioStream.php  Cover.php  Finding.php     ← what those three hand back
+│   └── Fact.php  Source.php  FlacTag.php  Level.php  KeyNotation.php
+└── SoundCloud/         ← the upload client — see "Phase 4" below
 ```
 
 Read, judge, emit — three verbs, three classes, and each one testable without the other two.
@@ -159,6 +163,20 @@ from `Model\Production`.
 An earlier draft of this page gave a third reason, that the verify script bans heredocs under
 `src/`. That was never accurate — the check matches `<<<'?HTML` and inline markup literals — and it
 is moot now: `EntryWriter` has no heredoc left. The two reasons above are decisive on their own.
+
+### The two trees are not one tree
+
+`Php\Expression` and `View\Html\Node` state the same contract — first line unindented, every line
+after it at the caller's column, a child rendered one step deeper — and differ only in how the
+caller names that column: a `string` of literal indent here, an `int` of two-space steps there.
+Either form would serve either tree, which is what makes the question worth answering out loud.
+
+**They stay two types.** Nothing anywhere holds "either kind of node", which is the same test that
+makes `Support\TypedItems` a trait rather than a base class: `extends` would announce a common type
+nothing wants. And a shared parent would have to live under `src/` to be reachable from both — for
+the two reasons directly above, which apply to a supertype whose only second implementor is a tool
+exactly as they apply to the tool. The kinship is stated in both interfaces' docblocks instead,
+which is the most a language can carry across a boundary the deployment draws.
 
 The tooling does load the site's `autoload.php` and resolve against the real enums, which is what
 makes its output trustworthy: a genre the site cannot render fails in the tool rather than as a
@@ -317,3 +335,126 @@ and `Release` has no date field, so the catalogue's newest-first ordering is arr
 by hand. Adding one was considered again here and again declined — note that the project's *own*
 creation date could not have supplied it anyway: four of the seven projects share one timestamp,
 because saving a copy carries the original's date along with it.
+
+## Phase 4 — the track itself
+
+The three facts a folder cannot know were never the same kind of unknown. The description is
+editorial and always will be. The HiDrive share ids are minted in a web UI, and
+[releases.md](releases.md) says why that cannot be automated yet. **The SoundCloud ids are the third, and
+they were only unknowable because nothing here had ever uploaded anything** — so
+`tools/release-track.php` does, and the entry it prints has them in it.
+
+```bash
+php tools/release-track.php ~/Music/neuro.SYS/releases/ill              # report; sends nothing
+php tools/release-track.php ~/Music/neuro.SYS/releases/ill --upload     # and actually upload
+php tools/release-track.php ~/Music/neuro.SYS/releases/ill --audio ~/render/ill..wav --upload
+php tools/release-track.php --authorize                                 # once, per machine
+```
+
+It reads and judges the folder exactly as `stage-release` does — same `ReleaseFolder`, same
+`Preflight` — because an upload is bound to the bytes it was made from the same way a share link is.
+Then it reports every multipart field it would send, by name:
+
+```
+  audio    ill..wav                       51.4 MB    prepared by hand
+
+  track[title]           ill.
+  track[asset_data]      ill..wav (51.4 MB)
+  track[sharing]         private
+  track[permalink]       ill
+  track[genre]           Dubstep
+  track[artwork_data]    ill. cover.jpg (681.5 KB)
+
+  nothing was sent — add --upload to do that.
+```
+
+**Printing the field names is the point of that block.** An API drops a field it does not recognise
+rather than refusing the request over one, so a name that goes out misspelled is a track with
+something quietly missing and a 201 to say it went fine. That is why `TrackField` is an enum and why
+the report reads it back — and it is also why the OAuth parameter names beside it are deliberately
+*not* enumerated: a misspelled `code_challenge_method` is refused in words, in a browser, before
+anything has been sent. **A name is typed here when getting it wrong is silent.**
+
+### Private, with no flag that says otherwise
+
+Every upload is `sharing=private`, and there is no option to change it. Publishing is a decision
+about a release date taken in SoundCloud's own interface once the live site is verified — the step
+[releases.md](releases.md) already describes — and a flag here would put it one typo away. A test is
+named for the absence, because an absence is what nobody notices has gone.
+
+The private track's `secret_token` is what the release page's player needs before the track is
+public, and it is **read back from the track where the creation response does not carry one**.
+Whether it does is the sort of thing only a live account settles.
+
+### The credentials, and where the token lives
+
+Three environment variables — `NEUROSYS_SOUNDCLOUD_CLIENT_ID`, `_CLIENT_SECRET`, `_REDIRECT_URI` —
+and all three or nothing: two thirds of a credential authenticates nothing, and being told which
+ones are missing beats a 401 from the far end.
+
+**Not `data/`, which is the only place this project keeps a secret today.** `deploy.sh` rsyncs that
+directory to Strato and keeps `admin.php` and `site_auth.php` off it with an `--exclude` each — one
+line per file, added by hand, and the file is deployed the day somebody forgets. The rotating OAuth
+token goes to `~/.config/neurosys/soundcloud.json` at mode 0600, outside the repository, where no
+`.gitignore` entry and no rsync flag is what stands between it and a webroot.
+
+**`--authorize` exists because uploads need a user.** A `client_credentials` token belongs to nobody
+and `POST /tracks` answers it with a 401, so the client authorizes against the account once in a
+browser, with PKCE, and lives on refresh tokens after that. Those are single-use and rotate: the
+response carrying the next one has already voided the one that was spent, so the store writes it in
+the same call that spends it, to a temporary file that is renamed into place. A reader sees the old
+token or the new one, never half of either.
+
+### Where the audio comes from, and why that half refuses
+
+`Exporter` is a port with two implementations, and they do not differ in how they render — one of
+them does not render at all. They differ in **which machine the audio is on**.
+
+`PreparedExport` hands back a file already in the folder, or the one `--audio` names. That is not
+only a stand-in: every release so far was exported from FL by hand and left there, so it is an
+accurate description of how the audio has always arrived. The report says so in its own column —
+*prepared by hand* — because a file this tooling rendered a minute ago and a file exported last week
+are not the same claim.
+
+`FlStudioExport` throws, and the refusal is the feature. **FL Studio runs in a Windows VM**, so an
+export is not a process to start but a message to another computer, and each way of sending one is a
+different set of moving parts: a guest-side agent on a socket, SSH into the guest, a watched shared
+folder, or the hypervisor's own guest-exec channel. Three constraints are why none of them is
+obviously right:
+
+1. **The project has to render where it lives.** A `.flp` references its samples by absolute path —
+   the reason `--project` exists at all — so copying it here and rendering it here would render
+   silence where a sample used to be, quietly.
+2. **The render uses the project's own saved export settings.** Bit depth, tail length and format
+   are decisions already taken in the project, and this tool has no business having a second
+   opinion.
+3. **FL opens its interface during a command-line render**, so the guest needs a logged-in session.
+   A VM that boots on demand, headless, is not enough on its own.
+
+The half that *is* settled is written down and tested: `FlStudioExport::commandLine()` builds the
+`FL64.exe /R /E<format> <project>` invocation from Image-Line's manual, as an argument list rather
+than a string, because a path with a space in it is the normal case here. It has never been run,
+which is the one thing in `tools/` that is documentation rather than observation, and it is labelled
+as such.
+
+There is a wine prefix on this machine with FL Studio 2025 in it, and it is **not** a shortcut. It
+is not the install the projects were made in, so a render out of it is a different plugin set and a
+different result — and anything that looked like it worked would be the worst outcome available.
+
+### Where the tests stop, and why
+
+`SoundCloudTest` answers every request from an array, because `Http\Transport` is an interface and
+`Client` takes one. No app is registered yet, so nothing has ever been uploaded; what is worth
+pinning is what goes out — the URL, the `OAuth` scheme, every field under its declared name, and the
+order in which a rotated refresh token reaches disk.
+
+`ReleaseTrackTest` stops where `ReleaseFolderTest` stops. The command's uploading branch runs only
+on a folder that passes its preflight, and passing it means real audio that `metaflac` and `ffprobe`
+can read — not something a unit test should reach for, and the music folder is not in the repo. So
+the branch below it is covered where it lives, the entry is covered at `EntryWriter` where it is
+generated, and what is left for the command is every path that *refuses*, which is the half that
+decides whether anything is sent at all.
+
+The verify script adds two hygiene checks of its own: `curl_` appears under `tools/lib/` in exactly
+one class, the way shelling out appears in exactly one class; and **nothing under `src/` makes an
+outbound request at all**, which is a property the privacy policy rests on rather than an accident.

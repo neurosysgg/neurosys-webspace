@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
+
 /**
  * The Config class. The facts about this particular site, rather than about any of its code.
  *
@@ -86,28 +89,45 @@ final class Config
     // ───────────────────────────── paths ─────────────────────────────
 
     /**
-     * Resolves a file inside `data/`, which lives outside the webroot.
+     * The `data/` directory, which lives outside the webroot.
      *
-     * One derivation of that path instead of seven. It is where the credentials live, so a file that
-     * resolves somewhere unexpected is not a small mistake — and `PrivacyController` was reaching
-     * for it with `__DIR__ . '/../../../data/'` while everything else used `dirname(__DIR__, 3)`.
+     * One derivation of that path instead of seven. It is where the credentials live, so a
+     * directory that resolves somewhere unexpected is not a small mistake — and
+     * `PrivacyController` was reaching for it with `__DIR__ . '/../../../data/'` while everything
+     * else used `dirname(__DIR__, 3)`.
+     *
+     * @return Directory
+     */
+    public static function data(): Directory
+    {
+        return new Directory(dirname(__DIR__, 2) . '/data');
+    }
+
+    /**
+     * Resolves a file inside `data/`.
+     *
+     * It hands back a {@link File} rather than the string it used to, because every one of its
+     * callers immediately asked the same two questions of that string — is it there, and what is in
+     * it — and each of them answered in its own words. The path is still on the object, for the two
+     * places that need the string itself: `require` is a language construct and takes a path, not a
+     * file.
      *
      * @param string $file A path relative to `data/`, e.g. `releases.php` or `logs/downloads.log`.
-     * @return string
+     * @return File
      */
-    public static function dataPath(string $file): string
+    public static function dataFile(string $file): File
     {
-        return dirname(__DIR__, 2) . '/data/' . $file;
+        return self::data()->file($file);
     }
 
     /**
      * The downloads log, named once because two classes reach for it.
      *
-     * @return string
+     * @return File
      */
-    public static function downloadLog(): string
+    public static function downloadLog(): File
     {
-        return self::dataPath('logs/downloads.log');
+        return self::dataFile('logs/downloads.log');
     }
 
     /**

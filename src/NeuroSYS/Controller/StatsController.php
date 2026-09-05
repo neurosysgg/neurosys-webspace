@@ -12,7 +12,8 @@ use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
-use NeuroSYS\Service\DownloadLogEntry;
+use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Support\File;
 use NeuroSYS\View\StatsView;
 
 /**
@@ -25,17 +26,17 @@ use NeuroSYS\View\StatsView;
  */
 class StatsController implements Controller
 {
-    private string $logFile;
+    private File $logFile;
 
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string|null $logFile The log to read; defaults to the real one. Injectable for the
-     *                             same reason {@link ReleasesController}'s repository is — the
-     *                             parser is the only logic here, and it needs a log it can be
-     *                             given rather than the one this machine happens to have.
+     * @param File|null $logFile The log to read; defaults to the real one. Injectable for the
+     *                           same reason {@link ReleasesController}'s repository is — the
+     *                           parser is the only logic here, and it needs a log it can be given
+     *                           rather than the one this machine happens to have.
      */
-    public function __construct(?string $logFile = null)
+    public function __construct(?File $logFile = null)
     {
         $this->logFile = $logFile ?? Config::downloadLog();
     }
@@ -48,14 +49,12 @@ class StatsController implements Controller
     {
         Auth::requireAdminAuth($request);
 
-        // Logging off means the log is not read at all, not even a stale one left over from a previous machine.
-        if (!Config::DOWNLOAD_LOGGING) {
-            return self::response(new StatsView(0, [], [], false));
-        }
-
-        [$total, $byFormat, $byDay] = $this->parseLog();
-
-        return self::response(new StatsView($total, $byFormat, $byDay, true));
+        // Logging off means the log is not read at all, not even a stale one left over from a
+        // previous machine — and the view is handed null rather than an empty tally, because
+        // "switched off" and "on, and nothing yet" are different sentences on that page.
+        return self::response(new StatsView(
+            Config::DOWNLOAD_LOGGING ? DownloadStats::fromLines($this->logFile->lines()) : null,
+        ));
     }
 
     /**
@@ -81,37 +80,5 @@ class StatsController implements Controller
         return new ViewResponse($view, headers: [
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
         ]);
-    }
-
-    /**
-     * Parses the downloads log file into aggregate stats arrays.
-     *
-     * @return array{int, array<string, int>, array<string, int>}
-     *     Total download count, counts by "slug/format" key, counts by date.
-     */
-    private function parseLog(): array
-    {
-        if (!is_file($this->logFile)) {
-            return [0, [], []];
-        }
-
-        $byFormat = [];
-        $byDay    = [];
-        $total    = 0;
-
-        // file() returns false on a log that exists but can't be read; foreach would TypeError.
-        foreach (file($this->logFile) ?: [] as $rawLine) {
-            $entry = DownloadLogEntry::fromJson(trim($rawLine));
-            if ($entry === null) {
-                continue;
-            }
-            $total++;
-            $key            = $entry->slug . '/' . $entry->format;
-            $byFormat[$key] = ($byFormat[$key] ?? 0) + 1;
-            $day            = substr($entry->time, 0, 10) ?: '?';
-            $byDay[$day]    = ($byDay[$day] ?? 0) + 1;
-        }
-
-        return [$total, $byFormat, $byDay];
     }
 }

@@ -26,7 +26,7 @@ final class ConfigTest extends TestCase
      */
     public function testDataPathResolvesInsideTheRepositoryDataDirectory(): void
     {
-        self::assertSame(NEUROSYS_ROOT . '/data/releases.php', Config::dataPath('releases.php'));
+        self::assertSame(NEUROSYS_ROOT . '/data/releases.php', Config::dataFile('releases.php')->path);
     }
 
     /**
@@ -34,7 +34,7 @@ final class ConfigTest extends TestCase
      */
     public function testDataPathTakesANestedFile(): void
     {
-        self::assertSame(NEUROSYS_ROOT . '/data/logs/downloads.log', Config::dataPath('logs/downloads.log'));
+        self::assertSame(NEUROSYS_ROOT . '/data/logs/downloads.log', Config::dataFile('logs/downloads.log')->path);
     }
 
     /**
@@ -46,10 +46,10 @@ final class ConfigTest extends TestCase
      */
     public function testTheDataDirectoryIsOutsideTheWebroot(): void
     {
-        $data = Config::dataPath('');
+        $data = Config::data();
 
-        self::assertDirectoryExists($data);
-        self::assertStringStartsNotWith(NEUROSYS_ROOT . '/public/', $data);
+        self::assertTrue($data->exists());
+        self::assertStringStartsNotWith(NEUROSYS_ROOT . '/public/', $data->path);
     }
 
     /**
@@ -59,11 +59,11 @@ final class ConfigTest extends TestCase
      */
     public function testTheDownloadLogIsNamedRelativeToTheDataDirectory(): void
     {
-        self::assertSame(Config::dataPath('logs/downloads.log'), Config::downloadLog());
+        self::assertSame(Config::dataFile('logs/downloads.log')->path, Config::downloadLog()->path);
     }
 
     /**
-     * Every data file the application actually loads has to be one dataPath() resolves.
+     * Every data file the application actually loads has to be one dataFile() resolves.
      *
      * @param string $file
      * @return void
@@ -71,7 +71,7 @@ final class ConfigTest extends TestCase
     #[DataProvider('dataFileProvider')]
     public function testTheDataFilesTheSiteLoadsAreWhereDataPathSaysTheyAre(string $file): void
     {
-        self::assertFileExists(Config::dataPath($file));
+        self::assertTrue(Config::dataFile($file)->exists(), $file . ' should be where dataFile() says');
     }
 
     /**

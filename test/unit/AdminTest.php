@@ -9,6 +9,9 @@ use NeuroSYS\Controller\StatsController;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Service\Auth;
+use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
 use NeuroSYS\View\StatsView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,7 +20,6 @@ use Random\RandomException;
 use ReflectionMethod;
 use ReflectionProperty;
 use JsonException;
-use ReflectionException;
 
 /**
  * The admin path: the gate, and the log it protects.
@@ -30,13 +32,16 @@ use ReflectionException;
  */
 #[CoversClass(Auth::class)]
 #[CoversClass(StatsController::class)]
+#[CoversClass(DownloadStats::class)]
 final class AdminTest extends TestCase
 {
     /** @var array<string, mixed> */
     private array $serverBackup;
 
-    /** @var list<string> */
-    private array $tempFiles = [];
+    private Directory $fixtures;
+
+    /** Names one fixture from the next inside the one directory. */
+    private int $written = 0;
 
     /**
      * @return void
@@ -44,6 +49,7 @@ final class AdminTest extends TestCase
     protected function setUp(): void
     {
         $this->serverBackup = $_SERVER;
+        $this->fixtures     = Directory::temporary('neurosys-admin-');
     }
 
     /**
@@ -53,25 +59,20 @@ final class AdminTest extends TestCase
     {
         $_SERVER = $this->serverBackup;
 
-        foreach ($this->tempFiles as $file) {
-            if (is_file($file)) {
-                unlink($file);
-            }
-        }
-        $this->tempFiles = [];
+        $this->fixtures->remove();
     }
 
     /**
      * @param string $contents
      * @param string $extension
-     * @return string
+     * @return File
      * @throws RandomException
      */
-    private function temp(string $contents, string $extension): string
+    private function temp(string $contents, string $extension): File
     {
-        $file = sys_get_temp_dir() . '/neurosys-test-' . bin2hex(random_bytes(6)) . $extension;
-        file_put_contents($file, $contents);
-        $this->tempFiles[] = $file;
+        $file = $this->fixtures->file(++$this->written . $extension);
+
+        $file->write($contents);
 
         return $file;
     }
@@ -84,9 +85,9 @@ final class AdminTest extends TestCase
      *
      * @param string $user
      * @param string $password
-     * @return string
+     * @return File
      */
-    private function credentials(string $user, string $password): string
+    private function credentials(string $user, string $password): File
     {
         $hash = $password === '' ? '' : password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
 
@@ -214,7 +215,7 @@ final class AdminTest extends TestCase
      */
     public function testTheShippedAdminPlaceholderAcceptsNobody(): void
     {
-        $file = Config::dataPath('admin.php');
+        $file = Config::dataFile('admin.php');
 
         self::assertFalse(Auth::accepts($this->request('admin', ''), $file));
         self::assertFalse(Auth::accepts($this->request('admin', 'admin'), $file));
@@ -228,7 +229,7 @@ final class AdminTest extends TestCase
      */
     public function testTheSiteGateDoesNothingWhenThereIsNoCredentialsFile(): void
     {
-        Auth::requireSiteAuth($this->request('', ''), '/nonexistent/site_auth.php');
+        Auth::requireSiteAuth($this->request('', ''), new File('/nonexistent/site_auth.php'));
 
         // Reaching this line is the assertion: the gate ends the request when it refuses, so a
         // wrong outcome here would take the whole suite down with it rather than fail one test.
@@ -261,7 +262,7 @@ final class AdminTest extends TestCase
      * kept. `no-store` keeps it out of the disk cache a shared or borrowed machine would leave it
      * in, and `private` says the same to anything in between.
      *
-     * Reached through reflection for the same reason parseLog() is: handle() calls
+     * Reached through reflection because handle() calls
      * requireAdminAuth() against `data/admin.php`, whose shipped pass_hash is empty, so nothing in
      * this repository can get past the gate to the response behind it. The header is the part worth
      * asserting, and it does not need the gate opened to be asserted.
@@ -271,7 +272,7 @@ final class AdminTest extends TestCase
     public function testTheStatsPageTellsTheBrowserNotToKeepIt(): void
     {
         $response = new ReflectionMethod(StatsController::class, 'response')
-            ->invoke(null, new StatsView(0, [], [], false));
+            ->invoke(null, new StatsView());
 
         $headers = new ReflectionProperty($response, 'headers')->getValue($response);
 
@@ -284,19 +285,28 @@ final class AdminTest extends TestCase
     // ───────────────────────── the log the gate protects ─────────────────────────
 
     /**
+     * A log file's contents, read the way the controller reads them and added up.
+     *
+     * Flattened back to a tuple on the way out, so the table of expectations below stays one line
+     * per case — {@link DownloadStats} is what stopped that tuple being the *interface*.
+     *
      * @param string $log The log file's contents.
      *
      * @return array{int, array<string, int>, array<string, int>}
      * @throws RandomException
-     * @throws ReflectionException
      */
     private function parse(string $log): array
     {
-        /** @var array{int, array<string, int>, array<string, int>} $stats */
-        $stats = new ReflectionMethod(StatsController::class, 'parseLog')
-            ->invoke(new StatsController($this->temp($log, '.log')));
+        return self::tally(DownloadStats::fromLines($this->temp($log, '.log')->lines()));
+    }
 
-        return $stats;
+    /**
+     * @param DownloadStats $stats
+     * @return array{int, array<string, int>, array<string, int>}
+     */
+    private static function tally(DownloadStats $stats): array
+    {
+        return [$stats->total, $stats->byFormat, $stats->byDay];
     }
 
     /**
@@ -313,12 +323,12 @@ final class AdminTest extends TestCase
 
     /**
      * @return void
-     * @throws ReflectionException
      */
     public function testAMissingLogParsesAsNoDownloadsRatherThanFailing(): void
     {
-        self::assertSame([0, [], []], new ReflectionMethod(StatsController::class, 'parseLog')
-            ->invoke(new StatsController('/nonexistent/downloads.log')));
+        self::assertSame([0, [], []], self::tally(
+            DownloadStats::fromLines(new File('/nonexistent/downloads.log')->lines()),
+        ));
     }
 
     /**
@@ -327,6 +337,10 @@ final class AdminTest extends TestCase
     public function testAnEmptyLogParsesAsNoDownloads(): void
     {
         self::assertSame([0, [], []], $this->parse(''));
+
+        // Empty is not the same as absent: this one was read and held nothing, and the page says a
+        // different sentence for each. See StatsView.
+        self::assertTrue(DownloadStats::fromLines([])->isEmpty());
     }
 
     /**

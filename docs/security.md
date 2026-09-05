@@ -38,6 +38,7 @@ What is *not* in the surface, and the bug class each absence removes:
 | No `unserialize()` of request data | object injection |
 | No shell-out, no `eval`, no dynamic include of request data | command injection; LFI/RFI |
 | No third-party script, no CDN | supply-chain script injection |
+| No outbound request from the server | SSRF; a visitor's address reaching a third party server-side |
 
 These are the reason the rest of this document is short. You cannot exploit a feature that isn't
 there.
@@ -307,6 +308,12 @@ test providers gained a trailing-newline case so it cannot regress.
   contains no SoundCloud address at all for a browser to preconnect or prefetch, and the notice is
   written by the element that would do the loading.
 - **No `data:` URLs, no inline scripts or styles, no third-party script.**
+- **No outbound request from the server.** `index.php` answers requests and never issues one, so
+  there is no URL a request can steer and nothing that carries a visitor's address to a third party
+  behind their back. The verify script asserts it, by grepping `src/` for `curl_*`, `fsockopen` and
+  `stream_socket_client`. The SoundCloud upload client added alongside it is **tooling**: it lives
+  under `tools/`, which `deploy.sh` never uploads, it runs on a laptop, and its credentials are
+  environment variables with the rotating token kept outside the repository entirely.
 
 Each of these is a property that falls out of the site's shape, not a control that was considered and
 skipped. That is the whole posture in one sentence: **make the class impossible, then enforce the few

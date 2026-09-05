@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Flp;
 
 use NeuroSYS\Model\MusicalKey;
+use NeuroSYS\Support\File;
 
 /**
  * The Project class. Everything a `.flp` says about the music in it.
@@ -70,13 +71,13 @@ final readonly class Project
     /**
      * Reads a project file.
      *
-     * @param string $path
+     * @param File $file
      * @return self
      * @throws FlpException if the file cannot be read or does not parse.
      */
-    public static function open(string $path): self
+    public static function open(File $file): self
     {
-        return self::of(FlpFile::open($path));
+        return self::of(FlpFile::open($file));
     }
 
     /**

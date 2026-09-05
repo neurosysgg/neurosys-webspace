@@ -12,6 +12,19 @@ namespace NeuroSYS\View\Html;
  * reaches the page is one of four things: an {@link Element}, escaped {@link Text}, a
  * {@link Fragment} of those, or {@link RawHtml} — which is the single audited hole, for markup
  * authored outside PHP.
+ *
+ * **There is a second tree in this repo, and it is deliberately not this one.** The release tooling
+ * emits `data/releases.php` through an expression tree of its own, `NeuroSYS\Tool\Php\Expression`,
+ * which answers for PHP source the objection this answers for markup — nothing builds a language by
+ * concatenating it — and which states the same indentation contract as {@link self::render()} does,
+ * in a parameter of its own shape.
+ *
+ * They stay two types, on the test this codebase already applies to `Support\TypedItems`: nothing
+ * anywhere holds "either kind of node", so a common parent would announce a type nothing wants. It
+ * would also have to live under `src/` to be reachable from both — shipped to Strato and inside
+ * `phpunit.xml.dist`'s coverage source, for a tool that never runs there — which is the arrangement
+ * `docs/authoring.md` argues against by name. The kinship is real and it is prose, which is the
+ * most a language can carry across a boundary the deployment draws.
  */
 interface Node
 {

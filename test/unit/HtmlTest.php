@@ -7,6 +7,8 @@ namespace NeuroSYS\Test\Unit;
 use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
+use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\View\Html\Attribute;
 use NeuroSYS\View\Html\AttributeName;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
@@ -855,12 +857,25 @@ final class HtmlTest extends TestCase
     }
 
     /**
+     * The attributes an element would hold, built the way the constructor takes them.
+     *
+     * @param AttributeName $name
+     * @param string        $value
+     * @return SearchableCollection<Attribute>
+     */
+    private static function attributes(AttributeName $name, string $value): SearchableCollection
+    {
+        return new SearchableCollection(Attribute::class)
+            ->with($name->attribute(), new Attribute($name, $value));
+    }
+
+    /**
      * Both guarantees live in render(), which is what makes this class the boundary it claims to be.
      *
-     * An element assembled by handing the constructor an array gets exactly the same treatment as
-     * one built through attr(). It did not before: attr() escaped on the way *in* and render()
-     * emitted whatever it found, so the constructor was a way around escaping entirely — a public
-     * one, documented as taking values that were already escaped and trusted to have been.
+     * An element assembled by handing the constructor its attributes outright gets exactly the same
+     * treatment as one built through attr(). It did not before: attr() escaped on the way *in* and
+     * render() emitted whatever it found, so the constructor was a way around escaping entirely — a
+     * public one, documented as taking values that were already escaped and trusted to have been.
      *
      * @return void
      */
@@ -868,12 +883,12 @@ final class HtmlTest extends TestCase
     {
         self::assertSame(
             '<p class="&quot; onload=&quot;alert(1)"></p>',
-            new Element(HtmlTag::P, ['class' => [HtmlAttribute::ClassName, '" onload="alert(1)']])->render(),
+            new Element(HtmlTag::P, self::attributes(HtmlAttribute::ClassName, '" onload="alert(1)'))->render(),
         );
 
         $this->expectException(MarkupException::class);
 
-        new Element(HtmlTag::A, ['href' => [HtmlAttribute::Href, 'javascript:alert(1)']])->render();
+        new Element(HtmlTag::A, self::attributes(HtmlAttribute::Href, 'javascript:alert(1)'))->render();
     }
 
     /**

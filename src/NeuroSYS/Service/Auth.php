@@ -10,6 +10,7 @@ use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\ResponseHeader;
+use NeuroSYS\Support\File;
 use NoDiscard;
 
 /**
@@ -63,10 +64,12 @@ class Auth
      * @return bool
      */
     #[NoDiscard('this is the gate\'s decision and nothing else; dropping it is a door left open')]
-    public static function accepts(Request $request, string $file): bool
+    public static function accepts(Request $request, File $file): bool
     {
+        // `require` is a language construct and takes a path: a credentials file is PHP this
+        // executes, not bytes it reads, and File::read() is deliberately not a way to run one.
         /** @var array{user: string, pass_hash: string} $creds */
-        $creds = require $file;
+        $creds = require $file->path;
 
         // An empty hash is an unconfigured gate rather than one that accepts an empty password.
         // password_verify() against '' is false anyway; the guard is here to say so out loud. It
@@ -90,15 +93,15 @@ class Auth
      * is absent — that absence is how pre-launch auth is switched off, and `data/site_auth.php`
      * is gitignored precisely so the repo copy cannot switch it on.
      *
-     * @param Request     $request The incoming request.
-     * @param string|null $file    The credentials file; defaults to `data/site_auth.php`.
+     * @param Request   $request The incoming request.
+     * @param File|null $file    The credentials file; defaults to `data/site_auth.php`.
      * @return void
      */
-    public static function requireSiteAuth(Request $request, ?string $file = null): void
+    public static function requireSiteAuth(Request $request, ?File $file = null): void
     {
-        $file ??= Config::dataPath('site_auth.php');
+        $file ??= Config::dataFile('site_auth.php');
 
-        if (!is_file($file)) {
+        if (!$file->exists()) {
             return;
         }
 
@@ -114,13 +117,13 @@ class Auth
      * case: a missing `data/admin.php` is a broken deployment, and `require` says so loudly rather
      * than leaving the admin routes open.
      *
-     * @param Request     $request The incoming request.
-     * @param string|null $file    The credentials file; defaults to `data/admin.php`.
+     * @param Request   $request The incoming request.
+     * @param File|null $file    The credentials file; defaults to `data/admin.php`.
      * @return void
      */
-    public static function requireAdminAuth(Request $request, ?string $file = null): void
+    public static function requireAdminAuth(Request $request, ?File $file = null): void
     {
-        if (!self::accepts($request, $file ?? Config::dataPath('admin.php'))) {
+        if (!self::accepts($request, $file ?? Config::dataFile('admin.php'))) {
             self::challenge();
         }
     }

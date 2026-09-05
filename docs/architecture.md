@@ -234,8 +234,15 @@ id="content">`, footer with the profile links, and one `<script type="module">`.
 
 ### `Support/` — the shapes
 
-`Collection<T>` and `SearchableCollection<T>` (int-keyed and string-keyed), `Route`,
-`RouteInitialization`, `JsonDeserializable`, `Charset`.
+`Collection<T>` and `SearchableCollection<T>` (int-keyed and string-keyed), `File` and `Directory`,
+`Route`, `RouteInitialization`, `JsonDeserializable`, `Charset`.
+
+`File` is where a path stops being a string. `Config::dataFile()` hands one back, and the five
+classes that read `data/` stop each asking `is_file()` in their own words — a collapse that also
+removed a real fault, since `is_file()` says nothing about a file that is present and unreadable and
+the resulting warning printed into the page ahead of the doctype. It deliberately cannot create a
+directory: that is `Directory`'s to do and a caller's to ask for, and the downloads log is the
+reason the line is drawn there rather than for tidiness.
 
 ---
 

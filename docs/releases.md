@@ -112,8 +112,25 @@ Recommended: 1400×1400 px minimum, square, JPEG.
 
 ## SoundCloud embed
 
-The embed HTML is **generated**, not pasted — `SoundCloudEmbed` builds it from three ids. You only need to dig
-them out of SoundCloud's embed snippet once, then throw the snippet away.
+The embed HTML is **generated**, not pasted — `SoundCloudEmbed` builds it from three ids. There are two ways to
+get them, and the second one is new.
+
+### The tool, once an app is registered
+
+```bash
+php tools/release-track.php ~/Music/neuro.SYS/releases/ill --upload
+```
+
+It uploads the track **private** and prints the whole `data/releases.php` entry with `trackId`, `permalink` and
+`secretToken` already filled in — no embed dialog, no snippet to read. It sends nothing without `--upload`, and
+there is no flag that can make a track public: that stays the step below, taken on the day. `--authorize` does
+the one browser round trip it needs, once per machine. It wants three environment variables and no SoundCloud
+app is registered yet, so until one is, the path below is the one that works. See
+[authoring.md](authoring.md#phase-4--the-track-itself).
+
+### By hand, from the embed snippet
+
+You only need to dig them out of SoundCloud's embed snippet once, then throw the snippet away.
 
 1. Upload the track to SoundCloud.
 2. **Share → Embed** — copy the snippet somewhere scratch and read three things out of it:

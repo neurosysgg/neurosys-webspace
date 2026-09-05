@@ -16,6 +16,19 @@ namespace NeuroSYS\Tool\Php;
  *
  * Now the emitter composes values and one renderer writes the syntax — so `Genre::Dubstep` comes out
  * of a real `Genre`, and a name that does not exist cannot be written down.
+ *
+ * **It is the same protocol as {@link \NeuroSYS\View\Html\Node}, and deliberately not the same
+ * type.** Both say: the first line carries no indent, every line after it is indented to where the
+ * caller put this one, and a child is rendered one step deeper. The two differ only in how the
+ * caller names that column — a `string` here, an `int` of two-space steps there — and either form
+ * would serve either tree.
+ *
+ * Making them one type was considered and turned down. Nothing anywhere holds "either kind of
+ * node", which is the test that already makes `Support\TypedItems` a trait rather than a base
+ * class; and a shared parent would have to live under `src/`, which `docs/authoring.md` gives two
+ * mechanical reasons none of this may do — `deploy.sh` rsyncs `src/` to Strato with `--delete`, and
+ * `phpunit.xml.dist` names it as the site's coverage source. A supertype whose only second
+ * implementor is a tool would be shipped to a server that never runs the tool.
  */
 interface Expression
 {

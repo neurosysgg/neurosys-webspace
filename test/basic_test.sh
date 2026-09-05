@@ -288,6 +288,28 @@ else
     fail "markup written as a string: $(echo "$markup" | tr '\n' ' ')"
 fi
 
+# The tooling makes exactly one kind of outbound request — an upload to SoundCloud — and one class
+# makes it, the way Probe is the one class that shells out. Options set once are options that cannot
+# disagree between call sites, and two of them are load-bearing: certificates are verified, and
+# redirects are not followed with a credential and a 50 MB body attached.
+outbound=$(grep -rl "curl_" "$REPO/tools/lib" 2>/dev/null | grep -v "/Http/CurlTransport.php$" || true)
+if [[ -z "$outbound" ]]; then
+    pass "curl is called in one place under tools/lib/"
+else
+    fail "curl called outside Http/CurlTransport.php: $(echo "$outbound" | tr '\n' ' ')"
+fi
+
+# And the site makes none at all. That is a property rather than an accident — index.php answers
+# requests and never issues one — and it is what the privacy policy rests on: no server-side call to
+# a third party means no visitor's address reaching one. The SoundCloud client is tooling, and
+# tools/ is never deployed.
+phoning=$(grep -rlE "curl_(init|exec|setopt)|fsockopen|stream_socket_client" "$REPO/src" 2>/dev/null || true)
+if [[ -z "$phoning" ]]; then
+    pass "nothing under src/ makes an outbound request"
+else
+    fail "src/ phones out: $(echo "$phoning" | tr '\n' ' ')"
+fi
+
 if grep -RIlq --exclude-dir=.git --exclude-dir=vendor --exclude-dir=.idea \
        -e '\$2[aby]\$[0-9]\{2\}\$' "$REPO/data/releases.php" "$REPO/data/profiles.php" 2>/dev/null; then
     fail "a bcrypt hash is sitting in a non-credential data file"

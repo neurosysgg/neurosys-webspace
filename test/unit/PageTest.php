@@ -229,7 +229,7 @@ final class PageTest extends TestCase
     public function testTheRealPolicyRendersInsideThePageSection(): void
     {
         $html = new PrivacyView(
-            (string) file_get_contents(Config::dataPath('privacy.html')),
+            (string) Config::dataFile('privacy.html')->read(),
         )->content()->render();
 
         self::assertStringStartsWith('<section class="page-section">', $html);

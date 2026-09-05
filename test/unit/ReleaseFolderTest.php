@@ -10,6 +10,9 @@ use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
+use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Tool\Php\ClassConstant;
 use NeuroSYS\Tool\Php\Value;
 use NeuroSYS\Tool\Release\Cover;
@@ -44,16 +47,22 @@ final class ReleaseFolderTest extends TestCase
      */
     private function folder(array $audio = [], ?Cover $cover = null): ReleaseFolder
     {
+        $files = new SearchableCollection(File::class);
+
+        foreach ($audio as $format => $path) {
+            $files = $files->with($format, new File($path));
+        }
+
         return new ReleaseFolder(
-            path:   '/x',
-            master: '/x/ill..flac',
-            title:  'ill.',
-            bpm:    140,
-            key:    MusicalKey::DSharpMinor,
-            genre:  Genre::Dubstep,
-            cover:  $cover,
-            date:   '2026-09-04',
-            audio:  $audio,
+            directory: new Directory('/x'),
+            master:    new File('/x/ill..flac'),
+            title:     'ill.',
+            bpm:       140,
+            key:       MusicalKey::DSharpMinor,
+            genre:     Genre::Dubstep,
+            cover:     $cover,
+            date:      '2026-09-04',
+            audio:     $files,
         );
     }
 
@@ -378,7 +387,7 @@ final class ReleaseFolderTest extends TestCase
         file_put_contents($path . '/broken.flp', 'not a project at all');
 
         try {
-            $project = ProjectFile::in($path);
+            $project = ProjectFile::in(new Directory($path));
 
             $this->assertNotNull($project);
             $this->assertNull($project->project);
@@ -496,9 +505,9 @@ final class ReleaseFolderTest extends TestCase
      */
     public function testACoverKnowsWhetherItIsTheWebExport(): void
     {
-        $this->assertTrue(new Cover('/x/web/ill. cover.jpg', Source::WebExport)->isWebExport());
-        $this->assertFalse(new Cover('/x/ill..flac', Source::EmbeddedPicture)->isWebExport());
-        $this->assertSame('ill. cover.jpg', new Cover('/x/web/ill. cover.jpg', Source::WebExport)->name());
+        $this->assertTrue(new Cover(new File('/x/web/ill. cover.jpg'), Source::WebExport)->isWebExport());
+        $this->assertFalse(new Cover(new File('/x/ill..flac'), Source::EmbeddedPicture)->isWebExport());
+        $this->assertSame('ill. cover.jpg', new Cover(new File('/x/web/ill. cover.jpg'), Source::WebExport)->name());
     }
 
     /**
@@ -530,7 +539,7 @@ final class ReleaseFolderTest extends TestCase
                 ReleaseFormat::FLAC->value  => '/x/ill..flac',
                 ReleaseFormat::STEMS->value => '/x/140 D#Min ill remix package.zip',
             ],
-            cover: new Cover('/x/web/ill. cover.jpg', Source::WebExport),
+            cover: new Cover(new File('/x/web/ill. cover.jpg'), Source::WebExport),
         ));
 
         $this->assertStringStartsWith("    'ill' => new Release(\n", $php);

@@ -7,6 +7,8 @@ namespace NeuroSYS\Tool\Release;
 use NeuroSYS\Tool\Flp\FlpException;
 use NeuroSYS\Tool\Flp\FlpFile;
 use NeuroSYS\Tool\Flp\Project;
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
 use ZipArchive;
 
 /**
@@ -52,32 +54,34 @@ final readonly class ProjectFile
     public static function at(string $path): ?self
     {
         if (is_dir($path)) {
-            return self::in($path);
+            return self::in(new Directory($path));
         }
 
-        if (!is_file($path)) {
+        $file = new File($path);
+
+        if (!$file->exists()) {
             return null;
         }
 
-        return strtolower(pathinfo($path, PATHINFO_EXTENSION)) === 'flp'
-            ? self::read(basename($path), (string) @file_get_contents($path))
-            : self::inZip($path);
+        return $file->extension() === 'flp'
+            ? self::read($file->name(), $file->read() ?? '')
+            : self::inZip($file);
     }
 
     /**
      * Finds the project belonging to a folder.
      *
-     * @param string $path
+     * @param Directory $folder
      * @return self|null null when the folder holds no project at all, which is a WARN rather than
      *                   an error — the two shipped releases were staged without one.
      */
-    public static function in(string $path): ?self
+    public static function in(Directory $folder): ?self
     {
-        foreach (glob($path . '/*.flp') ?: [] as $loose) {
-            return self::read(basename($loose), (string) @file_get_contents($loose));
+        foreach ($folder->files('*.flp') as $loose) {
+            return self::read($loose->name(), $loose->read() ?? '');
         }
 
-        foreach (glob($path . '/*.zip') ?: [] as $archive) {
+        foreach ($folder->files('*.zip') as $archive) {
             $found = self::inZip($archive);
 
             if ($found !== null) {
@@ -91,21 +95,21 @@ final readonly class ProjectFile
     /**
      * The first `.flp` inside a zip.
      *
-     * @param string $archive
+     * @param File $archive
      * @return self|null
      */
-    private static function inZip(string $archive): ?self
+    private static function inZip(File $archive): ?self
     {
         // Asked before opening: a zero-byte file is not an archive, and handing one to ZipArchive
         // is deprecated as of PHP 8.5 rather than merely false — which `failOnWarning` turns into
         // a failing test the moment any folder holds a placeholder.
-        if (filesize($archive) === 0) {
+        if ($archive->size() === 0) {
             return null;
         }
 
         $zip = new ZipArchive();
 
-        if ($zip->open($archive) !== true) {
+        if ($zip->open($archive->path) !== true) {
             return null;
         }
 

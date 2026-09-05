@@ -10,6 +10,8 @@ use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Service\DownloadLogEntry;
 use NeuroSYS\Service\DownloadLogger;
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Service\ProfileRepository;
@@ -26,7 +28,7 @@ use Random\RandomException;
 #[CoversClass(DownloadLogEntry::class)]
 final class ServiceTest extends TestCase
 {
-    private string $tmp;
+    private Directory $fixtures;
 
     /**
      * @return void
@@ -34,7 +36,7 @@ final class ServiceTest extends TestCase
      */
     protected function setUp(): void
     {
-        $this->tmp = sys_get_temp_dir() . '/neurosys-test-' . bin2hex(random_bytes(6)) . '.php';
+        $this->fixtures = Directory::temporary('neurosys-service-');
     }
 
     /**
@@ -42,19 +44,22 @@ final class ServiceTest extends TestCase
      */
     protected function tearDown(): void
     {
-        if (is_file($this->tmp)) {
-            unlink($this->tmp);
-        }
+        $this->fixtures->remove();
     }
 
     /**
+     * A data file of the shape the repositories `require`.
+     *
      * @param string $php
-     * @return string
+     * @return File
      */
-    private function dataFile(string $php): string
+    private function dataFile(string $php): File
     {
-        file_put_contents($this->tmp, "<?php\nreturn $php;\n");
-        return $this->tmp;
+        $file = $this->fixtures->file('data.php');
+
+        $file->write("<?php\nreturn $php;\n");
+
+        return $file;
     }
 
     // ───────────────────────── ReleaseRepository ─────────────────────────
@@ -150,7 +155,7 @@ final class ServiceTest extends TestCase
      */
     public function testReturnsNothingWhenTheDataFileIsMissing(): void
     {
-        self::assertCount(0, new ProfileRepository('/nonexistent/profiles.php')->all());
+        self::assertCount(0, new ProfileRepository(new File('/nonexistent/profiles.php'))->all());
     }
 
     /**

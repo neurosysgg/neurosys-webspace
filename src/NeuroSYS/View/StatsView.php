@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -18,17 +19,12 @@ class StatsView extends View
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param int                    $total    Total number of logged downloads.
-     * @param array<string, int>     $byFormat Download counts keyed by "slug/format".
-     * @param array<string, int>     $byDay    Download counts keyed by date (YYYY-MM-DD).
-     * @param bool                   $loggingEnabled Whether download logging is switched on at all.
+     * @param DownloadStats|null $stats What the log adds up to, or **null where it was never
+     *                                  read** because logging is switched off. Those are two
+     *                                  different pages, and one object carrying both would need a
+     *                                  flag beside it saying which — which is what this replaced.
      */
-    public function __construct(
-        private readonly int   $total,
-        private readonly array $byFormat,
-        private readonly array $byDay,
-        private readonly bool  $loggingEnabled = false,
-    ) {}
+    public function __construct(private readonly ?DownloadStats $stats = null) {}
 
     /**
      * @return string
@@ -42,16 +38,13 @@ class StatsView extends View
     {
         // Distinguish "switched off" from "on, but nothing yet" — otherwise an empty page reads as
         // a bug. Logging is off for legal reasons; see DownloadLogger and CLAUDE.md.
-        if (!$this->loggingEnabled) {
+        if ($this->stats === null) {
             return self::notice('Download logging is switched off — nothing is recorded.');
         }
 
-        if ($this->total === 0) {
+        if ($this->stats->isEmpty()) {
             return self::notice('No downloads logged yet.');
         }
-
-        $days = $this->byDay;
-        ksort($days);
 
         return new Element(HtmlTag::Section)
             ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
@@ -63,12 +56,12 @@ class StatsView extends View
                     ->attr(HtmlAttribute::ClassName, CssClass::Muted)
                     ->containing(
                         'total downloads: ',
-                        new Element(HtmlTag::Strong)->containing((string) $this->total),
+                        new Element(HtmlTag::Strong)->containing((string) $this->stats->total),
                     ),
                 self::subheading('by format'),
-                self::table($this->byFormat),
+                self::table($this->stats->byFormat),
                 self::subheading('by day'),
-                self::table($days),
+                self::table($this->stats->byDay),
             );
     }
 

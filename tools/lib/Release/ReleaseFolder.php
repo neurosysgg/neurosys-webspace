@@ -7,6 +7,9 @@ namespace NeuroSYS\Tool\Release;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\File;
+use NeuroSYS\Support\SearchableCollection;
 
 /**
  * The ReleaseFolder class. Everything a prepared release folder says about itself.
@@ -34,29 +37,32 @@ final readonly class ReleaseFolder
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string      $path
-     * @param string|null $master   The release's FLAC, or null if it has none.
+     * @param Directory   $directory
+     * @param File|null   $master   The release's FLAC, or null if it has none.
      * @param string|null $title
      * @param int|null    $bpm
      * @param MusicalKey|null $key
      * @param Genre|null  $genre
      * @param Cover|null  $cover
      * @param string|null $date     The master's `DATE`, which `Release` has no field for.
-     * @param array<string, string> $audio ReleaseFormat value => path, in the order the catalogue lists them.
+     * @param SearchableCollection<File> $audio Keyed by {@link ReleaseFormat} value, in the order
+     *                                   the catalogue lists them — which is why it is the keyed
+     *                                   collection and not the list one: the key *is* the format,
+     *                                   and the order is a decision {@link self::audioIn()} takes.
      * @param ProjectFile|null $projectFile The FL Studio project, where the folder keeps one.
      * @param array<string, string> $raw   Fact value => the string that resolved to nothing.
      * @param array<string, Source> $sources Fact value => where it was read from.
      */
     public function __construct(
-        public string $path,
-        public ?string $master,
+        public Directory $directory,
+        public ?File $master,
         public ?string $title,
         public ?int $bpm,
         public ?MusicalKey $key,
         public ?Genre $genre,
         public ?Cover $cover,
         public ?string $date,
-        public array $audio,
+        public SearchableCollection $audio,
         public ?ProjectFile $projectFile = null,
         private array $raw = [],
         private array $sources = [],
@@ -72,14 +78,14 @@ final readonly class ReleaseFolder
      */
     public static function at(string $path, ?string $projectPath = null): self
     {
-        $path    = rtrim($path, '/');
-        $master  = self::fileWith($path, [ReleaseFormat::FLAC->value]);
+        $folder  = new Directory(rtrim($path, '/'));
+        $master  = self::fileWith($folder, [ReleaseFormat::FLAC->value]);
         $tags    = $master !== null ? Probe::tags($master) : [];
         $sources = [];
         $raw     = [];
 
         // The project first, because FL Studio is what wrote the tags below it — see Source.
-        $projectFile = $projectPath !== null ? ProjectFile::at($projectPath) : ProjectFile::in($path);
+        $projectFile = $projectPath !== null ? ProjectFile::at($projectPath) : ProjectFile::in($folder);
         $project     = $projectFile?->project;
 
         // The title is the one fact the project does **not** outrank, and the exception is the rule
@@ -123,8 +129,8 @@ final readonly class ReleaseFolder
         // The filename convention — `140 D#Min ill remix package.zip` — was the older releases' only
         // record of either fact, so it stays as a fallback now that both masters carry the tags.
         if ($bpm === null || ($key === null && $rawKey === null)) {
-            foreach (glob($path . '/*') ?: [] as $file) {
-                if (preg_match('/(\d{2,3})\s+([A-G][#b]?(?:maj|min))/i', basename($file), $match) !== 1) {
+            foreach ($folder->files() as $file) {
+                if (preg_match('/(\d{2,3})\s+([A-G][#b]?(?:maj|min))/i', $file->name(), $match) !== 1) {
                     continue;
                 }
 
@@ -163,7 +169,7 @@ final readonly class ReleaseFolder
             $raw[Fact::Genre->value] = $rawGenre;
         }
 
-        $cover = self::coverIn($path, $master);
+        $cover = self::coverIn($folder, $master);
 
         if ($cover !== null) {
             $sources[Fact::Cover->value] = $cover->source;
@@ -172,7 +178,7 @@ final readonly class ReleaseFolder
         $sources[Fact::Formats->value] = Source::FilesPresent;
 
         return new self(
-            path:        $path,
+            directory:   $folder,
             master:      $master,
             title:       $title,
             bpm:         $bpm,
@@ -180,7 +186,7 @@ final readonly class ReleaseFolder
             genre:       $genre,
             cover:       $cover,
             date:        $tags[FlacTag::Date->value] ?? null,
-            audio:       self::audioIn($path),
+            audio:       self::audioIn($folder),
             projectFile: $projectFile,
             raw:         $raw,
             sources:     $sources,
@@ -250,7 +256,7 @@ final readonly class ReleaseFolder
             Fact::Bpm     => $this->bpm !== null,
             Fact::Key     => $this->key !== null,
             Fact::Genre   => $this->genre !== null,
-            Fact::Formats => $this->audio !== [],
+            Fact::Formats => $this->audio->count() > 0,
             Fact::Cover   => $this->cover !== null,
         };
     }
@@ -269,14 +275,14 @@ final readonly class ReleaseFolder
     }
 
     /**
-     * The path of a downloadable format, or null if the folder has no file for it.
+     * The file for a downloadable format, or null if the folder has none.
      *
      * @param ReleaseFormat $format
-     * @return string|null
+     * @return File|null
      */
-    public function fileFor(ReleaseFormat $format): ?string
+    public function fileFor(ReleaseFormat $format): ?File
     {
-        return $this->audio[$format->value] ?? null;
+        return $this->audio->find($format->value);
     }
 
     /**
@@ -286,7 +292,7 @@ final readonly class ReleaseFolder
      */
     public function formats(): array
     {
-        return array_map(ReleaseFormat::from(...), array_keys($this->audio));
+        return array_map(ReleaseFormat::from(...), array_keys($this->audio->all()));
     }
 
     /**
@@ -296,10 +302,10 @@ final readonly class ReleaseFolder
      * package is the zip rather than the loose folder beside it: the zip is what gets uploaded, and
      * the two are free to drift — which is what {@link Preflight} then checks.
      *
-     * @param string $path
-     * @return array<string, string>
+     * @param Directory $folder
+     * @return SearchableCollection<File>
      */
-    private static function audioIn(string $path): array
+    private static function audioIn(Directory $folder): SearchableCollection
     {
         $found = [];
 
@@ -310,13 +316,13 @@ final readonly class ReleaseFolder
                 continue;
             }
 
-            if (($file = self::fileWith($path, [$format->value])) !== null) {
+            if (($file = self::fileWith($folder, [$format->value])) !== null) {
                 $found[$format->value] = $file;
             }
         }
 
-        foreach (glob($path . '/*.zip') ?: [] as $zip) {
-            if (stripos(basename($zip), 'remix package') !== false) {
+        foreach ($folder->files('*.zip') as $zip) {
+            if (stripos($zip->name(), 'remix package') !== false) {
                 $found[ReleaseFormat::STEMS->value] = $zip;
                 break;
             }
@@ -335,7 +341,13 @@ final readonly class ReleaseFolder
         // PHP's sorts are stable, so formats of equal rank keep the enum's own order.
         uksort($found, static fn(string $a, string $b): int => $rank($a) <=> $rank($b));
 
-        return $found;
+        $audio = new SearchableCollection(File::class);
+
+        foreach ($found as $format => $file) {
+            $audio = $audio->with($format, $file);
+        }
+
+        return $audio;
     }
 
     /**
@@ -346,19 +358,19 @@ final readonly class ReleaseFolder
      * own embedded picture is the last resort, which is where `hello world!` kept its only copy
      * until one was exported.
      *
-     * @param string      $path
-     * @param string|null $master Consulted only if no image file exists.
+     * @param Directory $folder
+     * @param File|null $master Consulted only if no image file exists.
      * @return Cover|null
      */
-    private static function coverIn(string $path, ?string $master): ?Cover
+    private static function coverIn(Directory $folder, ?File $master): ?Cover
     {
         $images = ['jpg', 'jpeg', 'png'];
 
-        if (($web = self::fileWith($path . '/web', $images)) !== null) {
+        if (($web = self::fileWith($folder->directory('web'), $images)) !== null) {
             return new Cover($web, Source::WebExport);
         }
 
-        if (($root = self::fileWith($path, $images)) !== null) {
+        if (($root = self::fileWith($folder, $images)) !== null) {
             return new Cover($root, Source::FolderRoot);
         }
 
@@ -372,17 +384,15 @@ final readonly class ReleaseFolder
     /**
      * The first file directly in a folder whose name ends with one of the given extensions.
      *
-     * @param string       $folder
+     * @param Directory    $folder
      * @param list<string> $extensions Without the dot, lower case.
-     * @return string|null
+     * @return File|null
      */
-    private static function fileWith(string $folder, array $extensions): ?string
+    private static function fileWith(Directory $folder, array $extensions): ?File
     {
-        foreach (glob($folder . '/*') ?: [] as $file) {
-            foreach ($extensions as $extension) {
-                if (is_file($file) && str_ends_with(strtolower($file), '.' . $extension)) {
-                    return $file;
-                }
+        foreach ($folder->files() as $file) {
+            if (in_array($file->extension(), $extensions, true)) {
+                return $file;
             }
         }
 

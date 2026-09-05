@@ -6,13 +6,14 @@ namespace NeuroSYS\Service;
 
 use NeuroSYS\Config;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Support\File;
 
 /**
  * The DownloadLogger class. Appends a JSON log entry to the downloads log for each download.
  */
 class DownloadLogger
 {
-    private string $logFile;
+    private File $logFile;
 
     /** Constructs an instance of {@link self}. */
     public function __construct()
@@ -40,14 +41,10 @@ class DownloadLogger
             referrer: $_SERVER['HTTP_REFERER'] ?? '',
         );
 
-        $fp = fopen($this->logFile, 'ab');
-        if ($fp === false) {
-            return;
-        }
-        if (flock($fp, LOCK_EX)) {
-            fwrite($fp, $entry . "\n");
-            flock($fp, LOCK_UN);
-        }
-        fclose($fp);
+        // The locked append lives on File now, and the failure is still silent on purpose: the
+        // log's directory is excluded from deploy.sh, so on the server this returns false and
+        // nothing is written. That was once "fixed" with an @mkdir and had to be reverted — see
+        // CLAUDE.md. A download is not worth failing over a log.
+        $this->logFile->append((string) $entry);
     }
 }

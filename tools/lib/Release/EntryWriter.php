@@ -46,30 +46,42 @@ use NeuroSYS\Tool\Php\Value;
 final readonly class EntryWriter
 {
     /**
-     * @param ReleaseFolder $folder Must have every required {@link Fact}; see {@link ReleaseFolder::missing()}.
+     * @param ReleaseFolder        $folder Must have every required {@link Fact}; see {@link ReleaseFolder::missing()}.
+     * @param SoundCloudEmbed|null $embed  The player, once the track exists — see {@link self::entry()}.
      * @return string
      */
-    public static function write(ReleaseFolder $folder): string
+    public static function write(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): string
     {
-        return self::entry($folder)->render();
+        return self::entry($folder, $embed)->render();
     }
 
     /**
      * The classes `data/releases.php` has to import for the entry to parse.
      *
-     * @param ReleaseFolder $folder
+     * @param ReleaseFolder        $folder
+     * @param SoundCloudEmbed|null $embed
      * @return list<string>
      */
-    public static function imports(ReleaseFolder $folder): array
+    public static function imports(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): array
     {
-        return self::entry($folder)->imports();
+        return self::entry($folder, $embed)->imports();
     }
 
     /**
-     * @param ReleaseFolder $folder
+     * The entry, with the player either written out or written down.
+     *
+     * **The second argument is the one thing about a release that used to have no source at all.**
+     * The three SoundCloud ids do not exist until the track is uploaded, so this has always emitted
+     * them commented out, as a line to fill in by hand from an embed dialog. `release-track` is
+     * where they now come from, and it hands the resulting {@link SoundCloudEmbed} straight back
+     * here — so the entry printed after an upload and the entry printed before one are the same
+     * code with one argument different.
+     *
+     * @param ReleaseFolder        $folder
+     * @param SoundCloudEmbed|null $embed Null for a track that has not been uploaded yet.
      * @return Entry
      */
-    private static function entry(ReleaseFolder $folder): Entry
+    private static function entry(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): Entry
     {
         $slug = (string) $folder->slug();
 
@@ -81,10 +93,14 @@ final readonly class EntryWriter
             new Argument(new Value(''), 'description', 'editorial — nothing in the folder supplies this'),
             new Argument(new Value(null), 'cover', 'share id for ' . ($folder->cover?->name() ?? 'the cover')),
             new Argument(self::formats($folder), 'formats'),
-            Argument::comment(
-                'SoundCloud ids exist only once the track is uploaded; the permalink is usually the slug.',
-            ),
-            Argument::pending(self::embed($slug), 'embed'),
+            ...($embed !== null
+                ? [new Argument(self::embed($embed, $slug), 'embed')]
+                : [
+                    Argument::comment(
+                        'SoundCloud ids exist only once the track is uploaded; the permalink is usually the slug.',
+                    ),
+                    Argument::pending(self::embed($embed, $slug), 'embed'),
+                ]),
             ...self::production($folder),
         ];
 
@@ -104,7 +120,7 @@ final readonly class EntryWriter
         foreach ($folder->formats() as $format) {
             $arguments[] = new Argument(
                 Call::create(Format::class, [new Argument(new Value($format))]),
-                comment: 'share id for ' . basename((string) $folder->audio[$format->value]),
+                comment: 'share id for ' . ($folder->fileFor($format)?->name() ?? $format->value),
             );
         }
 
@@ -112,18 +128,37 @@ final readonly class EntryWriter
     }
 
     /**
-     * The player, written out but commented: none of its three ids exists until the track is up.
+     * The player: the real ids where there are some, and the shape to fill in where there are not.
      *
-     * @param string $slug
+     * **`secretToken` is omitted for a public track rather than written empty.** That is what the
+     * argument's own default says and what `docs/releases.md`'s worked example does — and the
+     * difference is not cosmetic on the page: `SoundCloudEmbed::toElement()` sends no attribute at
+     * all for an empty token, because the client reads an absent attribute and an empty one
+     * differently. The commented-out form keeps it, since a scheduled track is the case it exists
+     * for and a line to uncomment should hold every line you will want.
+     *
+     * **A real one is stacked and a pending one is not**, which is what each is for. `data/releases.php`
+     * writes every player it has across four lines with the names in a column, so that is what an
+     * entry with real ids has to look like to sit beside them. The pending one is a single line
+     * because it is a line to uncomment, and four commented lines are four chances to uncomment
+     * three.
+     *
+     * @param SoundCloudEmbed|null $embed
+     * @param string               $slug Stands in for the permalink until there is a real one.
      * @return Call
      */
-    private static function embed(string $slug): Call
+    private static function embed(?SoundCloudEmbed $embed, string $slug): Call
     {
-        return Call::create(SoundCloudEmbed::class, [
-            new Argument(new Value(0), 'trackId'),
-            new Argument(new Value($slug), 'permalink'),
-            new Argument(new Value(''), 'secretToken'),
-        ]);
+        $arguments = [
+            new Argument(new Value($embed?->trackId ?? 0), 'trackId'),
+            new Argument(new Value($embed?->permalink ?? $slug), 'permalink'),
+        ];
+
+        if ($embed === null || $embed->secretToken !== '') {
+            $arguments[] = new Argument(new Value($embed?->secretToken ?? ''), 'secretToken');
+        }
+
+        return Call::create(SoundCloudEmbed::class, $arguments, stacked: $embed !== null);
     }
 
     /**

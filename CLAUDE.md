@@ -53,12 +53,12 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.30% of
-lines**; of the twenty-nine that are left, eighteen are deliberate and named in `docs/testing.md`.
-The other eleven are a gap rather than a decision — three guard-clause `throw`s and one unused
-factory on the header-value classes `867372f` added, which nothing has exercised yet. The figure
-rose without that count changing: `Model/Production/` arrived fully covered, so only the
-denominator moved.
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.86% of
+lines**; of the twenty-five that are left, thirteen are deliberate and named in `docs/testing.md`.
+The other twelve are a gap rather than a decision — guard-clause `throw`s and one unused factory on
+the header-value classes `867372f` added, which nothing has exercised yet. The deliberate count fell
+from eighteen: `DownloadLogger::log()`'s locked append moved into `Support\File::append()`, where it
+is tested directly, leaving only the lines behind the switch itself unreachable.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -104,13 +104,15 @@ src/NeuroSYS/
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
 │   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
-├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, ReleaseRepository, ProfileRepository
+├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
+│                     ProfileRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable) + the TypedItems trait
-│                     they share, Route, RouteInitialization, JsonDeserializable, Charset
+│                     they share, File + Directory, Route, RouteInitialization, JsonDeserializable,
+│                     Charset
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
-│   ├── Html/       ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document, Doctype
-│   │                 + Tag/HtmlTag, the attribute-name enums, and the attribute-value enums
-│   │                   LinkRel / LinkTarget / ScriptType
+│   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
+│   │                 Doctype + Tag/HtmlTag, the attribute-name enums, and the attribute-value
+│   │                 enums LinkRel / LinkTarget / ScriptType
 │   └── Terminal/   ← Terminal, TerminalCommand, TerminalField + the enums they compose
 ├── Config.php      ← the facts about this site: identity, origins, paths, switches
 ├── Layout.php      ← static wrap(View): Document — the full HTML shell
@@ -209,6 +211,21 @@ and a malformed one throws where it is written the way `CspHost`'s origin does. 
 half that earns the class — `nosniff` stops a browser guessing the type, and nothing stops it
 guessing the encoding.
 
+**A path is a `File`, not a string.** `Config::dataFile()` hands back one, and the five classes that
+read `data/` — `Auth`, both repositories, `PrivacyController`, `StatsController` — stop each asking
+`is_file()` in their own words. That collapse is what the class is for and it fixed a real fault
+along the way: `is_file()` guards a file that is absent and does nothing about one that is present
+and unreadable, so `file_get_contents()` warned, and the headers have already gone out by then —
+the warning printed into the page ahead of the doctype. `File::read()` answers `null` for both
+causes, which is what every caller was collapsing them to anyway.
+
+**It cannot create a directory, and that is the decision rather than the omission.** `write()` and
+`append()` both fail on a path whose directory is missing. The downloads log's directory is excluded
+from `deploy.sh`; an `@mkdir` was once added to "fix" that, had to be reverted, and the directory it
+had already made on the live server had to be deleted by hand. Creating one is `Directory`'s to do
+and a caller's to ask for. `Directory` also refuses to recurse: `remove()` takes away the files it
+holds and then itself, so a fixture comes apart and a tree does not.
+
 **The encoding is one fact.** `Charset` sits in `Support/` because both the header and the markup
 tree read it and `View/` has no other reason to know anything about HTTP. It carries two forms —
 `utf-8` for the header parameter, `canonical()` for the document head and for the site's one escaping
@@ -249,7 +266,7 @@ only code that writes a `<` is `Element` and `Doctype`. A verify check enforces 
 
 | Node | Is |
 |---|---|
-| `Element` | a `TagName`, typed attributes, child nodes |
+| `Element` | a `TagName`, a keyed collection of `Attribute`s, child nodes |
 | `Text` | a run of text, escaped on the way out |
 | `Fragment` | several nodes with no element around them |
 | `Document` | a `Doctype` and the `<html>` under it |
@@ -273,6 +290,13 @@ header. These are server-only, so they have no TypeScript mirror and none is wan
 `Element::attr()` is the whole attribute API. What you pass decides what renders: a string or int is
 a value, `true` is a bare boolean attribute, and `false`/`null` leave it off. `''` and `null` are
 deliberately different — `options=""` is a real empty value, `secret-token` absent is not.
+
+**An attribute is an `Attribute`**, held in a `SearchableCollection` keyed by its name. It used to
+be an `array{AttributeName, string|null}` in a map keyed by the same string — a two-slot tuple
+destructured in the one place that read it, where `[$attribute, $value] = $pair` only reads
+correctly if you already know the answer. The name is kept beside the value even though the map is
+keyed by it, because `render()` has to ask the name whether it is a URL and a key is a string; the
+key is what keeps last-write-wins and declaration order.
 
 `containing()` takes nodes, and a bare string becomes escaped `Text`. That is the safe reading of the
 ambiguous case: markup passed as a string shows up as visible `&lt;b&gt;` — wrong on the page, but
@@ -354,6 +378,13 @@ both directions and asserts each attribute carries a message, because the defaul
 The deliberate discards are all in the tests — proving a builder did not mutate what it was called
 on, or that a bad argument threw — and each is spelled `(void)`, which says out loud what the test
 is there to demonstrate.
+
+**What moved into them since**, each for the same reason — a shape crossing a public boundary with
+nothing checking it: `Element`'s attributes (a `SearchableCollection<Attribute>`, keyed by name,
+which is what keeps last-write-wins), `ReleaseFolder`'s audio files (keyed by `ReleaseFormat` value,
+in the order the catalogue lists them), and an outbound `Request`'s headers and body fields. None of
+those had a hand-rolled check to replace, which is the weaker half of the rule: they had *no* check,
+and an `array<string, string|FilePart>` is a docblock's promise rather than the language's.
 
 Not everything with a `list<…>` in its docblock wants one. `PermissionsPolicy::$denied` and
 `ContentSecurityPolicy::$directives` are private, never escape, and are built only through a
@@ -861,37 +892,92 @@ interface — another host means a new class implementing it, and no change to `
 `DownloadController` or `ReleaseView`.
 
 **Never paste SoundCloud's embed HTML.** `SoundCloudEmbed` generates it — see `docs/releases.md` for where the
-three ids come from. Player style and the six SoundCloud toggles are `SoundCloudPlayerStyle` /
+three ids come from, or let `php tools/release-track.php <folder> --upload` upload the track and print the
+entry with them already in it. Player style and the six SoundCloud toggles are `SoundCloudPlayerStyle` /
 `SoundCloudOption` enums with sensible defaults; a normal release never sets them. Adding another provider
 means a new class implementing `Embed`, not a new field on `Release`.
 
 ## The tooling
 
-`tools/` holds two commands and two things that are not. `stage-release` and `merge-coverage`
-implement `NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a
-`run()` returning an `ExitCode`. `dev-router.php` and `coverage-prepend.php` implement nothing,
-because PHP loads them itself: one is handed to `php -S` and one is an `auto_prepend_file`, so
-neither has an argv or an exit code for an interface to attach to. Each says so in its docblock.
+`tools/` holds three commands and two things that are not. `stage-release`, `release-track` and
+`merge-coverage` implement `NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it
+accepts, and a `run()` returning an `ExitCode`. `dev-router.php` and `coverage-prepend.php`
+implement nothing, because PHP loads them itself: one is handed to `php -S` and one is an
+`auto_prepend_file`, so neither has an argv or an exit code for an interface to attach to. Each
+says so in its docblock.
 
 ```
 tools/
 ├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/
-├── stage-release.php     ├── merge-coverage.php   ← entry points: require, construct, Runner::run
+├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
 └── lib/
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
-    ├── Command/          ← the two commands and their option enums
+    ├── Command/          ← the three commands and their option enums
+    ├── Export/           ← where a release's audio comes from: Exporter + PreparedExport and
+    │                       FlStudioExport, RenderFormat, ExportedAudio/ExportSource
     ├── Flp/              ← the FL Studio project reader: FlpFile + EventId/EventWidth/Event,
     │                       Project, TimeMarker/MarkerType, ScaleNotation, KeyEstimate, Plugins
+    ├── Http/             ← the only outbound requests this repo makes: Transport + CurlTransport,
+    │                       Request/Response, FormField, FilePart, OutboundHeader
     ├── Php/              ← the expression tree EntryWriter emits through, so nothing builds
     │                       PHP source from a string: Expression, Value, Call, Argument, Entry
-    └── Release/          ← ReleaseFolder, Preflight, EntryWriter, ProjectFile + the enums they read
+    ├── Release/          ← ReleaseFolder, Preflight, EntryWriter, ProjectFile, ReleasesFile
+    │                       + the enums they read
+    └── SoundCloud/       ← the upload client: Client, Credentials/CredentialVariable/Authorization/
+                            AccessToken/OAuthCredential/TokenStore, TrackUpload/TrackField/
+                            TrackSharing, UploadedTrack
 ```
+
+**`release-track` is `stage-release` with its last hole filled.** That command emits an entry whose
+`embed:` argument is commented out, because the three SoundCloud ids do not exist until the track is
+uploaded; this one uploads it and hands the resulting `SoundCloudEmbed` back to the same
+`EntryWriter`, so the entry printed after an upload and the entry printed before one are the same
+code with one argument different. Four decisions are worth knowing before running it:
+
+- **It sends nothing without `--upload`.** Everything before that flag reads files on this machine;
+  that flag is the step that puts one on somebody else's. Without it the command prints every
+  multipart field it would send, by name, and stops.
+- **Uploads are private and there is no flag that says otherwise.** Publishing is decided in
+  SoundCloud's own interface on the day, which is the step `docs/releases.md` already describes.
+  A `--public` would make publishing a typo away, and that mistake has an audience.
+- **The credentials are environment variables**, never `data/`. `deploy.sh` rsyncs `data/` to
+  Strato and keeps two files off it with an `--exclude` each — one line per secret, added by hand.
+  The rotating OAuth token lives at `~/.config/neurosys/soundcloud.json`, outside the repo
+  entirely, so no `.gitignore` entry and no rsync flag is what stands between it and a webroot.
+- **The multipart field names are an enum and the OAuth parameter names are not**, and the rule is
+  the one this codebase applies everywhere: a name is typed when getting it wrong is *silent*. An
+  API drops a field it does not recognise, so `track[titel]` uploads the file and leaves an
+  untitled track; a misspelled `code_challenge_method` is refused in words, in a browser, before
+  anything is sent.
+- **A request's headers are the site's own `Header`s**, so `Accept` is a `MimeType` that renders
+  `application/json; charset=utf-8` and `Authorization` is an `OAuthCredential` — SoundCloud's
+  scheme is `OAuth`, not `Bearer`, which is exactly the sort of thing that reads as a typo and so is
+  written down once in a class named for it. Its body is a `Collection<FormField>`, checked at the
+  boundary the way every other collection here is.
+
+**The audio is a port, and the FL Studio half of it deliberately refuses.** `Exporter` has two
+implementations: `PreparedExport`, which hands back a file already in the release folder — which is
+how every release so far was actually made — and `FlStudioExport`, which throws. FL runs in a
+**Windows VM**, so rendering is not a process to start but a message to another computer, and which
+mechanism (a guest agent, SSH into the guest, a watched shared folder, the hypervisor's guest-exec
+channel) is undecided. The half that *is* settled is written down and tested: `FlStudioExport::commandLine()`
+builds the `FL64.exe /R /E<format>` invocation from Image-Line's manual. Three constraints are why
+none of the four options is obviously right, and they are listed on the class: a `.flp` references
+its samples by absolute path so it has to render where it lives, the render uses the project's own
+saved export settings, and FL opens its interface during a command-line render. The wine prefix on
+this machine is **not** a shortcut — it is not the install the projects were made in, and a render
+out of it that looked like it worked would be the worst available outcome.
 
 **A second autoloader, and it is not optional.** The site's maps `NeuroSYS\` to `src/NeuroSYS/`, and
 `deploy.sh` uploads `src/` with `--delete` — so a tooling class under it would ship to Strato and
 join `phpunit.xml.dist`'s coverage source. Composer's `autoload-dev` was the other candidate and was
 turned down for the reason `autoload.php` exists at all: `stage-release` runs on a clone that has
 never seen `composer install`. (`merge-coverage` does need `vendor/`, for the coverage library.)
+
+`release-track` needs one thing the site does not: **`ext/curl`**. It is not in `composer.json`,
+because that file states what the *site* requires and the site makes no outbound request at all —
+a property the verify script now asserts, alongside the one that says curl is called in exactly one
+class, the way `Probe` is the one class that shells out.
 
 That autoloader is also what made the typed design affordable. `phpcs` holds `tools/` to PSR-12,
 where a class-like symbol needs a namespace *and* a file of its own — which is why this started as

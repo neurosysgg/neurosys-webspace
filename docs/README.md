@@ -102,8 +102,9 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 
 - [deployment.md](deployment.md) — Strato setup and the deploy workflow
 - [releases.md](releases.md) — adding and updating releases
-- [authoring.md](authoring.md) — `tools/stage-release.php`: generating a release entry from its
-  prepared folder, what the folder knows, what it cannot, and what the preflight checks before upload
+- [authoring.md](authoring.md) — `tools/stage-release.php` and `tools/release-track.php`: generating
+  a release entry from its prepared folder, what the folder knows, what it cannot, what the preflight
+  checks before upload, and the SoundCloud client that fills in the last three ids
 - [testing.md](testing.md) — the two test suites and the invariants they protect
 - [branding.md](branding.md) — vendored brand assets and profile links
 - [security.md](security.md) — the security posture, hardenings, and assessment findings

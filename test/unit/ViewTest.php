@@ -29,6 +29,8 @@ use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
 use NeuroSYS\View\Html\Tag;
+use NeuroSYS\Service\DownloadLogEntry;
+use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\View\StatsView;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
@@ -582,7 +584,7 @@ final class ViewTest extends TestCase
      */
     public function testStatsSaysLoggingIsOffRatherThanShowingAnEmptyTable(): void
     {
-        $html = new StatsView(0, [], [], false)->content()->render();
+        $html = new StatsView()->content()->render();
 
         self::assertStringContainsString('switched off', $html);
         self::assertStringNotContainsString('<table', $html);
@@ -595,7 +597,7 @@ final class ViewTest extends TestCase
     {
         self::assertStringContainsString(
             'No downloads logged yet',
-            new StatsView(0, [], [], true)->content()->render(),
+            new StatsView(DownloadStats::fromLines([]))->content()->render(),
         );
     }
 
@@ -604,7 +606,11 @@ final class ViewTest extends TestCase
      */
     public function testStatsEscapesLogDerivedKeys(): void
     {
-        $html = new StatsView(1, ['<script>x</script>' => 1], [], true)->content()->render();
+        // Through a real log line rather than a hand-built tally: the key on that page is
+        // `slug/format`, and the slug is the one part of it a request ever influenced.
+        $html = new StatsView(DownloadStats::fromLines([
+            new DownloadLogEntry('2026-09-06T00:00:00+00:00', '<script>x</script>', 'flac', '')->toJson(),
+        ]))->content()->render();
 
         self::assertStringNotContainsString('<script>x</script>', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
@@ -854,6 +860,6 @@ final class ViewTest extends TestCase
      */
     public function testTheStatsPageIsTitledForTheSection(): void
     {
-        self::assertSame('stats — ' . Config::NAME, new StatsView(0, [], [], false)->pageTitle());
+        self::assertSame('stats — ' . Config::NAME, new StatsView()->pageTitle());
     }
 }
