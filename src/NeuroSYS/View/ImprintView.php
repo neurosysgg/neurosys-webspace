@@ -40,14 +40,14 @@ class ImprintView extends View
                 self::heading(HtmlTag::H2, 'Angaben gemäß § 5 DDG'),
                 self::address(),
                 self::heading(HtmlTag::H2, 'Kontakt'),
-                self::contact('E-Mail: '),
+                self::contact(),
                 self::heading(HtmlTag::H2, 'Verantwortlicher im Sinne des § 18 Abs. 2 MStV'),
                 self::address(),
                 self::heading(HtmlTag::H1, 'Imprint'),
                 self::heading(HtmlTag::H2, 'Information pursuant to § 5 DDG'),
                 self::address(),
                 self::heading(HtmlTag::H2, 'Contact'),
-                self::contact('E-Mail: '),
+                self::contact(),
                 self::heading(HtmlTag::H2, 'Responsible for content pursuant to § 18 Abs. 2 MStV'),
                 self::address(),
             );
@@ -74,10 +74,15 @@ class ImprintView extends View
         return new Element(HtmlTag::P)->containing(...$lines);
     }
 
-    private static function contact(string $label): Element
+    /**
+     * The contact line, which is the same in both languages — `E-Mail:` is what a German imprint
+     * says, and it is close enough to the English that the two halves share it rather than pretend
+     * to differ.
+     */
+    private static function contact(): Element
     {
         return new Element(HtmlTag::P)->containing(
-            $label,
+            'E-Mail: ',
             new Element(HtmlTag::A)
                 ->attr(HtmlAttribute::Href, 'mailto:' . Config::EMAIL)
                 ->containing(Config::EMAIL),

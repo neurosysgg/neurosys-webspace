@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
+use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Layout;
 use NeuroSYS\AssetManifest;
@@ -23,12 +24,10 @@ use NeuroSYS\View\HomeView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
-use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\StatsView;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
-use NeuroSYS\View\Terminal\TerminalAttribute;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -286,6 +285,27 @@ final class ViewTest extends TestCase
         $html = new NotFoundView('/some odd path')->content()->render();
 
         self::assertStringContainsString('find &quot;/some odd path&quot;', $html);
+    }
+
+    /**
+     * The rows cross as JSON, and `JSON_THROW_ON_ERROR` is what makes a row that will not encode
+     * loud rather than a silent `false`. The JsonException that raises is translated rather than
+     * propagated: a terminal whose rows cannot be serialised is a page that cannot be built, which
+     * is what MarkupException already means and what every other failure in this layer throws.
+     * Propagating the core exception would make every view declaring a terminal owe an @throws for
+     * a condition none of them can act on.
+     */
+    public function testARowThatCannotBeEncodedFailsAsAMarkupProblem(): void
+    {
+        $this->expectException(MarkupException::class);
+        $this->expectExceptionMessageIsOrContains('could not be encoded');
+
+        new Terminal(
+            label:   'release.log',
+            command: new TerminalCommand('./x'),
+            fields:  new Collection(TerminalField::class)
+                ->with(new TerminalField('title', "\xB1\x31")),
+        )->toElement();
     }
 
     public function testATerminalWithNoRowsRendersAnEmptyFieldList(): void

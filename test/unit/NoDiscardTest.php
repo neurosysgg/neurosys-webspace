@@ -6,6 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
+use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -121,7 +122,7 @@ final class NoDiscardTest extends TestCase
     {
         $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
         $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
         );
 
         $classes = [];

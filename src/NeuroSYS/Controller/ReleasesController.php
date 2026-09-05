@@ -13,7 +13,7 @@ use NeuroSYS\View\ReleasesView;
 /**
  * The ReleasesController class. Handles requests to the releases listing page.
  */
-class ReleasesController implements Controller
+readonly class ReleasesController implements Controller
 {
     /**
      * Constructs an instance of {@link self}.
@@ -21,7 +21,7 @@ class ReleasesController implements Controller
      * @param ReleaseRepository|null $releases The catalogue to read, or null for the
      *                                         canonical one. Only tests pass this.
      */
-    public function __construct(private readonly ?ReleaseRepository $releases = null) {}
+    public function __construct(private ?ReleaseRepository $releases = null) {}
 
     public function handle(Request $request): Response
     {

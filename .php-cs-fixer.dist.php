@@ -26,5 +26,8 @@ return (new Config())
     ->setFinder(
         (new Finder())
             ->in([__DIR__ . '/src', __DIR__ . '/public', __DIR__ . '/test', __DIR__ . '/tools'])
+            // in() takes directories, so the one PHP file at the repo root needed naming. It is the
+            // file every request loads through, and neither linter had ever seen it.
+            ->append([__DIR__ . '/autoload.php'])
     )
 ;

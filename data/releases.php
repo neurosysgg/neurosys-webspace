@@ -10,7 +10,6 @@ use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 
-/** @noinspection PhpUnhandledExceptionInspection -> no need to overcomplicate handling for now; test it and it will work.*/
 return [
     'ill' => new Release(
         title:       'ill.',

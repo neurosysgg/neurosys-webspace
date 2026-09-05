@@ -39,6 +39,13 @@ const seen = new Map();
 /** Leaf files only — a manifest orders parts, it is not one. */
 let parts = 0;
 
+/**
+ * Exits with a reason. Declared as returning `never` so it can stand in an expression — it is used
+ * as the right-hand side of `??` where a missing argument has no value to fall back to, and without
+ * the annotation that reads as using a void call's return value.
+ *
+ * @returns {never}
+ */
 function fail(message) {
   console.error(`build-css: ${message}`);
   process.exit(1);

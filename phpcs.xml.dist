@@ -11,6 +11,10 @@
          wrapped without changing the output. Report them, don't fail the build on them. -->
     <config name="ignore_warnings_on_exit" value="1"/>
 
+    <!-- autoload.php is named explicitly because it sits at the root rather than in a directory,
+         so a <file> entry for a folder never reached it. It is the file the whole site loads
+         through and the only one using the pipe operator; it was linted by nothing. -->
+    <file>autoload.php</file>
     <file>src</file>
     <file>public</file>
     <file>test</file>

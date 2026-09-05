@@ -97,7 +97,7 @@ final class SupportTest extends TestCase
     public function testTheTypeErrorNamesBothTypes(): void
     {
         $this->expectException(TypeError::class);
-        $this->expectExceptionMessage(DateTime::class);
+        $this->expectExceptionMessageIsOrContains(DateTime::class);
         (void) new Collection(DateTime::class)->with(new stdClass());
     }
 

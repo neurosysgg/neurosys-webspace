@@ -12,7 +12,6 @@ use NeuroSYS\Http\CacheDirective;
 use NeuroSYS\Http\ETag;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HeaderValue;
-use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\Location;
 use NeuroSYS\Http\MimeType;
 use NeuroSYS\Http\RequestHeader;
@@ -33,6 +32,7 @@ use NeuroSYS\Http\Vary;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -227,7 +227,7 @@ final class SecurityPolicyTest extends TestCase
     public function testADirectiveNeedsAtLeastOneSource(): void
     {
         $this->expectException(SecurityPolicyException::class);
-        $this->expectExceptionMessage('CspKeyword::None');
+        $this->expectExceptionMessageIsOrContains('CspKeyword::None');
 
         (void) new ContentSecurityPolicy()->allow(CspDirective::ScriptSrc);
     }
@@ -236,7 +236,7 @@ final class SecurityPolicyTest extends TestCase
     public function testADirectiveCannotBeSetTwice(): void
     {
         $this->expectException(SecurityPolicyException::class);
-        $this->expectExceptionMessage('already set');
+        $this->expectExceptionMessageIsOrContains('already set');
 
         (void) new ContentSecurityPolicy()
             ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
@@ -415,7 +415,7 @@ final class SecurityPolicyTest extends TestCase
     {
         $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
         $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, RecursiveDirectoryIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
         );
 
         $classes = [];
@@ -441,7 +441,7 @@ final class SecurityPolicyTest extends TestCase
     public function testAnEmptyCacheControlIsRefused(): void
     {
         $this->expectException(SecurityPolicyException::class);
-        $this->expectExceptionMessage('at least one directive');
+        $this->expectExceptionMessageIsOrContains('at least one directive');
 
         CacheControl::of();
     }
@@ -449,7 +449,7 @@ final class SecurityPolicyTest extends TestCase
     public function testAnEmptyVaryIsRefused(): void
     {
         $this->expectException(SecurityPolicyException::class);
-        $this->expectExceptionMessage('at least one header');
+        $this->expectExceptionMessageIsOrContains('at least one header');
 
         Vary::on();
     }

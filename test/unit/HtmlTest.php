@@ -27,6 +27,7 @@ use NeuroSYS\View\Terminal\TerminalAttribute;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
@@ -290,7 +291,7 @@ final class HtmlTest extends TestCase
     public function testAVoidElementRefusesChildren(): void
     {
         $this->expectException(MarkupException::class);
-        $this->expectExceptionMessage('<img>');
+        $this->expectExceptionMessageIsOrContains('<img>');
 
         (void) new Element(HtmlTag::Img)->containing('x');
     }
@@ -797,7 +798,7 @@ final class HtmlTest extends TestCase
     private static function filesContaining(string $needle): array
     {
         $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator(NEUROSYS_ROOT . '/src', RecursiveDirectoryIterator::SKIP_DOTS),
+            new RecursiveDirectoryIterator(NEUROSYS_ROOT . '/src', FilesystemIterator::SKIP_DOTS),
         );
 
         $found = [];

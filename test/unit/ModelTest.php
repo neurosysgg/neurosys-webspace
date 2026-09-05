@@ -68,7 +68,7 @@ final class ModelTest extends TestCase
     public function testRejectsANonPositiveBpm(): void
     {
         $this->expectException(ReleaseVerificationException::class);
-        $this->expectExceptionMessage('bpm must be greater than 0');
+        $this->expectExceptionMessageIsOrContains('bpm must be greater than 0');
 
         new Release('t', 0, MusicalKey::CMajor, Genre::Dubstep, 'd', null, new Collection(Format::class));
     }

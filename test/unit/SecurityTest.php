@@ -16,9 +16,9 @@ use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
-use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Router;
+use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleaseView;
@@ -142,7 +142,7 @@ final class SecurityTest extends TestCase
     public function testTheRefusalNamesTheAllowedMethods(): void
     {
         $response = new Router(RouteInitialization::routes())
-            ->dispatch($this->request('POST', '/'));
+            ->dispatch($this->request('POST'));
 
         $headers = new ReflectionProperty($response, 'headers')->getValue($response);
 
@@ -154,7 +154,7 @@ final class SecurityTest extends TestCase
 
     public function testAGetStillDispatchesNormally(): void
     {
-        $response = new Router(RouteInitialization::routes())->dispatch($this->request('GET', '/'));
+        $response = new Router(RouteInitialization::routes())->dispatch($this->request('GET'));
 
         self::assertNotInstanceOf(PlainTextResponse::class, $response);
     }
@@ -225,7 +225,7 @@ final class SecurityTest extends TestCase
      */
     public function testNoViewEmitsAnInlineStyleOrEventHandler(): void
     {
-        $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
+        $release = new ReleaseRepository()->find('ill');
         $html = new ReleaseView($release, 'ill')->content()->render()
             . new NotFoundView('/x')->content()->render()
             . \NeuroSYS\Layout::wrap(new NotFoundView('/x'))->render();
@@ -236,7 +236,7 @@ final class SecurityTest extends TestCase
 
     public function testTheCoverFallbackIsAnAttributeNotAnInlineHandler(): void
     {
-        $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
+        $release = new ReleaseRepository()->find('ill');
         $html = new ReleaseView($release, 'ill')->content()->render();
 
         self::assertStringContainsString('fallback="/assets/img/cover-placeholder.svg"', $html);
@@ -245,7 +245,7 @@ final class SecurityTest extends TestCase
 
     public function testTheConsentGateCarriesItsHeightAsAnAttribute(): void
     {
-        $release = new \NeuroSYS\Service\ReleaseRepository()->find('ill');
+        $release = new ReleaseRepository()->find('ill');
         $html = new ReleaseView($release, 'ill')->content()->render();
 
         self::assertStringContainsString('height="300"', $html);

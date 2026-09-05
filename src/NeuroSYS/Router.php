@@ -7,7 +7,6 @@ namespace NeuroSYS;
 use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
