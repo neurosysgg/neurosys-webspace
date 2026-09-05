@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NoDiscard;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
 use FilesystemIterator;
@@ -42,6 +43,8 @@ final class NoDiscardTest extends TestCase
      * Every method under `src/` whose result the caller must use.
      *
      * Four copy-returning builders, and the auth gate's decision.
+     *
+     * @return void
      */
     public function testExactlyTheseResultsMayNotBeDiscarded(): void
     {
@@ -65,6 +68,8 @@ final class NoDiscardTest extends TestCase
      * suspected. What is worth saying is *why the call did nothing* — that `with()` copies rather
      * than appends, that a dropped `allow()` never reaches the header — and that only fits in the
      * message. An empty attribute is the same shape of mistake as an unlabelled magic number.
+     *
+     * @return void
      */
     public function testEachOneSaysWhyTheResultMatters(): void
     {
@@ -86,12 +91,12 @@ final class NoDiscardTest extends TestCase
         $found = [];
 
         foreach (self::classesUnderSrc() as $class) {
-            foreach ((new ReflectionClass($class))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+            foreach (new ReflectionClass($class)->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
                 if ($method->getDeclaringClass()->getName() !== $class) {
                     continue;
                 }
 
-                foreach ($method->getAttributes(\NoDiscard::class) as $attribute) {
+                foreach ($method->getAttributes(NoDiscard::class) as $attribute) {
                     /** @var array{0?: string} $arguments */
                     $arguments = $attribute->getArguments();
 

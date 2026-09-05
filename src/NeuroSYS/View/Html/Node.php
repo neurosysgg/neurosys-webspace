@@ -22,6 +22,8 @@ interface Node
      *                   unindented — whoever places it already put it at that column — and every
      *                   line after it is indented to $depth. Same contract at every level, which is
      *                   what makes the tree pretty-print without any node knowing where it is.
+     *
+     * @return string
      */
     public function render(int $depth = 0): string;
 }

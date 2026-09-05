@@ -65,19 +65,31 @@ final readonly class MimeType implements HeaderValue
         $this->verify();
     }
 
-    /** A page, or the fragment of one {@link ViewResponse} sends the SPA router. */
+    /**
+     * A page, or the fragment of one {@link ViewResponse} sends the SPA router.
+     *
+     * @return self
+     */
     public static function html(): self
     {
         return new self(TopLevelType::Text, 'html');
     }
 
-    /** A 405 refusal, or a download that has no file behind it yet. */
+    /**
+     * A 405 refusal, or a download that has no file behind it yet.
+     *
+     * @return self
+     */
     public static function plainText(): self
     {
         return new self(TopLevelType::Text, 'plain');
     }
 
-    /** Returns the `Content-Type` value: the type, and the encoding if there is one to declare. */
+    /**
+     * Returns the `Content-Type` value: the type, and the encoding if there is one to declare.
+     *
+     * @return string
+     */
     public function render(): string
     {
         $essence = $this->type->value . '/' . $this->subtype;
@@ -86,6 +98,8 @@ final readonly class MimeType implements HeaderValue
     }
 
     /**
+     *
+     * @return void
      * @throws MimeTypeException
      */
     private function verify(): void

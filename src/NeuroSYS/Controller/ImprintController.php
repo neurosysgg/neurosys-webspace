@@ -11,6 +11,10 @@ use NeuroSYS\View\ImprintView;
 
 class ImprintController implements Controller
 {
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         return new ViewResponse(new ImprintView());

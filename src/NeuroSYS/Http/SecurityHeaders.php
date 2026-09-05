@@ -44,6 +44,8 @@ final class SecurityHeaders
      * turns "find a PHP bug" into "look up the CVEs for 8.5.9".
      *
      * Safe to call before any output.
+     *
+     * @return void
      */
     public static function send(): void
     {
@@ -106,6 +108,8 @@ final class SecurityHeaders
      * request. Basic is base64. Over plaintext it is readable, and the `.htaccess` redirect cannot
      * help the request that carried it. See {@link StrictTransportSecurity}, and note the ramp
      * documented on its ONE_DAY constant before raising this on an estate you have not checked.
+     *
+     * @return StrictTransportSecurity
      */
     public static function strictTransportSecurity(): StrictTransportSecurity
     {
@@ -156,6 +160,8 @@ final class SecurityHeaders
      * hosts it names, `ViewTest` and the verify script both fail on an inline style or handler, and
      * `HtmlTest` checks every `Tag` case against the stylesheet. A future change that would violate
      * this policy fails the build instead of a stranger's browser.
+     *
+     * @return ContentSecurityPolicy
      */
     public static function contentSecurityPolicy(): ContentSecurityPolicy
     {
@@ -175,6 +181,8 @@ final class SecurityHeaders
      * A download 303 hands the release URL to HiDrive as a `Referer` otherwise, and the framed
      * player receives the full page URL once it loads. Same-origin navigation keeps the path, so
      * SPA links still work as expected.
+     *
+     * @return ReferrerPolicy
      */
     private static function referrerPolicy(): ReferrerPolicy
     {
@@ -187,6 +195,8 @@ final class SecurityHeaders
      * Denies every {@link PermissionsPolicyFeature} case, which makes that enum the list of
      * things the site refuses rather than a catalogue of what exists — see its docblock before
      * adding a case, because `Permissions-Policy` also applies to the SoundCloud iframe.
+     *
+     * @return PermissionsPolicy
      */
     private static function permissionsPolicy(): PermissionsPolicy
     {

@@ -36,6 +36,8 @@ enum Charset: string
      * a coincidence of this one — IANA's preferred name for `windows-1252` is the lowercase form —
      * and a second case added later should have to write its answer down rather than inherit a
      * rule that was never true.
+     *
+     * @return string
      */
     public function canonical(): string
     {

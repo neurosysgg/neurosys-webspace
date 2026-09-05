@@ -40,17 +40,27 @@ class ReleaseView extends View
         private readonly string  $slug,
     ) {}
 
+    /**
+     * @return string
+     */
     public function pageTitle(): string
     {
         return self::title($this->release->title);
     }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         return new Fragment($this->heroSection(), $this->infoSection());
     }
 
-    /** Builds the hero section with terminal metadata and cover art. */
+    /**
+     * Builds the hero section with terminal metadata and cover art.
+     *
+     * @return Element
+     */
     private function heroSection(): Element
     {
         $release = $this->release;
@@ -77,7 +87,11 @@ class ReleaseView extends View
             ->containing($terminal->toElement(), $cover);
     }
 
-    /** Builds the release info section with player and download cards. */
+    /**
+     * Builds the release info section with player and download cards.
+     *
+     * @return Element
+     */
     private function infoSection(): Element
     {
         $section = new Element(HtmlTag::Section)
@@ -100,7 +114,11 @@ class ReleaseView extends View
         return $section->containing($this->downloads());
     }
 
-    /** Builds the download group: a heading and one card per format. */
+    /**
+     * Builds the download group: a heading and one card per format.
+     *
+     * @return Element
+     */
     private function downloads(): Element
     {
         return new Element(Tag::DownloadList)->containing(
@@ -115,6 +133,9 @@ class ReleaseView extends View
      * The `<a>` inside stays native and server-rendered: downloads have to work without JS, and
      * `data-no-spa` has to land on a real link or the SPA router fetches the 303 and swallows it.
      * That is why the card wraps the anchor rather than replacing it.
+     *
+     * @param Format $format
+     * @return Element
      */
     private function downloadCard(Format $format): Element
     {
@@ -138,6 +159,9 @@ class ReleaseView extends View
      *
      * Which formats are lossless is {@link ReleaseFormat::isLossless()}'s to know — listing
      * them again here would be a second copy of that fact, free to drift from the first.
+     *
+     * @param ReleaseFormat $format
+     * @return string
      */
     private static function formatMeta(ReleaseFormat $format): string
     {

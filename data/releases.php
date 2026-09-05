@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
@@ -19,9 +20,9 @@ return [
         description: 'wub wub',
         cover:       new HiDriveLink('J2FXbB70A'),
         formats: new Collection(Format::class)->with(
-            new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
-            new Format(ReleaseFormat::WAV,   new HiDriveLink('RVg8LBS4A')),
-            new Format(ReleaseFormat::MP3,   new HiDriveLink('CPJy7AVIu')),
+            new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d')),
+            new Format(ReleaseFormat::WAV, new HiDriveLink('RVg8LBS4A')),
+            new Format(ReleaseFormat::MP3, new HiDriveLink('CPJy7AVIu')),
             new Format(ReleaseFormat::STEMS, new HiDriveLink('D2PUDjoII')),
         ),
         embed: new SoundCloudEmbed(
@@ -38,9 +39,9 @@ return [
         description: 'debut single',
         cover:       new HiDriveLink('PFGaSOmtM'),
         formats: new Collection(Format::class)->with(
-            new Format(ReleaseFormat::FLAC,  new HiDriveLink('ebiFGBt52')),
-            new Format(ReleaseFormat::WAV,   new HiDriveLink('QX98AVCDz')),
-            new Format(ReleaseFormat::MP3,   new HiDriveLink('GATvNadI8')),
+            new Format(ReleaseFormat::FLAC, new HiDriveLink('ebiFGBt52')),
+            new Format(ReleaseFormat::WAV, new HiDriveLink('QX98AVCDz')),
+            new Format(ReleaseFormat::MP3, new HiDriveLink('GATvNadI8')),
             new Format(ReleaseFormat::STEMS, new HiDriveLink('O6PtraldH')),
         ),
         embed: new SoundCloudEmbed(

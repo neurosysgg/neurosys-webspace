@@ -23,22 +23,36 @@ use TypeError;
 #[CoversClass(SoundCloudPlayerStyle::class)]
 final class EmbedTest extends TestCase
 {
+    /**
+     * @param mixed ...$args
+     * @return SoundCloudEmbed
+     */
     private function embed(mixed ...$args): SoundCloudEmbed
     {
         return new SoundCloudEmbed(...['trackId' => 2394077313, 'permalink' => 'ill', ...$args]);
     }
 
-    /** @return Collection<SoundCloudOption> */
+    /**
+     *
+     * @param SoundCloudOption ...$options
+     * @return Collection<SoundCloudOption>
+     */
     private function options(SoundCloudOption ...$options): Collection
     {
         return new Collection(SoundCloudOption::class)->with(...$options);
     }
 
+    /**
+     * @return void
+     */
     public function testReportsItsPlatform(): void
     {
         self::assertSame(Platform::SoundCloud, $this->embed()->platform());
     }
 
+    /**
+     * @return void
+     */
     public function testRendersTheElementForTheGivenTrack(): void
     {
         $html = $this->embed()->toElement('ill.')->render();
@@ -48,6 +62,9 @@ final class EmbedTest extends TestCase
         self::assertStringContainsString('permalink="ill"', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheSecretTokenIsPassedToTheElement(): void
     {
         self::assertStringContainsString(
@@ -56,7 +73,11 @@ final class EmbedTest extends TestCase
         );
     }
 
-    /** A public track carries no token, so the attribute is left off rather than sent empty. */
+    /**
+     * A public track carries no token, so the attribute is left off rather than sent empty.
+     *
+     * @return void
+     */
     public function testAPublicTrackSendsNoSecretTokenAttribute(): void
     {
         self::assertStringNotContainsString('secret-token', $this->embed()->toElement('ill.')->render());
@@ -66,6 +87,8 @@ final class EmbedTest extends TestCase
      * The whole reason the markup moved client-side is that none of it may exist before a click.
      * The server's output is the element and its attributes — no iframe, and no SoundCloud URL for
      * a browser to preconnect, prefetch or otherwise act on.
+     *
+     * @return void
      */
     public function testTheServerEmitsNoSoundCloudUrlAtAll(): void
     {
@@ -82,6 +105,8 @@ final class EmbedTest extends TestCase
      * The element resolves every case to true or false; what crosses the boundary is the list of
      * the ones that are on. EmbedTest used to assert the query string here — that assertion lives
      * in test/js/soundcloud-player.test.mjs now, where the query string is actually built.
+     *
+     * @return void
      */
     public function testTheEnabledOptionsAreListedInTheAttribute(): void
     {
@@ -91,6 +116,9 @@ final class EmbedTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testTheDefaultOptionSetIsTheOneSoundCloudsDialogProduces(): void
     {
         self::assertStringContainsString(
@@ -99,6 +127,9 @@ final class EmbedTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAnEmptyOptionListSendsAnEmptyAttribute(): void
     {
         self::assertStringContainsString(
@@ -107,7 +138,11 @@ final class EmbedTest extends TestCase
         );
     }
 
-    /** The collection refuses it before the embed ever sees it, which is the point of holding one. */
+    /**
+     * The collection refuses it before the embed ever sees it, which is the point of holding one.
+     *
+     * @return void
+     */
     public function testRejectsSomethingThatIsNotASoundCloudOption(): void
     {
         $this->expectException(TypeError::class);
@@ -117,6 +152,8 @@ final class EmbedTest extends TestCase
     /**
      * A generic's element type is the one thing PHP cannot enforce, so it is the one thing left to
      * check by hand — a Collection of the wrong class is still a Collection to the signature.
+     *
+     * @return void
      */
     public function testRejectsACollectionOfSomethingElse(): void
     {
@@ -126,12 +163,18 @@ final class EmbedTest extends TestCase
 
     // ───────────────────────────── validation ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testRejectsANonPositiveTrackId(): void
     {
         $this->expectException(ReleaseVerificationException::class);
         $this->embed(trackId: 0);
     }
 
+    /**
+     * @return void
+     */
     public function testRejectsAnEmptyPermalink(): void
     {
         $this->expectException(ReleaseVerificationException::class);
@@ -140,12 +183,20 @@ final class EmbedTest extends TestCase
 
     // ───────────────────────────── style / height ─────────────────────────────
 
+    /**
+     * @return iterable
+     */
     public static function styleProvider(): iterable
     {
         yield [SoundCloudPlayerStyle::Visual, 300];
         yield [SoundCloudPlayerStyle::Classic, 166];
     }
 
+    /**
+     * @param SoundCloudPlayerStyle $style
+     * @param int $height
+     * @return void
+     */
     #[DataProvider('styleProvider')]
     public function testStyleFixesTheHeightAndIsNamedInTheAttribute(
         SoundCloudPlayerStyle $style,
@@ -159,7 +210,11 @@ final class EmbedTest extends TestCase
         self::assertStringContainsString('height="' . $height . '"', $html);
     }
 
-    /** The gate reserves height() worth of space, so the attribute has to carry exactly that. */
+    /**
+     * The gate reserves height() worth of space, so the attribute has to carry exactly that.
+     *
+     * @return void
+     */
     public function testHeightMatchesWhatTheElementIsToldToReserve(): void
     {
         foreach (SoundCloudPlayerStyle::cases() as $style) {
@@ -179,6 +234,8 @@ final class EmbedTest extends TestCase
      * different *provider*, and Release::$embed is typed for the other axis. These cases are here
      * rather than in a file of their own because they are the same provider's, and because what is
      * worth asserting is mostly how the two differ.
+     *
+     * @return void
      */
     public function testTheProfileEmbedReportsItsPlatform(): void
     {
@@ -188,6 +245,8 @@ final class EmbedTest extends TestCase
     /**
      * A profile lists, a track shows. The default layout is the opposite of a track's on purpose:
      * the embed is worth having because several tracks read at once.
+     *
+     * @return void
      */
     public function testTheProfileEmbedListsByDefault(): void
     {
@@ -200,6 +259,8 @@ final class EmbedTest extends TestCase
     /**
      * The height is the profile embed's own fact, not SoundCloudPlayerStyle's — that enum's 300 and
      * 166 size a single track, and how tall a list stands is how many rows show.
+     *
+     * @return void
      */
     public function testTheProfileEmbedReservesItsOwnHeightRatherThanTheStylesOne(): void
     {
@@ -210,6 +271,9 @@ final class EmbedTest extends TestCase
         self::assertStringContainsString('height="450"', $embed->toElement()->render());
     }
 
+    /**
+     * @return void
+     */
     public function testTheProfileEmbedTakesTheHeightItIsGiven(): void
     {
         $embed = new SoundCloudProfileEmbed(height: 620);
@@ -218,18 +282,27 @@ final class EmbedTest extends TestCase
         self::assertStringContainsString('height="620"', $embed->toElement()->render());
     }
 
+    /**
+     * @return void
+     */
     public function testTheProfileEmbedRejectsANonPositiveHeight(): void
     {
         $this->expectException(ReleaseVerificationException::class);
         new SoundCloudProfileEmbed(height: 0);
     }
 
+    /**
+     * @return void
+     */
     public function testTheProfileEmbedRejectsACollectionOfSomethingElse(): void
     {
         $this->expectException(ReleaseVerificationException::class);
         new SoundCloudProfileEmbed(options: new Collection(SoundCloudPlayerStyle::class));
     }
 
+    /**
+     * @return void
+     */
     public function testTheProfileEmbedCarriesTheSameDefaultToggles(): void
     {
         self::assertStringContainsString(
@@ -243,6 +316,9 @@ final class EmbedTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testTheProfileEmbedTakesTheTogglesItIsGiven(): void
     {
         self::assertStringContainsString(
@@ -257,6 +333,8 @@ final class EmbedTest extends TestCase
      * The same guarantee the track player has, and the reason the consent gate is worth anything.
      * Stronger here, in fact: the profile embed is sent no identity at all — no id, no handle, no
      * title — because the element already mirrors the handle. There is nothing to leak.
+     *
+     * @return void
      */
     public function testTheProfileEmbedNamesNoSoundCloudAddressAndNoArtist(): void
     {
@@ -270,6 +348,9 @@ final class EmbedTest extends TestCase
 
     // ───────────────────────────── escaping ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheTitleIsCarriedIntoTheElementEscaped(): void
     {
         $html = $this->embed()->toElement('rock & <roll>')->render();
@@ -278,6 +359,9 @@ final class EmbedTest extends TestCase
         self::assertStringNotContainsString('<roll>', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testATitleWithQuotesCannotBreakOutOfTheAttribute(): void
     {
         $html = $this->embed()->toElement('a "quoted" title')->render();
@@ -286,6 +370,9 @@ final class EmbedTest extends TestCase
         self::assertStringContainsString('&quot;quoted&quot;', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testThePermalinkIsEscapedToo(): void
     {
         $html = new SoundCloudEmbed(trackId: 1, permalink: 'a"b')->toElement('t')->render();
@@ -296,6 +383,10 @@ final class EmbedTest extends TestCase
     /**
      * The `visual` query flag SoundCloud's widget URL carries. It is a property of the layout
      * rather than a second field, so the two cannot disagree about which player is being asked for.
+     *
+     * @param SoundCloudPlayerStyle $style
+     * @param bool $visual
+     * @return void
      */
     #[DataProvider('visualProvider')]
     public function testOnlyTheVisualLayoutSetsTheVisualFlag(
@@ -305,6 +396,9 @@ final class EmbedTest extends TestCase
         self::assertSame($visual, $style->isVisual());
     }
 
+    /**
+     * @return iterable
+     */
     public static function visualProvider(): iterable
     {
         yield 'visual'  => [SoundCloudPlayerStyle::Visual, true];

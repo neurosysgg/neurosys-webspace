@@ -59,6 +59,8 @@ final readonly class Profile
     }
 
     /**
+     *
+     * @return void
      * @throws ReleaseVerificationException
      */
     private function verify(): void

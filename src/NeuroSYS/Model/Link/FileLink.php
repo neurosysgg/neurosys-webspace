@@ -15,6 +15,10 @@ namespace NeuroSYS\Model\Link;
  */
 interface FileLink
 {
-    /** Returns the absolute URL this link resolves to. */
+    /**
+     * Returns the absolute URL this link resolves to.
+     *
+     * @return string
+     */
     public function url(): string;
 }

@@ -16,11 +16,15 @@ use NeuroSYS\Support\RouteInitialization;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 #[CoversClass(Route::class)]
 #[CoversClass(RouteInitialization::class)]
 final class RoutingTest extends TestCase
 {
+    /**
+     * @return void
+     */
     public function testStaticPatternMatchesExactlyAndCapturesNothing(): void
     {
         $route = new Route('/releases', fn() => new ReleasesController());
@@ -31,6 +35,9 @@ final class RoutingTest extends TestCase
         self::assertFalse($route->matches('/'));
     }
 
+    /**
+     * @return void
+     */
     public function testPlaceholderCapturesOneSegment(): void
     {
         $route = new Route('/releases/{slug}', fn($slug) => new ReleaseController($slug));
@@ -39,6 +46,9 @@ final class RoutingTest extends TestCase
         self::assertSame(['hello-world'], $route->matches('/releases/hello-world'));
     }
 
+    /**
+     * @return void
+     */
     public function testPlaceholderDoesNotSpanASlash(): void
     {
         $route = new Route('/releases/{slug}', fn($slug) => new ReleaseController($slug));
@@ -46,6 +56,9 @@ final class RoutingTest extends TestCase
         self::assertFalse($route->matches('/releases/ill/flac'));
     }
 
+    /**
+     * @return void
+     */
     public function testMultiplePlaceholdersCaptureInOrder(): void
     {
         $route = new Route(
@@ -56,6 +69,9 @@ final class RoutingTest extends TestCase
         self::assertSame(['ill', 'flac'], $route->matches('/releases/ill/flac'));
     }
 
+    /**
+     * @return void
+     */
     public function testEmptySegmentDoesNotMatchAPlaceholder(): void
     {
         $route = new Route('/releases/{slug}', fn($slug) => new ReleaseController($slug));
@@ -63,6 +79,9 @@ final class RoutingTest extends TestCase
         self::assertFalse($route->matches('/releases/'));
     }
 
+    /**
+     * @return void
+     */
     public function testFactoryReceivesTheCapturedParams(): void
     {
         $route = new Route(
@@ -80,11 +99,13 @@ final class RoutingTest extends TestCase
      * The pattern is interpolated straight into a regex, so a literal that happens to be
      * a metacharacter would silently become a wildcard. Every registered pattern must
      * therefore stay metacharacter-free — this asserts that, rather than the escaping.
+     *
+     * @return void
      */
     public function testEveryRegisteredPatternIsFreeOfRegexMetacharacters(): void
     {
         foreach (RouteInitialization::routes() as $route) {
-            $pattern = (new \ReflectionProperty(Route::class, 'pattern'))->getValue($route);
+            $pattern = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
             self::assertMatchesRegularExpression(
                 '#^(/|(/[\w-]+|/\{\w+\})+)$#',
                 $pattern,
@@ -94,6 +115,9 @@ final class RoutingTest extends TestCase
         }
     }
 
+    /**
+     * @return iterable
+     */
     public static function dispatchProvider(): iterable
     {
         yield ['/', HomeController::class];
@@ -105,6 +129,11 @@ final class RoutingTest extends TestCase
         yield ['/privacy', PrivacyController::class];
     }
 
+    /**
+     * @param string $path
+     * @param string $expected
+     * @return void
+     */
     #[DataProvider('dispatchProvider')]
     public function testTheRouteTableResolvesEachPathToItsController(string $path, string $expected): void
     {
@@ -118,7 +147,11 @@ final class RoutingTest extends TestCase
         self::fail("No route matched $path");
     }
 
-    /** '/releases' must be tried before '/releases/{slug}' or the listing page is unreachable. */
+    /**
+     * '/releases' must be tried before '/releases/{slug}' or the listing page is unreachable.
+     *
+     * @return void
+     */
     public function testStaticRoutesAreRegisteredBeforeTheirPlaceholderSiblings(): void
     {
         $matched = null;
@@ -132,6 +165,9 @@ final class RoutingTest extends TestCase
         self::assertInstanceOf(ReleasesController::class, $matched);
     }
 
+    /**
+     * @return iterable
+     */
     public static function unmatchedProvider(): iterable
     {
         yield ['/nope'];
@@ -141,6 +177,10 @@ final class RoutingTest extends TestCase
         yield ['/imprints'];
     }
 
+    /**
+     * @param string $path
+     * @return void
+     */
     #[DataProvider('unmatchedProvider')]
     public function testUnknownPathsMatchNoRoute(string $path): void
     {

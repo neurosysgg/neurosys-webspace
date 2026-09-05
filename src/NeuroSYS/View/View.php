@@ -24,9 +24,17 @@ use NeuroSYS\View\Html\Node;
  */
 abstract class View
 {
-    /** Returns the page title for this view. */
+    /**
+     * Returns the page title for this view.
+     *
+     * @return string
+     */
     abstract public function pageTitle(): string;
-    /** Returns the HTML content fragment for this view. */
+    /**
+     * Returns the HTML content fragment for this view.
+     *
+     * @return Node
+     */
     abstract public function content(): Node;
 
     /**
@@ -34,6 +42,9 @@ abstract class View
      *
      * Six views wrote out `' — neuro.SYS'` between them, which is six chances to use a hyphen where
      * the others use an em dash and never notice.
+     *
+     * @param ?string $section
+     * @return string
      */
     protected static function title(?string $section = null): string
     {
@@ -47,6 +58,7 @@ abstract class View
      * what carries the accent colour. Returns the pieces rather than an element, because the caller
      * decides what wraps them — an `<h1>` here, a `<p>` there.
      *
+     * @param string $text
      * @return list<Node|string>
      */
     protected static function accented(string $text): array

@@ -29,6 +29,10 @@ readonly class ReleaseController implements Controller
         private ?ReleaseRepository $releases = null,
     ) {}
 
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         $release = ($this->releases ?? new ReleaseRepository())->find($this->slug);

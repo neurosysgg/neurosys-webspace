@@ -52,6 +52,8 @@ final readonly class TerminalCommand
      * {@link \NeuroSYS\Http\Security\PermissionsPolicy}, {@link \NeuroSYS\Http\MimeType}. It also
      * has to be a real method rather than a `Stringable`: {@link \NeuroSYS\View\Html\Element::attr()}
      * takes `string|int|bool|BackedEnum|null` and would refuse the object.
+     *
+     * @return string
      */
     public function render(): string
     {
@@ -73,6 +75,9 @@ final readonly class TerminalCommand
      * the release terminal read `--track "ill."` for one title and `--track something` for the
      * next, and a line whose punctuation depends on its content is harder to read than one whose
      * punctuation is a rule. An embedded `"` is escaped the way a shell escapes it.
+     *
+     * @param string $argument
+     * @return string
      */
     private static function token(string $argument): string
     {

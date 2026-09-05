@@ -32,12 +32,19 @@ readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable,
         public string $referrer,
     ) {}
 
-    /** Serializes the entry to a JSON string. */
+    /**
+     * Serializes the entry to a JSON string.
+     *
+     * @return string
+     */
     public function toJson(): string
     {
         return json_encode($this, JSON_UNESCAPED_SLASHES) ?: '{}';
     }
 
+    /**
+     * @return string
+     */
     public function __toString(): string
     {
         return $this->toJson();
@@ -74,6 +81,9 @@ readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable,
      *
      * A *missing* field is still an empty one. That is deliberate and older than this note; see the
      * test named for it. Present-but-wrong-type is the different case, and it is refused.
+     *
+     * @param string $json
+     * @return ?static
      */
     public static function fromJson(string $json): ?static
     {

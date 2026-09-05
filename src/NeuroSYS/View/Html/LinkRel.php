@@ -59,6 +59,9 @@ enum LinkRel: string
      * site — a list assembled by hand is a list that can disagree with the enum it came from.
      *
      * Order is the order given, because that is the order the markup reads in and the tests pin.
+     *
+     * @param self ...$relations
+     * @return string
      */
     public static function tokens(self ...$relations): string
     {

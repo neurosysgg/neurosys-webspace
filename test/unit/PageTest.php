@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
+use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
@@ -38,6 +39,8 @@ final class PageTest extends TestCase
      * \NeuroSYS\View\Html\Element} renders inline only when a child is text, so a wordmark wrapped
      * in a single node would be laid out as a block and gain a space either side of the dot. That
      * is a lookalike of the site's own name, rendered by the site itself.
+     *
+     * @return void
      */
     public function testTheWordmarkRendersOnOneLineWithNoSpaceAroundTheDot(): void
     {
@@ -46,6 +49,9 @@ final class PageTest extends TestCase
         self::assertStringContainsString('neuro<span class="logo-dot">.</span>SYS', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheWordmarkIsBuiltFromTheConfiguredNameRatherThanSpeltOut(): void
     {
         $rendered = array_map(
@@ -53,10 +59,16 @@ final class PageTest extends TestCase
             Wordmark::nodes(),
         );
 
-        self::assertSame(Config::NAME, strip_tags(implode('', $rendered)));
+        implode('', $rendered)
+            |> strip_tags(...)
+            |> (fn($x) => self::assertSame(Config::NAME, $x));
     }
 
-    /** explode(..., 2): a second dot belongs to the tail, it does not start a third piece. */
+    /**
+     * explode(..., 2): a second dot belongs to the tail, it does not start a third piece.
+     *
+     * @return void
+     */
     public function testOnlyTheFirstDotIsTheAccentedOne(): void
     {
         self::assertCount(3, Wordmark::nodes());
@@ -64,13 +76,20 @@ final class PageTest extends TestCase
 
     // ───────────────────────────── the home page ─────────────────────────────
 
-    /** The home page is the site, so its title is the site's name and nothing else. */
+    /**
+     * The home page is the site, so its title is the site's name and nothing else.
+     *
+     * @return void
+     */
     public function testTheHomePageTitleIsTheBareSiteName(): void
     {
         self::assertSame(Config::NAME, new HomeView()->pageTitle());
         self::assertStringNotContainsString('—', new HomeView()->pageTitle());
     }
 
+    /**
+     * @return void
+     */
     public function testTheHomeHeadlineAccentsTheTaglinesFullStop(): void
     {
         self::assertStringContainsString(
@@ -83,6 +102,8 @@ final class PageTest extends TestCase
      * The arrow is written as the character, not as `&rarr;`. Text is the only way content gets
      * in and it escapes all of it, so an entity written in the source comes back out as the
      * visible string `&amp;rarr;`.
+     *
+     * @return void
      */
     public function testTheCallToActionCarriesARealArrowRatherThanAnEntity(): void
     {
@@ -92,6 +113,9 @@ final class PageTest extends TestCase
         self::assertStringNotContainsString('&amp;rarr;', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheCallToActionPointsAtTheCatalogue(): void
     {
         self::assertStringContainsString('href="/releases"', new HomeView()->content()->render());
@@ -99,6 +123,9 @@ final class PageTest extends TestCase
 
     // ───────────────────────────── the imprint ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheImprintIsTitledInEnglish(): void
     {
         self::assertSame('Imprint — neuro.SYS', new ImprintView()->pageTitle());
@@ -109,6 +136,8 @@ final class PageTest extends TestCase
      * under § 5 DDG and again under § 18 Abs. 2 MStV. A legal document with two copies of an
      * address is a legal document with one wrong address, eventually, so assert the occurrences
      * are byte-identical rather than merely present.
+     *
+     * @return void
      */
     public function testEveryCopyOfTheAddressIsTheSameAddress(): void
     {
@@ -118,7 +147,11 @@ final class PageTest extends TestCase
         self::assertCount(1, array_unique($m[0]));
     }
 
-    /** One `<br>` between lines, so five lines carry four separators and no trailing one. */
+    /**
+     * One `<br>` between lines, so five lines carry four separators and no trailing one.
+     *
+     * @return void
+     */
     public function testTheAddressLinesAreSeparatedRatherThanTerminated(): void
     {
         preg_match('#<p>Niclas Ahl.*?</p>#s', new ImprintView()->content()->render(), $m);
@@ -127,7 +160,11 @@ final class PageTest extends TestCase
         self::assertStringEndsWith('Germany</p>', $m[0]);
     }
 
-    /** Both halves have to reach the same inbox, and it is the one the footer uses. */
+    /**
+     * Both halves have to reach the same inbox, and it is the one the footer uses.
+     *
+     * @return void
+     */
     public function testTheContactAddressIsTheConfiguredOneInBothHalves(): void
     {
         $html = new ImprintView()->content()->render();
@@ -135,6 +172,9 @@ final class PageTest extends TestCase
         self::assertSame(2, substr_count($html, 'href="mailto:' . Config::EMAIL . '">' . Config::EMAIL . '</a>'));
     }
 
+    /**
+     * @return void
+     */
     public function testBothLanguagesGetTheirOwnHeading(): void
     {
         $html = new ImprintView()->content()->render();
@@ -143,7 +183,11 @@ final class PageTest extends TestCase
         self::assertStringContainsString('<h1>Imprint</h1>', $html);
     }
 
-    /** The German text is full of characters htmlspecialchars leaves alone but a bad encode would not. */
+    /**
+     * The German text is full of characters htmlspecialchars leaves alone but a bad encode would not.
+     *
+     * @return void
+     */
     public function testTheGermanTextSurvivesAsUtf8RatherThanAsEntities(): void
     {
         $html = new ImprintView()->content()->render();
@@ -154,6 +198,9 @@ final class PageTest extends TestCase
 
     // ───────────────────────────── the privacy policy ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testThePrivacyPolicyIsTitled(): void
     {
         self::assertSame('Privacy Policy — neuro.SYS', new PrivacyView('')->pageTitle());
@@ -164,6 +211,8 @@ final class PageTest extends TestCase
      * exists: the policy is a hand-authored document, so its markup has to arrive as markup
      * rather than as escaped text. Nothing about a request can reach this — the document is read
      * from a file next to the code — which is what makes the verbatim pass-through safe.
+     *
+     * @return void
      */
     public function testThePolicyDocumentIsEmittedVerbatim(): void
     {
@@ -174,6 +223,9 @@ final class PageTest extends TestCase
         self::assertStringNotContainsString('&lt;h2', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheRealPolicyRendersInsideThePageSection(): void
     {
         $html = new PrivacyView(
@@ -190,6 +242,9 @@ final class PageTest extends TestCase
      * CLAUDE.md's no-JS note names these as unaffected with the script off. They are, because they
      * emit no custom element at all — everything they show is a standard tag the browser lays out
      * whether or not main.js ever loads.
+     *
+     * @param View $view
+     * @return void
      */
     #[DataProvider('staticPageProvider')]
     public function testTheContentPagesNeedNoScriptToRender(View $view): void
@@ -200,6 +255,9 @@ final class PageTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable
+     */
     public static function staticPageProvider(): iterable
     {
         yield 'imprint' => [new ImprintView()];
@@ -214,6 +272,8 @@ final class PageTest extends TestCase
      * What it still promises is the half that matters — the hero is every word the page says about
      * itself, and it is all standard tags. The player is the *only* thing on the page that needs
      * the script, and a no-JS visitor still reaches the profile through the footer's plain link.
+     *
+     * @return void
      */
     public function testTheHomeHeroNeedsNoScriptAndThePlayerIsTheOnlyThingThatDoes(): void
     {
@@ -231,6 +291,9 @@ final class PageTest extends TestCase
     /**
      * Six views used to write out `' — neuro.SYS'` between them, which is six chances to use a
      * hyphen where the others use an em dash and never notice.
+     *
+     * @param View $view
+     * @return void
      */
     #[DataProvider('titledViewProvider')]
     public function testEveryPageTitleEndsWithTheSiteName(View $view): void
@@ -238,12 +301,15 @@ final class PageTest extends TestCase
         self::assertStringEndsWith(Config::NAME, $view->pageTitle());
     }
 
+    /**
+     * @return iterable
+     */
     public static function titledViewProvider(): iterable
     {
         yield 'home'     => [new HomeView()];
         yield 'imprint'  => [new ImprintView()];
         yield 'privacy'  => [new PrivacyView('')];
-        yield 'releases' => [new ReleasesView(new \NeuroSYS\Service\ReleaseRepository()->all())];
+        yield 'releases' => [new ReleasesView(new ReleaseRepository()->all())];
         yield '404'      => [new NotFoundView('/x')];
     }
 }

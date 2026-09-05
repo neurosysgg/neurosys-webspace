@@ -20,7 +20,11 @@ use NeuroSYS\View\Html\Element;
  */
 interface Embed
 {
-    /** Returns the platform this embed loads from. */
+    /**
+     * Returns the platform this embed loads from.
+     *
+     * @return Platform
+     */
     public function platform(): Platform;
 
     /**
@@ -29,6 +33,8 @@ interface Embed
      * The consent gate reserves exactly this much space, so swapping the placeholder
      * for the real player doesn't shift the page. Without it the gate would have to
      * hardcode one provider's height in CSS.
+     *
+     * @return int
      */
     public function height(): int;
 
@@ -41,6 +47,8 @@ interface Embed
      *
      * @param string $title The release title, used for attribution and the player's
      *                      accessible name. Taken from the release so it can't drift.
+     *
+     * @return Element
      */
     public function toElement(string $title): Element;
 }

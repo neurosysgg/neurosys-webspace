@@ -27,7 +27,11 @@ final readonly class BasicChallenge implements HeaderValue
      */
     public function __construct(private string $realm) {}
 
-    /** Returns the header value: `Basic realm="neuro.SYS"`. */
+    /**
+     * Returns the header value: `Basic realm="neuro.SYS"`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return 'Basic realm="' . $this->realm . '"';

@@ -33,12 +33,19 @@ enum HtmlAttribute: string implements AttributeName
 
     case AriaLabel = 'aria-label';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
     }
 
-    /** `href` and `src` are the two the browser dereferences; the rest are values it reads. */
+    /**
+     * `href` and `src` are the two the browser dereferences; the rest are values it reads.
+     *
+     * @return bool
+     */
     public function isUrl(): bool
     {
         return match ($this) {

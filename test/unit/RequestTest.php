@@ -19,23 +19,35 @@ final class RequestTest extends TestCase
     /** @var array<string, mixed> */
     private array $serverBackup;
 
+    /**
+     * @return void
+     */
     protected function setUp(): void
     {
         $this->serverBackup = $_SERVER;
     }
 
+    /**
+     * @return void
+     */
     protected function tearDown(): void
     {
         $_SERVER = $this->serverBackup;
     }
 
-    /** @param array<string, string> $server */
+    /**
+     * @param array<string, string> $server
+     * @return Request
+     */
     private function request(array $server): Request
     {
         $_SERVER = $server;
         return Request::fromGlobals();
     }
 
+    /**
+     * @return iterable
+     */
     public static function pathProvider(): iterable
     {
         yield 'root'                  => ['/', '/'];
@@ -60,17 +72,28 @@ final class RequestTest extends TestCase
         yield 'empty'                     => ['', '/'];
     }
 
+    /**
+     * @param string $uri
+     * @param string $expected
+     * @return void
+     */
     #[DataProvider('pathProvider')]
     public function testNormalisesPath(string $uri, string $expected): void
     {
         self::assertSame($expected, $this->request(['REQUEST_URI' => $uri])->path());
     }
 
+    /**
+     * @return void
+     */
     public function testDefaultsToRootWhenRequestUriIsAbsent(): void
     {
         self::assertSame('/', $this->request([])->path());
     }
 
+    /**
+     * @return void
+     */
     public function testDetectsAjaxRequestCaseInsensitively(): void
     {
         self::assertTrue($this->request([
@@ -79,11 +102,17 @@ final class RequestTest extends TestCase
         ])->isAjax());
     }
 
+    /**
+     * @return void
+     */
     public function testIsNotAjaxWithoutTheHeader(): void
     {
         self::assertFalse($this->request(['REQUEST_URI' => '/'])->isAjax());
     }
 
+    /**
+     * @return void
+     */
     public function testIsNotAjaxForSomeOtherRequestedWithValue(): void
     {
         self::assertFalse($this->request([
@@ -92,6 +121,9 @@ final class RequestTest extends TestCase
         ])->isAjax());
     }
 
+    /**
+     * @return void
+     */
     public function testReadsPhpAuthVariablesWhenPresent(): void
     {
         $request = $this->request([
@@ -108,6 +140,8 @@ final class RequestTest extends TestCase
      * Strato strips PHP_AUTH_* before it reaches PHP, so .htaccess forwards the raw
      * Authorization header instead. Without this fallback /admin/stats is unreachable
      * in production while working fine locally.
+     *
+     * @return void
      */
     public function testFallsBackToTheAuthorizationHeader(): void
     {
@@ -120,6 +154,9 @@ final class RequestTest extends TestCase
         self::assertSame('hunter2', $request->authPassword());
     }
 
+    /**
+     * @return void
+     */
     public function testAuthorizationHeaderPasswordMayContainColons(): void
     {
         $request = $this->request([
@@ -131,6 +168,9 @@ final class RequestTest extends TestCase
         self::assertSame('a:b:c', $request->authPassword());
     }
 
+    /**
+     * @return void
+     */
     public function testAuthorizationHeaderWithoutAColonYieldsAnEmptyPassword(): void
     {
         $request = $this->request([
@@ -142,6 +182,9 @@ final class RequestTest extends TestCase
         self::assertSame('', $request->authPassword());
     }
 
+    /**
+     * @return void
+     */
     public function testIgnoresNonBasicAuthorizationSchemes(): void
     {
         $request = $this->request([
@@ -153,6 +196,9 @@ final class RequestTest extends TestCase
         self::assertSame('', $request->authPassword());
     }
 
+    /**
+     * @return void
+     */
     public function testGarbageInTheAuthorizationHeaderDoesNotCrash(): void
     {
         $request = $this->request([
@@ -163,6 +209,9 @@ final class RequestTest extends TestCase
         self::assertSame('', $request->authPassword());
     }
 
+    /**
+     * @return void
+     */
     public function testPhpAuthUserWinsOverTheHeaderFallback(): void
     {
         $request = $this->request([
@@ -176,6 +225,9 @@ final class RequestTest extends TestCase
         self::assertSame('realpass', $request->authPassword());
     }
 
+    /**
+     * @return void
+     */
     public function testCredentialsAreEmptyWhenNoneAreSupplied(): void
     {
         $request = $this->request(['REQUEST_URI' => '/']);
@@ -191,6 +243,8 @@ final class RequestTest extends TestCase
      * fetch with a whole document, which Navigation then writes into <main> — a page broken in a
      * way nothing reports. `assets/ts/model/RequestHeader.ts` mirrors this and the parity test
      * compares them; what belongs here is that the wire name is the value.
+     *
+     * @return void
      */
     public function testTheRequestedWithHeaderIsNamedAsItGoesOnTheWire(): void
     {
@@ -201,12 +255,16 @@ final class RequestTest extends TestCase
     /**
      * fromGlobals() derives the $_SERVER key from the case rather than retyping it, because that
      * transform is PHP's rather than ours. This is the derivation, spelled out once.
+     *
+     * @return void
      */
     public function testTheServerKeyIsDerivedFromTheHeaderName(): void
     {
         self::assertSame(
             'HTTP_X_REQUESTED_WITH',
-            'HTTP_' . str_replace('-', '_', strtoupper(RequestHeader::RequestedWith->headerName())),
+            'HTTP_' . RequestHeader::RequestedWith->headerName()
+                |> strtoupper(...)
+                |> (fn($x) => str_replace('-', '_', $x)),
         );
     }
 
@@ -214,6 +272,10 @@ final class RequestTest extends TestCase
      * The header is conventional rather than standard and libraries disagree on its casing, so
      * the rule lives on the enum instead of as a strtolower() at the one call site that
      * remembers it.
+     *
+     * @param string $header
+     * @param bool $expected
+     * @return void
      */
     #[DataProvider('requestedWithProvider')]
     public function testTheRequestedWithValueIsMatchedWhateverCaseItArrivesIn(
@@ -223,6 +285,9 @@ final class RequestTest extends TestCase
         self::assertSame($expected, RequestedWith::XmlHttpRequest->matches($header));
     }
 
+    /**
+     * @return iterable
+     */
     public static function requestedWithProvider(): iterable
     {
         yield 'as sent'    => ['XMLHttpRequest', true];

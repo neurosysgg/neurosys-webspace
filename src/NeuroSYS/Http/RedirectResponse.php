@@ -28,6 +28,9 @@ readonly class RedirectResponse implements Response
      * for a while, from a package this project does not require and does not have — so it was an
      * undefined class in the one place a reader looks for a type, restating what the native return
      * type already says. {@link \NeuroSYS\Service\Auth::challenge()} has always been plain `never`.
+     *
+     * @param Request $request
+     * @return never
      */
     public function send(Request $request): never
     {

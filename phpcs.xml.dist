@@ -39,6 +39,43 @@
         <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpaceAfterEquals"/>
     </rule>
 
+    <!-- ── PHPDoc completeness, adopted 2026-09-05 ──────────────────────────────────────────
+         Every function documents each parameter and its return type. This started as a PhpStorm
+         pass, which used `PhpMissingDocCommentInspection` — that flags a method with *no* docblock
+         and leaves any method that already has one alone, however incomplete. The result was
+         inverted: `Layout::head()` got tags, `Element::attr()` with its long prose docblock got
+         none. Stating the rule here instead makes it the same rule everywhere and for everyone.
+
+         Three readers, one statement: `composer lint`, PhpStorm's PhpCS inspection, and Neovim's
+         nvim-lint, which resolves this ruleset from the buffer's project root.
+
+         The excluded sub-rules are the ones that would fight decisions this project already made:
+         column alignment (which the sniff exemptions above exist to protect), prose style, and
+         type spellings that PHP's own signature already states more precisely than a docblock can.
+         What is left is exactly "is every parameter named, and is the return type stated". -->
+    <rule ref="Squiz.Commenting.FunctionComment">
+        <!-- A tag names the parameter; it does not owe a sentence. Most of these types say
+             everything there is to say, and a mandated comment invites restating the name. -->
+        <exclude name="Squiz.Commenting.FunctionComment.MissingParamComment"/>
+        <exclude name="Squiz.Commenting.FunctionComment.ParamCommentFullStop"/>
+        <!-- Column alignment is house style; the ruleset already exempts the sniffs that fight it
+             in a signature, and these are the same argument inside a docblock. -->
+        <exclude name="Squiz.Commenting.FunctionComment.SpacingAfterParamType"/>
+        <exclude name="Squiz.Commenting.FunctionComment.SpacingAfterParamName"/>
+        <!-- `@throws MarkupException if …` reads as a sentence about a condition, not a heading. -->
+        <exclude name="Squiz.Commenting.FunctionComment.ThrowsNotCapital"/>
+        <exclude name="Squiz.Commenting.FunctionComment.EmptyThrows"/>
+        <!-- The signature is the authority on types. These want a docblock to disagree with it —
+             `integer` for `int`, a scalar hint the parameter already carries — which is the
+             opposite of how this codebase treats the two. -->
+        <exclude name="Squiz.Commenting.FunctionComment.IncorrectTypeHint"/>
+        <exclude name="Squiz.Commenting.FunctionComment.ScalarTypeHintMissing"/>
+        <exclude name="Squiz.Commenting.FunctionComment.TypeHintMissing"/>
+        <exclude name="Squiz.Commenting.FunctionComment.InvalidReturn"/>
+        <exclude name="Squiz.Commenting.FunctionComment.InvalidReturnNotVoid"/>
+        <exclude name="Squiz.Commenting.FunctionComment.IncorrectParamVarName"/>
+    </rule>
+
     <!-- A bootstrap and a data file both have to load something *and* define something;
          that is what they are for. -->
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">

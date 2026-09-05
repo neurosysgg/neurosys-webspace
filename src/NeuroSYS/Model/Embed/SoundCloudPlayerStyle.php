@@ -15,7 +15,11 @@ enum SoundCloudPlayerStyle: string
     /** Compact waveform bar beside a small thumbnail. */
     case Classic = 'classic';
 
-    /** Returns SoundCloud's own iframe height for this layout, in px. */
+    /**
+     * Returns SoundCloud's own iframe height for this layout, in px.
+     *
+     * @return int
+     */
     public function height(): int
     {
         return match ($this) {
@@ -24,7 +28,11 @@ enum SoundCloudPlayerStyle: string
         };
     }
 
-    /** Returns the value of the player's `visual` query flag for this layout. */
+    /**
+     * Returns the value of the player's `visual` query flag for this layout.
+     *
+     * @return bool
+     */
     public function isVisual(): bool
     {
         return $this === self::Visual;

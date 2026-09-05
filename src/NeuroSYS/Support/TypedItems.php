@@ -47,6 +47,9 @@ trait TypedItems
      */
     public function __construct(public readonly string $type) {}
 
+    /**
+     * @return int
+     */
     public function count(): int { return count($this->items); }
 
     /**
@@ -58,6 +61,7 @@ trait TypedItems
      * read it to check the *element* type of a collection they were handed.
      *
      * @param T $item
+     * @return void
      * @throws TypeError if it is not.
      */
     private function guard(mixed $item): void

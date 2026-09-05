@@ -14,6 +14,10 @@ use NeuroSYS\Controller\Controller;
  */
 readonly class Route
 {
+    /**
+     * @param string $pattern
+     * @param Closure $factory
+     */
     public function __construct(
         private string  $pattern,
         private Closure $factory,
@@ -22,6 +26,7 @@ readonly class Route
     /**
      * Tests whether this route matches $path.
      *
+     * @param string $path
      * @return array<int,string>|false Positional capture values on match, false otherwise.
      */
     public function matches(string $path): array|false
@@ -38,7 +43,12 @@ readonly class Route
         return $m;
     }
 
-    /** Invokes the factory with the captured params and returns the resulting Controller. */
+    /**
+     * Invokes the factory with the captured params and returns the resulting Controller.
+     *
+     * @param array $params
+     * @return Controller
+     */
     public function createController(array $params): Controller
     {
         return ($this->factory)(...$params);

@@ -71,7 +71,7 @@ export class Navigation {
   public static forDocument(): Navigation | null {
     const content = document.getElementById(ElementId.Content);
 
-    return content === null ? null : new Navigation(content);
+    return null === content ? null : new Navigation(content);
   }
 
   /** Runs `handler` every time #content is replaced. */
@@ -92,7 +92,7 @@ export class Navigation {
 
   private onClick(e: MouseEvent): void {
     // Let the browser handle open-in-new-tab/window and non-primary buttons.
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || 0 !== e.button) return;
 
     // A click can land on the document itself, and EventTarget has no closest().
     if (!(e.target instanceof Element)) return;
@@ -100,7 +100,7 @@ export class Navigation {
     // The selector is what makes the anchor type true.
     const link = e.target.closest<HTMLAnchorElement>(Navigation.INTERNAL_LINK);
 
-    if (link === null || link.hasAttribute(LinkAttribute.NoSpa)) return;
+    if (null === link || link.hasAttribute(LinkAttribute.NoSpa)) return;
 
     // The selector matches the href *attribute*, and `//evil.example/x` starts with a slash exactly
     // as `/releases` does — a protocol-relative URL is a different origin wearing a path's clothes.

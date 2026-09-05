@@ -15,6 +15,10 @@ namespace NeuroSYS\Http;
  */
 interface HeaderName
 {
-    /** The header's name, as it goes on the wire. */
+    /**
+     * The header's name, as it goes on the wire.
+     *
+     * @return string
+     */
     public function headerName(): string;
 }

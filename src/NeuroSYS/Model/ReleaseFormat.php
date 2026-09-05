@@ -16,7 +16,11 @@ enum ReleaseFormat: string
     case STEMS = 'stems';
     case OGG   = 'ogg';
 
-    /** Returns the human-readable display label for this format. */
+    /**
+     * Returns the human-readable display label for this format.
+     *
+     * @return string
+     */
     public function label(): string
     {
         return match ($this) {
@@ -29,7 +33,11 @@ enum ReleaseFormat: string
         };
     }
 
-    /** Returns true if this format is lossless (no quality loss from encoding). */
+    /**
+     * Returns true if this format is lossless (no quality loss from encoding).
+     *
+     * @return bool
+     */
     public function isLossless(): bool
     {
         return match ($this) {

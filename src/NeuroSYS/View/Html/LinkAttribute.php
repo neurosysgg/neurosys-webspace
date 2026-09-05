@@ -17,12 +17,19 @@ enum LinkAttribute: string implements AttributeName
     /** Bypasses the SPA router, so the browser performs a real navigation. */
     case NoSpa = 'data-no-spa';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
     }
 
-    /** A flag the SPA router reads, not an address. */
+    /**
+     * A flag the SPA router reads, not an address.
+     *
+     * @return bool
+     */
     public function isUrl(): bool
     {
         return false;

@@ -26,6 +26,9 @@ final readonly class Vary implements HeaderValue
     private function __construct(private array $headers) {}
 
     /**
+     *
+     * @param RequestHeader ...$headers
+     * @return self
      * @throws SecurityPolicyException if no header is given — an empty `Vary` is malformed, and a
      *                                 response that depends on nothing simply omits the header.
      */
@@ -40,7 +43,11 @@ final readonly class Vary implements HeaderValue
         return new self(array_values($headers));
     }
 
-    /** Returns the header value: `X-Requested-With`. */
+    /**
+     * Returns the header value: `X-Requested-With`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return implode(', ', array_map(

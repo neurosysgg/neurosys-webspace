@@ -15,7 +15,11 @@ namespace NeuroSYS\View\Html;
  */
 interface TagName
 {
-    /** The tag name as it appears in the markup. */
+    /**
+     * The tag name as it appears in the markup.
+     *
+     * @return string
+     */
     public function tagName(): string;
 
     /**
@@ -23,6 +27,8 @@ interface TagName
      *
      * `<img>` and `<meta>` are void; every custom element is not, because a custom element with no
      * closing tag is a parse error the browser recovers from silently by swallowing what follows.
+     *
+     * @return bool
      */
     public function isVoid(): bool;
 }

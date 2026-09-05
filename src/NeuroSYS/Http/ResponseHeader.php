@@ -64,6 +64,9 @@ enum ResponseHeader: string implements HeaderName
      */
     case PoweredBy = 'X-Powered-By';
 
+    /**
+     * @return string
+     */
     public function headerName(): string
     {
         return $this->value;

@@ -16,7 +16,12 @@ enum RequestedWith: string
 {
     case XmlHttpRequest = 'XMLHttpRequest';
 
-    /** True if $header names this value, whatever case it arrived in. */
+    /**
+     * True if $header names this value, whatever case it arrived in.
+     *
+     * @param string $header
+     * @return bool
+     */
     public function matches(string $header): bool
     {
         return strtolower($header) === strtolower($this->value);

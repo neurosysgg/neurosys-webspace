@@ -31,7 +31,11 @@ final readonly class Header
         public HeaderValue $value,
     ) {}
 
-    /** Formats the header for {@link \header()}: `Name: value`. */
+    /**
+     * Formats the header for {@link \header()}: `Name: value`.
+     *
+     * @return string
+     */
     public function line(): string
     {
         return $this->name->headerName() . ': ' . $this->value->render();

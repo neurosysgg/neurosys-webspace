@@ -26,8 +26,14 @@ class ReleasesView extends View
      */
     public function __construct(private readonly SearchableCollection $releases) {}
 
+    /**
+     * @return string
+     */
     public function pageTitle(): string { return self::title('releases'); }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         $cards = [];
@@ -51,6 +57,10 @@ class ReleasesView extends View
      *
      * The anchor stays native and server-rendered: a catalogue that only works with JS is not a
      * catalogue. The card wraps it and names which release it is for.
+     *
+     * @param string $slug
+     * @param Release $release
+     * @return Element
      */
     private static function card(string $slug, Release $release): Element
     {

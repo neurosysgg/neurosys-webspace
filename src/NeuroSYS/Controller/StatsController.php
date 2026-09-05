@@ -40,6 +40,10 @@ class StatsController implements Controller
         $this->logFile = $logFile ?? Config::downloadLog();
     }
 
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         Auth::requireAdminAuth($request);
@@ -63,11 +67,14 @@ class StatsController implements Controller
      * of the cache a shared or borrowed machine would leave it in. `private` says the same to
      * anything in between.
      *
-     * Passing it here is also what makes {@link \NeuroSYS\Http\ViewResponse} stand down: a response
+     * Passing it here is also what makes {@link ViewResponse} stand down: a response
      * whose caller already said how it may be kept gets no validator and can never answer a 304, so
      * a gated page cannot be handed back on the strength of a guessed ETag. Neither part is
      * load-bearing today — the page shows aggregate counts and nothing else — but the rule wants to
      * be attached to the gate rather than to what happens to be behind it right now.
+     *
+     * @param StatsView $view
+     * @return ViewResponse
      */
     private static function response(StatsView $view): ViewResponse
     {

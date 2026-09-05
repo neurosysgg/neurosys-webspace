@@ -48,6 +48,7 @@ readonly class Release
      * a {@link ReleaseFormat} is the caller's job — an unknown segment is then a null before it gets
      * here, rather than a comparison that quietly matches nothing.
      *
+     * @param ReleaseFormat $type
      * @return Format|null The matching format, or null if not available on this release.
      */
     public function findFormat(ReleaseFormat $type): ?Format
@@ -61,6 +62,8 @@ readonly class Release
     }
 
     /**
+     *
+     * @return void
      * @throws ReleaseVerificationException
      */
     private function verify(): void {

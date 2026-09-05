@@ -36,6 +36,9 @@ enum RequestHeader: string implements HeaderName
      */
     case IfNoneMatch = 'If-None-Match';
 
+    /**
+     * @return string
+     */
     public function headerName(): string
     {
         return $this->value;

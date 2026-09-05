@@ -74,7 +74,11 @@ final readonly class StrictTransportSecurity implements HeaderValue
         }
     }
 
-    /** Returns the header value: `max-age=31536000; includeSubDomains`. */
+    /**
+     * Returns the header value: `max-age=31536000; includeSubDomains`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return 'max-age=' . $this->maxAge . ($this->includeSubDomains ? '; includeSubDomains' : '');

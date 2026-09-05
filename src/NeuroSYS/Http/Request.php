@@ -15,6 +15,13 @@ readonly class Request
 {
     /**
      * Constructs an instance of {@link self}.
+     *
+     * @param ?HttpMethod $method
+     * @param string $path
+     * @param bool $ajax
+     * @param string $authUser
+     * @param string $authPassword
+     * @param string $ifNoneMatch
      */
     private function __construct(
         private ?HttpMethod $method,
@@ -30,6 +37,8 @@ readonly class Request
      *
      * Handles the Authorization header fallback required on some shared hosts
      * where Apache strips PHP_AUTH_* variables before they reach PHP.
+     *
+     * @return static
      */
     public static function fromGlobals(): static
     {
@@ -61,6 +70,9 @@ readonly class Request
      * `HTTP_` plus the name upper-cased with dashes as underscores, which is PHP's transform and
      * not ours. That is the whole reason the header names are an enum: the client sends
      * `X-Requested-With` and this reads the same string, put through the same rule.
+     *
+     * @param RequestHeader $header
+     * @return string
      */
     private static function header(RequestHeader $header): string
     {
@@ -83,6 +95,8 @@ readonly class Request
      * one header both auth gates depend on: this fails **closed** and in silence — a 401 that
      * looks exactly like a wrong password. So both spellings are read, the way the cache tiers in
      * the same file set both `VERSIONED` and `REDIRECT_VERSIONED` for the same reason.
+     *
+     * @return string
      */
     private static function authorization(): string
     {
@@ -120,6 +134,7 @@ readonly class Request
      * Raw, not decoded: a route matches the target as it was sent, the way `parse_url()` gave it.
      *
      * @param string $uri The raw request target, as `REQUEST_URI` carries it.
+     * @return string
      */
     private static function normalisePath(string $uri): string
     {
@@ -127,26 +142,50 @@ readonly class Request
         return rtrim(Uri::parse($uri)?->getRawPath() ?? $uri, '/') ?: '/';
     }
 
-    /** Returns the HTTP method, or null if it is not one {@link HttpMethod} recognises. */
+    /**
+     * Returns the HTTP method, or null if it is not one {@link HttpMethod} recognises.
+     *
+     * @return ?HttpMethod
+     */
     public function method(): ?HttpMethod  { return $this->method; }
     /**
      * Returns true if the method only reads. The whole site is read-only, so everything
      * else is refused with a 405 rather than silently treated as a GET.
+     *
+     * @return bool
      */
     public function isReadOnly(): bool     { return $this->method?->isReadOnly() ?? false; }
-    /** Returns the normalized request path without trailing slash. */
+    /**
+     * Returns the normalized request path without trailing slash.
+     *
+     * @return string
+     */
     public function path(): string         { return $this->path; }
-    /** Returns true if the request was made via XMLHttpRequest. */
+    /**
+     * Returns true if the request was made via XMLHttpRequest.
+     *
+     * @return bool
+     */
     public function isAjax(): bool         { return $this->ajax; }
-    /** Returns the HTTP Basic Auth username, or an empty string if not provided. */
+    /**
+     * Returns the HTTP Basic Auth username, or an empty string if not provided.
+     *
+     * @return string
+     */
     public function authUser(): string     { return $this->authUser; }
-    /** Returns the HTTP Basic Auth password, or an empty string if not provided. */
+    /**
+     * Returns the HTTP Basic Auth password, or an empty string if not provided.
+     *
+     * @return string
+     */
     public function authPassword(): string { return $this->authPassword; }
     /**
      * Returns the `If-None-Match` validator the browser sent back, or `''` if it sent none.
      *
      * Compared verbatim by {@link ViewResponse}: a browser echoes the `ETag` it was given, and the
      * only thing worth asking is whether it is the one we would send now.
+     *
+     * @return string
      */
     public function ifNoneMatch(): string   { return $this->ifNoneMatch; }
 }

@@ -27,6 +27,9 @@ readonly class PlainTextResponse implements Response
      *
      * `never` rather than `void` — see the note on {@link RedirectResponse::send()} for why the
      * JetBrains attribute that used to sit here as well is gone.
+     *
+     * @param Request $request
+     * @return never
      */
     public function send(Request $request): never
     {

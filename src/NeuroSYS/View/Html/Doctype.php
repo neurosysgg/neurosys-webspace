@@ -17,6 +17,10 @@ enum Doctype: string implements Node
     /** HTML5. A second case would need a reason no modern page has. */
     case Html5 = 'html';
 
+    /**
+     * @param int $depth
+     * @return string
+     */
     public function render(int $depth = 0): string
     {
         return '<!DOCTYPE ' . $this->value . '>';

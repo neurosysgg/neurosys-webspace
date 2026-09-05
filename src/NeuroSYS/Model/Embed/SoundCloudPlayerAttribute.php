@@ -39,6 +39,9 @@ enum SoundCloudPlayerAttribute: string implements AttributeName
     /** The track title, for the iframe's accessible name and the attribution. */
     case TrackTitle = 'track-title';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
@@ -48,6 +51,8 @@ enum SoundCloudPlayerAttribute: string implements AttributeName
      * None of them, and that is the design rather than an oversight: the server sends the release's
      * facts — an id, a slug, a token — and `SoundCloudPlayer.ts` builds the widget URL around them
      * from its own constant host. No address crosses, so there is no address to check.
+     *
+     * @return bool
      */
     public function isUrl(): bool
     {

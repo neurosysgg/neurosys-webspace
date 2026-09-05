@@ -6,6 +6,7 @@ namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
 use NeuroSYS\Http\HeaderValue;
+use NoDiscard;
 
 /**
  * The ContentSecurityPolicy class. A Content-Security-Policy assembled from typed parts.
@@ -31,11 +32,12 @@ final readonly class ContentSecurityPolicy implements HeaderValue
     /**
      * Returns a copy of this policy with $directive allowed to load from $sources.
      *
-     * @param CspSource ...$sources At least one. Use {@link CspKeyword::None} to allow nothing.
-     *
+     * @param CspDirective $directive The directive to set.
+     * @param CspSource    ...$sources At least one. Use {@link CspKeyword::None} to allow nothing.
+     * @return self
      * @throws SecurityPolicyException if $sources is empty, or $directive is already set.
      */
-    #[\NoDiscard('allow() returns a copy carrying the directive; a discarded one never reaches the header')]
+    #[NoDiscard('allow() returns a copy carrying the directive; a discarded one never reaches the header')]
     public function allow(CspDirective $directive, CspSource ...$sources): self
     {
         if ($sources === []) {
@@ -56,7 +58,11 @@ final readonly class ContentSecurityPolicy implements HeaderValue
         return new self([...$this->directives, $directive->value => array_values($sources)]);
     }
 
-    /** Returns the header value: `default-src 'self'; script-src 'self'; …`. */
+    /**
+     * Returns the header value: `default-src 'self'; script-src 'self'; …`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         $rendered = [];

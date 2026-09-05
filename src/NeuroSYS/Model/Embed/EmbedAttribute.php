@@ -44,6 +44,9 @@ enum EmbedAttribute: string implements AttributeName
      */
     case Loaded = 'loaded';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
@@ -53,6 +56,8 @@ enum EmbedAttribute: string implements AttributeName
      * Neither. A height is a number and `loaded` has no value at all — no address crosses on this
      * enum, which is the same answer {@link SoundCloudPlayerAttribute} gives and for the same reason:
      * the element builds its provider's URLs from its own constant host.
+     *
+     * @return bool
      */
     public function isUrl(): bool
     {

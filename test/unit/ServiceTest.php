@@ -17,6 +17,7 @@ use NeuroSYS\Service\ReleaseRepository;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Random\RandomException;
 
 #[CoversClass(ReleaseRepository::class)]
 #[CoversClass(ProfileRepository::class)]
@@ -27,11 +28,18 @@ final class ServiceTest extends TestCase
 {
     private string $tmp;
 
+    /**
+     * @return void
+     * @throws RandomException
+     */
     protected function setUp(): void
     {
         $this->tmp = sys_get_temp_dir() . '/neurosys-test-' . bin2hex(random_bytes(6)) . '.php';
     }
 
+    /**
+     * @return void
+     */
     protected function tearDown(): void
     {
         if (is_file($this->tmp)) {
@@ -39,6 +47,10 @@ final class ServiceTest extends TestCase
         }
     }
 
+    /**
+     * @param string $php
+     * @return string
+     */
     private function dataFile(string $php): string
     {
         file_put_contents($this->tmp, "<?php\nreturn $php;\n");
@@ -47,6 +59,9 @@ final class ServiceTest extends TestCase
 
     // ───────────────────────── ReleaseRepository ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testLoadsTheRealCatalogue(): void
     {
         $releases = new ReleaseRepository()->all();
@@ -55,16 +70,25 @@ final class ServiceTest extends TestCase
         self::assertSame(Release::class, $releases->type);
     }
 
+    /**
+     * @return void
+     */
     public function testFindsAReleaseBySlug(): void
     {
         self::assertInstanceOf(Release::class, new ReleaseRepository()->find('hello-world'));
     }
 
+    /**
+     * @return void
+     */
     public function testReturnsNullForAnUnknownSlug(): void
     {
         self::assertNull(new ReleaseRepository()->find('does-not-exist'));
     }
 
+    /**
+     * @return void
+     */
     public function testTheCatalogueIsOnlyReadOnce(): void
     {
         $repository = new ReleaseRepository();
@@ -72,7 +96,11 @@ final class ServiceTest extends TestCase
         self::assertSame($repository->all(), $repository->all());
     }
 
-    /** Every slug has to survive a round trip through a URL unencoded. */
+    /**
+     * Every slug has to survive a round trip through a URL unencoded.
+     *
+     * @return void
+     */
     public function testEverySlugIsUrlSafe(): void
     {
         foreach (new ReleaseRepository()->all() as $slug => $_) {
@@ -80,7 +108,11 @@ final class ServiceTest extends TestCase
         }
     }
 
-    /** Every release the catalogue ships must actually render. */
+    /**
+     * Every release the catalogue ships must actually render.
+     *
+     * @return void
+     */
     public function testEveryReleaseInTheCatalogueIsWellFormed(): void
     {
         foreach (new ReleaseRepository()->all() as $slug => $release) {
@@ -92,6 +124,9 @@ final class ServiceTest extends TestCase
 
     // ───────────────────────── ProfileRepository ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testSkipsPlatformsWithNoUrl(): void
     {
         $file = $this->dataFile("['spotify' => '', 'github' => 'https://github.com/x']");
@@ -102,17 +137,27 @@ final class ServiceTest extends TestCase
         self::assertSame(Platform::GitHub, array_first($links->all())?->platform);
     }
 
+    /**
+     * @return void
+     */
     public function testReturnsNothingWhenNoProfilesAreConfigured(): void
     {
         self::assertCount(0, new ProfileRepository($this->dataFile('[]'))->all());
     }
 
+    /**
+     * @return void
+     */
     public function testReturnsNothingWhenTheDataFileIsMissing(): void
     {
         self::assertCount(0, new ProfileRepository('/nonexistent/profiles.php')->all());
     }
 
-    /** SoundCloud is the primary presence and renders first — that is enum declaration order. */
+    /**
+     * SoundCloud is the primary presence and renders first — that is enum declaration order.
+     *
+     * @return void
+     */
     public function testLinksComeBackInEnumDeclarationOrderNotFileOrder(): void
     {
         $file = $this->dataFile(
@@ -127,6 +172,9 @@ final class ServiceTest extends TestCase
         self::assertSame([Platform::SoundCloud, Platform::YouTube, Platform::GitHub], $order);
     }
 
+    /**
+     * @return void
+     */
     public function testIgnoresAKeyThatIsNotAKnownPlatform(): void
     {
         $file = $this->dataFile("['myspace' => 'https://myspace.com/x']");
@@ -134,6 +182,9 @@ final class ServiceTest extends TestCase
         self::assertCount(0, new ProfileRepository($file)->all());
     }
 
+    /**
+     * @return void
+     */
     public function testTheConfiguredCatalogueOnlyLinksHttpsUrls(): void
     {
         foreach (new ProfileRepository()->all() as $profile) {
@@ -146,12 +197,17 @@ final class ServiceTest extends TestCase
     /**
      * Logging is deliberately off for legal reasons — data/privacy.html makes no
      * download-tracking claim. Flipping this is a policy decision before a code one.
+     *
+     * @return void
      */
     public function testLoggingIsSwitchedOff(): void
     {
         self::assertFalse(Config::DOWNLOAD_LOGGING);
     }
 
+    /**
+     * @return void
+     */
     public function testLoggingWritesNothingWhileItIsOff(): void
     {
         $log = NEUROSYS_ROOT . '/data/logs/downloads.log';
@@ -163,7 +219,11 @@ final class ServiceTest extends TestCase
         self::assertSame($before, is_file($log) ? filesize($log) : -1);
     }
 
-    /** The referrer is never even read — the guard returns before the entry is built. */
+    /**
+     * The referrer is never even read — the guard returns before the entry is built.
+     *
+     * @return void
+     */
     public function testTheReferrerIsNotReadWhileLoggingIsOff(): void
     {
         $_SERVER['HTTP_REFERER'] = 'https://example.invalid/leak';
@@ -180,6 +240,9 @@ final class ServiceTest extends TestCase
 
     // ───────────────────────── DownloadLogEntry ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheLogEntryRoundTripsThroughJson(): void
     {
         $entry = new DownloadLogEntry('2026-06-17T00:00:00+00:00', 'ill', 'flac', 'https://ref');
@@ -192,6 +255,9 @@ final class ServiceTest extends TestCase
         self::assertSame($entry->referrer, $decoded?->referrer);
     }
 
+    /**
+     * @return iterable
+     */
     public static function malformedJsonProvider(): iterable
     {
         yield 'not json'   => ['not json'];
@@ -201,12 +267,19 @@ final class ServiceTest extends TestCase
         yield 'truncated'  => ['{"slug":"ill"'];
     }
 
+    /**
+     * @param string $json
+     * @return void
+     */
     #[DataProvider('malformedJsonProvider')]
     public function testMalformedLogLinesDecodeToNullRatherThanCrashing(string $json): void
     {
         self::assertNull(DownloadLogEntry::fromJson($json));
     }
 
+    /**
+     * @return void
+     */
     public function testMissingFieldsDefaultToEmptyStrings(): void
     {
         $entry = DownloadLogEntry::fromJson('{"slug":"ill"}');
@@ -224,6 +297,9 @@ final class ServiceTest extends TestCase
      * reaching that constructor is an uncaught TypeError — not a null the caller can skip, a fatal.
      * {@link \NeuroSYS\Controller\StatsController} reads the log line by line and skips whatever
      * comes back null, so before this a single malformed line 500'd the whole stats page instead.
+     *
+     * @param string $json
+     * @return void
      */
     #[DataProvider('wrongTypeProvider')]
     public function testAFieldOfTheWrongTypeIsSkippedRatherThanFatal(string $json): void
@@ -231,6 +307,9 @@ final class ServiceTest extends TestCase
         self::assertNull(DownloadLogEntry::fromJson($json));
     }
 
+    /**
+     * @return iterable
+     */
     public static function wrongTypeProvider(): iterable
     {
         yield 'numeric time'   => ['{"time":123}'];
@@ -247,7 +326,11 @@ final class ServiceTest extends TestCase
         yield 'a list of rows' => ['[{"slug":"ill"}]'];
     }
 
-    /** The other side of that: an object with nothing in it is still an object, and still decodes. */
+    /**
+     * The other side of that: an object with nothing in it is still an object, and still decodes.
+     *
+     * @return void
+     */
     public function testAnEmptyObjectIsStillAnEntry(): void
     {
         $entry = DownloadLogEntry::fromJson('{}');
@@ -256,12 +339,19 @@ final class ServiceTest extends TestCase
         self::assertSame('', $entry->slug);
     }
 
-    /** A null field is an absent one, which is the existing contract and stays that way. */
+    /**
+     * A null field is an absent one, which is the existing contract and stays that way.
+     *
+     * @return void
+     */
     public function testANullFieldIsTreatedAsAbsent(): void
     {
         self::assertSame('', DownloadLogEntry::fromJson('{"referrer":null}')?->referrer);
     }
 
+    /**
+     * @return void
+     */
     public function testSlashesAreNotEscapedInTheJson(): void
     {
         $entry = new DownloadLogEntry('t', 'ill', 'flac', 'https://example.test/a/b');
@@ -274,6 +364,8 @@ final class ServiceTest extends TestCase
      * and height. It replaced an `['platform' => …, 'url' => …]` array shape, which is a value
      * object nobody named — nothing checked the keys, and a caller destructuring it wrongly got
      * null rather than an error.
+     *
+     * @return void
      */
     public function testAProfileCarriesItsPlatformAndUrl(): void
     {
@@ -289,6 +381,9 @@ final class ServiceTest extends TestCase
      * parts. Element refuses a `javascript:` href at render regardless — but that is the backstop,
      * and a backstop reports the fault on whatever page happens to draw the footer. Here it is
      * reported when `data/profiles.php` loads, which is where the mistake actually is.
+     *
+     * @param string $url
+     * @return void
      */
     #[DataProvider('badProfileUrlProvider')]
     public function testAProfileUrlThatIsNotAnHttpsAddressIsRefused(string $url): void
@@ -298,6 +393,9 @@ final class ServiceTest extends TestCase
         new Profile(Platform::X, $url);
     }
 
+    /**
+     * @return iterable
+     */
     public static function badProfileUrlProvider(): iterable
     {
         yield 'javascript'        => ['javascript:alert(document.domain)'];
@@ -317,7 +415,11 @@ final class ServiceTest extends TestCase
         yield 'trailing newline'  => ["https://x.com/a\n"];
     }
 
-    /** Every profile the site actually ships, checked as the data file declares them. */
+    /**
+     * Every profile the site actually ships, checked as the data file declares them.
+     *
+     * @return void
+     */
     public function testEveryShippedProfileUrlIsAccepted(): void
     {
         $profiles = new ProfileRepository()->all();

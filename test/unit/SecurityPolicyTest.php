@@ -28,6 +28,7 @@ use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
 use NeuroSYS\Http\Security\StrictTransportSecurity;
+use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\Vary;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -49,6 +50,9 @@ final class SecurityPolicyTest extends TestCase
 {
     // ───────────────────────── StrictTransportSecurity ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheTransportPolicyRendersItsMaxAgeAndSubdomains(): void
     {
         self::assertSame(
@@ -57,6 +61,9 @@ final class SecurityPolicyTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testSubdomainsCanBeLeftOutForAnEstateThatNeedsIt(): void
     {
         self::assertSame(
@@ -65,7 +72,11 @@ final class SecurityPolicyTest extends TestCase
         );
     }
 
-    /** Zero is the documented way to switch the policy off, so it is a value and not an error. */
+    /**
+     * Zero is the documented way to switch the policy off, so it is a value and not an error.
+     *
+     * @return void
+     */
     public function testAZeroMaxAgeIsAllowed(): void
     {
         self::assertSame('max-age=0; includeSubDomains', new StrictTransportSecurity(0)->render());
@@ -74,6 +85,8 @@ final class SecurityPolicyTest extends TestCase
     /**
      * A negative max-age is a header the browser discards, which is worse than no header: it reads
      * as protection that is present when there is none.
+     *
+     * @return void
      */
     public function testANegativeMaxAgeIsRefused(): void
     {
@@ -88,10 +101,12 @@ final class SecurityPolicyTest extends TestCase
      * A year is the value that makes the policy worth having; anything shorter leaves a window
      * where a visitor who has not been back lately still sends the Basic Auth header in the clear.
      * Asserted as a floor, so shipping the ONE_DAY ramp value by accident fails here.
+     *
+     * @return void
      */
     public function testTheSiteSendsAtLeastAYearAndCoversSubdomains(): void
     {
-        $sent = \NeuroSYS\Http\SecurityHeaders::headers()[SecurityHeader::StrictTransportSecurity->value];
+        $sent = SecurityHeaders::headers()[SecurityHeader::StrictTransportSecurity->value];
 
         self::assertMatchesRegularExpression('/^max-age=(\d+); includeSubDomains$/', $sent);
         self::assertGreaterThanOrEqual(
@@ -104,6 +119,8 @@ final class SecurityPolicyTest extends TestCase
      * Preload is deliberately not offered — see the class docblock. It ships the host inside the
      * browser binary, where nothing this server sends can take it back, so it is a decision to make
      * on purpose rather than a flag to pass on the way past.
+     *
+     * @return void
      */
     public function testThePolicyDoesNotClaimToBePreloaded(): void
     {
@@ -115,11 +132,17 @@ final class SecurityPolicyTest extends TestCase
 
     // ───────────────────────── CspHost ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testAcceptsABareOrigin(): void
     {
         self::assertSame('https://my.hidrive.com', new CspHost('https://my.hidrive.com')->source());
     }
 
+    /**
+     * @return iterable
+     */
     public static function validOriginProvider(): iterable
     {
         yield 'https'             => ['https://example.com'];
@@ -131,12 +154,19 @@ final class SecurityPolicyTest extends TestCase
         yield 'deep subdomain'    => ['https://a.b.c.example.com'];
     }
 
+    /**
+     * @param string $origin
+     * @return void
+     */
     #[DataProvider('validOriginProvider')]
     public function testAcceptsEveryWellFormedOrigin(string $origin): void
     {
         self::assertSame($origin, new CspHost($origin)->source());
     }
 
+    /**
+     * @return iterable
+     */
     public static function invalidOriginProvider(): iterable
     {
         yield 'trailing slash'  => ['https://example.com/'];
@@ -152,7 +182,12 @@ final class SecurityPolicyTest extends TestCase
         yield 'javascript'      => ['javascript:alert(1)'];
     }
 
-    /** Mirrors HiDriveLink: a bad paste has to fail where it is written, not on the wire. */
+    /**
+     * Mirrors HiDriveLink: a bad paste has to fail where it is written, not on the wire.
+     *
+     * @param string $origin
+     * @return void
+     */
     #[DataProvider('invalidOriginProvider')]
     public function testRejectsAnythingThatIsNotABareOrigin(string $origin): void
     {
@@ -162,6 +197,9 @@ final class SecurityPolicyTest extends TestCase
 
     // ───────────────────────── sources ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testKeywordsCarryTheirQuotes(): void
     {
         self::assertSame("'self'", CspKeyword::SelfOrigin->source());
@@ -169,13 +207,20 @@ final class SecurityPolicyTest extends TestCase
         self::assertSame("'unsafe-inline'", CspKeyword::UnsafeInline->source());
     }
 
+    /**
+     * @return void
+     */
     public function testSchemesCarryTheirColon(): void
     {
         self::assertSame('data:', CspScheme::Data->source());
         self::assertSame('https:', CspScheme::Https->source());
     }
 
-    /** Keyword, scheme and host are interchangeable wherever a source is wanted. */
+    /**
+     * Keyword, scheme and host are interchangeable wherever a source is wanted.
+     *
+     * @return void
+     */
     public function testAllThreeSourceKindsShareTheInterface(): void
     {
         $sources = [CspKeyword::SelfOrigin, CspScheme::Data, new CspHost('https://example.com')];
@@ -188,6 +233,9 @@ final class SecurityPolicyTest extends TestCase
 
     // ───────────────────────── ContentSecurityPolicy ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testRendersDirectivesInInsertionOrder(): void
     {
         $policy = new ContentSecurityPolicy()
@@ -197,6 +245,9 @@ final class SecurityPolicyTest extends TestCase
         self::assertSame("default-src 'self'; object-src 'none'", $policy->render());
     }
 
+    /**
+     * @return void
+     */
     public function testRendersMultipleSourcesSpaceSeparated(): void
     {
         $policy = new ContentSecurityPolicy()->allow(
@@ -209,11 +260,17 @@ final class SecurityPolicyTest extends TestCase
         self::assertSame("img-src 'self' data: https://my.hidrive.com", $policy->render());
     }
 
+    /**
+     * @return void
+     */
     public function testAnEmptyPolicyRendersEmpty(): void
     {
         self::assertSame('', new ContentSecurityPolicy()->render());
     }
 
+    /**
+     * @return void
+     */
     public function testAllowIsImmutable(): void
     {
         $base = new ContentSecurityPolicy()->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin);
@@ -224,6 +281,9 @@ final class SecurityPolicyTest extends TestCase
         self::assertStringContainsString('object-src', $extended->render());
     }
 
+    /**
+     * @return void
+     */
     public function testADirectiveNeedsAtLeastOneSource(): void
     {
         $this->expectException(SecurityPolicyException::class);
@@ -232,7 +292,11 @@ final class SecurityPolicyTest extends TestCase
         (void) new ContentSecurityPolicy()->allow(CspDirective::ScriptSrc);
     }
 
-    /** A browser honours the first occurrence, so a second one would silently do nothing. */
+    /**
+     * A browser honours the first occurrence, so a second one would silently do nothing.
+     *
+     * @return void
+     */
     public function testADirectiveCannotBeSetTwice(): void
     {
         $this->expectException(SecurityPolicyException::class);
@@ -243,6 +307,9 @@ final class SecurityPolicyTest extends TestCase
             ->allow(CspDirective::ScriptSrc, CspKeyword::UnsafeInline);
     }
 
+    /**
+     * @return void
+     */
     public function testHostsReportsOnlyHostSourcesAndDeduplicates(): void
     {
         $policy = new ContentSecurityPolicy()
@@ -253,6 +320,9 @@ final class SecurityPolicyTest extends TestCase
         self::assertSame(['https://a.example.com', 'https://b.example.com'], $policy->hosts());
     }
 
+    /**
+     * @return void
+     */
     public function testHostsIsEmptyForASelfOnlyPolicy(): void
     {
         $policy = new ContentSecurityPolicy()->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin);
@@ -262,6 +332,9 @@ final class SecurityPolicyTest extends TestCase
 
     // ───────────────────────── PermissionsPolicy ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testDenyRendersEachFeatureAsDeniedToEveryone(): void
     {
         $policy = PermissionsPolicy::deny(
@@ -272,6 +345,9 @@ final class SecurityPolicyTest extends TestCase
         self::assertSame('geolocation=(), camera=()', $policy->render());
     }
 
+    /**
+     * @return void
+     */
     public function testDenyAllCoversEveryCase(): void
     {
         $rendered = PermissionsPolicy::denyAll()->render();
@@ -281,12 +357,18 @@ final class SecurityPolicyTest extends TestCase
         }
     }
 
+    /**
+     * @return void
+     */
     public function testDenyingNothingIsAnError(): void
     {
         $this->expectException(SecurityPolicyException::class);
         PermissionsPolicy::deny();
     }
 
+    /**
+     * @return void
+     */
     public function testAFeatureRendersAsAnEmptyAllowList(): void
     {
         self::assertSame('geolocation=()', PermissionsPolicyFeature::Geolocation->denied());
@@ -300,6 +382,10 @@ final class SecurityPolicyTest extends TestCase
      * Every header value is an object that knows its own grammar, and `Header` will not take
      * anything else. Pinned in both directions: each of these must implement the interface, and
      * nothing that reaches `Header` may be a bare string.
+     *
+     * @param string $expected
+     * @param HeaderValue $value
+     * @return void
      */
     #[DataProvider('headerValueProvider')]
     public function testAHeaderValueRendersItsOwnGrammar(string $expected, HeaderValue $value): void
@@ -353,6 +439,8 @@ final class SecurityPolicyTest extends TestCase
      * but a *new* implementer that nobody remembered to cover would be a grammar nothing checks.
      * Adding one means adding it to {@link self::headerValueProvider()} too, and this is what says
      * so.
+     *
+     * @return void
      */
     public function testExactlyTheseAreHeaderValues(): void
     {
@@ -384,7 +472,11 @@ final class SecurityPolicyTest extends TestCase
         );
     }
 
-    /** And every one of them is exercised above. */
+    /**
+     * And every one of them is exercised above.
+     *
+     * @return void
+     */
     public function testEveryHeaderValueIsCovered(): void
     {
         $covered = [];
@@ -400,7 +492,9 @@ final class SecurityPolicyTest extends TestCase
             }
         }
 
-        self::assertSame([], array_values(array_diff($found, $covered)));
+        array_diff($found, $covered)
+            |> array_values(...)
+            |> (fn($x) => self::assertSame([], $x));
     }
 
     /**
@@ -437,7 +531,11 @@ final class SecurityPolicyTest extends TestCase
         return $classes;
     }
 
-    /** An empty list is a malformed header rather than a permissive one — the same rule PermissionsPolicy has. */
+    /**
+     * An empty list is a malformed header rather than a permissive one — the same rule PermissionsPolicy has.
+     *
+     * @return void
+     */
     public function testAnEmptyCacheControlIsRefused(): void
     {
         $this->expectException(SecurityPolicyException::class);
@@ -446,6 +544,9 @@ final class SecurityPolicyTest extends TestCase
         CacheControl::of();
     }
 
+    /**
+     * @return void
+     */
     public function testAnEmptyVaryIsRefused(): void
     {
         $this->expectException(SecurityPolicyException::class);
@@ -460,6 +561,9 @@ final class SecurityPolicyTest extends TestCase
      * Narrower than the spec on purpose: every redirect here goes to the file host, absolute and
      * over TLS. The newline case is the one that would matter most — PHP's `header()` refuses one
      * anyway, but a validator that does not mean what it says is worth closing regardless.
+     *
+     * @param string $url
+     * @return void
      */
     #[DataProvider('badLocationProvider')]
     public function testALocationMustBeAnAbsoluteHttpsUrl(string $url): void
@@ -481,6 +585,9 @@ final class SecurityPolicyTest extends TestCase
         yield 'empty'             => [''];
     }
 
+    /**
+     * @return void
+     */
     public function testAHeaderFormatsItsOwnLine(): void
     {
         self::assertSame(
@@ -489,7 +596,11 @@ final class SecurityPolicyTest extends TestCase
         );
     }
 
-    /** Header takes any HeaderName, which is the whole reason the interface exists. */
+    /**
+     * Header takes any HeaderName, which is the whole reason the interface exists.
+     *
+     * @return void
+     */
     public function testAHeaderFormatsAResponseHeaderTheSameWay(): void
     {
         self::assertSame(
@@ -498,6 +609,9 @@ final class SecurityPolicyTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testEveryHeaderNameLooksLikeAHeaderName(): void
     {
         foreach (SecurityHeader::cases() as $header) {

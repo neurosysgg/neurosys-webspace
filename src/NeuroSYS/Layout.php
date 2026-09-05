@@ -40,6 +40,10 @@ class Layout
         );
     }
 
+    /**
+     * @param string $title
+     * @return Element
+     */
     private static function head(string $title): Element
     {
         return new Element(HtmlTag::Head)->containing(
@@ -94,6 +98,10 @@ class Layout
         );
     }
 
+    /**
+     * @param Node $content
+     * @return Element
+     */
     private static function body(Node $content): Element
     {
         return new Element(HtmlTag::Body)->containing(
@@ -107,6 +115,9 @@ class Layout
         );
     }
 
+    /**
+     * @return Element
+     */
     private static function header(): Element
     {
         return new Element(HtmlTag::Header)
@@ -126,12 +137,18 @@ class Layout
             );
     }
 
+    /**
+     * @return Element
+     */
     private static function footer(): Element
     {
         $footer = new Element(HtmlTag::Footer)->attr(HtmlAttribute::ClassName, CssClass::SiteFooter);
         $links  = new ProfileRepository()->all();
 
         if ($links->count() > 0) {
+            // Deliberately not a pipe chain. `|>` takes a single value and a callable; this needs a
+            // spread into a method on an object built here, which is neither — the IDE's quick-fix
+            // for it produced something that parses and cannot run.
             $footer = $footer->containing(
                 new Element(HtmlTag::Nav)
                     ->attr(HtmlAttribute::ClassName, CssClass::ProfileLinks)
@@ -162,6 +179,9 @@ class Layout
      * A plain hyperlink to a locally vendored icon — nothing is requested from the platform until a
      * visitor actually clicks, so no consent gate is needed (unlike the SoundCloud embed, which is
      * gated in ReleaseView). See docs/branding.md for why the icons are never hot-linked.
+     *
+     * @param Profile $profile
+     * @return Element
      */
     private static function profileLink(Profile $profile): Element
     {

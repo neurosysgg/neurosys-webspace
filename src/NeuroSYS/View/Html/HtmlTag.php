@@ -54,11 +54,17 @@ enum HtmlTag: string implements TagName
     case Tr    = 'tr';
     case Td    = 'td';
 
+    /**
+     * @return string
+     */
     public function tagName(): string
     {
         return $this->value;
     }
 
+    /**
+     * @return bool
+     */
     public function isVoid(): bool
     {
         return match ($this) {

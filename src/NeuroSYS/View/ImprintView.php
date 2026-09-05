@@ -29,8 +29,14 @@ class ImprintView extends View
         'Germany',
     ];
 
+    /**
+     * @return string
+     */
     public function pageTitle(): string { return self::title('Imprint'); }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         return new Element(HtmlTag::Section)
@@ -53,12 +59,21 @@ class ImprintView extends View
             );
     }
 
+    /**
+     * @param HtmlTag $level
+     * @param string $text
+     * @return Element
+     */
     private static function heading(HtmlTag $level, string $text): Element
     {
         return new Element($level)->containing($text);
     }
 
-    /** The postal address as one paragraph, its lines separated by `<br>`. */
+    /**
+     * The postal address as one paragraph, its lines separated by `<br>`.
+     *
+     * @return Element
+     */
     private static function address(): Element
     {
         $lines = [];
@@ -78,6 +93,8 @@ class ImprintView extends View
      * The contact line, which is the same in both languages — `E-Mail:` is what a German imprint
      * says, and it is close enough to the English that the two halves share it rather than pretend
      * to differ.
+     *
+     * @return Element
      */
     private static function contact(): Element
     {

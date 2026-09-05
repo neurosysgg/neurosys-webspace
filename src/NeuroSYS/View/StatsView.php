@@ -30,8 +30,14 @@ class StatsView extends View
         private readonly bool  $loggingEnabled = false,
     ) {}
 
+    /**
+     * @return string
+     */
     public function pageTitle(): string { return self::title('stats'); }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         // Distinguish "switched off" from "on, but nothing yet" — otherwise an empty page reads as
@@ -66,7 +72,12 @@ class StatsView extends View
             );
     }
 
-    /** A page that is only a sentence: switched off, or on with nothing to show. */
+    /**
+     * A page that is only a sentence: switched off, or on with nothing to show.
+     *
+     * @param string $text
+     * @return Element
+     */
     private static function notice(string $text): Element
     {
         return new Element(HtmlTag::Section)
@@ -76,6 +87,10 @@ class StatsView extends View
             );
     }
 
+    /**
+     * @param string $text
+     * @return Element
+     */
     private static function subheading(string $text): Element
     {
         return new Element(HtmlTag::H3)
@@ -83,7 +98,10 @@ class StatsView extends View
             ->containing($text);
     }
 
-    /** @param array<string, int> $rows Counts keyed by whatever the table is grouped by. */
+    /**
+     * @param array<string, int> $rows Counts keyed by whatever the table is grouped by.
+     * @return Element
+     */
     private static function table(array $rows): Element
     {
         return new Element(HtmlTag::Table)

@@ -33,6 +33,8 @@ final readonly class CacheControl implements HeaderValue
      * What every public document says. The freshness question is answered by the `ETag` that
      * travels with it rather than by a lifetime here — see {@link ViewResponse::cacheHeaders()}
      * for why a lifetime of any size would be the wrong answer on this particular site.
+     *
+     * @return self
      */
     public static function revalidate(): self
     {
@@ -44,6 +46,8 @@ final readonly class CacheControl implements HeaderValue
      *
      * `private` alongside `no-store` is belt and braces: `no-store` already covers shared caches,
      * and saying both is what an intermediary that only understood one of them would need.
+     *
+     * @return self
      */
     public static function doNotStore(): self
     {
@@ -51,6 +55,9 @@ final readonly class CacheControl implements HeaderValue
     }
 
     /**
+     *
+     * @param CacheDirective ...$directives
+     * @return self
      * @throws SecurityPolicyException if no directive is given — an empty `Cache-Control` is a
      *                                 malformed header rather than a permissive one.
      */
@@ -65,7 +72,11 @@ final readonly class CacheControl implements HeaderValue
         return new self(array_values($directives));
     }
 
-    /** Returns the header value: `no-store, private`. */
+    /**
+     * Returns the header value: `no-store, private`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return implode(', ', array_map(

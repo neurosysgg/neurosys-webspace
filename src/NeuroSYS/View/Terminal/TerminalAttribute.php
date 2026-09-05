@@ -29,6 +29,9 @@ enum TerminalAttribute: string implements AttributeName
     /** Constrains the window's width. A boolean attribute. */
     case Narrow = 'narrow';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
@@ -38,6 +41,8 @@ enum TerminalAttribute: string implements AttributeName
      * None of them. Worth stating rather than assuming: `command` carries the 404's request path,
      * which is the one string on this site an attacker writes in full — but `<terminal-window>`
      * assigns it to `textContent`, so it is text all the way down and never resolved as anything.
+     *
+     * @return bool
      */
     public function isUrl(): bool
     {

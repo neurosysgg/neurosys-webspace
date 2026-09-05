@@ -40,6 +40,9 @@ enum Tag: string implements TagName
     case ReleaseTitle = 'release-title';
     case ReleaseMeta  = 'release-meta';
 
+    /**
+     * @return string
+     */
     public function tagName(): string
     {
         return $this->value;
@@ -48,6 +51,8 @@ enum Tag: string implements TagName
     /**
      * Never. A custom element with no closing tag is a parse error the browser recovers from by
      * swallowing everything after it, which is about as quiet as a failure gets.
+     *
+     * @return bool
      */
     public function isVoid(): bool
     {

@@ -76,16 +76,26 @@ final readonly class SoundCloudEmbed implements Embed
         );
     }
 
+    /**
+     * @return Platform
+     */
     public function platform(): Platform
     {
         return Platform::SoundCloud;
     }
 
+    /**
+     * @return int
+     */
     public function height(): int
     {
         return $this->style->height();
     }
 
+    /**
+     * @param string $title
+     * @return Element
+     */
     public function toElement(string $title): Element
     {
         $options = implode(' ', array_map(
@@ -108,6 +118,8 @@ final readonly class SoundCloudEmbed implements Embed
     }
 
     /**
+     *
+     * @return void
      * @throws ReleaseVerificationException
      */
     private function verify(): void

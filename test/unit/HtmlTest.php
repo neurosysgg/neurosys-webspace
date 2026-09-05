@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\View\Html\AttributeName;
@@ -54,6 +55,9 @@ final class HtmlTest extends TestCase
 {
     // ───────────────────────────── attributes ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testAnElementRendersItsTagAndAttributes(): void
     {
         self::assertSame(
@@ -68,6 +72,8 @@ final class HtmlTest extends TestCase
     /**
      * The reason this class exists. Escaping used to be a htmlspecialchars() call per attribute at
      * every call site, and forgetting one is an injection — so it happens here, once, or not at all.
+     *
+     * @return void
      */
     public function testAnAttributeValueCannotBreakOutOfItsAttribute(): void
     {
@@ -78,7 +84,11 @@ final class HtmlTest extends TestCase
         self::assertSame('<cover-art alt="&quot; onload=&quot;alert(1)"></cover-art>', $html);
     }
 
-    /** true is a bare attribute, '' is a real empty value, and the two must not collapse. */
+    /**
+     * true is a bare attribute, '' is a real empty value, and the two must not collapse.
+     *
+     * @return void
+     */
     public function testABooleanAttributeIsBareAndAnEmptyValueIsNot(): void
     {
         self::assertSame(
@@ -90,6 +100,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testFalseAndNullBothLeaveTheAttributeOffEntirely(): void
     {
         self::assertSame(
@@ -101,6 +114,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAnIntegerValueRendersAsItsDigits(): void
     {
         self::assertSame(
@@ -109,6 +125,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testTheSameAttributeTwiceKeepsTheLastValueAndItsPosition(): void
     {
         self::assertSame(
@@ -121,7 +140,11 @@ final class HtmlTest extends TestCase
         );
     }
 
-    /** Immutable like the policies and the collections — every builder method returns a copy. */
+    /**
+     * Immutable like the policies and the collections — every builder method returns a copy.
+     *
+     * @return void
+     */
     public function testBuildingDoesNotMutateTheElementBuiltFrom(): void
     {
         $empty = new Element(Tag::CoverArt);
@@ -134,6 +157,8 @@ final class HtmlTest extends TestCase
     /**
      * A backed enum stands for its value, so a call site passes CssClass::Bang rather than
      * remembering ->value — one fewer thing to get right at twenty call sites.
+     *
+     * @return void
      */
     public function testABackedEnumValueRendersAsItsBackingValue(): void
     {
@@ -143,7 +168,11 @@ final class HtmlTest extends TestCase
         );
     }
 
-    /** An enum value is escaped on the same path a string is; nothing gets in around it. */
+    /**
+     * An enum value is escaped on the same path a string is; nothing gets in around it.
+     *
+     * @return void
+     */
     public function testABackedEnumValueGoesThroughTheSameEscaping(): void
     {
         $enum = new Element(HtmlTag::P)->attr(HtmlAttribute::ClassName, CssClass::Bang)->render();
@@ -159,9 +188,12 @@ final class HtmlTest extends TestCase
      * {@link AttributeName} is what lets {@link Element} take any of them without knowing which
      * element it is building. A name that renders as something other than its backing value would
      * be a silent null on the client, so assert the two are the same thing.
+     *
+     * @param AttributeName&BackedEnum $name
+     * @return void
      */
     #[DataProvider('attributeNameProvider')]
-    public function testAnAttributeNameRendersAsItsBackingValue(AttributeName&\BackedEnum $name): void
+    public function testAnAttributeNameRendersAsItsBackingValue(AttributeName&BackedEnum $name): void
     {
         // A URL attribute is scheme-checked on the way out, so it gets a value that is one. The
         // name is what this test is about either way; that the check fires is asserted below.
@@ -174,6 +206,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable
+     */
     public static function attributeNameProvider(): iterable
     {
         foreach (
@@ -186,6 +221,8 @@ final class HtmlTest extends TestCase
                 HtmlAttribute::class,
             ] as $enum
         ) {
+            // $enum is a class-string, so this is a static call on it and not an
+            // instantiation — an enum cannot be constructed at all.
             foreach ($enum::cases() as $case) {
                 yield $enum . '::' . $case->name => [$case];
             }
@@ -199,6 +236,8 @@ final class HtmlTest extends TestCase
     /**
      * `rel` is the one attribute value on this site that is a set rather than a single fact, so the
      * enum builds the list and the call site does not. Pinned in the order the markup reads.
+     *
+     * @return void
      */
     public function testLinkRelationsJoinIntoOneAttributeValue(): void
     {
@@ -214,11 +253,15 @@ final class HtmlTest extends TestCase
      * A value enum reaches the markup as its backing value with nothing in between —
      * {@link Element::attr()} unwraps any BackedEnum, which is what lets these be passed as cases
      * rather than as `->value` at every call site.
+     *
+     * @param AttributeName $attribute
+     * @param BackedEnum $value
+     * @return void
      */
     #[DataProvider('attributeValueProvider')]
     public function testAnAttributeValueRendersAsItsBackingValue(
         AttributeName $attribute,
-        \BackedEnum $value,
+        BackedEnum $value,
     ): void {
         self::assertSame(
             '<a ' . $attribute->attribute() . '="' . $value->value . '"></a>',
@@ -226,7 +269,7 @@ final class HtmlTest extends TestCase
         );
     }
 
-    /** @return iterable<string, array{AttributeName, \BackedEnum}> */
+    /** @return iterable<string, array{AttributeName, BackedEnum}> */
     public static function attributeValueProvider(): iterable
     {
         foreach (LinkRel::cases() as $case) {
@@ -240,6 +283,9 @@ final class HtmlTest extends TestCase
         }
     }
 
+    /**
+     * @return void
+     */
     public function testEveryCustomTagRendersAsItsBackingValue(): void
     {
         foreach (Tag::cases() as $tag) {
@@ -251,6 +297,8 @@ final class HtmlTest extends TestCase
     /**
      * Never void. A custom element with no closing tag is a parse error the browser recovers from
      * by swallowing everything after it, which is about as quiet as a failure gets.
+     *
+     * @return void
      */
     public function testNoCustomTagIsVoid(): void
     {
@@ -261,6 +309,9 @@ final class HtmlTest extends TestCase
 
     // ───────────────────────────── content ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTextIsEscaped(): void
     {
         self::assertSame('rock &amp; &lt;roll&gt;', new Text('rock & <roll>')->render());
@@ -270,6 +321,8 @@ final class HtmlTest extends TestCase
      * The safe reading of the ambiguous case: a string child is content, never markup. Markup
      * passed as a string shows up as visible &lt;b&gt; — wrong on the page, but visibly wrong,
      * which is the failure mode to prefer.
+     *
+     * @return void
      */
     public function testAStringChildIsEscapedTextRatherThanMarkup(): void
     {
@@ -279,6 +332,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAVoidElementHasNoClosingTag(): void
     {
         self::assertSame(
@@ -287,7 +343,11 @@ final class HtmlTest extends TestCase
         );
     }
 
-    /** <img>text</img> is not markup the browser fixes — it is markup it reinterprets. */
+    /**
+     * <img>text</img> is not markup the browser fixes — it is markup it reinterprets.
+     *
+     * @return void
+     */
     public function testAVoidElementRefusesChildren(): void
     {
         $this->expectException(MarkupException::class);
@@ -296,7 +356,11 @@ final class HtmlTest extends TestCase
         (void) new Element(HtmlTag::Img)->containing('x');
     }
 
-    /** A custom element is never void: no closing tag means the browser swallows what follows. */
+    /**
+     * A custom element is never void: no closing tag means the browser swallows what follows.
+     *
+     * @return void
+     */
     public function testNoCustomElementIsVoid(): void
     {
         foreach (Tag::cases() as $tag) {
@@ -309,6 +373,8 @@ final class HtmlTest extends TestCase
     /**
      * Whitespace between inline content is content, so an element with any text in it stays on one
      * line. Breaking this would put a space inside 'ill.' — between the name and its accented mark.
+     *
+     * @return void
      */
     public function testAnElementWithTextInItStaysOnOneLine(): void
     {
@@ -321,6 +387,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAnElementOfOnlyElementsPutsEachOnItsOwnLine(): void
     {
         self::assertSame(
@@ -332,7 +401,11 @@ final class HtmlTest extends TestCase
         );
     }
 
-    /** Every node is handed its depth and indents its own continuation lines, at any nesting. */
+    /**
+     * Every node is handed its depth and indents its own continuation lines, at any nesting.
+     *
+     * @return void
+     */
     public function testNestingIndentsAllTheWayDown(): void
     {
         self::assertSame(
@@ -343,6 +416,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAnEmptyElementIsOpenedAndClosedOnOneLine(): void
     {
         self::assertSame('<section></section>', new Element(HtmlTag::Section)->render());
@@ -350,6 +426,9 @@ final class HtmlTest extends TestCase
 
     // ───────────────────────────── fragments and documents ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testAFragmentRendersItsNodesWithNoWrapper(): void
     {
         self::assertSame(
@@ -361,6 +440,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAFragmentInsideAnElementIndentsWithIt(): void
     {
         self::assertSame(
@@ -374,6 +456,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testFragmentEachMapsItemsToNodes(): void
     {
         self::assertSame(
@@ -385,6 +470,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testADocumentLeadsWithTheDoctype(): void
     {
         self::assertSame(
@@ -393,7 +481,11 @@ final class HtmlTest extends TestCase
         );
     }
 
-    /** Quirks mode is what a wrong one buys, silently, on every layout calculation on the page. */
+    /**
+     * Quirks mode is what a wrong one buys, silently, on every layout calculation on the page.
+     *
+     * @return void
+     */
     public function testTheDoctypeIsHtml5AndThereIsOnlyOne(): void
     {
         self::assertSame([Doctype::Html5], Doctype::cases());
@@ -409,6 +501,8 @@ final class HtmlTest extends TestCase
      * reads as a layout bug rather than a typo. Both directions matter and fail differently: a case
      * the stylesheet never mentions is an element styled by nothing, and a selector no case names is
      * a rule that can never match. The second is how dead CSS accumulates.
+     *
+     * @return void
      */
     public function testEveryClassNameIsStyledAndEveryStyledClassIsNamed(): void
     {
@@ -448,6 +542,8 @@ final class HtmlTest extends TestCase
      * matching, and an unstyled custom element on a dark page reads as a layout bug rather than a
      * typo. Both directions again: a case nothing styles is an element with no look, and a selector
      * naming no case is a rule that can never match.
+     *
+     * @return void
      */
     public function testEveryTagIsStyledAndEveryStyledTagIsATagCase(): void
     {
@@ -467,6 +563,8 @@ final class HtmlTest extends TestCase
      * Two parts naming a tag is the failure worth naming: whichever comes later in main.css wins,
      * silently, and the loser reads as a rule that simply does not apply. The build refuses to
      * import a part twice for the same reason; this is the same rule one level down.
+     *
+     * @return void
      */
     public function testEveryTagIsStyledByExactlyOnePart(): void
     {
@@ -501,6 +599,8 @@ final class HtmlTest extends TestCase
      * card.css is the single exception, and is meant to be conspicuous the way RawHtml is: the
      * catalogue entry and the download entry genuinely share a look across two component
      * directories. Pinned here, so a second concept-named part has to be argued for in this test.
+     *
+     * @return void
      */
     public function testAPartStylesOnlyItsOwnComponentAndCardIsTheOneException(): void
     {
@@ -533,7 +633,11 @@ final class HtmlTest extends TestCase
         self::assertSame(['card.css'], $exceptions, 'parts named for a concept rather than a component');
     }
 
-    /** The one file the browser loads, which is the concatenation of every part. */
+    /**
+     * The one file the browser loads, which is the concatenation of every part.
+     *
+     * @return string
+     */
     private static function stylesheet(): string
     {
         $css = file_get_contents(NEUROSYS_ROOT . '/public/assets/css/style.css');
@@ -576,10 +680,15 @@ final class HtmlTest extends TestCase
      * <soundcloud-player> is `SoundCloudPlayer`, which no casing rule produces. Scanning for the
      * file that exists sidesteps the exception rather than spelling it, and it is the same walk the
      * RawHtml check below does.
+     *
+     * @param string $tag
+     * @return string
      */
     private static function moduleFor(string $tag): string
     {
-        $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $tag)));
+        $class = str_replace('-', ' ', $tag)
+                |> ucwords(...)
+                |> (fn($x) => str_replace(' ', '', $x));
 
         $files = new RecursiveIteratorIterator(
             new RecursiveDirectoryIterator(NEUROSYS_ROOT . '/assets/ts/elements'),
@@ -595,6 +704,8 @@ final class HtmlTest extends TestCase
     }
 
     /**
+     *
+     * @param string $css
      * @return list<string> Every custom element the given CSS selects on.
      *
      * Selector position only — a hyphenated word is a property name far more often than it is a
@@ -632,6 +743,9 @@ final class HtmlTest extends TestCase
      * not a single character in it to escape — and the browser then runs it. Whether a URL is safe
      * is a question about its *scheme*, so that is asked separately, and asked at render, where
      * every element passes through however it was built.
+     *
+     * @param string $url
+     * @return void
      */
     #[DataProvider('refusedUrlProvider')]
     public function testAUrlAttributeRefusesASchemeTheSiteMayNotEmit(string $url): void
@@ -641,6 +755,9 @@ final class HtmlTest extends TestCase
         new Element(HtmlTag::A)->attr(HtmlAttribute::Href, $url)->render();
     }
 
+    /**
+     * @return iterable
+     */
     public static function refusedUrlProvider(): iterable
     {
         yield 'javascript'         => ['javascript:alert(1)'];
@@ -680,6 +797,10 @@ final class HtmlTest extends TestCase
         yield 'empty'              => [''];
     }
 
+    /**
+     * @param string $url
+     * @return void
+     */
     #[DataProvider('allowedUrlProvider')]
     public function testAUrlAttributeAllowsWhatTheSiteActuallyEmits(string $url): void
     {
@@ -689,6 +810,9 @@ final class HtmlTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable
+     */
     public static function allowedUrlProvider(): iterable
     {
         yield 'root'          => ['/'];
@@ -706,6 +830,8 @@ final class HtmlTest extends TestCase
      * the check simply would not run, and the page would look right. So the set is asserted here
      * rather than left to each enum's own good judgement, and adding a case that carries an address
      * means adding it to this list too.
+     *
+     * @return void
      */
     public function testExactlyTheAddressCarryingAttributesAreCheckedAsUrls(): void
     {
@@ -735,6 +861,8 @@ final class HtmlTest extends TestCase
      * one built through attr(). It did not before: attr() escaped on the way *in* and render()
      * emitted whatever it found, so the constructor was a way around escaping entirely — a public
      * one, documented as taking values that were already escaped and trusted to have been.
+     *
+     * @return void
      */
     public function testBothGuaranteesHoldHoweverTheElementWasBuilt(): void
     {
@@ -755,6 +883,8 @@ final class HtmlTest extends TestCase
      * call sites is a guarantee that can be half-changed. {@link Element} escapes its attribute
      * values by rendering a {@link Text} rather than reaching for htmlspecialchars() a second time,
      * so the site has one set of flags and one place to change them.
+     *
+     * @return void
      */
     public function testEscapingHappensInExactlyOnePlace(): void
     {
@@ -763,12 +893,19 @@ final class HtmlTest extends TestCase
 
     // ───────────────────────────── the audited hole ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testRawHtmlIsNotEscaped(): void
     {
         self::assertSame('<b>bold</b>', new RawHtml('<b>bold</b>')->render());
     }
 
-    /** It still indents, so a hand-authored document sits where it was placed. */
+    /**
+     * It still indents, so a hand-authored document sits where it was placed.
+     *
+     * @return void
+     */
     public function testRawHtmlIndentsToWhereItWasPlaced(): void
     {
         self::assertSame(
@@ -780,6 +917,8 @@ final class HtmlTest extends TestCase
     /**
      * The audit. RawHtml is the one place markup goes out unchecked, so its call sites are pinned
      * rather than trusted: a second one has to be argued for here, in a test named for the fact.
+     *
+     * @return void
      */
     public function testRawHtmlIsConstructedInExactlyOnePlace(): void
     {
@@ -793,6 +932,7 @@ final class HtmlTest extends TestCase
      * what is being asserted is that a second call site does not *exist*, and a call site nobody
      * reaches is still one somebody will reach later.
      *
+     * @param string $needle
      * @return list<string>
      */
     private static function filesContaining(string $needle): array

@@ -31,15 +31,12 @@ declare(strict_types=1);
     $source = dirname(__DIR__) . '/src/';
 
     register_shutdown_function(static function () use ($directory, $source): void {
-        $coverage = [];
 
         // Only this site's own code: the dumps are written per request, and carrying the whole
         // include tree in each of them turns a hundred requests into tens of megabytes.
-        foreach (xdebug_get_code_coverage() as $file => $lines) {
-            if (str_starts_with($file, $source)) {
-                $coverage[$file] = $lines;
-            }
-        }
+        $coverage = array_filter(xdebug_get_code_coverage(), function ($file) use ($source) {
+            return str_starts_with($file, $source);
+        }, ARRAY_FILTER_USE_KEY);
 
         if ($coverage === []) {
             return;

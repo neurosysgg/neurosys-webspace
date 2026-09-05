@@ -46,12 +46,17 @@ final readonly class HiDriveLink implements FileLink
         $this->verify();
     }
 
+    /**
+     * @return string
+     */
     public function url(): string
     {
         return self::BASE . '?' . http_build_query(['id' => $this->shareId]);
     }
 
     /**
+     *
+     * @return void
      * @throws ReleaseVerificationException
      */
     private function verify(): void

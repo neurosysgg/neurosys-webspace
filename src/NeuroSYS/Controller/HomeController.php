@@ -14,6 +14,10 @@ use NeuroSYS\View\HomeView;
  */
 class HomeController implements Controller
 {
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         return new ViewResponse(new HomeView());

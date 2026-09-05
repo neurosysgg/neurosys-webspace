@@ -7,7 +7,9 @@ namespace NeuroSYS\Support;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use NoDiscard;
 use Traversable;
+use TypeError;
 
 /**
  * The Collection class. A type-safe generic collection for objects of a single class.
@@ -36,10 +38,10 @@ class Collection implements Countable, IteratorAggregate
      *
      * @param T ...$items
      * @return static
-     * @throws \TypeError if any item is not an instance of the declared type. The copy is
+     * @throws TypeError if any item is not an instance of the declared type. The copy is
      *                     discarded with the exception, so a rejected batch cannot half-apply.
      */
-    #[\NoDiscard('with() copies rather than appends, so a call whose result goes nowhere does nothing')]
+    #[NoDiscard('with() copies rather than appends, so a call whose result goes nowhere does nothing')]
     public function with(mixed ...$items): static
     {
         $copy = clone $this;

@@ -26,6 +26,8 @@ final readonly class PermissionsPolicy implements HeaderValue
     /**
      * Denies the given features to every origin, this one included.
      *
+     * @param PermissionsPolicyFeature ...$features
+     * @return self
      * @throws SecurityPolicyException if no features are given — an empty Permissions-Policy
      *                                 header is not a weaker policy, it is a malformed one.
      */
@@ -40,13 +42,21 @@ final readonly class PermissionsPolicy implements HeaderValue
         return new self(array_values($features));
     }
 
-    /** Denies every feature {@link PermissionsPolicyFeature} knows about. */
+    /**
+     * Denies every feature {@link PermissionsPolicyFeature} knows about.
+     *
+     * @return self
+     */
     public static function denyAll(): self
     {
         return self::deny(...PermissionsPolicyFeature::cases());
     }
 
-    /** Returns the header value: `geolocation=(), camera=(), …`. */
+    /**
+     * Returns the header value: `geolocation=(), camera=(), …`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return implode(', ', array_map(

@@ -27,6 +27,10 @@ namespace NeuroSYS\Http;
  */
 interface HeaderValue
 {
-    /** The value as it goes on the wire, after the `Name: `. */
+    /**
+     * The value as it goes on the wire, after the `Name: `.
+     *
+     * @return string
+     */
     public function render(): string;
 }

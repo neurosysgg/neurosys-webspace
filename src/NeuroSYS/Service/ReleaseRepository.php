@@ -40,7 +40,12 @@ class ReleaseRepository
         return $this->collection ??= $this->load();
     }
 
-    /** Finds a release by its URL slug, or returns null if not found. */
+    /**
+     * Finds a release by its URL slug, or returns null if not found.
+     *
+     * @param string $slug
+     * @return ?Release
+     */
     public function find(string $slug): ?Release
     {
         return $this->all()->find($slug);

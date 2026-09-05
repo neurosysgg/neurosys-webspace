@@ -93,19 +93,28 @@ final class Config
      * for it with `__DIR__ . '/../../../data/'` while everything else used `dirname(__DIR__, 3)`.
      *
      * @param string $file A path relative to `data/`, e.g. `releases.php` or `logs/downloads.log`.
+     * @return string
      */
     public static function dataPath(string $file): string
     {
         return dirname(__DIR__, 2) . '/data/' . $file;
     }
 
-    /** The downloads log, named once because two classes reach for it. */
+    /**
+     * The downloads log, named once because two classes reach for it.
+     *
+     * @return string
+     */
     public static function downloadLog(): string
     {
         return self::dataPath('logs/downloads.log');
     }
 
-    /** The site's meta description: `neuro.SYS — electronic music.` */
+    /**
+     * The site's meta description: `neuro.SYS — electronic music.`
+     *
+     * @return string
+     */
     public static function description(): string
     {
         return self::NAME . ' — ' . self::TAGLINE;

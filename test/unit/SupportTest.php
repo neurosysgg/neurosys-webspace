@@ -24,6 +24,9 @@ final class SupportTest extends TestCase
 {
     // ───────────────────────────── Collection ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testStartsEmpty(): void
     {
         $collection = new Collection(stdClass::class);
@@ -32,6 +35,9 @@ final class SupportTest extends TestCase
         self::assertSame([], $collection->all());
     }
 
+    /**
+     * @return void
+     */
     public function testAddsItemsAndPreservesOrder(): void
     {
         $a = new stdClass();
@@ -43,6 +49,9 @@ final class SupportTest extends TestCase
         self::assertSame([$a, $b], $collection->all());
     }
 
+    /**
+     * @return void
+     */
     public function testWithReturnsACopyAndLeavesTheOriginalEmpty(): void
     {
         $collection = new Collection(stdClass::class);
@@ -57,6 +66,8 @@ final class SupportTest extends TestCase
      * The reason the collections are immutable: readonly protects the reference, not what it points
      * at. A mutable collection would make every readonly value object holding one appendable by
      * anyone who can reach it — Release::$formats, Terminal::$fields, SoundCloudEmbed::$options.
+     *
+     * @return void
      */
     public function testACollectionInsideAReadonlyObjectCannotBeAppendedTo(): void
     {
@@ -75,6 +86,9 @@ final class SupportTest extends TestCase
         self::assertCount(1, $release->formats);
     }
 
+    /**
+     * @return void
+     */
     public function testIsIterable(): void
     {
         $items = [new stdClass(), new stdClass()];
@@ -82,18 +96,27 @@ final class SupportTest extends TestCase
         self::assertSame($items, iterator_to_array(new Collection(stdClass::class)->with(...$items)));
     }
 
+    /**
+     * @return void
+     */
     public function testRejectsAnItemOfTheWrongType(): void
     {
         $this->expectException(TypeError::class);
         (void) new Collection(DateTime::class)->with(new stdClass());
     }
 
+    /**
+     * @return void
+     */
     public function testRejectsAScalar(): void
     {
         $this->expectException(TypeError::class);
         (void) new Collection(stdClass::class)->with('not an object');
     }
 
+    /**
+     * @return void
+     */
     public function testTheTypeErrorNamesBothTypes(): void
     {
         $this->expectException(TypeError::class);
@@ -101,7 +124,11 @@ final class SupportTest extends TestCase
         (void) new Collection(DateTime::class)->with(new stdClass());
     }
 
-    /** The copy is discarded with the exception, so the good items in a bad batch go with it. */
+    /**
+     * The copy is discarded with the exception, so the good items in a bad batch go with it.
+     *
+     * @return void
+     */
     public function testARejectedBatchLeavesTheOriginalUntouched(): void
     {
         $collection = new Collection(stdClass::class)->with(new stdClass());
@@ -115,6 +142,9 @@ final class SupportTest extends TestCase
         self::assertCount(1, $collection);
     }
 
+    /**
+     * @return void
+     */
     public function testAcceptsSubclassesOfTheDeclaredType(): void
     {
         $collection = new Collection(ArrayObject::class)->with(new class () extends ArrayObject {});
@@ -122,6 +152,9 @@ final class SupportTest extends TestCase
         self::assertCount(1, $collection);
     }
 
+    /**
+     * @return void
+     */
     public function testExposesItsDeclaredType(): void
     {
         self::assertSame(stdClass::class, new Collection(stdClass::class)->type);
@@ -129,11 +162,17 @@ final class SupportTest extends TestCase
 
     // ───────────────────────── SearchableCollection ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testFindReturnsNullForAnUnknownKey(): void
     {
         self::assertNull(new SearchableCollection(stdClass::class)->find('nope'));
     }
 
+    /**
+     * @return void
+     */
     public function testFindReturnsTheItemStoredUnderAKey(): void
     {
         $item = new stdClass();
@@ -141,6 +180,9 @@ final class SupportTest extends TestCase
         self::assertSame($item, new SearchableCollection(stdClass::class)->with('k', $item)->find('k'));
     }
 
+    /**
+     * @return void
+     */
     public function testAddingTheSameKeyTwiceReplacesTheItem(): void
     {
         $second = new stdClass();
@@ -153,6 +195,9 @@ final class SupportTest extends TestCase
         self::assertSame($second, $collection->find('k'));
     }
 
+    /**
+     * @return void
+     */
     public function testIteratesAsKeyValuePairs(): void
     {
         $a = new stdClass();
@@ -163,12 +208,18 @@ final class SupportTest extends TestCase
         self::assertSame(['a' => $a, 'b' => $b], iterator_to_array($collection));
     }
 
+    /**
+     * @return void
+     */
     public function testSearchableRejectsAnItemOfTheWrongType(): void
     {
         $this->expectException(TypeError::class);
         (void) new SearchableCollection(DateTime::class)->with('k', new stdClass());
     }
 
+    /**
+     * @return void
+     */
     public function testKeysWithSlashesAndDotsAreJustKeys(): void
     {
         $item = new stdClass();
@@ -182,6 +233,8 @@ final class SupportTest extends TestCase
     /**
      * all() hands back the keyed map rather than a list — the slug is the key, and it is what
      * ReleasesView iterates to build each card's href.
+     *
+     * @return void
      */
     public function testASearchableCollectionHandsBackItsItemsKeyed(): void
     {
@@ -193,6 +246,9 @@ final class SupportTest extends TestCase
         self::assertSame(['a' => $a, 'b' => $b], $collection->all());
     }
 
+    /**
+     * @return void
+     */
     public function testAnEmptySearchableCollectionHandsBackAnEmptyArray(): void
     {
         self::assertSame([], new SearchableCollection(stdClass::class)->all());

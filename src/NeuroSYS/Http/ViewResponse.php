@@ -47,6 +47,9 @@ readonly class ViewResponse implements Response
      * used to run in and is what makes an `ETag` possible at all: the validator is a hash of the
      * bytes, so the bytes have to exist first. Nothing is echoed until every header is sent, so
      * that reordering costs one string held in memory and nothing else.
+     *
+     * @param Request $request
+     * @return void
      */
     public function send(Request $request): void
     {
@@ -116,14 +119,13 @@ readonly class ViewResponse implements Response
      * {@link \NeuroSYS\Service\Auth} exits with never becomes a `Response` at all, and the 405 and
      * 503 are {@link PlainTextResponse}.
      *
+     * @param string $markup
      * @return list<Header>
      */
     private function cacheHeaders(string $markup): array
     {
-        foreach ($this->headers as $header) {
-            if ($header->name === ResponseHeader::CacheControl) {
-                return [];
-            }
+        if (array_any($this->headers, fn($header) => $header->name === ResponseHeader::CacheControl)) {
+            return [];
         }
 
         return [
@@ -133,7 +135,10 @@ readonly class ViewResponse implements Response
         ];
     }
 
-    /** @param list<Header> $headers */
+    /**
+     * @param list<Header> $headers
+     * @return void
+     */
     private static function sendAll(array $headers): void
     {
         foreach ($headers as $header) {

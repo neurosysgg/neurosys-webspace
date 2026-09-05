@@ -26,6 +26,10 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(HiDriveLink::class)]
 final class ModelTest extends TestCase
 {
+    /**
+     * @param Format ...$formats
+     * @return Release
+     */
     private function release(Format ...$formats): Release
     {
         return new Release(
@@ -41,6 +45,9 @@ final class ModelTest extends TestCase
 
     // ───────────────────────────── Release ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testFindFormatReturnsTheMatchingFormat(): void
     {
         $release = $this->release(
@@ -51,6 +58,9 @@ final class ModelTest extends TestCase
         self::assertSame(ReleaseFormat::MP3, $release->findFormat(ReleaseFormat::MP3)?->type);
     }
 
+    /**
+     * @return void
+     */
     public function testFindFormatReturnsNullForAFormatThisReleaseDoesNotHave(): void
     {
         self::assertNull($this->release(new Format(ReleaseFormat::FLAC))->findFormat(ReleaseFormat::OGG));
@@ -59,12 +69,17 @@ final class ModelTest extends TestCase
     /**
      * The segment never reaches findFormat() as a string any more: DownloadController resolves it
      * with ReleaseFormat::tryFrom() first, so a path like this is a null before the lookup happens.
+     *
+     * @return void
      */
     public function testAUrlSegmentThatIsNotAFormatResolvesToNothing(): void
     {
         self::assertNull(ReleaseFormat::tryFrom('../../etc/passwd'));
     }
 
+    /**
+     * @return void
+     */
     public function testRejectsANonPositiveBpm(): void
     {
         $this->expectException(ReleaseVerificationException::class);
@@ -73,6 +88,9 @@ final class ModelTest extends TestCase
         new Release('t', 0, MusicalKey::CMajor, Genre::Dubstep, 'd', null, new Collection(Format::class));
     }
 
+    /**
+     * @return void
+     */
     public function testRejectsACollectionOfTheWrongType(): void
     {
         $this->expectException(ReleaseVerificationException::class);
@@ -83,6 +101,8 @@ final class ModelTest extends TestCase
     /**
      * A staged release declares the format but not its link yet; DownloadController keys
      * its 503 branch off exactly this being null.
+     *
+     * @return void
      */
     public function testAFormatDeclaredWithoutALinkHasANullLink(): void
     {
@@ -91,6 +111,9 @@ final class ModelTest extends TestCase
 
     // ─────────────────────────── ReleaseFormat ───────────────────────────
 
+    /**
+     * @return iterable
+     */
     public static function losslessProvider(): iterable
     {
         yield [ReleaseFormat::FLAC, true];
@@ -101,12 +124,20 @@ final class ModelTest extends TestCase
         yield [ReleaseFormat::OGG, false];
     }
 
+    /**
+     * @param ReleaseFormat $format
+     * @param bool $expected
+     * @return void
+     */
     #[DataProvider('losslessProvider')]
     public function testIsLossless(ReleaseFormat $format, bool $expected): void
     {
         self::assertSame($expected, $format->isLossless());
     }
 
+    /**
+     * @return void
+     */
     public function testEveryFormatHasANonEmptyLabelAndALowercaseUrlSafeValue(): void
     {
         foreach (ReleaseFormat::cases() as $format) {
@@ -117,11 +148,17 @@ final class ModelTest extends TestCase
 
     // ───────────────────── MusicalKey / Genre ─────────────────────
 
+    /**
+     * @return void
+     */
     public function testThereAreExactlyTwentyFourKeys(): void
     {
         self::assertCount(24, MusicalKey::cases());
     }
 
+    /**
+     * @return void
+     */
     public function testKeyAndGenreValuesAreUniqueAndNonEmpty(): void
     {
         foreach ([MusicalKey::cases(), Genre::cases()] as $cases) {
@@ -133,6 +170,9 @@ final class ModelTest extends TestCase
 
     // ───────────────────────────── Platform ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testEveryPlatformHasALabelDisplayNameAndVendoredIcon(): void
     {
         foreach (Platform::cases() as $platform) {
@@ -145,6 +185,8 @@ final class ModelTest extends TestCase
     /**
      * Icons are vendored, never hot-linked — a remote URL here would fire a request to the
      * platform on page load and make us a joint controller (CJEU C-40/17, "Fashion ID").
+     *
+     * @return void
      */
     public function testEveryPlatformIconIsALocalPathAndTheFileExists(): void
     {
@@ -162,6 +204,9 @@ final class ModelTest extends TestCase
 
     // ──────────────────────────── HiDriveLink ────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testBuildsTheDirectDownloadUrlFromSubjectShareId(): void
     {
         self::assertSame(
@@ -170,6 +215,9 @@ final class ModelTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable
+     */
     public static function badShareIdProvider(): iterable
     {
         yield 'too short'      => ['BXRsy9S7'];
@@ -183,6 +231,10 @@ final class ModelTest extends TestCase
         yield 'unicode'        => ['BXRsy9S7é'];
     }
 
+    /**
+     * @param string $id
+     * @return void
+     */
     #[DataProvider('badShareIdProvider')]
     public function testRejectsAMalformedShareId(string $id): void
     {
@@ -190,6 +242,9 @@ final class ModelTest extends TestCase
         new HiDriveLink($id);
     }
 
+    /**
+     * @return void
+     */
     public function testAcceptsAnyNineAlphanumericId(): void
     {
         foreach (['BXRsy9S7d', '123456789', 'abcdefghi', 'ABCDEFGHI'] as $id) {
@@ -197,7 +252,11 @@ final class ModelTest extends TestCase
         }
     }
 
-    /** The id is url-encoded into the query rather than concatenated raw. */
+    /**
+     * The id is url-encoded into the query rather than concatenated raw.
+     *
+     * @return void
+     */
     public function testTheUrlIsBuiltWithQueryEncoding(): void
     {
         self::assertSame(

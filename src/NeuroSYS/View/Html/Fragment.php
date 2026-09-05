@@ -16,7 +16,11 @@ final readonly class Fragment implements Node
     /** @var list<Node> */
     private array $nodes;
 
-    /** Constructs an instance of {@link self} from the given nodes, in order. */
+    /**
+     * Constructs an instance of {@link self} from the given nodes, in order.
+     *
+     * @param Node ...$nodes
+     */
     public function __construct(Node ...$nodes)
     {
         $this->nodes = array_values($nodes);
@@ -28,6 +32,7 @@ final readonly class Fragment implements Node
      * @template T
      * @param iterable<T>          $items
      * @param callable(T): Node    $node
+     * @return self
      */
     public static function each(iterable $items, callable $node): self
     {
@@ -40,6 +45,10 @@ final readonly class Fragment implements Node
         return new self(...$nodes);
     }
 
+    /**
+     * @param int $depth
+     * @return string
+     */
     public function render(int $depth = 0): string
     {
         return implode(

@@ -62,6 +62,7 @@ final readonly class Terminal
      * other failure in this layer throws. Propagating the core exception instead would make every
      * view that declares a terminal owe an `@throws` for a condition none of them can act on.
      *
+     * @return Element
      * @throws MarkupException if a row cannot be encoded — in practice, invalid UTF-8 in a value.
      */
     public function toElement(): Element

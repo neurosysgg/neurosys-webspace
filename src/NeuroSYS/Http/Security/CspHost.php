@@ -34,12 +34,17 @@ final readonly class CspHost implements CspSource
         $this->verify();
     }
 
+    /**
+     * @return string
+     */
     public function source(): string
     {
         return $this->origin;
     }
 
     /**
+     *
+     * @return void
      * @throws SecurityPolicyException
      */
     private function verify(): void

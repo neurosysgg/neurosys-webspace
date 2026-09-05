@@ -28,7 +28,11 @@ enum PermissionsPolicyFeature: string
     /** Chrome's FLoC cohort. Opting out is the documented way to say "don't profile my visitors". */
     case InterestCohort = 'interest-cohort';
 
-    /** Renders this feature as denied to everyone: `geolocation=()`. */
+    /**
+     * Renders this feature as denied to everyone: `geolocation=()`.
+     *
+     * @return string
+     */
     public function denied(): string
     {
         return $this->value . '=()';

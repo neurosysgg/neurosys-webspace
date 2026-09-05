@@ -21,6 +21,9 @@ enum CoverArtAttribute: string implements AttributeName
     /** The image's alternative text. */
     case Alt = 'alt';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
@@ -33,6 +36,8 @@ enum CoverArtAttribute: string implements AttributeName
      * the `.src` of an image it builds — which makes them exactly as much a URL as a native
      * `<img src>` would be, one layer later. The check belongs on the attribute the server writes,
      * because that is the last point where anything on this side can still refuse it.
+     *
+     * @return bool
      */
     public function isUrl(): bool
     {

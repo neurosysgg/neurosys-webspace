@@ -18,13 +18,22 @@ use NeuroSYS\View\Html\Node;
  */
 class HomeView extends View
 {
+    /**
+     * @return string
+     */
     public function pageTitle(): string { return self::title(); }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         return new Fragment(self::heroSection(), self::tracksSection());
     }
 
+    /**
+     * @return Element
+     */
     private static function heroSection(): Element
     {
         return new Element(HtmlTag::Section)
@@ -52,6 +61,8 @@ class HomeView extends View
      * opposite of how {@link ReleaseView} gets its data — because this is not data. It is a fixed
      * fact about the site, the same kind of thing as {@link Config::TAGLINE} two methods up, and
      * there is no repository it could come from.
+     *
+     * @return Element
      */
     private static function tracksSection(): Element
     {

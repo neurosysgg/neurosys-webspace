@@ -22,6 +22,10 @@ readonly class NotFoundController implements Controller
      */
     public function __construct(private string $path) {}
 
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         return new ViewResponse(new NotFoundView($this->path), HttpStatusCode::NotFound);

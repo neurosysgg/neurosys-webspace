@@ -7,7 +7,9 @@ namespace NeuroSYS\Support;
 use ArrayIterator;
 use Countable;
 use IteratorAggregate;
+use NoDiscard;
 use Traversable;
+use TypeError;
 
 /**
  * The SearchableCollection class. A type-safe, string-keyed collection of objects.
@@ -35,9 +37,10 @@ class SearchableCollection implements Countable, IteratorAggregate
      *
      * @param string $key  The key to store the item under.
      * @param T      $item The item to store.
-     * @throws \TypeError if $item is not an instance of the declared type.
+     * @return static
+     * @throws TypeError if $item is not an instance of the declared type.
      */
-    #[\NoDiscard('with() copies rather than stores, so a call whose result goes nowhere does nothing')]
+    #[NoDiscard('with() copies rather than stores, so a call whose result goes nowhere does nothing')]
     public function with(string $key, mixed $item): static
     {
         $this->guard($item);

@@ -12,6 +12,10 @@ use NeuroSYS\View\PrivacyView;
 
 class PrivacyController implements Controller
 {
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         return new ViewResponse(new PrivacyView(self::policy()));
@@ -25,6 +29,8 @@ class PrivacyController implements Controller
      * `file_get_contents()`'s return value but not its **warning**, and the headers have already
      * gone out by the time this runs, so on a deployment missing `data/privacy.html` the warning
      * prints into the page ahead of the doctype rather than anywhere a log would catch it.
+     *
+     * @return string
      */
     private static function policy(): string
     {

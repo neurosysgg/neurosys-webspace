@@ -86,7 +86,11 @@ final readonly class SoundCloudProfileEmbed
         return SoundCloudEmbed::defaultOptions();
     }
 
-    /** Returns the platform this embed loads from. */
+    /**
+     * Returns the platform this embed loads from.
+     *
+     * @return Platform
+     */
     public function platform(): Platform
     {
         return Platform::SoundCloud;
@@ -97,13 +101,19 @@ final readonly class SoundCloudProfileEmbed
      *
      * The consent gate reserves exactly this much space, so swapping the placeholder for the real
      * player doesn't shift the page.
+     *
+     * @return int
      */
     public function height(): int
     {
         return $this->height;
     }
 
-    /** Renders the custom element that builds the profile player client-side. */
+    /**
+     * Renders the custom element that builds the profile player client-side.
+     *
+     * @return Element
+     */
     public function toElement(): Element
     {
         $options = implode(' ', array_map(
@@ -120,6 +130,8 @@ final readonly class SoundCloudProfileEmbed
     }
 
     /**
+     *
+     * @return void
      * @throws ReleaseVerificationException
      */
     private function verify(): void

@@ -16,7 +16,7 @@ export class Navigation {
     }
     static forDocument() {
         const content = document.getElementById(ElementId.Content);
-        return content === null ? null : new Navigation(content);
+        return null === content ? null : new Navigation(content);
     }
     static onNavigate(handler) {
         document.addEventListener(Navigation.EVENT, handler);
@@ -26,12 +26,12 @@ export class Navigation {
         window.addEventListener('popstate', () => { void this.go(location.pathname); });
     }
     onClick(e) {
-        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0)
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || 0 !== e.button)
             return;
         if (!(e.target instanceof Element))
             return;
         const link = e.target.closest(Navigation.INTERNAL_LINK);
-        if (link === null || link.hasAttribute(LinkAttribute.NoSpa))
+        if (null === link || link.hasAttribute(LinkAttribute.NoSpa))
             return;
         if (new URL(link.href).origin !== location.origin)
             return;

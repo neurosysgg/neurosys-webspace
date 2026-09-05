@@ -17,6 +17,10 @@ namespace NeuroSYS\Http\Security;
  */
 interface CspSource
 {
-    /** Returns the token exactly as it appears in the header. */
+    /**
+     * Returns the token exactly as it appears in the header.
+     *
+     * @return string
+     */
     public function source(): string;
 }

@@ -13,8 +13,11 @@ use NeuroSYS\View\StatsView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Random\RandomException;
 use ReflectionMethod;
 use ReflectionProperty;
+use JsonException;
+use ReflectionException;
 
 /**
  * The admin path: the gate, and the log it protects.
@@ -35,11 +38,17 @@ final class AdminTest extends TestCase
     /** @var list<string> */
     private array $tempFiles = [];
 
+    /**
+     * @return void
+     */
     protected function setUp(): void
     {
         $this->serverBackup = $_SERVER;
     }
 
+    /**
+     * @return void
+     */
     protected function tearDown(): void
     {
         $_SERVER = $this->serverBackup;
@@ -52,6 +61,12 @@ final class AdminTest extends TestCase
         $this->tempFiles = [];
     }
 
+    /**
+     * @param string $contents
+     * @param string $extension
+     * @return string
+     * @throws RandomException
+     */
     private function temp(string $contents, string $extension): string
     {
         $file = sys_get_temp_dir() . '/neurosys-test-' . bin2hex(random_bytes(6)) . $extension;
@@ -66,6 +81,10 @@ final class AdminTest extends TestCase
      *
      * Cost 4 is bcrypt's minimum and keeps the suite fast; `password_verify()` reads the cost out
      * of the hash, so this exercises exactly the same code path a production hash does.
+     *
+     * @param string $user
+     * @param string $password
+     * @return string
      */
     private function credentials(string $user, string $password): string
     {
@@ -77,6 +96,11 @@ final class AdminTest extends TestCase
         );
     }
 
+    /**
+     * @param string $user
+     * @param string $password
+     * @return Request
+     */
     private function request(string $user, string $password): Request
     {
         $_SERVER = ['REQUEST_URI' => '/admin/stats', 'PHP_AUTH_USER' => $user, 'PHP_AUTH_PW' => $password];
@@ -86,6 +110,9 @@ final class AdminTest extends TestCase
 
     // ───────────────────────────── the gate ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheRightUserAndPasswordAreAccepted(): void
     {
         self::assertTrue(
@@ -93,7 +120,13 @@ final class AdminTest extends TestCase
         );
     }
 
-    /** The comparison neither suite had ever run. */
+    /**
+     * The comparison neither suite had ever run.
+     *
+     * @param string $user
+     * @param string $password
+     * @return void
+     */
     #[DataProvider('wrongCredentialProvider')]
     public function testAnythingOtherThanTheRightPairIsRejected(string $user, string $password): void
     {
@@ -102,6 +135,9 @@ final class AdminTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable
+     */
     public static function wrongCredentialProvider(): iterable
     {
         yield 'wrong password'        => ['admin', 'hunter3'];
@@ -131,6 +167,8 @@ final class AdminTest extends TestCase
      * verify in the tens of milliseconds; the floor asserted here is a small fraction of that, and
      * a short-circuit would return in microseconds — so the gap is three orders of magnitude and
      * load can only push the measurement the safe way.
+     *
+     * @return void
      */
     public function testAWrongUserNameStillPaysForThePasswordCheck(): void
     {
@@ -158,6 +196,8 @@ final class AdminTest extends TestCase
      * An unconfigured gate is closed, not open. This is the state the repository actually ships:
      * `data/admin.php` is a placeholder whose `pass_hash` is empty, because the live credentials
      * are uploaded by hand and `deploy.sh` excludes the file.
+     *
+     * @return void
      */
     public function testAnEmptyHashAcceptsNobodyIncludingAnEmptyPassword(): void
     {
@@ -167,7 +207,11 @@ final class AdminTest extends TestCase
         self::assertFalse(Auth::accepts($this->request('admin', 'hunter2'), $file));
     }
 
-    /** The placeholder in the repository, checked as the file it is rather than as a fixture. */
+    /**
+     * The placeholder in the repository, checked as the file it is rather than as a fixture.
+     *
+     * @return void
+     */
     public function testTheShippedAdminPlaceholderAcceptsNobody(): void
     {
         $file = Config::dataPath('admin.php');
@@ -179,6 +223,8 @@ final class AdminTest extends TestCase
     /**
      * Absent is how pre-launch auth is switched off, and `data/site_auth.php` is gitignored so
      * the repository copy cannot switch it on.
+     *
+     * @return void
      */
     public function testTheSiteGateDoesNothingWhenThereIsNoCredentialsFile(): void
     {
@@ -189,6 +235,10 @@ final class AdminTest extends TestCase
         self::assertTrue(true);
     }
 
+    /**
+     * @param string $method
+     * @return void
+     */
     #[DataProvider('gateProvider')]
     public function testAGateLetsTheRightCredentialsThrough(string $method): void
     {
@@ -197,6 +247,9 @@ final class AdminTest extends TestCase
         self::assertTrue(true);
     }
 
+    /**
+     * @return iterable
+     */
     public static function gateProvider(): iterable
     {
         yield 'site'  => ['requireSiteAuth'];
@@ -212,6 +265,8 @@ final class AdminTest extends TestCase
      * requireAdminAuth() against `data/admin.php`, whose shipped pass_hash is empty, so nothing in
      * this repository can get past the gate to the response behind it. The header is the part worth
      * asserting, and it does not need the gate opened to be asserted.
+     *
+     * @return void
      */
     public function testTheStatsPageTellsTheBrowserNotToKeepIt(): void
     {
@@ -232,6 +287,8 @@ final class AdminTest extends TestCase
      * @param string $log The log file's contents.
      *
      * @return array{int, array<string, int>, array<string, int>}
+     * @throws RandomException
+     * @throws ReflectionException
      */
     private function parse(string $log): array
     {
@@ -242,22 +299,40 @@ final class AdminTest extends TestCase
         return $stats;
     }
 
+    /**
+     * @param string $time
+     * @param string $slug
+     * @param string $format
+     * @return string
+     * @throws JsonException
+     */
     private static function entry(string $time, string $slug, string $format): string
     {
         return json_encode(compact('time', 'slug', 'format') + ['referrer' => ''], JSON_THROW_ON_ERROR);
     }
 
+    /**
+     * @return void
+     * @throws ReflectionException
+     */
     public function testAMissingLogParsesAsNoDownloadsRatherThanFailing(): void
     {
         self::assertSame([0, [], []], new ReflectionMethod(StatsController::class, 'parseLog')
             ->invoke(new StatsController('/nonexistent/downloads.log')));
     }
 
+    /**
+     * @return void
+     */
     public function testAnEmptyLogParsesAsNoDownloads(): void
     {
         self::assertSame([0, [], []], $this->parse(''));
     }
 
+    /**
+     * @return void
+     * @throws JsonException
+     */
     public function testOneEntryIsCountedOnceUnderItsSlugFormatAndDay(): void
     {
         self::assertSame(
@@ -266,6 +341,10 @@ final class AdminTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     * @throws JsonException
+     */
     public function testEntriesAggregateByFormatAndByDayIndependently(): void
     {
         $log = implode("\n", [
@@ -288,6 +367,9 @@ final class AdminTest extends TestCase
     /**
      * A log is an append-only file a crash can truncate mid-line, so one bad line must cost that
      * line and nothing else — the page it feeds is the only way anyone would find out.
+     *
+     * @param string $bad
+     * @return void
      */
     #[DataProvider('badLineProvider')]
     public function testABadLineIsSkippedAndTheGoodOnesStillCount(string $bad): void
@@ -297,6 +379,9 @@ final class AdminTest extends TestCase
         self::assertSame([1, ['ill/flac' => 1], ['2026-06-17' => 1]], $this->parse("$bad\n$good\n"));
     }
 
+    /**
+     * @return iterable
+     */
     public static function badLineProvider(): iterable
     {
         yield 'blank'     => [''];
@@ -307,7 +392,11 @@ final class AdminTest extends TestCase
         yield 'json null' => ['null'];
     }
 
-    /** substr('', 0, 10) is '', which is falsy — so an entry with no time is filed under '?'. */
+    /**
+     * substr('', 0, 10) is '', which is falsy — so an entry with no time is filed under '?'.
+     *
+     * @return void
+     */
     public function testAnEntryWithNoTimeIsFiledUnderAnUnknownDay(): void
     {
         self::assertSame(

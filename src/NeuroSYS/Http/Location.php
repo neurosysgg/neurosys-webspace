@@ -44,13 +44,19 @@ final readonly class Location implements HeaderValue
         $this->verify();
     }
 
-    /** Returns the header value: the URL, as given. */
+    /**
+     * Returns the header value: the URL, as given.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return $this->url;
     }
 
     /**
+     *
+     * @return void
      * @throws SecurityPolicyException
      */
     private function verify(): void

@@ -54,6 +54,9 @@ final readonly class Text implements Node
      * same reason {@link self::FLAGS} is written out rather than inherited: this is the line the
      * whole document's safety rests on, and a second name for the encoding is a second thing that
      * can be changed alone.
+     *
+     * @param int $depth
+     * @return string
      */
     public function render(int $depth = 0): string
     {

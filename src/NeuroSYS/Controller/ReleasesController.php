@@ -23,6 +23,10 @@ readonly class ReleasesController implements Controller
      */
     public function __construct(private ?ReleaseRepository $releases = null) {}
 
+    /**
+     * @param Request $request
+     * @return Response
+     */
     public function handle(Request $request): Response
     {
         return new ViewResponse(new ReleasesView(($this->releases ?? new ReleaseRepository())->all()));

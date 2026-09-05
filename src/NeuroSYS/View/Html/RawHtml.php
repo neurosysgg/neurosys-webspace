@@ -23,6 +23,10 @@ final readonly class RawHtml implements Node
      */
     public function __construct(public string $html) {}
 
+    /**
+     * @param int $depth
+     * @return string
+     */
     public function render(int $depth = 0): string
     {
         return str_replace("\n", "\n" . str_repeat('  ', $depth), trim($this->html));

@@ -19,7 +19,11 @@ namespace NeuroSYS\View\Html;
  */
 interface AttributeName
 {
-    /** The attribute name as it appears in the markup. */
+    /**
+     * The attribute name as it appears in the markup.
+     *
+     * @return string
+     */
     public function attribute(): string;
 
     /**
@@ -33,6 +37,8 @@ interface AttributeName
      * Say true for anything the browser dereferences on its own *or* that a custom element assigns
      * to a `.src`/`.href`, which is the same thing one layer along — `<cover-art fallback>` is not
      * a URL to the HTML parser, but `CoverArt.ts` makes it one.
+     *
+     * @return bool
      */
     public function isUrl(): bool;
 }

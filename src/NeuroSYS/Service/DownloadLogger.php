@@ -25,6 +25,7 @@ class DownloadLogger
      *
      * @param string        $slug   The release slug.
      * @param ReleaseFormat  $format The format that was downloaded.
+     * @return void
      */
     public function log(string $slug, ReleaseFormat $format): void
     {
@@ -39,7 +40,7 @@ class DownloadLogger
             referrer: $_SERVER['HTTP_REFERER'] ?? '',
         );
 
-        $fp = @fopen($this->logFile, 'ab');
+        $fp = fopen($this->logFile, 'ab');
         if ($fp === false) {
             return;
         }

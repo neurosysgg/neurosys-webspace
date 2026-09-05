@@ -17,6 +17,7 @@ use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\ViewResponse;
+use NeuroSYS\Layout;
 use NeuroSYS\Router;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Support\RouteInitialization;
@@ -38,28 +39,47 @@ final class SecurityTest extends TestCase
     /** @var array<string, mixed> */
     private array $serverBackup;
 
+    /**
+     * @return void
+     */
     protected function setUp(): void
     {
         $this->serverBackup = $_SERVER;
     }
 
+    /**
+     * @return void
+     */
     protected function tearDown(): void
     {
         $_SERVER = $this->serverBackup;
     }
 
+    /**
+     * @param string $method
+     * @param string $path
+     * @return Request
+     */
     private function request(string $method, string $path = '/'): Request
     {
         $_SERVER = ['REQUEST_METHOD' => $method, 'REQUEST_URI' => $path];
         return Request::fromGlobals();
     }
 
-    /** The rendered Content-Security-Policy, as it is actually sent. */
+    /**
+     * The rendered Content-Security-Policy, as it is actually sent.
+     *
+     * @return string
+     */
     private static function policy(): string
     {
         return SecurityHeaders::headers()[SecurityHeader::ContentSecurityPolicy->value];
     }
 
+    /**
+     * @param SecurityHeader $header
+     * @return string
+     */
     private static function header(SecurityHeader $header): string
     {
         return SecurityHeaders::headers()[$header->value];
@@ -67,6 +87,9 @@ final class SecurityTest extends TestCase
 
     // ───────────────────────── read-only method gate ─────────────────────────
 
+    /**
+     * @return iterable
+     */
     public static function readOnlyProvider(): iterable
     {
         yield ['GET', true];
@@ -79,25 +102,41 @@ final class SecurityTest extends TestCase
         yield ['TRACE', false];
     }
 
+    /**
+     * @param string $method
+     * @param bool $expected
+     * @return void
+     */
     #[DataProvider('readOnlyProvider')]
     public function testOnlyReadMethodsAreTreatedAsReadOnly(string $method, bool $expected): void
     {
         self::assertSame($expected, $this->request($method)->isReadOnly());
     }
 
+    /**
+     * @return void
+     */
     public function testTheMethodIsUpperCased(): void
     {
         self::assertSame(HttpMethod::Get, $this->request('get')->method());
     }
 
-    /** An unrecognised method is null rather than a guess, and null is not read-only. */
+    /**
+     * An unrecognised method is null rather than a guess, and null is not read-only.
+     *
+     * @return void
+     */
     public function testAnUnknownMethodIsNotAMethod(): void
     {
         self::assertNull($this->request('WHATEVER')->method());
         self::assertFalse($this->request('WHATEVER')->isReadOnly());
     }
 
-    /** The Allow header is derived from the gate, so the two cannot say different things. */
+    /**
+     * The Allow header is derived from the gate, so the two cannot say different things.
+     *
+     * @return void
+     */
     public function testTheAllowedMethodsAreExactlyTheReadOnlyOnes(): void
     {
         $readOnly = array_values(array_filter(
@@ -109,6 +148,9 @@ final class SecurityTest extends TestCase
         self::assertSame('GET, HEAD', Allow::readOnly()->render());
     }
 
+    /**
+     * @return void
+     */
     public function testAMissingRequestMethodDefaultsToGet(): void
     {
         $_SERVER = ['REQUEST_URI' => '/'];
@@ -116,7 +158,13 @@ final class SecurityTest extends TestCase
         self::assertSame(HttpMethod::Get, Request::fromGlobals()->method());
     }
 
-    /** Before this, POST /releases/ill/flac 303'd to HiDrive exactly like a GET. */
+    /**
+     * Before this, POST /releases/ill/flac 303'd to HiDrive exactly like a GET.
+     *
+     * @param string $method
+     * @param string $path
+     * @return void
+     */
     #[DataProvider('writeMethodProvider')]
     public function testAWriteMethodIsRefusedOnEveryRoute(string $method, string $path): void
     {
@@ -129,6 +177,9 @@ final class SecurityTest extends TestCase
         );
     }
 
+    /**
+     * @return iterable
+     */
     public static function writeMethodProvider(): iterable
     {
         yield ['POST', '/releases/hello-world/flac'];
@@ -138,7 +189,11 @@ final class SecurityTest extends TestCase
         yield ['POST', '/no-such-page'];
     }
 
-    /** A 405 without an Allow header is a malformed 405. */
+    /**
+     * A 405 without an Allow header is a malformed 405.
+     *
+     * @return void
+     */
     public function testTheRefusalNamesTheAllowedMethods(): void
     {
         $response = new Router(RouteInitialization::routes())
@@ -152,6 +207,9 @@ final class SecurityTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testAGetStillDispatchesNormally(): void
     {
         $response = new Router(RouteInitialization::routes())->dispatch($this->request('GET'));
@@ -161,7 +219,11 @@ final class SecurityTest extends TestCase
 
     // ───────────────────────── content security policy ─────────────────────────
 
-    /** The directive that actually stops XSS — no 'unsafe-inline', no 'unsafe-eval'. */
+    /**
+     * The directive that actually stops XSS — no 'unsafe-inline', no 'unsafe-eval'.
+     *
+     * @return void
+     */
     public function testScriptSrcIsStrict(): void
     {
         self::assertStringContainsString("script-src 'self';", self::policy() . ';');
@@ -171,11 +233,17 @@ final class SecurityTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testThePolicyDeniesEverythingByDefault(): void
     {
         self::assertStringStartsWith("default-src 'self'", self::policy());
     }
 
+    /**
+     * @return void
+     */
     public function testOnlyTheFileHostMayServeImages(): void
     {
         self::assertMatchesRegularExpression(
@@ -192,17 +260,25 @@ final class SecurityTest extends TestCase
      * the directive was wider than the site for no benefit. Asserted as an absence because that
      * is the whole claim — and because a scheme source is exactly the kind of thing that gets
      * pasted back in by anyone debugging an image that will not load.
+     *
+     * @return void
      */
     public function testImagesMayNotBeInlinedAsDataUris(): void
     {
         self::assertStringNotContainsString('data:', self::policy());
     }
 
+    /**
+     * @return void
+     */
     public function testOnlySoundCloudMayBeFramed(): void
     {
         self::assertStringContainsString('frame-src https://w.soundcloud.com', self::policy());
     }
 
+    /**
+     * @return void
+     */
     public function testTheSiteItselfMayNotBeFramed(): void
     {
         self::assertStringContainsString("frame-ancestors 'none'", self::policy());
@@ -211,6 +287,8 @@ final class SecurityTest extends TestCase
     /**
      * The allowance is gone, and this is what keeps it gone. Reintroducing an inline style
      * anywhere would fail the test below rather than quietly get a directive loosened for it.
+     *
+     * @return void
      */
     public function testStyleSrcIsStrict(): void
     {
@@ -222,18 +300,23 @@ final class SecurityTest extends TestCase
      * `style-src` carried 'unsafe-inline' until SoundCloud's attribution block moved into
      * <soundcloud-player>, which sets the same properties through the CSSOM instead. Nothing may
      * put the allowance back by needing it, so assert the views still emit no inline style.
+     *
+     * @return void
      */
     public function testNoViewEmitsAnInlineStyleOrEventHandler(): void
     {
         $release = new ReleaseRepository()->find('ill');
         $html = new ReleaseView($release, 'ill')->content()->render()
             . new NotFoundView('/x')->content()->render()
-            . \NeuroSYS\Layout::wrap(new NotFoundView('/x'))->render();
+            . Layout::wrap(new NotFoundView('/x'))->render();
 
         self::assertDoesNotMatchRegularExpression('/\sstyle="/', $html);
         self::assertDoesNotMatchRegularExpression('/\son(error|click|load|mouse\w+)=/', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheCoverFallbackIsAnAttributeNotAnInlineHandler(): void
     {
         $release = new ReleaseRepository()->find('ill');
@@ -243,6 +326,9 @@ final class SecurityTest extends TestCase
         self::assertStringNotContainsString('onerror', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheConsentGateCarriesItsHeightAsAnAttribute(): void
     {
         $release = new ReleaseRepository()->find('ill');
@@ -256,7 +342,11 @@ final class SecurityTest extends TestCase
     // header() is a no-op under CLI, so that the headers are actually *sent* is asserted
     // over real HTTP in test/basic_test.sh. What's testable here is the policy they carry.
 
-    /** A cheap guard against a CDN sneaking into the policy in a future edit. */
+    /**
+     * A cheap guard against a CDN sneaking into the policy in a future edit.
+     *
+     * @return void
+     */
     public function testThePolicyNamesNoUnexpectedHost(): void
     {
         self::assertSame(
@@ -267,6 +357,9 @@ final class SecurityTest extends TestCase
 
     // ───────────────────────── the other headers ─────────────────────────
 
+    /**
+     * @return void
+     */
     public function testEveryHeaderIsSentAndNamedByTheEnum(): void
     {
         self::assertSame(
@@ -275,6 +368,9 @@ final class SecurityTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testNoHeaderIsSentEmpty(): void
     {
         foreach (SecurityHeaders::headers() as $name => $value) {
@@ -282,6 +378,9 @@ final class SecurityTest extends TestCase
         }
     }
 
+    /**
+     * @return void
+     */
     public function testReferrerPolicyKeepsThePathOffCrossOriginRequests(): void
     {
         self::assertSame(
@@ -290,6 +389,9 @@ final class SecurityTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testContentTypeOptionsIsNosniff(): void
     {
         self::assertSame(
@@ -298,6 +400,9 @@ final class SecurityTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testEveryKnownFeatureIsDenied(): void
     {
         $policy = self::header(SecurityHeader::PermissionsPolicy);
@@ -328,6 +433,8 @@ final class SecurityTest extends TestCase
     /**
      * The fall-through after every route has been tried. A router that returned null here would
      * hand a null to Response::send(); a 404 is the only answer that is still a response.
+     *
+     * @return void
      */
     public function testAPathNoRouteMatchesFallsThroughToTheNotFoundPage(): void
     {
@@ -341,7 +448,11 @@ final class SecurityTest extends TestCase
         );
     }
 
-    /** The 404 reports the path that was asked for, and it is the normalised one. */
+    /**
+     * The 404 reports the path that was asked for, and it is the normalised one.
+     *
+     * @return void
+     */
     public function testTheNotFoundPageNamesThePathThatWasAskedFor(): void
     {
         $response = new Router(RouteInitialization::routes())
@@ -353,7 +464,11 @@ final class SecurityTest extends TestCase
         self::assertStringContainsString('/no-such-page', $view->content()->render());
     }
 
-    /** Every header a response sends is formatted in one place rather than at each header() call. */
+    /**
+     * Every header a response sends is formatted in one place rather than at each header() call.
+     *
+     * @return void
+     */
     public function testAHeaderFormatsItselfAsNameColonValue(): void
     {
         self::assertSame(
@@ -362,7 +477,11 @@ final class SecurityTest extends TestCase
         );
     }
 
-    /** Each name goes on the wire as its backing value; there is no second spelling anywhere. */
+    /**
+     * Each name goes on the wire as its backing value; there is no second spelling anywhere.
+     *
+     * @return void
+     */
     public function testEveryResponseHeaderIsNamedAsItGoesOnTheWire(): void
     {
         foreach (ResponseHeader::cases() as $header) {

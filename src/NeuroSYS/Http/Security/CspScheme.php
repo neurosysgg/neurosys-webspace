@@ -26,6 +26,9 @@ enum CspScheme: string implements CspSource
     /** Object URLs created by `URL.createObjectURL`. */
     case Blob = 'blob:';
 
+    /**
+     * @return string
+     */
     public function source(): string
     {
         return $this->value;

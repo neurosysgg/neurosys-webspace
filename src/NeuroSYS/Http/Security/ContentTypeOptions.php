@@ -17,7 +17,11 @@ enum ContentTypeOptions: string implements HeaderValue
     /** Take the declared Content-Type at its word; never sniff the bytes. */
     case NoSniff = 'nosniff';
 
-    /** The only value this header defines, as the header carries it. */
+    /**
+     * The only value this header defines, as the header carries it.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return $this->value;

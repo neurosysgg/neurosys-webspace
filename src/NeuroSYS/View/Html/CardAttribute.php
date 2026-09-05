@@ -19,12 +19,19 @@ enum CardAttribute: string implements AttributeName
     /** The download a `<download-card>` offers. */
     case Format = 'format';
 
+    /**
+     * @return string
+     */
     public function attribute(): string
     {
         return $this->value;
     }
 
-    /** Neither is a URL: they name a release and a format, and the `<a>` inside carries the link. */
+    /**
+     * Neither is a URL: they name a release and a format, and the `<a>` inside carries the link.
+     *
+     * @return bool
+     */
     public function isUrl(): bool
     {
         return false;

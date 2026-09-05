@@ -37,6 +37,9 @@ enum SecurityHeader: string implements HeaderName
     /** Switches off browser features the site never uses. */
     case PermissionsPolicy = 'Permissions-Policy';
 
+    /**
+     * @return string
+     */
     public function headerName(): string
     {
         return $this->value;

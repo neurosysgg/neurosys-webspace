@@ -30,10 +30,19 @@ final readonly class ETag implements HeaderValue
      */
     private const string ALGORITHM = 'xxh128';
 
-    /** Constructs an instance of {@link self}. */
+    /**
+     * Constructs an instance of {@link self}.
+     *
+     * @param string $fingerprint
+     */
     private function __construct(private string $fingerprint) {}
 
-    /** The validator for a body: a hash of exactly the bytes about to be sent. */
+    /**
+     * The validator for a body: a hash of exactly the bytes about to be sent.
+     *
+     * @param string $body
+     * @return self
+     */
     public static function forBody(string $body): self
     {
         return new self(hash(self::ALGORITHM, $body));
@@ -45,13 +54,20 @@ final readonly class ETag implements HeaderValue
      * Compared as the rendered form, quotes included, because that is what a browser echoes back in
      * `If-None-Match`. A weak validator (`W/"…"`) is not equal to a strong one and is not accepted:
      * this site never sends one, so one arriving is not our ETag.
+     *
+     * @param string $validator
+     * @return bool
      */
     public function matches(string $validator): bool
     {
         return $validator === $this->render();
     }
 
-    /** Returns the header value: the fingerprint, quoted as the grammar requires. */
+    /**
+     * Returns the header value: the fingerprint, quoted as the grammar requires.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return '"' . $this->fingerprint . '"';

@@ -27,8 +27,14 @@ class NotFoundView extends View
      */
     public function __construct(private readonly string $path) {}
 
+    /**
+     * @return string
+     */
     public function pageTitle(): string { return self::title('404'); }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         return new Element(HtmlTag::Section)

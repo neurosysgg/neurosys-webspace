@@ -44,6 +44,8 @@ enum ReferrerPolicy: string implements HeaderValue
      * A one-line `render()` so the case can be handed to {@link \NeuroSYS\Http\Header} directly.
      * Same arrangement as {@link ContentTypeOptions}: an enum whose backing value *is* the whole
      * header value has nothing to compose, so the interface costs it one method.
+     *
+     * @return string
      */
     public function render(): string
     {

@@ -18,7 +18,11 @@ final readonly class Allow implements HeaderValue
     /** @param list<HttpMethod> $methods */
     private function __construct(private array $methods) {}
 
-    /** Every method that only reads — which on this site is every method the router answers. */
+    /**
+     * Every method that only reads — which on this site is every method the router answers.
+     *
+     * @return self
+     */
     public static function readOnly(): self
     {
         return new self(array_values(array_filter(
@@ -27,7 +31,11 @@ final readonly class Allow implements HeaderValue
         )));
     }
 
-    /** Returns the header value: `GET, HEAD`. */
+    /**
+     * Returns the header value: `GET, HEAD`.
+     *
+     * @return string
+     */
     public function render(): string
     {
         return implode(', ', array_map(

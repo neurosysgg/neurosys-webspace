@@ -25,6 +25,9 @@ enum CspKeyword: string implements CspSource
     /** Permits `eval()` and friends. */
     case UnsafeEval = "'unsafe-eval'";
 
+    /**
+     * @return string
+     */
     public function source(): string
     {
         return $this->value;

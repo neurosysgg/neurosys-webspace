@@ -27,8 +27,14 @@ class PrivacyView extends View
      */
     public function __construct(private readonly string $html) {}
 
+    /**
+     * @return string
+     */
     public function pageTitle(): string { return self::title('Privacy Policy'); }
 
+    /**
+     * @return Node
+     */
     public function content(): Node
     {
         return new Element(HtmlTag::Section)

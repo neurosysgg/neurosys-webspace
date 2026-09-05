@@ -24,7 +24,11 @@ enum HttpMethod: string
     case Options = 'OPTIONS';
     case Trace   = 'TRACE';
 
-    /** True if the method only reads. */
+    /**
+     * True if the method only reads.
+     *
+     * @return bool
+     */
     public function isReadOnly(): bool
     {
         return match ($this) {

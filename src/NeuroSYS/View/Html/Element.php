@@ -6,6 +6,7 @@ namespace NeuroSYS\View\Html;
 
 use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
+use NoDiscard;
 use Uri\WhatWg\Url;
 
 /**
@@ -109,8 +110,12 @@ final readonly class Element implements Node
      *
      * This only normalises and stores. Escaping and the URL check both happen in
      * {@link self::render()}, so neither can be got around by building an element another way.
+     *
+     * @param AttributeName $attribute
+     * @param string|int|bool|BackedEnum|null $value
+     * @return self
      */
-    #[\NoDiscard('attr() returns a copy carrying the attribute; the element it was called on is unchanged')]
+    #[NoDiscard('attr() returns a copy carrying the attribute; the element it was called on is unchanged')]
     public function attr(
         AttributeName $attribute,
         string|int|bool|BackedEnum|null $value = true,
@@ -142,9 +147,11 @@ final readonly class Element implements Node
      * safe reading of the ambiguous case — markup passed as a string shows up as visible `&lt;b&gt;`
      * rather than as markup — and getting real markup in takes {@link RawHtml}, which says so.
      *
+     * @param Node|string ...$children
+     * @return self
      * @throws MarkupException if the element is void; `<img>` cannot contain anything.
      */
-    #[\NoDiscard('containing() returns a copy holding the children; the element it was called on is unchanged')]
+    #[NoDiscard('containing() returns a copy holding the children; the element it was called on is unchanged')]
     public function containing(Node|string ...$children): self
     {
         if ($this->tag->isVoid() && $children !== []) {
@@ -166,6 +173,8 @@ final readonly class Element implements Node
     /**
      * Renders this element as markup.
      *
+     * @param int $depth
+     * @return string
      * @throws MarkupException if a URL attribute names a scheme {@link self::URL_SCHEMES} does not
      *                         allow. Loud on purpose, and at the boundary on purpose: a link the
      *                         site refuses to draw is a missing link, which somebody notices, and a
@@ -189,6 +198,8 @@ final readonly class Element implements Node
     }
 
     /**
+     *
+     * @return string
      * @throws MarkupException if a URL attribute carries a scheme that is not allowed.
      */
     private function renderAttributes(): string
@@ -214,6 +225,10 @@ final readonly class Element implements Node
     }
 
     /**
+     *
+     * @param string $name
+     * @param string $value
+     * @return void
      * @throws MarkupException if $value names a scheme {@link self::URL_SCHEMES} does not allow.
      */
     private function verifyUrl(string $name, string $value): void
@@ -231,7 +246,12 @@ final readonly class Element implements Node
         ));
     }
 
-    /** True if $value is a site-relative path or names an allowed scheme. */
+    /**
+     * True if $value is a site-relative path or names an allowed scheme.
+     *
+     * @param string $value
+     * @return bool
+     */
     private static function isAllowedUrl(string $value): bool
     {
         // A leading slash is not the same claim as "somewhere on this site", so it is asked rather
@@ -262,6 +282,9 @@ final readonly class Element implements Node
      * value is resolved the way a browser would resolve it, and the answer is whether it landed
      * where it started. `Navigation.ts` has done it this way round on the client all along — for
      * want of a URL parser it was the stronger half, and now both halves are the same check.
+     *
+     * @param string $value
+     * @return bool
      */
     private static function staysOnThisOrigin(string $value): bool
     {
@@ -279,6 +302,9 @@ final readonly class Element implements Node
      * Any {@link Text} among them forces one line: a newline before or after inline content is a
      * space the browser renders, so breaking `<p>E-Mail: <a>…</a></p>` across lines would change
      * the page rather than just its source.
+     *
+     * @param int $depth
+     * @return string
      */
     private function renderChildren(int $depth): string
     {

@@ -14,9 +14,17 @@ namespace NeuroSYS\View\Html;
  */
 final readonly class Document implements Node
 {
-    /** Constructs an instance of {@link self} wrapping the given `<html>` element. */
+    /**
+     * Constructs an instance of {@link self} wrapping the given `<html>` element.
+     *
+     * @param Element $html
+     */
     public function __construct(private Element $html) {}
 
+    /**
+     * @param int $depth
+     * @return string
+     */
     public function render(int $depth = 0): string
     {
         return Doctype::Html5->render($depth)

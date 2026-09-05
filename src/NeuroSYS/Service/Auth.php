@@ -10,6 +10,7 @@ use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\ResponseHeader;
+use NoDiscard;
 
 /**
  * The Auth class. Provides HTTP Basic Authentication gates for the site.
@@ -34,6 +35,8 @@ class Auth
      * so two challenges differing by a character are two separate prompts to the same visitor.
      * {@link BasicChallenge} owns the quoting around the realm, which is grammar rather than
      * decoration.
+     *
+     * @return BasicChallenge
      */
     private static function challengeValue(): BasicChallenge
     {
@@ -57,8 +60,9 @@ class Auth
      *
      * @param Request $request The request whose Basic Auth credentials to check.
      * @param string  $file    A credentials file returning `['user' => …, 'pass_hash' => …]`.
+     * @return bool
      */
-    #[\NoDiscard('this is the gate\'s decision and nothing else; dropping it is a door left open')]
+    #[NoDiscard('this is the gate\'s decision and nothing else; dropping it is a door left open')]
     public static function accepts(Request $request, string $file): bool
     {
         /** @var array{user: string, pass_hash: string} $creds */
@@ -88,6 +92,7 @@ class Auth
      *
      * @param Request     $request The incoming request.
      * @param string|null $file    The credentials file; defaults to `data/site_auth.php`.
+     * @return void
      */
     public static function requireSiteAuth(Request $request, ?string $file = null): void
     {
@@ -111,6 +116,7 @@ class Auth
      *
      * @param Request     $request The incoming request.
      * @param string|null $file    The credentials file; defaults to `data/admin.php`.
+     * @return void
      */
     public static function requireAdminAuth(Request $request, ?string $file = null): void
     {
@@ -119,7 +125,11 @@ class Auth
         }
     }
 
-    /** Sends the Basic Auth challenge and ends the request. */
+    /**
+     * Sends the Basic Auth challenge and ends the request.
+     *
+     * @return never
+     */
     private static function challenge(): never
     {
         header(new Header(ResponseHeader::WwwAuthenticate, self::challengeValue())->line());

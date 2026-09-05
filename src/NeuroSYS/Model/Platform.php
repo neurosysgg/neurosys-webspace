@@ -20,7 +20,11 @@ enum Platform: string
     case X          = 'x';
     case GitHub     = 'github';
 
-    /** Returns the accessible link label, worded per each platform's brand guidelines. */
+    /**
+     * Returns the accessible link label, worded per each platform's brand guidelines.
+     *
+     * @return string
+     */
     public function label(): string
     {
         return match ($this) {
@@ -37,6 +41,8 @@ enum Platform: string
      * Returns the platform's name as it reads in body copy — the plain noun, without
      * the verb {@link self::label()} carries. Used where the platform is named inside
      * a sentence, such as the embed consent gate.
+     *
+     * @return string
      */
     public function displayName(): string
     {
@@ -50,7 +56,11 @@ enum Platform: string
         };
     }
 
-    /** Returns the path to the platform's vendored brand asset under public/assets/img/brand/. */
+    /**
+     * Returns the path to the platform's vendored brand asset under public/assets/img/brand/.
+     *
+     * @return string
+     */
     public function iconSrc(): string
     {
         return match ($this) {
@@ -78,6 +88,8 @@ enum Platform: string
      * The files stay byte-for-byte unmodified and their clear space scales with
      * them, which is what both guidelines ask for. Wide marks are set slightly
      * shorter than square ones so they don't dominate the row.
+     *
+     * @return int
      */
     public function iconHeight(): int
     {

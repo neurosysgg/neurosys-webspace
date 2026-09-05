@@ -43,13 +43,23 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(TerminalField::class)]
 final class ViewTest extends TestCase
 {
-    /** A one-entry catalogue, for the cases that render the list rather than a single release. */
+    /**
+     * A one-entry catalogue, for the cases that render the list rather than a single release.
+     *
+     * @return SearchableCollection
+     */
     private function catalogue(): SearchableCollection
     {
         return new SearchableCollection(Release::class)->with('ill', $this->release());
     }
 
-    /** @param list<Format> $formats */
+    /**
+     * @param string           $title
+     * @param ?SoundCloudEmbed $embed
+     * @param ?HiDriveLink     $cover
+     * @param list<Format>     $formats
+     * @return Release
+     */
     private function release(
         string $title = 'ill.',
         ?SoundCloudEmbed $embed = null,
@@ -70,6 +80,9 @@ final class ViewTest extends TestCase
 
     // ───────────────────────── title accent mark ─────────────────────────
 
+    /**
+     * @return iterable
+     */
     public static function titleProvider(): iterable
     {
         yield 'bang'        => ['hello world!', 'hello world', '!'];
@@ -79,6 +92,12 @@ final class ViewTest extends TestCase
         yield 'inner mark'  => ['a.b', 'a.b', null];
     }
 
+    /**
+     * @param string $title
+     * @param string $stem
+     * @param string|null $mark
+     * @return void
+     */
     #[DataProvider('titleProvider')]
     public function testSplitsATrailingPunctuationMarkIntoTheAccentSpan(
         string $title,
@@ -95,7 +114,11 @@ final class ViewTest extends TestCase
         }
     }
 
-    /** substr(-1) is byte-based; a multibyte title must not be cut mid-character. */
+    /**
+     * substr(-1) is byte-based; a multibyte title must not be cut mid-character.
+     *
+     * @return void
+     */
     public function testAMultibyteTitleIsNotCorrupted(): void
     {
         $html = new ReleaseView($this->release(title: 'überfall'), 'x')->content()->render();
@@ -103,6 +126,9 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('überfall', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testAMultibyteTitleEndingInAMarkStillSplitsCleanly(): void
     {
         $html = new ReleaseView($this->release(title: 'überfall!'), 'x')->content()->render();
@@ -112,6 +138,9 @@ final class ViewTest extends TestCase
 
     // ───────────────────────────── escaping ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheReleaseTitleIsEscapedEverywhereItAppears(): void
     {
         $html = new ReleaseView($this->release(title: '<script>alert(1)</script>'), 'x')->content()->render();
@@ -120,6 +149,9 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('&lt;script&gt;', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheSlugIsEscapedIntoDownloadHrefs(): void
     {
         $html = new ReleaseView(
@@ -130,6 +162,9 @@ final class ViewTest extends TestCase
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheNotFoundPathIsEscaped(): void
     {
         $html = new NotFoundView('/<img src=x onerror=alert(1)>')->content()->render();
@@ -138,6 +173,9 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('&lt;img', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testTheReleaseCardMetadataIsEscaped(): void
     {
         $releases = new SearchableCollection(Release::class)
@@ -148,6 +186,9 @@ final class ViewTest extends TestCase
 
     // ───────────────────────────── cover art ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testFallsBackToThePlaceholderWhenThereIsNoCover(): void
     {
         $html = new ReleaseView($this->release(), 'x')->content()->render();
@@ -156,6 +197,9 @@ final class ViewTest extends TestCase
         self::assertStringNotContainsString('src=""', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testUsesTheConfiguredCoverWhenThereIsOne(): void
     {
         $html = new ReleaseView($this->release(cover: new HiDriveLink('J2FXbB70A')), 'x')->content()->render();
@@ -169,6 +213,8 @@ final class ViewTest extends TestCase
      * The whole point of the gate: nothing may reach the page as a live element. Since the widget
      * URL is built by <soundcloud-player>, the server's output carries no SoundCloud address at
      * all — nothing for a browser to preconnect or prefetch before the visitor has agreed to it.
+     *
+     * @return void
      */
     public function testNothingReachesThePageThatCouldLoadFromSoundCloud(): void
     {
@@ -187,6 +233,8 @@ final class ViewTest extends TestCase
      * is SoundCloud and words its own notice from that. Getting it wrong would mean a consent
      * notice naming the wrong company, so the wording is asserted where it is written —
      * test/js/soundcloud-player.test.mjs. What belongs here is that the view picks the right tag.
+     *
+     * @return void
      */
     public function testTheViewEmitsTheProvidersOwnElement(): void
     {
@@ -197,6 +245,9 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('<soundcloud-player', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testThereIsNoPlayerAtAllWithoutAnEmbed(): void
     {
         $html = new ReleaseView($this->release(), 'x')->content()->render();
@@ -208,6 +259,10 @@ final class ViewTest extends TestCase
      * The gate reserves the player's own height so the page doesn't jump on load. Carried as an
      * attribute rather than an inline style, so the CSP needs no 'unsafe-inline' for our own
      * markup — ConsentGatedEmbed turns it into --player-height.
+     *
+     * @param SoundCloudPlayerStyle $style
+     * @param int $height
+     * @return void
      */
     #[DataProvider('playerHeightProvider')]
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
@@ -222,6 +277,9 @@ final class ViewTest extends TestCase
         self::assertDoesNotMatchRegularExpression('/\sstyle="/', $html);
     }
 
+    /**
+     * @return iterable
+     */
     public static function playerHeightProvider(): iterable
     {
         yield [SoundCloudPlayerStyle::Visual, 300];
@@ -234,6 +292,8 @@ final class ViewTest extends TestCase
      * A generic's element type is the one thing PHP cannot enforce, so it is the one thing left to
      * check by hand — a Collection of the wrong class is still a Collection to the signature. The
      * items themselves are Collection::with()'s problem, and it throws a TypeError for them.
+     *
+     * @return void
      */
     public function testATerminalRejectsACollectionOfSomethingElse(): void
     {
@@ -245,6 +305,11 @@ final class ViewTest extends TestCase
     /**
      * The command line quotes what it interpolates, which the two concatenations it replaced could
      * not: a quote written into a literal is just a character.
+     *
+     * @param string $expected
+     * @param string $program
+     * @param string ...$arguments
+     * @return void
      */
     #[DataProvider('commandProvider')]
     public function testACommandLineQuotesItsValuesAndLeavesItsFlagsAlone(
@@ -279,6 +344,8 @@ final class ViewTest extends TestCase
      * The 404's command line is built from the request path, which is the one string on this site a
      * visitor writes in full. Quoting is what keeps it a legible line rather than a smeared one —
      * the escaping that keeps it *safe* is Text's, and is asserted separately.
+     *
+     * @return void
      */
     public function testTheNotFoundCommandContainsThePathItWasGiven(): void
     {
@@ -292,8 +359,10 @@ final class ViewTest extends TestCase
      * loud rather than a silent `false`. The JsonException that raises is translated rather than
      * propagated: a terminal whose rows cannot be serialised is a page that cannot be built, which
      * is what MarkupException already means and what every other failure in this layer throws.
-     * Propagating the core exception would make every view declaring a terminal owe an @throws for
+     * Propagating the core exception would make every view declaring a terminal owe and throw for
      * a condition none of them can act on.
+     *
+     * @return void
      */
     public function testARowThatCannotBeEncodedFailsAsAMarkupProblem(): void
     {
@@ -308,6 +377,9 @@ final class ViewTest extends TestCase
         )->toElement();
     }
 
+    /**
+     * @return void
+     */
     public function testATerminalWithNoRowsRendersAnEmptyFieldList(): void
     {
         self::assertStringContainsString(
@@ -316,7 +388,11 @@ final class ViewTest extends TestCase
         );
     }
 
-    /** The rows cross as JSON in an attribute, so quotes in one must not end the attribute. */
+    /**
+     * The rows cross as JSON in an attribute, so quotes in one must not end the attribute.
+     *
+     * @return void
+     */
     public function testATerminalRowCannotBreakOutOfTheFieldsAttribute(): void
     {
         $html = new Terminal(
@@ -342,6 +418,8 @@ final class ViewTest extends TestCase
      * <terminal-value> and <terminal-cursor> are all real, registered elements — the server just
      * never writes one. <terminal-window> builds its whole subtree, so a view declares a Terminal
      * and emits one tag. The verify script checks that every tag reaching the browser is registered.
+     *
+     * @return void
      */
     public function testTheViewsEmitOnlyKnownCustomElements(): void
     {
@@ -364,7 +442,9 @@ final class ViewTest extends TestCase
         $known = array_map(static fn(Tag $tag): string => $tag->value, Tag::cases());
 
         self::assertNotEmpty($tags);
-        self::assertSame([], array_values(array_diff($tags, $known)));
+        array_diff($tags, $known)
+            |> array_values(...)
+            |> (fn($x) => self::assertSame([], $x));
         self::assertSame(
             [
                 'cover-art', 'download-card', 'download-label', 'download-list', 'download-meta',
@@ -380,6 +460,8 @@ final class ViewTest extends TestCase
      * view emits and no element builds is a tag nothing has. The five the terminal builds on the
      * client are the expected exceptions, and naming them here is the point — the list says which
      * tags exist only after the script runs, which is the same list CLAUDE.md's no-JS note is about.
+     *
+     * @return void
      */
     public function testEveryTagIsEitherServedOrBuiltByAnElement(): void
     {
@@ -413,6 +495,8 @@ final class ViewTest extends TestCase
     /**
      * Without data-no-spa the 303 is swallowed by Navigation's fetch and downloads
      * silently stop working.
+     *
+     * @return void
      */
     public function testEveryDownloadCardBypassesTheSpaRouter(): void
     {
@@ -428,6 +512,9 @@ final class ViewTest extends TestCase
         }
     }
 
+    /**
+     * @return void
+     */
     public function testDownloadCardsPointAtTheRouteNotTheFileHost(): void
     {
         $html = new ReleaseView($this->release(
@@ -438,6 +525,9 @@ final class ViewTest extends TestCase
         self::assertStringNotContainsString('hidrive', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testAFormatWithNoLinkStillRendersItsCard(): void
     {
         $html = new ReleaseView($this->release(formats: [new Format(ReleaseFormat::WAV)]), 'ill')->content()->render();
@@ -445,6 +535,9 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('href="/releases/ill/wav"', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testLosslessFormatsShareOneDescription(): void
     {
         $html = new ReleaseView($this->release(formats: [
@@ -459,6 +552,9 @@ final class ViewTest extends TestCase
 
     // ───────────────────────────── stats ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testStatsSaysLoggingIsOffRatherThanShowingAnEmptyTable(): void
     {
         $html = new StatsView(0, [], [], false)->content()->render();
@@ -467,6 +563,9 @@ final class ViewTest extends TestCase
         self::assertStringNotContainsString('<table', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testStatsDistinguishesOffFromOnButEmpty(): void
     {
         self::assertStringContainsString(
@@ -475,6 +574,9 @@ final class ViewTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testStatsEscapesLogDerivedKeys(): void
     {
         $html = new StatsView(1, ['<script>x</script>' => 1], [], true)->content()->render();
@@ -485,6 +587,9 @@ final class ViewTest extends TestCase
 
     // ───────────────────────────── layout ─────────────────────────────
 
+    /**
+     * @return void
+     */
     public function testTheLayoutWrapsContentInADocumentWithTheViewsTitle(): void
     {
         $html = Layout::wrap(new NotFoundView('/nope'))->render();
@@ -494,6 +599,9 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('<main id="content">', $html);
     }
 
+    /**
+     * @return void
+     */
     public function testProfileLinksOpenSafelyInANewTab(): void
     {
         $html = Layout::wrap(new NotFoundView('/nope'))->render();
@@ -511,6 +619,8 @@ final class ViewTest extends TestCase
      * Vendored icons only. An <a href> to a platform is fine — nothing is fetched until the
      * visitor clicks. Anything the browser loads *on page load* (src, stylesheet href) must be
      * same-origin, or we become a joint controller for the transfer (CJEU C-40/17).
+     *
+     * @return void
      */
     public function testNothingInTheLayoutIsFetchedFromARemoteHostOnPageLoad(): void
     {
@@ -535,6 +645,8 @@ final class ViewTest extends TestCase
      * An ES module graph is discovered a wave at a time, and this one is five deep — so a module
      * left out is not a smaller hint, it is the whole waterfall back for everything downstream of
      * it. Nothing observable says so: the page works, just later.
+     *
+     * @return void
      */
     public function testEveryModuleInTheGraphIsPreloaded(): void
     {
@@ -553,6 +665,8 @@ final class ViewTest extends TestCase
     /**
      * The entry point is the `<script src>` already being fetched, so hinting it as well is a
      * second instruction to fetch the file the browser is on its way to fetch.
+     *
+     * @return void
      */
     public function testTheEntryPointIsNotAlsoPreloaded(): void
     {
@@ -571,6 +685,8 @@ final class ViewTest extends TestCase
      * list can be exactly in step with the module graph and still name nothing. The verify script
      * asks a real server the same question; this asks the filesystem, so it fails in the fast suite
      * and without one running.
+     *
+     * @return void
      */
     public function testEveryPreloadedModuleIsAFileThatExists(): void
     {
@@ -589,6 +705,8 @@ final class ViewTest extends TestCase
      * An unversioned one slipping into the list would be cached for a year under a URL that can
      * later mean something else — the one failure a long max-age turns from a slow page into a
      * wrong one.
+     *
+     * @return void
      */
     public function testEveryAssetUrlCarriesTheBuildStamp(): void
     {
@@ -606,6 +724,8 @@ final class ViewTest extends TestCase
      * versions of the same graph were being served at once — and since a relative specifier
      * inherits the segment it was loaded from, the modules under the older one would quietly go on
      * importing each other.
+     *
+     * @return void
      */
     public function testEveryAssetUrlCarriesTheSameStamp(): void
     {
@@ -629,6 +749,8 @@ final class ViewTest extends TestCase
      * The manifest is generated by a Node tool that writes `/assets/js` and `/assets/css` into its
      * output, and {@link Config} declares the same two paths in PHP — a mirror, and so pinned like
      * every other one here. Config owns *where the asset lives*; the manifest owns *which copy*.
+     *
+     * @return void
      */
     public function testTheManifestAgreesWithConfigOnWhereTheAssetsLive(): void
     {
@@ -636,13 +758,22 @@ final class ViewTest extends TestCase
         self::assertSame(Config::SCRIPT, self::withoutVersion(AssetManifest::SCRIPT));
     }
 
-    /** A versioned URL with the build-stamp segment taken back out — the path of the real file. */
+    /**
+     * A versioned URL with the build-stamp segment taken back out — the path of the real file.
+     *
+     * @param string $url
+     * @return string
+     */
     private static function withoutVersion(string $url): string
     {
         return preg_replace('#^/assets/(js|css)/v-[0-9a-f]{8}/#', '/assets/$1/', $url) ?? $url;
     }
 
-    /** Outbound profile links are expected to be remote — that is what they are for. */
+    /**
+     * Outbound profile links are expected to be remote — that is what they are for.
+     *
+     * @return void
+     */
     public function testProfileLinksPointAtTheirPlatforms(): void
     {
         preg_match_all(
@@ -663,6 +794,8 @@ final class ViewTest extends TestCase
      * The title is what the tab says and what Navigation writes into document.title after a swap.
      * Six views used to spell out `' — neuro.SYS'` between them, which is six chances to use a
      * hyphen where the others use an em dash and never notice.
+     *
+     * @return void
      */
     public function testAReleasePageIsTitledForItsRelease(): void
     {
@@ -672,6 +805,9 @@ final class ViewTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testTheReleaseTitleIsNotEscapedTwiceIntoTheTitle(): void
     {
         self::assertSame(
@@ -680,11 +816,17 @@ final class ViewTest extends TestCase
         );
     }
 
+    /**
+     * @return void
+     */
     public function testTheCataloguePageIsTitledForTheSection(): void
     {
         self::assertSame('releases — ' . Config::NAME, new ReleasesView($this->catalogue())->pageTitle());
     }
 
+    /**
+     * @return void
+     */
     public function testTheStatsPageIsTitledForTheSection(): void
     {
         self::assertSame('stats — ' . Config::NAME, new StatsView(0, [], [], false)->pageTitle());

@@ -19,6 +19,7 @@ class RouteInitialization
     /** @var Collection<Route> */
     private Collection $collection;
 
+    /** Starts an empty table; {@link self::routes()} is the only way in. */
     private function __construct()
     {
         $this->collection = new Collection(Route::class);
@@ -38,6 +39,11 @@ class RouteInitialization
             ->collection;
     }
 
+    /**
+     * @param string $pattern
+     * @param Closure $factory
+     * @return $this
+     */
     private function addRoute(string $pattern, Closure $factory): static
     {
         // Collection::with() copies rather than appends, so the result has to be kept.

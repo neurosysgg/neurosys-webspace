@@ -9,6 +9,11 @@ namespace NeuroSYS\Http;
  */
 interface Response
 {
-    /** Sends the response to the client. */
+    /**
+     * Sends the response to the client.
+     *
+     * @param Request $request
+     * @return void
+     */
     public function send(Request $request): void;
 }
