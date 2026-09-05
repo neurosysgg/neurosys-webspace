@@ -223,6 +223,22 @@ php_ok "every class under src/ actually loads" \
      }
      \$bad === [] or exit(1);"
 
+# The same question of the development tooling, which has an autoloader of its own — `tools/` is not
+# deployed, so the site's must not know about it. Nothing else reaches these classes: the CLI layer
+# is outside the coverage source and the commands are run by hand, so a namespace that disagrees
+# with its path would otherwise surface the first time someone ran the tool.
+php_ok "every class under tools/lib/ actually loads" \
+    "require '$REPO/tools/autoload.php';
+     \$bad = [];
+     \$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator('$REPO/tools/lib'));
+     foreach (\$it as \$f) {
+         if (\$f->getExtension() !== 'php') continue;
+         \$rel = substr(\$f->getPathname(), strlen('$REPO/tools/lib/'));
+         \$class = 'NeuroSYS' . chr(92) . 'Tool' . chr(92) . str_replace('/', chr(92), substr(\$rel, 0, -4));
+         if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class) && !trait_exists(\$class)) \$bad[] = \$class;
+     }
+     \$bad === [] or exit(1);"
+
 
 echo ""
 echo "=== Data files ==="

@@ -298,7 +298,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 98.01% of lines, and what is left is named below
+composer coverage   # PHP  — 97.06% of lines, and what is left is named below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -321,7 +321,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.01% of lines** (887/905), 98.63% of methods.
+clover XML and a browsable HTML report. Currently **97.06% of lines** (958/987), 97.20% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
@@ -351,6 +351,38 @@ Eighteen lines, in three groups, none of which a test can reach as the repositor
 - **`Auth::requireSiteAuth()`'s challenge (1 line)** is only reachable when `data/site_auth.php`
   exists, and it is gitignored precisely so the repository copy cannot switch pre-launch auth on.
   The admin gate's identical branch *is* covered, over HTTP, by the verify script.
+
+#### Eleven more, which are a gap rather than a decision
+
+Measured 2026-09-05. These arrived with the header-value classes in `867372f` and nothing has
+exercised them since, so they are listed here to be closed rather than justified:
+
+- **`CacheControl::of()` (4)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — three guard
+  clauses that throw `SecurityPolicyException` on an empty or malformed value, plus
+  `CacheControl::doNotStore()`, a factory no call site uses yet. `HiDriveLink`'s equivalent throw is
+  tested by `badShareIdProvider` in `ModelTest`, which is the shape these want.
+
+The rest of this document's claim — that every uncovered line is deliberate — held when it was
+written and does not now. Four small tests in `ResponseTest` would restore it.
+
+### The development tooling
+
+`tools/lib/` has two test files and is **deliberately outside the coverage source**. The figure above
+is a claim about the shipped site; folding in code whose job is to shell out to `metaflac` and
+`ffprobe` would either drop the number or invite contrived tests to prop it up.
+
+- `test/unit/CliTest.php` — the `Cli/` layer. Argument parsing is the part worth pinning, because
+  the two hand-rolled parsers it replaced agreed on the one thing that was wrong: an unrecognised
+  flag was dropped in silence. It also covers the case `getopt()` gets wrong, flags written after
+  operands, which is exactly how `composer coverage` invokes `merge-coverage`.
+- `test/unit/ReleaseFolderTest.php` — the parts of `Release/` that need no folder on disk: the
+  enharmonic key parser, slug derivation, format ordering, and the shape of the emitted entry. The
+  last of these `eval`s the generated block and asserts it produces a renderable `Release`, so a
+  staged entry cannot be merely plausible.
+
+What reads a real folder is exercised by running the tool. The verify script asserts every class
+under `tools/lib/` loads, which is the one thing nothing else would catch — a namespace that
+disagrees with its path fails the first time somebody runs the command, and not before.
 
 #### A number is not a measurement
 

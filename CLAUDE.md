@@ -53,8 +53,10 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.01% of
-lines**; the eighteen that are left are named in `docs/testing.md` and each is deliberate.
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.06% of
+lines**; of the twenty-nine that are left, eighteen are deliberate and named in `docs/testing.md`.
+The other eleven are a gap rather than a decision — three guard-clause `throw`s and one unused
+factory on the header-value classes `867372f` added, which nothing has exercised yet.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -796,7 +798,9 @@ is a property of the sources; the browser still gets one static file under a str
 
 ## Adding a release
 
-Edit `data/releases.php` — that's the only file. Each entry is a typed `Release` object:
+Edit `data/releases.php` — that's the only file. `php tools/stage-release.php <folder>` writes most
+of the entry for you from a prepared release folder, and checks the folder is fit to upload first;
+see `docs/authoring.md` for what it can and cannot derive. Each entry is a typed `Release` object:
 
 ```php
 'your-slug' => new Release(
@@ -832,6 +836,46 @@ interface — another host means a new class implementing it, and no change to `
 three ids come from. Player style and the six SoundCloud toggles are `SoundCloudPlayerStyle` /
 `SoundCloudOption` enums with sensible defaults; a normal release never sets them. Adding another provider
 means a new class implementing `Embed`, not a new field on `Release`.
+
+## The tooling
+
+`tools/` holds two commands and two things that are not. `stage-release` and `merge-coverage`
+implement `NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a
+`run()` returning an `ExitCode`. `dev-router.php` and `coverage-prepend.php` implement nothing,
+because PHP loads them itself: one is handed to `php -S` and one is an `auto_prepend_file`, so
+neither has an argv or an exit code for an interface to attach to. Each says so in its docblock.
+
+```
+tools/
+├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/
+├── stage-release.php     ├── merge-coverage.php   ← entry points: require, construct, Runner::run
+└── lib/
+    ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
+    ├── Command/          ← the two commands and their option enums
+    └── Release/          ← ReleaseFolder, Preflight, EntryWriter + the enums they read with
+```
+
+**A second autoloader, and it is not optional.** The site's maps `NeuroSYS\` to `src/NeuroSYS/`, and
+`deploy.sh` uploads `src/` with `--delete` — so a tooling class under it would ship to Strato and
+join `phpunit.xml.dist`'s coverage source. Composer's `autoload-dev` was the other candidate and was
+turned down for the reason `autoload.php` exists at all: `stage-release` runs on a clone that has
+never seen `composer install`. (`merge-coverage` does need `vendor/`, for the coverage library.)
+
+That autoloader is also what made the typed design affordable. `phpcs` holds `tools/` to PSR-12,
+where a class-like symbol needs a namespace *and* a file of its own — which is why this started as
+namespaced functions with documented array shapes, and why one-class-per-file stopped being a cost
+the moment there was a set of commands to share the loader.
+
+**`Command::options()` is not decoration.** It is what lets `Input` refuse a flag the command never
+declared. Both hand-rolled parsers this replaced dropped an unrecognised flag in silence, which for
+`merge-coverage` meant a mistyped `--clover` reported success and wrote no report. `getopt()` is
+still not the answer, for the reason the old code gave when it declined it: `getopt()` stops at the
+first non-option argument, and `composer coverage` passes both of its paths first.
+
+The verify script asserts every class under `tools/lib/` loads, the way it already does for `src/`.
+Nothing else reaches them — the CLI layer is outside the coverage source and the commands are run by
+hand — so a namespace disagreeing with its path would otherwise surface the first time someone ran
+the tool.
 
 ## Deployment
 

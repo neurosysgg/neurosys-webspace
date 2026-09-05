@@ -13,6 +13,9 @@
  * coverage and writes it out from a shutdown function, which is the whole trick: a shutdown
  * function still runs when the request ends in `exit`, and every response on this site does.
  *
+ * **Not a `NeuroSYS\Tool\Cli\Command`**, and cannot be: PHP loads this as `auto_prepend_file`
+ * before the request's own code, so nothing invokes it and there is nothing to hand a status back to.
+ *
  * Off unless `NEUROSYS_COVERAGE_DIR` names a directory, so a normal `composer verify` is
  * unaffected — see `composer coverage`, which is what sets it.
  */

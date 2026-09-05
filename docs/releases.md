@@ -2,6 +2,25 @@
 
 Everything lives in `data/releases.php`. The router reads this file on every request — no cache to bust, no rebuild needed.
 
+## Start from the folder
+
+If the release has been exported to `~/Music/neuro.SYS/releases/<name>/`, most of this page is already
+done for you — six of the nine facts are sitting in the master's tags and in which files exist:
+
+```bash
+php tools/stage-release.php ~/Music/neuro.SYS/releases/ill
+```
+
+It prints a report of what it derived and where each fact came from, checks the folder is fit to
+upload, and then prints the entry to paste in below. It refuses to print anything while a check
+fails, which is deliberate: a share link is bound to the bytes it was minted for, so a folder worth
+fixing is one to fix *before* uploading. What it cannot derive — the description, the share ids and
+the SoundCloud ids — it leaves as the staged states described further down, each line naming the file
+whose share id is wanted. See [authoring.md](authoring.md).
+
+The rest of this page is the manual version, and what to do with the three facts the folder cannot
+know.
+
 ## Adding a release
 
 Add a new entry to the array in `data/releases.php`. Each entry is a typed `Release` object:
@@ -173,6 +192,13 @@ by hand. Source files live in `~/Music/neuro.SYS/releases/ill/`; they are upload
 - [~] Mobile check — no horizontal overflow at 375px on `/`, `/releases/ill` or `/privacy`, and the consent gate swaps
       in the real iframe correctly. Not visually eyeballed; give it one look on an actual phone.
 - [x] SoundCloud published 04.09.2026 — the secret-token embed still resolves after going public, no re-grab needed
+- [ ] **Re-upload `ill..wav`** — it was 16-bit/44.1kHz beside a 24-bit/48kHz FLAC, and carried no tags, which
+      is what `tools/stage-release.php`'s preflight was written to catch. Corrected locally on 05.09.2026 by
+      re-deriving it from the FLAC master (bit-identical audio, verified), so the folder is right and the
+      HiDrive copy is not — `/releases/ill/wav` still serves the 16-bit file. Check whether the share link
+      survives an overwrite at the same path, or whether it has to be re-minted and `RVg8LBS4A` updated.
+- [x] `ill/STEMS/` moved to `ill/REMIX PACKAGE/stems/`, matching the zip that ships and the `hello world!`
+      folder — a layout difference only, nothing uploaded changed
 
 ## Checklist (hello world! — target 01.07.2026)
 
@@ -187,3 +213,8 @@ Cover, all four HiDrive links and the SoundCloud embed are populated in `data/re
 - [x] Test all four download links live — verified 2026-09-04, each 303 resolves to the right file on HiDrive
 - [ ] Mobile check
 - [ ] Post the release
+- [ ] **Re-upload `hello world!.flac`** — it carried no `BPM` or `INITIALKEY`, so the filename was the only
+      record of either. Both written locally on 05.09.2026 (audio verified untouched), along with the cover
+      block being re-typed `image/png` from `image/apng`. Same share-link question as `ill.`'s WAV above.
+- [x] Web covers exported to `hello world!/web/` — there were none; the only art was the picture embedded in
+      the FLAC. Now a 2048² PNG and a 1400² JPEG at the same settings as `ill.`'s

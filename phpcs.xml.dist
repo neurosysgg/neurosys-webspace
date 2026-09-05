@@ -73,6 +73,11 @@
         <exclude name="Squiz.Commenting.FunctionComment.TypeHintMissing"/>
         <exclude name="Squiz.Commenting.FunctionComment.InvalidReturn"/>
         <exclude name="Squiz.Commenting.FunctionComment.InvalidReturnNotVoid"/>
+        <!-- `mixed` has been a real type since PHP 8.0 and this sniff still calls it unknown.
+             `Tool\Cli\Output` takes two stream resources, which PHP has no declaration for, so the
+             signature says `mixed` and the docblock says `resource` — the more precise of the two
+             being the one a sniff cannot check. Same argument as the five above. -->
+        <exclude name="Squiz.Commenting.FunctionComment.InvalidTypeHint"/>
         <exclude name="Squiz.Commenting.FunctionComment.IncorrectParamVarName"/>
     </rule>
 
