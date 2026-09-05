@@ -40,23 +40,24 @@ DirectoryIndex index.php
                                           application/xml image/svg+xml
 </IfModule>
 
-# Cache lifetimes, and why they are this short.
+# Cache lifetimes, in two tiers, split by whether the URL names its own content.
 #
-# Nothing here is fingerprinted: the browser asks for /assets/js/main.js and /assets/css/style.css
-# by those exact names on every deploy. So a long max-age is not "cache the current file for a
-# year", it is "keep serving the old file for a year after we replace it" — and the stale pairing
-# that produces is the dangerous one. A cached main.js against a freshly deployed document is
-# exactly the mirror drift the parity tests exist to prevent, arriving by a route no test can see:
-# an element that does not know a new attribute, or a Tag case the stylesheet has moved on from.
+# tools/build-assets.mjs stamps every built asset with a hash of what is in it, so the site asks for
+# /assets/js/main.js?v=49d36f3e — a URL that cannot come to mean something else. Those can be kept
+# for a year and never revalidated, which is what `immutable` says: do not even ask on a reload.
+# The version is set by the rule further down, after RewriteEngine is on.
 #
-# So: an hour for the two files that carry behaviour, which covers a browsing session and bounds
-# any post-deploy mismatch to an hour. Thirty days for images and fonts, where the same staleness
-# is cosmetic rather than breaking.
+# Everything else keeps a calendar TTL, because the bare URL genuinely can change meaning under a
+# cache. That is the dangerous pairing: a stale main.js against a freshly deployed document is the
+# mirror drift the parity tests exist to catch, arriving by the one route no test can see — an
+# element that does not know a new attribute, or a Tag case the stylesheet has moved on from. So an
+# hour for anything that carries behaviour and arrives unversioned (nothing the site emits does, but
+# a hand-typed or bookmarked URL would), and thirty days for images and fonts, which are vendored
+# and hand-placed rather than built, and where staleness is cosmetic rather than breaking.
 #
-# `immutable` and a year are the correct answer, and they unlock the moment a content hash enters
-# the filename. That is the natural companion to the module-graph build step, since whatever walks
-# the graph to emit the modulepreload list already knows every file and every specifier that would
-# have to be rewritten.
+# `env=!VERSIONED` rather than trusting the order these appear in: a Header inside <FilesMatch> is
+# merged after one outside it, so the short TTL would otherwise overwrite the long one. Making the
+# two conditions mutually exclusive means neither depends on where it sits in the file.
 <IfModule mod_headers.c>
     <FilesMatch "\.(css|js)$">
         Header set Cache-Control "public, max-age=3600"
@@ -66,15 +67,43 @@ DirectoryIndex index.php
         Header set Cache-Control "public, max-age=2592000"
     </FilesMatch>
 
-    # Source maps are fetched only with DevTools open, and a stale one is a confusing debugging
-    # session rather than a broken page. Same hour as the JS it describes, so the pair stays in step.
     <FilesMatch "\.map$">
         Header set Cache-Control "public, max-age=3600"
+    </FilesMatch>
+
+    # Last, and matching the same files as the first block, because that is what makes it win: two
+    # <FilesMatch> sections matching one file merge in document order, and `Header set` replaces.
+    # Relying on the order is deliberate rather than lazy — the alternative, `env=!VERSIONED` on the
+    # short tier, silently stops working the moment the rewrite below becomes an internal redirect
+    # and the variable arrives named REDIRECT_VERSIONED instead.
+    #
+    # Both spellings are set for exactly that reason: which one Apache hands to mod_headers depends
+    # on whether the rewrite changed the path, and only one of the two will ever be defined.
+    <FilesMatch "\.(css|js|map)$">
+        Header set Cache-Control "public, max-age=31536000, immutable" env=VERSIONED
+        Header set Cache-Control "public, max-age=31536000, immutable" env=REDIRECT_VERSIONED
     </FilesMatch>
 </IfModule>
 
 RewriteEngine On
 RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+# Strip the build-stamp segment, and mark what it named as immutable.
+#
+# tools/build-assets.mjs writes /assets/js/v-a1b2c3d4/main.js into the manifest. The segment is not a
+# directory — it exists so that a relative import specifier carries the version without any file
+# having to be rewritten: that URL importing `./model/Tag.js` asks for
+# /assets/js/v-a1b2c3d4/model/Tag.js, which lands back here and resolves to the same real file.
+#
+# That is what keeps the compiled JS byte-identical to tsc's output, which in turn is what lets the
+# client tests import public/assets/js/model/Tag.js by name and lets coverage attribute to it. A
+# `?v=` query on each specifier was tried first and cost exactly that: V8 attributes a module
+# reached through a stamped specifier to a URL with the query on it, which the coverage include glob
+# does not match, so the 100% gate collapsed to 68%.
+#
+# **Mirrored in tools/dev-router.php**, which does the same strip for the `php -S` the verify script
+# runs, since the built-in server reads no .htaccess. The verify script pins that both agree.
+RewriteRule ^assets/(js|css)/v-[0-9a-f]{8}/(.*)$ /assets/$1/$2 [E=VERSIONED:1,L]
 
 # Force HTTPS, before anything else runs. Both gates are HTTP Basic and Basic is base64, so a
 # request that arrives in plaintext has already put its credentials on the wire — this redirect

@@ -229,22 +229,30 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   unlike the TypeScript checks this one runs on a clone that has never seen `npm install`. The build
   itself refuses a part imported twice, an import that does not resolve, an absolute import, and a
   rule sitting in a manifest.
-- **The generated module list is current with the module graph.** `src/NeuroSYS/ModuleGraph.php` is
-  walked out of the compiled JS and read by `Layout` to emit the `<link rel="modulepreload">` list.
-  Stale, it is the quiet kind of wrong — the page still works, it just hints a module that is gone
-  and misses one that is not, so the five-round-trip waterfall the list exists to flatten comes back
-  with nothing anywhere reporting it. Like the stylesheet check this reads only committed files, so
-  it runs on a clone that has never seen `npm install`. Proved by deleting an entry and watching it
-  fail.
-- **Every preloaded module resolves.** The drift check proves the list matches the graph; it cannot
-  prove the list points at anything, because the href is a graph path under a URL base written by
-  hand in `tools/build-preload.mjs`. So the verify script asks the dev server for all 41, and
+- **The asset manifest is current with the built assets.** `src/NeuroSYS/AssetManifest.php` is walked
+  out of the compiled JS and read by `Layout` for the stylesheet href, the script src and the whole
+  `<link rel="modulepreload">` list. Stale, it is the quiet kind of wrong — it names a build stamp
+  that is no longer what sits at those URLs, so a visitor is handed a year-immutable copy of the
+  wrong thing, or every hint misses and each module is fetched twice. Like the stylesheet check this
+  reads only committed files, so it runs on a clone that has never seen `npm install`.
+- **Every preloaded module resolves.** The drift check proves the manifest matches the graph; it
+  cannot prove it points at anything, because the href is a graph path under a URL base written by
+  hand in `tools/build-assets.mjs`. So the verify script asks the dev server for all 41, and
   `ViewTest` asks the filesystem the same question — which fails in the fast suite, without a server.
   A preload that 404s is the quietest failure here: the module is simply fetched late, the slow way,
   and the console offers at most an unused-preload notice.
 - **The entry point is not also preloaded.** `main.js` is the `<script src>` already in flight, so
   hinting it too is a second instruction to fetch a file the browser is on its way to fetching.
   Asserted in both suites, on the generated list and on the served page.
+- **Every asset URL carries the build stamp, and they all carry the same one.** The stamp is what
+  makes a year of `immutable` safe; an unversioned URL in that list would be cached for a year under
+  a name that can later mean something else. Two stamps at once would mean two versions of one graph
+  being served — and since a relative specifier inherits the segment it was loaded from, the modules
+  under the older one would go on importing each other.
+- **`.htaccess` and the dev router strip the same version segment.** One rule in two languages, with
+  nothing but this check between them: drift, and the dev server 404s a URL that works live. A
+  second check asserts *both* `php -S` invocations in the verify script load the router — added
+  after they diverged, when `composer test` was green and `composer coverage` was not.
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.

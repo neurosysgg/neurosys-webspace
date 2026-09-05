@@ -28,8 +28,8 @@ data/.site_auth.php
 # Scratch outDir for the verify script's "compiled output is current" check
 /.tscheck/
 
-# Scratch dir for the verify script's module-graph drift check
-/.preloadcheck/
+# Scratch dir for the verify script's asset-manifest drift check
+/.assetcheck/
 
 # phpactor writes this on first attach; editor state, not project config
 .phpactor.json

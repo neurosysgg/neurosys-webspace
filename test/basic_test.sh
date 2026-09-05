@@ -299,28 +299,48 @@ else
     echo "  SKIP assets/css/ drift check — no node on PATH"
 fi
 
-# src/NeuroSYS/ModuleGraph.php is generated from the compiled module graph and committed, because
-# Layout reads it to emit the <link rel="modulepreload"> list. Stale, it is the quiet kind of wrong:
-# the page still works, it just hints a module that no longer exists and misses one that does, so
-# the request waterfall it exists to flatten comes back with nothing anywhere saying it did. Like
-# build-css.mjs this reads only committed files, so it runs on a clone with no node_modules.
+# src/NeuroSYS/AssetManifest.php is generated and committed, because Layout reads it for the
+# stylesheet href, the script src and the whole <link rel="modulepreload"> list. Stale, it is the
+# quiet kind of wrong: the page still works, it just names a version that is no longer what is at
+# that URL — so a visitor is served a year-immutable copy of the wrong thing, or the preload hints
+# miss and every module is fetched twice.
+#
+# Stale, it is the quiet kind of wrong: the page still works, it just names a build stamp that is no
+# longer what is at those URLs — so a visitor is handed a year-immutable copy of the wrong thing, or
+# every preload hint misses and each module is fetched twice. build-assets.mjs writes nothing but the
+# manifest, so this can run against the real tree; like build-css.mjs it reads only committed files
+# and needs no node_modules.
 if command -v node >/dev/null 2>&1; then
-    GRAPHOUT="$REPO/.preloadcheck/ModuleGraph.php"
-    rm -rf "$REPO/.preloadcheck"
-    if graph_error=$(node "$REPO/tools/build-preload.mjs" --out "$GRAPHOUT" 2>&1 >/dev/null); then
-        if diff -q "$GRAPHOUT" "$REPO/src/NeuroSYS/ModuleGraph.php" >/dev/null 2>&1; then
-            pass "src/NeuroSYS/ModuleGraph.php is current with public/assets/js/"
+    ASSETOUT="$REPO/.assetcheck/AssetManifest.php"
+    rm -rf "$REPO/.assetcheck"
+    if asset_error=$(node "$REPO/tools/build-assets.mjs" --out "$ASSETOUT" 2>&1 >/dev/null); then
+        if diff -q "$ASSETOUT" "$REPO/src/NeuroSYS/AssetManifest.php" >/dev/null 2>&1; then
+            pass "src/NeuroSYS/AssetManifest.php is current with the built assets"
         else
-            fail "src/NeuroSYS/ModuleGraph.php has drifted from the module graph (run: npm run build)"
-            diff "$GRAPHOUT" "$REPO/src/NeuroSYS/ModuleGraph.php" | head -20 | sed 's/^/       /'
+            fail "src/NeuroSYS/AssetManifest.php has drifted from the built assets (run: npm run build)"
+            diff "$ASSETOUT" "$REPO/src/NeuroSYS/AssetManifest.php" | head -20 | sed 's/^/       /'
         fi
     else
-        fail "the module graph does not walk, so the preload list cannot be checked"
-        echo "$graph_error" | sed 's/^/       /'
+        fail "the assets do not stamp, so the manifest cannot be checked"
+        echo "$asset_error" | sed 's/^/       /'
     fi
-    rm -rf "$REPO/.preloadcheck"
+    rm -rf "$REPO/.assetcheck"
 else
-    echo "  SKIP module graph drift check — no node on PATH"
+    echo "  SKIP asset manifest drift check — no node on PATH"
+fi
+
+# The version segment is a mirror: public/.htaccess strips it in production, tools/dev-router.php
+# strips it under the php -S this script runs. Two spellings of one rule, in two languages, with
+# nothing but this check between them — drift and the dev server serves a 404 for a URL that works
+# live, or worse, the reverse.
+htaccess_shape=$(grep -oE 'assets/\(js\|css\)/v-\[0-9a-f\]\{8\}' "$REPO/public/.htaccess" | head -1)
+router_shape=$(grep -oE 'assets/\(js\|css\)/v-\[0-9a-f\]\{8\}' "$REPO/tools/dev-router.php" | head -1)
+if [[ -n "$htaccess_shape" && "$htaccess_shape" == "$router_shape" ]]; then
+    pass "the version segment is stripped identically by .htaccess and the dev router"
+else
+    fail "the version-segment pattern differs between public/.htaccess and tools/dev-router.php"
+    echo "       .htaccess: ${htaccess_shape:-<not found>}" 
+    echo "       router:    ${router_shape:-<not found>}"
 fi
 
 # public/assets/js/ is generated from assets/ts/ and committed, because deploy.sh rsyncs public/
@@ -345,9 +365,15 @@ if [[ -x "$TSC" ]]; then
     # Editing a .ts and forgetting to rebuild would deploy stale JS, and nothing else would notice.
     # The scratch outDir has to sit exactly as deep as public/assets/js/ — three levels below the
     # repo root — or every .map's "sources" path differs and the diff fails for the wrong reason.
+    #
+    # A straight diff, because build-assets.mjs writes no JS: the version lives in the URL path, not
+    # in any file, so the committed output stays byte-identical to what tsc emits. That is the whole
+    # reason the version is a path segment — see the tool.
     TSOUT="$REPO/.tscheck/assets/js"
     rm -rf "$REPO/.tscheck"
-    if (cd "$REPO" && "$TSC" --outDir "$TSOUT" >/dev/null 2>&1); then
+    if (cd "$REPO" && "$TSC" --outDir "$TSOUT" >/dev/null 2>&1) \
+       && node "$REPO/tools/build-assets.mjs" --js-dir "$TSOUT" \
+               --out "$REPO/.tscheck/AssetManifest.php" >/dev/null 2>&1; then
         # --brief names the files rather than dumping them; "Only in" lines are the ones that
         # matter after a source is deleted, since tsc never removes what it no longer emits.
         drift=$(diff -rq "$TSOUT" "$REPO/public/assets/js" 2>&1 | sed "s|$TSOUT|<rebuilt>|g; s|$REPO/||g")
@@ -356,6 +382,12 @@ if [[ -x "$TSC" ]]; then
         else
             fail "public/assets/js/ has drifted from assets/ts/ (run: npm run build)"
             echo "$drift" | sed 's/^/       /'
+        fi
+
+        if diff -q "$REPO/.tscheck/AssetManifest.php" "$REPO/src/NeuroSYS/AssetManifest.php" >/dev/null 2>&1; then
+            pass "the manifest matches a build from the TypeScript sources"
+        else
+            fail "src/NeuroSYS/AssetManifest.php does not match a full rebuild (run: npm run build)"
         fi
     else
         fail "assets/ts/ does not compile, so its output cannot be checked"
@@ -382,12 +414,23 @@ if [[ -n "${NEUROSYS_COVERAGE_DIR:-}" ]]; then
     NEUROSYS_COVERAGE_DIR="$(cd "$NEUROSYS_COVERAGE_DIR" && pwd)"
     export NEUROSYS_COVERAGE_DIR
     XDEBUG_MODE=coverage php -d "auto_prepend_file=$REPO/tools/coverage-prepend.php" \
-        -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
+        -S "localhost:$PORT" -t "$REPO/public" "$REPO/tools/dev-router.php" >/dev/null 2>&1 &
 else
-    php -S "localhost:$PORT" -t "$REPO/public" >/dev/null 2>&1 &
+    php -S "localhost:$PORT" -t "$REPO/public" "$REPO/tools/dev-router.php" >/dev/null 2>&1 &
 fi
 SERVER_PID=$!
 trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
+
+# Both branches above must pass the router, or the versioned asset URLs 404 in one of them and not
+# the other. That is how this was found: `composer test` was green and `composer coverage` was not,
+# because only one of the two invocations had been given it.
+# `dev-rou[t]er` so the pattern does not match the line it is written on — the same idiom as
+# `ps aux | grep [f]oo`. Without it this counts itself and passes with one invocation patched.
+if [[ $(grep -cE -- '-S "localhost:\$PORT" -t "\$REPO/public" "\$REPO/tools/dev-rou[t]er\.php"' "$0") -eq 2 ]]; then
+    pass "both dev-server invocations load the version-stripping router"
+else
+    fail "one of the php -S invocations in this script is missing tools/dev-router.php"
+fi
 
 # Poll until the server is accepting connections (max ~3s).
 started=0
@@ -488,7 +531,18 @@ else
     fail "modulepreload hints that do not resolve:$unresolved"
 fi
 # The entry point is the <script src>; hinting it too would be a redundant fetch instruction.
-check_body "the entry point is not also preloaded"  "$BASE/"  'modulepreload" href="/assets/js/main.js"'  absent
+# No trailing quote in the needle: the href carries a ?v= now, so matching the closing quote would
+# make this pass by never matching anything rather than by the entry point being absent.
+check_body "the stylesheet URL carries the build stamp"  "$BASE/"  'href="/assets/css/v-'
+check_body "the entry script URL carries it too"        "$BASE/"  'src="/assets/js/v-'
+# The stamp sits between the prefix and the filename, so this is the one needle that cannot be a
+# plain substring. main.js is the <script src> already in flight; preloading it as well would be a
+# second instruction to fetch a file the browser is on its way to fetching.
+if curl "${CURL_ARGS[@]}" "$BASE/" 2>/dev/null | grep -qE 'rel="modulepreload" href="[^"]*/main\.js"'; then
+    fail "the entry point is preloaded as well as being the script src"
+else
+    pass "the entry point is not also preloaded"
+fi
 
 # A PHP notice or warning leaking into the page means something is broken upstream.
 check_body "no PHP errors leak into the home page"   "$BASE/"              'Warning'   absent

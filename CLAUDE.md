@@ -23,8 +23,13 @@ still plain PHP with a hand-rolled autoloader.
 ## Local dev
 
 ```bash
-php -S localhost:8080 -t public
+php -S localhost:8080 -t public tools/dev-router.php
 ```
+
+The router is not optional. Assets are served under a build-stamp path segment
+(`/assets/js/v-a1b2c3d4/main.js`) that `public/.htaccess` strips in production; the built-in server
+reads no `.htaccess`, so without the router every stylesheet and module 404s locally while working
+live. See [Cache versioning](#cache-versioning).
 
 `composer install` if you want to run the tests or linters, `npm install` if you are going to touch
 the TypeScript. Neither is needed just to serve the site.
@@ -350,7 +355,7 @@ assets/ts/                    ← sources; outside public/, neither web-served n
     └── release/              ← ReleaseList, ReleaseCard, …
       ↓ npm run build
 public/assets/js/             ← generated, committed, deployed
-src/NeuroSYS/ModuleGraph.php  ← generated from that graph: every module, as a URL
+src/NeuroSYS/AssetManifest.php ← generated: the stylesheet, the entry, every module, versioned
 ```
 
 **Never hand-edit `public/assets/js/`** — it is build output and the next `npm run build` overwrites it.
@@ -358,9 +363,9 @@ src/NeuroSYS/ModuleGraph.php  ← generated from that graph: every module, as a 
 if the committed output has drifted from the sources: `deploy.sh` rsyncs `public/` straight from the
 working tree, so a forgotten rebuild would ship stale JS and nothing else would notice.
 
-`npm run build` also builds the stylesheet — see [The stylesheet](#the-stylesheet) — and the module
-preload list, below. `npm run watch` does neither; `npm run build:css` and `npm run build:preload` are
-each on its own.
+`npm run build` also builds the stylesheet — see [The stylesheet](#the-stylesheet) — and then the
+asset manifest, below, which has to come last because it hashes both outputs. `npm run watch` does
+neither; `npm run build:css` and `npm run build:assets` are each on its own.
 
 ### Preloading the module graph
 
@@ -370,7 +375,7 @@ from `SoundCloudWidget.js`, from `SoundCloudPlayer.js`, from `main.js`. Five seq
 before the last module starts downloading, and none of it is bytes — compressing and stripping
 comments leave the number exactly where it was.
 
-`tools/build-preload.mjs` walks the compiled graph and generates `src/NeuroSYS/ModuleGraph.php`;
+`tools/build-assets.mjs` walks the compiled graph and generates `src/NeuroSYS/AssetManifest.php`;
 `Layout::modulePreloads()` renders one `<link rel="modulepreload">` per entry, after the stylesheet
 because that one blocks rendering and these do not. The preload scanner then sees all 41 at once and
 the five waves become one. Cost is 402 gzipped bytes per page.
@@ -381,14 +386,45 @@ rather than the first wave — the spec lets a browser follow a preloaded module
 Chrome does, but it is not obliged to and Safari has been uneven, so leaning on it would make the
 fix silently partial. `main.js` is deliberately absent: it is the `<script src>` already in flight.
 
-Three checks, because the two failure modes are different. The verify script **rebuilds the list and
-diffs** it (a module missing from a stale list brings its whole subtree's waterfall back), and
+Three checks, because the two failure modes are different. The verify script **rebuilds the manifest
+and diffs** it (a module missing from a stale list brings its whole subtree's waterfall back), and
 **asks the server for every hinted URL** (the list can be perfectly in step with the graph and still
 point at nothing, since the URL base is written by hand in the tool). `ViewTest` asserts the same
 existence question against the filesystem, so it fails in the fast suite without a server running.
 
 **Neither failure is visible in a browser** — the page works, it is just slower — which is why all
 three exist. It is the same instinct as the `Tag`↔CSS parity check.
+
+### Cache versioning
+
+Every built asset is served under a path segment naming a hash of the build:
+`/assets/js/v-a1b2c3d4/main.js`. That is what lets `public/.htaccess` mark them
+`immutable, max-age=31536000` — a URL that names its own content cannot come to mean something else,
+so a returning visitor fetches none of it. The segment is not a directory; the server strips it,
+Apache by a `RewriteRule` and the dev server by `tools/dev-router.php`.
+
+**Why a path segment and not a filename or a query.** `Tag.a1b2c3d4.js` would break every test that
+imports `public/assets/js/model/Tag.js` by name. `?v=` on each import specifier was written, worked
+in a browser, and cost the front end's **100% coverage gate**: V8 attributes a module reached through
+a stamped specifier to `…/CoverArt.js?v=48f0b166`, which `--test-coverage-include` does not match, so
+everything the tests reach through `main.js` reported zero and the gate fell to 68%. A path segment
+costs neither, because a relative specifier resolves against the URL it was loaded from — so
+`/assets/js/v-a1b2c3d4/main.js` importing `./model/Tag.js` asks for
+`/assets/js/v-a1b2c3d4/model/Tag.js` with **no file rewritten at all**. The compiled JS stays
+byte-identical to tsc's output, which is what keeps the drift check a straight diff.
+
+The price is one stamp per build rather than one per file, so any change busts all 42 modules. At
+~12KB gzipped that is not worth a second thought, and it buys back a stated invariant.
+
+**`.htaccess` and `dev-router.php` are a mirror** — one rule, two languages — so the verify script
+pins that they strip the same pattern, and that *both* `php -S` invocations in it load the router.
+That second check exists because they had diverged: `composer test` was green and `composer coverage`
+was not, since only one of the two had been given the router.
+
+**Images are deliberately not versioned.** They are vendored and hand-placed, and reached through
+`Platform::icon()` and `Config::COVER_PLACEHOLDER` as plain constants — teaching a Model enum to
+consult a build artefact costs more than a calendar TTL on files that change about never. The line
+is: assets the build generates get a content hash, assets a person drops in keep a date.
 
 **Why not bundle instead.** One file would fix the waterfall *and* recover ~5.7KB of per-file gzip
 framing. It would also mean the element tests could no longer import individual modules, and
@@ -709,14 +745,27 @@ sign. **Re-check after deploying**, since this is not something either test suit
 curl -sI -H 'Accept-Encoding: gzip, br' https://neurosys.gg/assets/js/main.js | grep -i 'encoding\|cache'
 ```
 
-Cache lifetimes are deliberately short — an hour for `.css`/`.js`, thirty days for images and fonts —
-because **nothing here is fingerprinted**. The browser asks for `/assets/js/main.js` by that exact
-name on every deploy, so a long `max-age` does not mean "keep this file for a year", it means "keep
-serving the old one for a year after we replace it". A cached `main.js` against a freshly deployed
-document is exactly the mirror drift the parity tests exist to catch, arriving by the one route no
-test can see. `immutable` and a year are the right answer and unlock the moment a content hash enters
-the filename — the natural companion to `tools/build-preload.mjs`, which already walks every file and
-every specifier that would have to be rewritten.
+**The version-segment rewrite is the highest-risk line in the file.** Compression failing costs
+bytes; that rewrite failing costs every stylesheet and every module, because the manifest names URLs
+only it can resolve — an unstyled page with no JS at all. It is verified against real Apache locally
+and against the live host on each deploy, and it is the first thing to check if a deploy goes wrong:
+
+```bash
+curl -s https://neurosys.gg/ | grep -oE 'href="/assets/css/v-[^"]+"' | head -1
+```
+
+Take that path, request it, and expect a 200 with `immutable` in `Cache-Control`. A 404 means the
+`RewriteRule` did not fire and the fix is to revert the manifest to unversioned URLs, not to debug
+it live.
+
+Cache lifetimes come in two tiers, split by whether the URL names its own content. Built assets are
+served under a build-stamp segment and get `immutable` for a year; see
+[Cache versioning](#cache-versioning). Everything else keeps a calendar TTL — an hour for a bare
+`.css`/`.js` (nothing the site emits asks for one, so this is only ever a URL somebody typed), thirty
+days for images and fonts. The two are made mutually exclusive by document order rather than by an
+`env=!` condition, because the rewrite is an internal redirect and the variable then arrives named
+`REDIRECT_VERSIONED`; both spellings are set, and only one is ever defined. Verified against real
+Apache, not reasoned about.
 
 The live host serves **HTTP/2** (no HTTP/3 — no `Alt-Svc`), Apache 2.4.68.
 
