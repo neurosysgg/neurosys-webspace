@@ -11,7 +11,7 @@ namespace NeuroSYS\View\Html;
  * or parsed, so a value reaching this class is a value trusted completely. It exists for one thing:
  * `data/privacy.html`, which is a hand-authored document rather than something a view assembles.
  *
- * Never construct one from anything a request can influence. `ViewTest` pins the call sites — if a
+ * Never construct one from anything a request can influence. `HtmlTest` pins the call sites — if a
  * second one appears, that test is where it has to be argued for.
  */
 final readonly class RawHtml implements Node

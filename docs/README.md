@@ -9,28 +9,31 @@ is TypeScript compiled to ES modules; the output is committed, so the server sti
 neurosys/
 ├── public/              ← webroot (maps to htdocs/ on Strato)
 │   ├── .htaccess        ← rewrites all requests to index.php
-│   ├── index.php        ← front controller (4 statements)
+│   ├── index.php        ← front controller (5 statements)
 │   └── assets/
 │       ├── css/style.css
 │       ├── js/           ← GENERATED from assets/ts/ — never hand-edit
 │       └── img/          ← static images + brand/ (vendored platform icons)
 │
+├── assets/css/          ← stylesheet sources; GENERATED into public/assets/css/style.css
 ├── assets/ts/           ← front-end sources; outside public/, never deployed
 │   ├── main.ts          ← entry point, the only <script> the layout loads
 │   ├── Navigation.ts    ← SPA navigation
-│   ├── model/           ← enums mirrored from src/NeuroSYS/Model/ (parity-tested)
+│   ├── model/           ← enums mirrored from the PHP side (parity-tested — see contracts.md)
 │   └── elements/        ← one module per component, named for its root element
 │
 ├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
 │   ├── Controller/      ← one class per route group
-│   ├── Exception/       ← ReleaseVerificationException
-│   ├── Http/            ← Request, Response types, HttpStatusCode
+│   ├── Exception/       ← ReleaseVerification, Markup, MimeType, SecurityPolicy
+│   ├── Http/            ← Request, Response types, HttpStatusCode, Header/MimeType
+│   │   └── Security/    ← CSP, Permissions-Policy, HSTS — as typed objects
 │   ├── Model/           ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform
 │   │   ├── Embed/       ← Embed interface + SoundCloudEmbed (+ style/option enums)
 │   │   └── Link/        ← FileLink interface + HiDriveLink
 │   ├── Service/         ← Auth, ReleaseRepository, ProfileRepository, DownloadLogger…
 │   ├── Support/         ← Collection<T>, SearchableCollection<T> (immutable), Route, JsonDeserializable
 │   ├── View/            ← one View class per page; each returns a tree of View\Html nodes
+│   │   ├── Html/        ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document
 │   │   └── Terminal/    ← Terminal, TerminalField, TerminalTone — declared, not written out
 │   ├── Layout.php       ← full HTML shell (nav, footer, scripts)
 │   └── Router.php       ← URL → Controller mapper
@@ -70,8 +73,8 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 - `Router` maps URL segments to a `Controller`; the controller fetches its own data, builds a `View`, and returns a `Response`.
 - Download routes issue a 303 to the HiDrive direct-download link — no file passes through PHP.
 - Navigation is SPA-style: `Navigation` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
-- Views emit their own tag vocabulary — `<terminal-window>`, `<cover-art>`, `<player-consent>`, `<download-card>` — rather than divs and classes. The two with behaviour build their own contents, so a view emits the tag and its attributes and nothing else. They upgrade themselves when `Navigation` swaps `#content`, so nothing re-initialises after a navigation. See `CLAUDE.md` for the full set and the no-JS trade-off.
-- The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`). The output is committed because `deploy.sh` rsyncs `public/` from the working tree; the verify script fails if it has gone stale. See `CLAUDE.md` for the full picture.
+- Views emit their own tag vocabulary — `<terminal-window>`, `<cover-art>`, `<soundcloud-player>`, `<download-card>` — rather than divs and classes. The ones with behaviour build their own contents, so a view emits the tag and its attributes and nothing else. They upgrade themselves when `Navigation` swaps `#content`, so nothing re-initialises after a navigation. See [frontend.md](frontend.md) for the full set and the no-JS trade-off.
+- The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`, and `assets/css/` → `style.css`). Both outputs are committed because `deploy.sh` rsyncs `public/` from the working tree; the verify script fails if either has gone stale. See [frontend.md](frontend.md) for the full picture.
 - Release metadata lives in `data/releases.php` as typed `Release` objects. That's the only file you edit to add a release.
 
 ## Download logging
@@ -86,9 +89,19 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 
 ## Further reading
 
+**The source**
+
+- [architecture.md](architecture.md) — the PHP side: the request traced end to end, the layers, the
+  type discipline, and the recipes for adding a route, a page, a file host or an embed provider
+- [frontend.md](frontend.md) — the TypeScript and CSS: the build, the three kinds of custom element,
+  the SPA router, and the no-JS cost
+- [contracts.md](contracts.md) — the PHP↔TypeScript seam: every fact stated twice, what guards it,
+  and the checklist for renaming one
+
+**Working on it**
+
 - [deployment.md](deployment.md) — Strato setup and the deploy workflow
 - [releases.md](releases.md) — adding and updating releases
 - [testing.md](testing.md) — the two test suites and the invariants they protect
 - [branding.md](branding.md) — vendored brand assets and profile links
 - [security.md](security.md) — the security posture, hardenings, and assessment findings
-- [testing.md](testing.md) — unit tests and the verify script
