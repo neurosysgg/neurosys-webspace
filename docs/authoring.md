@@ -206,7 +206,9 @@ run *before* an upload: a re-export after the fact costs the upload, a fresh sha
   agreement with the FLAC, so it holds whatever a future release is mastered at.
 - **The stems zip matches the folder it was packaged from.** Rooted where the zip is rooted, so a
   `REMIX PACKAGE/` holding a MIDI beside `stems/` compares as the whole tree. The zip is what ships;
-  the loose folder is scratch, and the two are free to drift.
+  the loose folder is scratch, and the two are free to drift. A zip that opens and holds no files —
+  which is what zipping a folder that turned out to be empty gives you — is a FAIL, not a count of
+  zero: it used to read as an OK, because an empty zip has no root to look for a loose folder under.
 - **A cover exists, and is the `web/` export** rather than a master PNG or a picture still embedded in
   the FLAC. The last two are a WARN, not a FAIL — publishable, but not what should be uploaded.
 - **Every tag resolves to an enum case**, naming the offending value when it does not.
@@ -284,7 +286,9 @@ before an upload.
   is not hypothetical: `hello world!` is a shipped release whose piano roll locks nothing, so its
   key comes from the tag and the estimate only corroborates it.
 - **A project that parses but carries no tempo**, which is a FAIL rather than a release without a
-  tempo — see below.
+  tempo — see below. It names the FL Studio version that saved it, because that is the one thing
+  that makes the finding actionable: the event to re-size is whichever one that build writes
+  differently, and `EventWidth::NARROW_DWORD` is the last time somebody worked that out.
 
 ### The key has three rungs, and only two are readings
 

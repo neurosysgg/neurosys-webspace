@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use InvalidArgumentException;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
@@ -18,6 +19,8 @@ use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Command\StageRelease;
+use NeuroSYS\Tool\Php\Argument;
+use NeuroSYS\Tool\Php\Call;
 use NeuroSYS\Tool\Php\ClassConstant;
 use NeuroSYS\Tool\Php\Value;
 use NeuroSYS\Tool\Release\Cover;
@@ -262,6 +265,48 @@ final class ReleaseFolderTest extends TestCase
     {
         $this->assertSame("'don\\'t'", new Value("don't")->render());
         $this->assertSame("'a\\\\b'", new Value('a\\b')->render());
+    }
+
+    /**
+     * A comment is a line, so a call written on one line refuses to carry one.
+     *
+     * Both used to render, and neither result was a call anybody meant. `Argument::comment()` came
+     * out as `new Format('a', , 'b')` — a syntax error, which at least announces itself. The
+     * commented-out one came out as `new Format('a', b: 'b')`, which **parses**: a line whose whole
+     * purpose is to be uncommented later would have gone into `data/releases.php` as live code.
+     *
+     * @return void
+     */
+    public function testAnInlineCallRefusesAnArgumentThatIsMeantToBeCommented(): void
+    {
+        $inline = static fn(Argument $argument): Call => Call::create(
+            Format::class,
+            [new Argument(new Value('a')), $argument],
+        );
+
+        // Stacked, the same two arguments are exactly what the half-state is written as.
+        $this->assertStringContainsString(
+            '// a note',
+            Call::create(Format::class, [Argument::comment('a note')], stacked: true)->render(),
+        );
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('cannot be commented');
+
+        $inline(Argument::pending(new Value('b'), 'b'))->render();
+    }
+
+    /**
+     * The other half of it, which was the syntax error rather than the silent one.
+     *
+     * @return void
+     */
+    public function testAnInlineCallRefusesABareCommentBetweenItsArguments(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('cannot be commented');
+
+        Call::create(Format::class, [new Argument(new Value('a')), Argument::comment('a note')])->render();
     }
 
     /**

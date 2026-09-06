@@ -256,7 +256,7 @@ final readonly class ReleaseFolder
             Fact::Bpm     => $this->bpm !== null,
             Fact::Key     => $this->key !== null,
             Fact::Genre   => $this->genre !== null,
-            Fact::Formats => $this->audio->count() > 0,
+            Fact::Formats => !$this->audio->isEmpty(),
             Fact::Cover   => $this->cover !== null,
         };
     }

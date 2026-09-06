@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use FilesystemIterator;
 use NoDiscard;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
-use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;

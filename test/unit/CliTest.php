@@ -181,6 +181,23 @@ final class CliTest extends TestCase
     }
 
     /**
+     * The other spelling of the same mistake, which used to get a different answer.
+     *
+     * `--clover=` stored an empty string, so `has()` said the flag was given and `value()` handed
+     * the empty path on — `merge-coverage` then died inside a report writer with a stack trace
+     * rather than here with a sentence. A flag that takes a path either has one or does not.
+     *
+     * @return void
+     */
+    public function testAValueFlagWithAnEmptyValueIsRefusedTheSameWay(): void
+    {
+        $this->expectException(UsageException::class);
+        $this->expectExceptionMessage("option '--clover' needs a value");
+
+        Input::parse(['x', '--clover='], $this->command());
+    }
+
+    /**
      * A malformed command line is answered with the usage line and {@link ExitCode::Usage}, not with
      * whatever the command would have reported.
      *

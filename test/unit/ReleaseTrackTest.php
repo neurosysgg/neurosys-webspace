@@ -17,9 +17,9 @@ use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Command\ReleaseTrack;
 use NeuroSYS\Tool\Command\ReleaseTrackOption;
+use NeuroSYS\Tool\Export\ExportedAudio;
 use NeuroSYS\Tool\Export\ExportException;
 use NeuroSYS\Tool\Export\ExportSource;
-use NeuroSYS\Tool\Export\ExportedAudio;
 use NeuroSYS\Tool\Export\FlStudioExport;
 use NeuroSYS\Tool\Export\PreparedExport;
 use NeuroSYS\Tool\Export\RenderFormat;
@@ -204,6 +204,14 @@ final class ReleaseTrackTest extends TestCase
             self::assertSame(RenderFormat::Wav, $audio->format);
             self::assertSame('ill..wav', $audio->name());
             self::assertSame('audio/wav', $audio->part()->type->render());
+
+            // Named for the release, which is what the far end is told. The paragraph on `part()`
+            // said so for as long as the only call site passed nothing, so the name that actually
+            // went up was the working one the file happens to carry in the folder. The extension
+            // is not the caller's to choose — it comes off `$format`, which nothing had asked.
+            self::assertSame('ill..wav', $audio->part()->filename);
+            self::assertSame('ill.wav', $audio->part('ill')->filename);
+            self::assertSame('audio/wav', $audio->part('ill')->type->render());
         } finally {
             $path->remove();
         }

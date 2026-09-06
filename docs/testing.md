@@ -412,8 +412,8 @@ written and does not now. Four small tests in `ResponseTest` would restore it.
 
 ### The development tooling
 
-`tools/lib/` has four test files and is **deliberately outside the coverage source**. The figure above
-is a claim about the shipped site; folding in code whose job is to shell out to `metaflac` and
+`tools/lib/` has eight test files and is **deliberately outside the coverage source**. The figure
+above is a claim about the shipped site; folding in code whose job is to shell out to `metaflac` and
 `ffprobe` would either drop the number or invite contrived tests to prop it up.
 
 - `test/unit/CliTest.php` — the `Cli/` layer. Argument parsing is the part worth pinning, because
@@ -431,6 +431,18 @@ is a claim about the shipped site; folding in code whose job is to shell out to 
 - `test/unit/ReleaseTrackTest.php` — the export port and every path `release-track` *refuses* on.
   Its uploading branch runs only on a folder that passes its preflight, which means real audio that
   `metaflac` and `ffprobe` can read; that half is exercised by running the tool.
+- `test/unit/FlpTest.php` — the `.flp` reader, against projects assembled byte by byte rather than
+  against a committed multi-megabyte fixture. The events worth pinning are the ones a real file
+  would never show you: an event that overruns the chunk, a length prefix that runs past it, and
+  one long enough to overflow into a *negative* size — which used to sail through the overrun
+  check, because a negative size is always within bounds.
+- `test/unit/PluginsTest.php` — the length-prefixed-string scan, which produces candidates rather
+  than facts and has to keep producing exactly the ones it did.
+- `test/unit/PreflightTest.php` — every finding, against fixtures on disk. This is where the stems
+  zip is compared against the loose folder beside it, including the zip that opens and holds
+  nothing.
+- `test/unit/ProjectFileTest.php` — finding the project: loose, inside a zip, or named outright by
+  `--project`, and what happens when it will not parse.
 
 What reads a real folder is exercised by running the tool. The verify script asserts every class
 under `tools/lib/` loads, which is the one thing nothing else would catch — a namespace that

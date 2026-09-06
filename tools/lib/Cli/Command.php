@@ -7,9 +7,10 @@ namespace NeuroSYS\Tool\Cli;
 /**
  * The Command interface. One of this repo's development commands.
  *
- * `tools/` holds two of these and two things that are not: `dev-router.php` is handed to `php -S`
- * and `coverage-prepend.php` is an `auto_prepend_file`. PHP loads both; nothing invokes them, so
- * they have no argv and no exit code and there is nothing here for them to implement.
+ * `tools/` holds three of these — `stage-release`, `release-track` and `merge-coverage` — and two
+ * things that are not: `dev-router.php` is handed to `php -S` and `coverage-prepend.php` is an
+ * `auto_prepend_file`. PHP loads both; nothing invokes them, so they have no argv and no exit code
+ * and there is nothing here for them to implement.
  */
 interface Command
 {

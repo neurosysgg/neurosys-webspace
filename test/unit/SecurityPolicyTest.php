@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use FilesystemIterator;
 use NeuroSYS\Exception\SecurityPolicyException;
 use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\BasicChallenge;
@@ -16,7 +17,6 @@ use NeuroSYS\Http\Location;
 use NeuroSYS\Http\MimeType;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\Security\ContentSecurityPolicy;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
@@ -28,12 +28,12 @@ use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
 use NeuroSYS\Http\Security\StrictTransportSecurity;
+use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\Vary;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use FilesystemIterator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 

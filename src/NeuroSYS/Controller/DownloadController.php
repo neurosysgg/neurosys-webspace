@@ -10,8 +10,8 @@ use NeuroSYS\Http\RedirectResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
-use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\NotFoundView;
 

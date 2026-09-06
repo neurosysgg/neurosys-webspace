@@ -26,6 +26,16 @@
 
 declare(strict_types=1);
 
+use NeuroSYS\Http\Header;
+use NeuroSYS\Http\MimeType;
+use NeuroSYS\Http\ResponseHeader;
+use NeuroSYS\Http\TopLevelType;
+use NeuroSYS\Support\Charset;
+
+// The site's own autoloader, so a served asset declares its type the way a served document does.
+// `public/index.php` requires the same file; this adds no dependency the dev server did not have.
+require_once __DIR__ . '/../autoload.php';
+
 /** The version segment, directly under the asset root. Mirrored in public/.htaccess. */
 const VERSION_SEGMENT = '#^/assets/(js|css)/v-[0-9a-f]{8}/#';
 
@@ -49,12 +59,22 @@ if ($file === false || !str_starts_with($file, $public . DIRECTORY_SEPARATOR) ||
     return true;
 }
 
-header('Content-Type: ' . match (pathinfo($file, PATHINFO_EXTENSION)) {
-    'js'    => 'text/javascript; charset=utf-8',
-    'css'   => 'text/css; charset=utf-8',
-    'map'   => 'application/json; charset=utf-8',
-    default => 'application/octet-stream',
-});
+// A `MimeType` and not a string with `; charset=utf-8` stapled on, for the reason that class
+// exists: `nosniff` stops a browser guessing the type and nothing stops it guessing the encoding,
+// so the charset is the half that earns an object. It is the same object `ViewResponse` sends,
+// which is the point — this file exists to answer the way the real server does, and answering with
+// four hand-written strings was the one place it did not.
+//
+// The octet-stream fallback deliberately carries no charset: it is reached only by an extension
+// `public/.htaccess` has no `SetHandler` for, so it names bytes rather than text.
+$type = match (pathinfo($file, PATHINFO_EXTENSION)) {
+    'js'    => new MimeType(TopLevelType::Text, 'javascript', Charset::Utf8),
+    'css'   => new MimeType(TopLevelType::Text, 'css', Charset::Utf8),
+    'map'   => new MimeType(TopLevelType::Application, 'json', Charset::Utf8),
+    default => new MimeType(TopLevelType::Application, 'octet-stream', null),
+};
+
+header(new Header(ResponseHeader::ContentType, $type)->line());
 
 readfile($file);
 

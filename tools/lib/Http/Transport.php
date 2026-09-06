@@ -14,9 +14,11 @@ namespace NeuroSYS\Tool\Http;
  * two streams, and for the same reason: the interesting half of an API client is *what it sends*,
  * and that half cannot be asserted against a method that ends in a socket.
  *
- * It is deliberately not a general HTTP abstraction. Two shapes of request go out of this repo —
- * a form-encoded token exchange and a multipart upload — and this is the interface that carries
- * exactly those.
+ * It is deliberately not a general HTTP abstraction. Three shapes of request go out of this repo
+ * — a form-encoded token exchange, a multipart upload, and the bare `GET` {@link
+ * \NeuroSYS\Tool\SoundCloud\Client::track()} reads a secret token back with — and this is the
+ * interface that carries exactly those. They are the three {@link Request} has a factory for, and
+ * a fourth shape means a fourth factory rather than a wider interface here.
  */
 interface Transport
 {

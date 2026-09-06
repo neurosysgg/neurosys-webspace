@@ -24,6 +24,15 @@ use NeuroSYS\Support\File;
  * sample's absolute path — see {@link EventId} for the three ids and why none of them is named.
  * A fact that must never be published should not be reachable from the object the entry writer
  * reads.
+ *
+ * **Four of these are read by nothing but the tests**, and they are named all the same, on the
+ * grounds {@link \NeuroSYS\Tool\Release\FlacTag::Artist} is: this class is what a `.flp` says
+ * about the music in it, and a description with holes where nothing happens to be asking is a
+ * worse description. {@link self::$artists} has one answer for this account and `Config::NAME`
+ * already gives it; {@link self::$mixerTracks} and {@link self::$patterns} are the closest thing
+ * the format has to a stem list; {@link self::$channelCount} comes off the header rather than
+ * being counted. None of them is a {@link \NeuroSYS\Tool\Release\Fact}, and none should become
+ * one without a `Release` field to put it in.
  */
 final readonly class Project
 {

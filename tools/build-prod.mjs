@@ -49,39 +49,17 @@
 import { minify } from 'terser';
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync }
   from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 
-const ROOT   = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { ROOT, cli } from './build-cli.mjs';
+
+const { fail, label, path } = cli('build-prod', ['out']);
+
 const PUBLIC = join(ROOT, 'public');
 const JS     = join(PUBLIC, 'assets/js');
 
-/**
- * Exits with a reason. Declared as returning `never` so it can stand in an expression — the same
- * shape build-css.mjs and build-assets.mjs use, for the same reason.
- *
- * @returns {never}
- */
-function fail(message) {
-  console.error(`build-prod: ${message}`);
-  process.exit(1);
-}
-
-/** Repo-relative, forward-slashed — what the messages say. */
-function label(file) {
-  const path = relative(ROOT, file);
-
-  return path.startsWith('..') ? file : path.split(/[\\/]/).join('/');
-}
-
-function flag(name, fallback) {
-  const at = process.argv.indexOf(name);
-
-  return at === -1 ? fallback : resolve(process.argv[at + 1] ?? fail(`${name} needs a path`));
-}
-
-const DIST     = flag('--out', join(ROOT, 'build/dist'));
+const DIST     = path('out', join(ROOT, 'build/dist'));
 const DIST_PUB = join(DIST, 'public');
 const DIST_JS  = join(DIST_PUB, 'assets/js');
 
@@ -91,12 +69,12 @@ function filesEnding(dir, suffix) {
 
   (function descend(at) {
     for (const entry of readdirSync(at).sort()) {
-      const path = join(at, entry);
+      const child = join(at, entry);
 
-      if (statSync(path).isDirectory()) {
-        descend(path);
-      } else if (path.endsWith(suffix)) {
-        found.push(path);
+      if (statSync(child).isDirectory()) {
+        descend(child);
+      } else if (child.endsWith(suffix)) {
+        found.push(child);
       }
     }
   })(dir);
@@ -193,7 +171,7 @@ for (const map of maps) {
 // a 404 per module with no other symptom.
 const stragglers = filesEnding(DIST_JS, '.js')
   .filter((file) => readFileSync(file, 'utf8').includes('sourceMappingURL'))
-  .map(label);
+  .map((file) => label(file));
 
 if (stragglers.length > 0) {
   fail(`${stragglers.length} shipped module(s) still name a source map that is not there:\n`

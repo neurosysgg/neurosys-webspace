@@ -80,14 +80,28 @@ final readonly class ExportedAudio
     /**
      * This audio as the field of a multipart request.
      *
-     * Named for the release rather than for the file on disk: a working master called `ill..wav`
-     * and a track called `ill.` are the same thing, and the far end is told the second.
+     * **Named for the release rather than for the file on disk**, where the caller says what the
+     * release is called: a working master is `ill (140 d#min skrillie dubstep).wav` in a folder and
+     * `ill.wav` on somebody else's server, and those are the same recording under a working name
+     * and a published one. The paragraph said so for as long as the only call site passed nothing,
+     * which made it a description of a parameter rather than of a behaviour.
      *
-     * @param string|null $filename
+     * **The stem, not the whole filename**, because the extension is not the caller's to choose:
+     * {@link self::$format} is what the file on disk actually is, and a name disagreeing with it
+     * would be the one thing about this part that was not read off the bytes. That is also what
+     * gives `$format` a reader — it was carried and never asked.
+     *
+     * The slug rather than the title, because a title is arbitrary text — `ill.` ends in the
+     * character that separates a name from its extension, and nothing stops one holding a slash.
+     * {@link \NeuroSYS\Tool\Release\ReleaseFolder::slugFor()} is already the site's answer to
+     * "what is this release called where a name has to be safe", and it is the same string
+     * `track[permalink]` carries.
+     *
+     * @param string|null $name The release's slug, without an extension. Null keeps the name on disk.
      * @return FilePart
      */
-    public function part(?string $filename = null): FilePart
+    public function part(?string $name = null): FilePart
     {
-        return FilePart::at($this->file, $filename);
+        return FilePart::at($this->file, $name !== null ? $name . '.' . $this->format->value : null);
     }
 }

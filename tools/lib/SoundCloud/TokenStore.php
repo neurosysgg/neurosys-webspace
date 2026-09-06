@@ -6,8 +6,8 @@ namespace NeuroSYS\Tool\SoundCloud;
 
 use JsonException;
 use NeuroSYS\Support\Directory;
-use NeuroSYS\Tool\Http\JsonBody;
 use NeuroSYS\Support\File;
+use NeuroSYS\Tool\Http\JsonBody;
 
 /**
  * The TokenStore class. Where the token lives between runs.

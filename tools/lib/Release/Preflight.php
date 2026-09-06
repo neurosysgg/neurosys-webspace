@@ -74,11 +74,19 @@ final readonly class Preflight
         // The canary. Every project tested carries a tempo, across four FL Studio versions, so an
         // absent one means the walk lost its footing rather than that the project has no tempo —
         // see FlpFile, where this is the only guard against a desynchronised read.
+        //
+        // The version is named because it is the one thing that makes this finding actionable: the
+        // event that has to be re-sized is whichever one that build writes differently, and
+        // `EventWidth::NARROW_DWORD` is the last time somebody worked that out from a version
+        // number. The project carried it all along and nothing asked.
         if ($project->tempo === null) {
             return [Finding::fail(sprintf(
                 'project: %s parsed but carries no tempo, which means an event was sized wrongly — '
-                . 'this FL Studio version writes something tools/lib/Flp/ does not know about yet',
+                . '%s writes something tools/lib/Flp/ does not know about yet',
                 $file->name,
+                $project->version !== null
+                    ? 'FL Studio ' . $project->version
+                    : 'the FL Studio version that saved it',
             ))];
         }
 
@@ -271,6 +279,18 @@ final readonly class Preflight
 
         if ($entries === null) {
             return [Finding::warn('stems: the zip could not be read, so it was not compared')];
+        }
+
+        // A readable zip holding no files at all, which is not the same as one that would not open.
+        // It used to reach the count below and read as an OK — `0 files in the zip, with no loose
+        // folder to disagree` — because an empty zip has no root to look for a loose folder under.
+        // The zip is what a stranger downloads, so an empty one is a failed check and not a quiet
+        // zero.
+        if ($entries === []) {
+            return [Finding::fail(sprintf(
+                'stems: %s holds no files — the zip is what ships, so rebuild it',
+                $zip->name(),
+            ))];
         }
 
         // Root the walk where the zip is rooted, so both sides name their files the same way.

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Php;
 
+use InvalidArgumentException;
+
 /**
  * The Call class. `new Release(…)`, `Section::named(…)`, or `…->with(…)`.
  *
@@ -88,6 +90,8 @@ final readonly class Call implements Expression
     /**
      * @param string $indent
      * @return string
+     * @throws InvalidArgumentException if an inline call carries a comment — see
+     *                                  {@link self::inlineArguments()}.
      */
     public function render(string $indent = ''): string
     {
@@ -144,16 +148,39 @@ final readonly class Call implements Expression
     }
 
     /**
+     * The arguments of a call written on one line.
+     *
+     * **A comment cannot be one of them, and that is refused rather than approximated.** Both
+     * shapes {@link Argument} offers for the half-state are *lines*: `Argument::comment()` is a
+     * `// …` between arguments, and {@link Argument::pending()} is an argument written out and
+     * commented so a person can uncomment it. An inline call has no lines to put either on.
+     *
+     * Rendering them anyway is what this used to do, and neither result was a call anybody meant:
+     * a bare comment came out as `new Format('a', , 'b')`, which is a syntax error, and a pending
+     * argument came out as `new Format('a', b: 'b')` — which parses, so a line meant to be
+     * uncommented later would have shipped as live code in `data/releases.php`. The second is the
+     * one worth throwing over.
+     *
      * @param string $indent
      * @return list<string>
+     * @throws InvalidArgumentException if an argument is a comment or is commented out.
      */
     private function inlineArguments(string $indent): array
     {
         $rendered = [];
 
         foreach ($this->arguments as $argument) {
+            if ($argument->value === null || $argument->commentedOut) {
+                throw new InvalidArgumentException(sprintf(
+                    '%s() is written on one line, so its %s cannot be commented: a comment is a '
+                    . 'line and this call has none. Build it with stacked: true.',
+                    $this->name,
+                    $argument->name !== null ? "'" . $argument->name . "' argument" : 'argument',
+                ));
+            }
+
             $rendered[] = ($argument->name !== null ? $argument->name . ': ' : '')
-                . ($argument->value?->render($indent) ?? '');
+                . $argument->value->render($indent);
         }
 
         return $rendered;

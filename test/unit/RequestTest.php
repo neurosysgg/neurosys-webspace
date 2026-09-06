@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Http\Request;
-use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Http\RequestedWith;
+use NeuroSYS\Http\RequestHeader;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

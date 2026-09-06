@@ -313,6 +313,13 @@ never the served one — left in place, the browser would discover each part onl
 one before it, and a typo'd href would 404 in silence with that component unstyled. Inlining makes
 both a build error instead.
 
+It takes its command line from [`tools/build-cli.mjs`](../tools/build-cli.mjs), as
+`build-assets.mjs` and `build-prod.mjs` do — `NeuroSYS\Tool\Cli` on the other side of the language
+boundary, and there for the reason that layer exists. All three used to parse argv by hand with
+`process.argv.indexOf('--out')`, so `node tools/build-css.mjs --ou scratch.css` overwrote the
+committed stylesheet and said it had done what was asked. An undeclared flag, a flag with no path
+and `--out=` are now all refused by name.
+
 The build also refuses:
 
 - a part imported twice

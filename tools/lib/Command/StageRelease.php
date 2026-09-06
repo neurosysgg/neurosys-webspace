@@ -8,14 +8,10 @@ use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
 use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Fact;
-use NeuroSYS\Tool\Release\Finding;
-use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
-use NeuroSYS\Tool\Release\ReleasesFile;
 
 /**
  * The StageRelease command. Stages a `data/releases.php` entry from a prepared release folder.
@@ -74,28 +70,16 @@ final readonly class StageRelease implements Command
      */
     public function run(Input $input, Output $output): ExitCode
     {
-        $path = $input->operand(0);
+        $report = new FolderReport($this, $output);
+        $folder = $report->folder($input, StageReleaseOption::Project);
 
-        if ($path === null) {
-            $output->error(Runner::usage($this));
-
+        if ($folder === null) {
             return ExitCode::Usage;
         }
 
-        if (!is_dir($path)) {
-            $output->error(sprintf("%s: '%s' is not a folder\n", $this->name(), $path));
-
-            return ExitCode::Usage;
-        }
-
-        $folder   = ReleaseFolder::at($path, $input->value(StageReleaseOption::Project));
-        $findings = Preflight::check($folder);
-
-        $output->error(sprintf("\n%s\n\n", $folder->directory->path));
         $this->reportFacts($folder, $output);
-        $this->reportFindings($findings, $output);
 
-        $failed = count(array_filter($findings, static fn(Finding $f): bool => $f->level->isFailure()));
+        $failed = $report->findings(Preflight::check($folder));
 
         if ($failed > 0) {
             $output->error(sprintf(
@@ -111,40 +95,12 @@ final readonly class StageRelease implements Command
         }
 
         $output->error("  paste into data/releases.php, newest first:\n\n");
-        $this->reportImports($folder, $output);
+        $report->imports($folder);
         $output->out(EntryWriter::write($folder) . "\n");
 
         return ExitCode::Success;
     }
 
-    /**
-     * The classes the entry names, and whether `data/releases.php` already imports them.
-     *
-     * The entry is written with short names, because that is how every entry beside it is written —
-     * so a class the file has never imported is a parse error rather than a missing feature. That
-     * was not hypothetical: the arrangement and the time spent are `Model\Production` types, and no
-     * entry written before them imports anything from there.
-     *
-     * @param ReleaseFolder $folder
-     * @param Output        $output
-     * @return void
-     */
-    private function reportImports(ReleaseFolder $folder, Output $output): void
-    {
-        $missing = ReleasesFile::default()->missingImports(EntryWriter::imports($folder));
-
-        if ($missing === []) {
-            return;
-        }
-
-        $output->error("  data/releases.php does not import these yet:\n\n");
-
-        foreach ($missing as $class) {
-            $output->error(sprintf("      use %s;\n", $class));
-        }
-
-        $output->error("\n");
-    }
 
     /**
      * Each fact, its value, and the column that makes the report worth reading — where it came from.
@@ -187,26 +143,8 @@ final readonly class StageRelease implements Command
             Fact::Bpm     => $folder->bpm !== null ? (string) $folder->bpm : null,
             Fact::Key     => $folder->key?->value,
             Fact::Genre   => $folder->genre?->value,
-            Fact::Formats => implode(', ', array_map(static fn($f): string => $f->name, $folder->formats())),
+            Fact::Formats => implode(', ', array_column($folder->formats(), 'name')),
             Fact::Cover   => $folder->cover?->name(),
         };
-    }
-
-    /**
-     * @param list<Finding> $findings
-     * @param Output        $output
-     * @return void
-     */
-    private function reportFindings(array $findings, Output $output): void
-    {
-        foreach ($findings as $finding) {
-            $output->error(sprintf("  %s %s\n", $finding->level->label(), $finding->message));
-        }
-
-        if ($findings === []) {
-            $output->error(sprintf("  %s nothing to report\n", Level::Ok->label()));
-        }
-
-        $output->error("\n");
     }
 }

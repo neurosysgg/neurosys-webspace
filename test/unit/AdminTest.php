@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use JsonException;
 use NeuroSYS\Config;
 use NeuroSYS\Controller\StatsController;
 use NeuroSYS\Http\Header;
@@ -19,7 +20,6 @@ use PHPUnit\Framework\TestCase;
 use Random\RandomException;
 use ReflectionMethod;
 use ReflectionProperty;
-use JsonException;
 
 /**
  * The admin path: the gate, and the log it protects.

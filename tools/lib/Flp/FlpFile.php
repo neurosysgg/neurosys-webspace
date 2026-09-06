@@ -42,6 +42,15 @@ final readonly class FlpFile
     private const string DATA_MAGIC = 'FLdt';
 
     /**
+     * How far a variable event's length prefix may shift before it stops being one.
+     *
+     * Five groups of seven bits, because `FLdt` states its own length as a dword and nothing inside
+     * it can be longer than that. See {@link self::varInt()} for what a sixth group actually means
+     * and what it used to cost.
+     */
+    private const int VARINT_BITS = 35;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param int          $format       FL's internal file format number; 0 for a project.
@@ -180,12 +189,26 @@ final readonly class FlpFile
     /**
      * Reads the 7-bits-at-a-time length that prefixes every variable-width event.
      *
+     * **Five groups and no more, which is a guard rather than a limit.** `FLdt` declares its own
+     * length as a dword, so no event inside it can be longer than 32 bits can say, and five groups
+     * of seven cover that with room to spare. A sixth continuation byte is not a long event, it is
+     * a run of bytes that is not a length at all — which is what a desynchronised walk finds when
+     * it lands inside a plugin blob, where ten consecutive bytes with the high bit set are
+     * unremarkable.
+     *
+     * Without the bound it is worse than an unread event. The shift reaches 63, `0x7F << 63`
+     * overflows to `PHP_INT_MIN`, and the length comes back **negative** — which sails through
+     * {@link self::walk()}'s `$cursor + $size > $end` check, because a negative size is always
+     * within bounds. `substr()` then reads backwards from the cursor and the cursor itself moves
+     * back, so the walk manufactures an event out of nothing and desynchronises further, silently.
+     * That is the one failure mode this class exists to make loud, arriving quietly.
+     *
      * @param string $bytes
      * @param int    $cursor
      * @param int    $end
      * @param int    $id
      * @return array{int, int} The length, and the cursor after it.
-     * @throws FlpException if the length runs off the end of the chunk.
+     * @throws FlpException if the length runs off the end of the chunk, or is not one.
      */
     private static function varInt(string $bytes, int $cursor, int $end, int $id): array
     {
@@ -195,6 +218,16 @@ final readonly class FlpFile
         do {
             if ($cursor >= $end) {
                 throw new FlpException(sprintf('event %d has a length that runs past FLdt', $id));
+            }
+
+            if ($shift >= self::VARINT_BITS) {
+                throw new FlpException(sprintf(
+                    'event %d at offset %d has a length of more than %d bytes, which no event in a '
+                    . 'chunk this size can have — the walk is reading something that is not a length',
+                    $id,
+                    $cursor,
+                    intdiv(self::VARINT_BITS, 7),
+                ));
             }
 
             $byte   = ord($bytes[$cursor++]);

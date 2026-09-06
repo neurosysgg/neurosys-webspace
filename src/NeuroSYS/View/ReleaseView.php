@@ -6,9 +6,9 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Config;
 use NeuroSYS\Model\Format;
-use NeuroSYS\Model\Release;
 use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\Section;
+use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\ArrangementAttribute;

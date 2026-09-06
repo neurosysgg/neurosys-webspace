@@ -12,6 +12,7 @@ use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Tool\Flp\TimeMarker;
 use NeuroSYS\Tool\Php\Argument;
 use NeuroSYS\Tool\Php\Call;
 use NeuroSYS\Tool\Php\ClassConstant;
@@ -214,14 +215,14 @@ final readonly class EntryWriter
      * The ppq is named only when it differs from the default every project tested uses, which keeps
      * the entry as terse as the rest of the file.
      *
-     * @param list<\NeuroSYS\Tool\Flp\TimeMarker> $markers
-     * @param int                                 $ppq
+     * @param list<TimeMarker> $markers
+     * @param int              $ppq
      * @return Call
      */
     private static function arrangement(array $markers, int $ppq): Call
     {
         $sections = array_map(
-            static fn($marker): Argument => new Argument(Call::onClass(Section::class, 'named', [
+            static fn(TimeMarker $marker): Argument => new Argument(Call::onClass(Section::class, 'named', [
                 new Argument(new Value($marker->name)),
                 new Argument(new Value($marker->tick)),
             ])),

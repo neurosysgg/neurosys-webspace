@@ -401,6 +401,31 @@ final class PreflightTest extends TestCase
     }
 
     /**
+     * A zip that opens and holds nothing, which is not the same as one that will not open.
+     *
+     * The realistic way to make one is to zip a folder that turned out to be empty: the archive
+     * carries a directory entry, {@link \NeuroSYS\Tool\Release\Probe::zipEntries()} drops it for
+     * ending in a slash, and nothing is left. That used to reach the count below and read as
+     * *`stems: 0 files in the zip, with no loose folder to disagree`* — an OK, because an empty zip
+     * has no root to look for a loose folder under. The zip is what a stranger downloads.
+     *
+     * @return void
+     */
+    public function testAStemsZipHoldingNoFilesIsAFailureAndNotAQuietZero(): void
+    {
+        $archive = new ZipArchive();
+
+        $archive->open($this->directory->file('stems.zip')->path, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        $archive->addEmptyDir('stems/');
+        $archive->close();
+
+        self::assertContains(
+            'stems: stems.zip holds no files — the zip is what ships, so rebuild it',
+            self::at(Preflight::check($this->folderWithStems()), Level::Fail),
+        );
+    }
+
+    /**
      * @return void
      */
     public function testAStemsZipThatCannotBeReadIsNotComparedRatherThanCalledWrong(): void

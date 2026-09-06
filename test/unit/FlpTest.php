@@ -223,6 +223,46 @@ final class FlpTest extends TestCase
     }
 
     /**
+     * A length prefix long enough to overflow, which is the one that used to get through.
+     *
+     * Ten continuation bytes push the shift to 63, `0x7F << 63` overflows to `PHP_INT_MIN`, and the
+     * length comes back **negative** — which sails through the overrun check above, because a
+     * negative size is always within bounds. `substr()` then read backwards and the cursor moved
+     * backwards, so the walk manufactured an event out of nothing and desynchronised further,
+     * silently. Ten bytes with the high bit set is unremarkable inside a plugin blob, which is
+     * exactly where a mis-sized event lands a walk.
+     *
+     * @return void
+     */
+    public function testALengthPrefixTooLongToBeOneIsRefusedBeforeItOverflows(): void
+    {
+        $this->expectException(FlpException::class);
+        $this->expectExceptionMessageMatches('/more than 5 bytes/');
+
+        FlpFile::read($this->flp(
+            chr(EventId::Title->value) . str_repeat(chr(0xFF), 10) . str_repeat('A', 32),
+        ));
+    }
+
+    /**
+     * Five groups is the bound, so a length that needs all five is still read.
+     *
+     * @return void
+     */
+    public function testALengthPrefixOfFiveGroupsIsStillALength(): void
+    {
+        // 0x10000000 — the smallest value needing a fifth group, and larger than any chunk here, so
+        // it is refused for overrunning rather than for its shape. That is the point: the guard
+        // above is about a prefix that is not a length, not about a length that is too big.
+        $this->expectException(FlpException::class);
+        $this->expectExceptionMessageMatches('/wants 268435456 bytes/');
+
+        FlpFile::read($this->flp(
+            chr(EventId::Title->value) . chr(0x80) . chr(0x80) . chr(0x80) . chr(0x80) . chr(0x01),
+        ));
+    }
+
+    /**
      * @return void
      */
     public function testAFileThatIsNotAProjectIsRefused(): void

@@ -51,6 +51,15 @@ return (new Config())
         // The same rule inside docblocks and signatures, which the class rule above does not reach:
         // `@throws ReflectionException`, not `@throws \ReflectionException`.
         'fully_qualified_strict_types' => true,
+
+        // Alphabetical, so an import list has one right order rather than the order things were
+        // needed in. Adopted 2026-09-06, out of the tools review: `Release\ProjectFile` had
+        // `Tool\Flp\*` above `Support\*` and `SoundCloud\TokenStore` had `Support\File` below a
+        // `Tool\Http\`, and the rule then found five more under `src/` and `test/` that nobody had
+        // noticed either. That is the argument for stating it here rather than fixing the two by
+        // hand: an import list out of order is the one kind of drift that never fails anything, so
+        // it accumulates. A rule notices; a person reading a diff does not.
+        'ordered_imports' => ['sort_algorithm' => 'alpha', 'imports_order' => ['class', 'function', 'const']],
     ])
     ->setFinder(
         (new Finder())

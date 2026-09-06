@@ -947,7 +947,8 @@ tools/
 ├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
 └── lib/
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
-    ├── Command/          ← the three commands and their option enums
+    ├── Command/          ← the three commands, their option enums, and FolderReport — the report
+    │                       the two that read a release folder share
     ├── Export/           ← where a release's audio comes from: Exporter + PreparedExport and
     │                       FlStudioExport, RenderFormat, ExportedAudio/ExportSource
     ├── Flp/              ← the FL Studio project reader: FlpFile + EventId/EventWidth/Event,
@@ -962,6 +963,29 @@ tools/
                             AccessToken/OAuthCredential/TokenStore, TrackUpload/TrackField/
                             TrackSharing, UploadedTrack
 ```
+
+**The build tools are the same layer in the other language.** `build-css.mjs`, `build-assets.mjs`
+and `build-prod.mjs` share `tools/build-cli.mjs` — a `fail`, a `label`, and an argv parsed against
+the flags a tool declares — which is `Cli/` on the other side of the boundary and is here for the
+reason that layer exists. Each of the three used to hold its own `process.argv.indexOf('--out')`,
+so `node tools/build-css.mjs --ou scratch.css` overwrote the committed stylesheet and reported
+success: the exact failure `Command::options()`'s docblock describes, still live in the tools
+nobody came back for. Every flag there takes a path, which is not a simplification but the whole
+vocabulary — there is no `takesValue()` because nothing on that side stands alone. No dependencies
+and nothing runs on import, so the stylesheet still rebuilds on a clone that has never seen
+`npm install`.
+
+**`FolderReport` is what `stage-release` and `release-track` have in common.** They are the same
+command up to their last step — read a folder, judge it, say what is wrong with it, print an entry
+— so four blocks were written twice and `reportFindings()` was byte-identical in both files. It is
+a class rather than a trait on the test `Support\TypedItems` is on the other side of: that is a
+trait because nothing anywhere holds "either kind of collection", while these two *are* both
+`Command`s and `Runner` holds either one. What they share is not a kind of command, it is a report.
+It is also the first thing to use `Option` as a *type* rather than as a list of cases — each
+command declares its own `--project` on its own enum, and the interface is what says the two are
+interchangeable there. What stays at the call sites is the sentence each command prints when a
+check fails, because those differ and a `string $remedy` parameter would be the mistake `Attempt`
+was written to end.
 
 **`release-track` is `stage-release` with its last hole filled.** That command emits an entry whose
 `embed:` argument is commented out, because the three SoundCloud ids do not exist until the track is

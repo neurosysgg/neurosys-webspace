@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Http\Allow;
+use NeuroSYS\Http\Header;
+use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
@@ -11,9 +14,6 @@ use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
-use NeuroSYS\Http\Allow;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\ViewResponse;

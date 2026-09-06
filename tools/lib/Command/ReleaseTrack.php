@@ -11,25 +11,22 @@ use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
 use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
-use NeuroSYS\Tool\Export\ExportException;
 use NeuroSYS\Tool\Export\ExportedAudio;
 use NeuroSYS\Tool\Export\Exporter;
+use NeuroSYS\Tool\Export\ExportException;
 use NeuroSYS\Tool\Export\PreparedExport;
 use NeuroSYS\Tool\Export\RenderFormat;
 use NeuroSYS\Tool\Http\CurlTransport;
 use NeuroSYS\Tool\Http\FilePart;
 use NeuroSYS\Tool\Http\TransportException;
 use NeuroSYS\Tool\Release\EntryWriter;
-use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
-use NeuroSYS\Tool\Release\ReleasesFile;
 use NeuroSYS\Tool\SoundCloud\Authorization;
 use NeuroSYS\Tool\SoundCloud\Client;
-use NeuroSYS\Tool\SoundCloud\CredentialVariable;
 use NeuroSYS\Tool\SoundCloud\Credentials;
+use NeuroSYS\Tool\SoundCloud\CredentialVariable;
 use NeuroSYS\Tool\SoundCloud\SoundCloudException;
 use NeuroSYS\Tool\SoundCloud\TokenStore;
 use NeuroSYS\Tool\SoundCloud\TrackUpload;
@@ -129,27 +126,14 @@ final readonly class ReleaseTrack implements Command
             return $this->authorize($output);
         }
 
-        $path = $input->operand(0);
+        $report = new FolderReport($this, $output);
+        $folder = $report->folder($input, ReleaseTrackOption::Project);
 
-        if ($path === null) {
-            $output->error(Runner::usage($this));
-
+        if ($folder === null) {
             return ExitCode::Usage;
         }
 
-        if (!is_dir($path)) {
-            $output->error(sprintf("%s: '%s' is not a folder\n", $this->name(), $path));
-
-            return ExitCode::Usage;
-        }
-
-        $folder   = ReleaseFolder::at($path, $input->value(ReleaseTrackOption::Project));
-        $findings = Preflight::check($folder);
-
-        $output->error(sprintf("\n%s\n\n", $folder->directory->path));
-        $this->reportFindings($findings, $output);
-
-        $failed = count(array_filter($findings, static fn(Finding $f): bool => $f->level->isFailure()));
+        $failed = $report->findings(Preflight::check($folder));
 
         if ($failed > 0) {
             $output->error(sprintf(
@@ -162,7 +146,9 @@ final readonly class ReleaseTrack implements Command
 
         try {
             $audio  = $this->exporter($input)->export($folder, self::FORMAT);
-            $upload = TrackUpload::forRelease($folder, $audio->part());
+            // The slug, so the far end is told the release's name rather than the working one the
+            // file happens to carry in the folder — see ExportedAudio::part().
+            $upload = TrackUpload::forRelease($folder, $audio->part($folder->slug()));
         } catch (ExportException | SoundCloudException $exception) {
             $output->error(sprintf("  %s\n\n", $exception->getMessage()));
 
@@ -178,7 +164,7 @@ final readonly class ReleaseTrack implements Command
             return ExitCode::Success;
         }
 
-        return $this->upload($folder, $upload, $output);
+        return $this->upload($folder, $upload, $report, $output);
     }
 
     /**
@@ -186,11 +172,16 @@ final readonly class ReleaseTrack implements Command
      *
      * @param ReleaseFolder $folder
      * @param TrackUpload   $upload
+     * @param FolderReport  $report
      * @param Output        $output
      * @return ExitCode
      */
-    private function upload(ReleaseFolder $folder, TrackUpload $upload, Output $output): ExitCode
-    {
+    private function upload(
+        ReleaseFolder $folder,
+        TrackUpload $upload,
+        FolderReport $report,
+        Output $output,
+    ): ExitCode {
         $client = $this->client($output);
 
         if ($client === null) {
@@ -222,7 +213,7 @@ final readonly class ReleaseTrack implements Command
         $this->reportTrack($track, $output);
 
         $output->error("  paste into data/releases.php, newest first:\n\n");
-        $this->reportImports($folder, $embed, $output);
+        $report->imports($folder, $embed);
         $output->out(EntryWriter::write($folder, $embed) . "\n");
 
         return ExitCode::Success;
@@ -387,48 +378,7 @@ final readonly class ReleaseTrack implements Command
         ));
     }
 
-    /**
-     * The `use` lines the printed entry needs and `data/releases.php` does not have.
-     *
-     * @param ReleaseFolder    $folder
-     * @param SoundCloudEmbed  $embed
-     * @param Output           $output
-     * @return void
-     */
-    private function reportImports(ReleaseFolder $folder, SoundCloudEmbed $embed, Output $output): void
-    {
-        $missing = ReleasesFile::default()->missingImports(EntryWriter::imports($folder, $embed));
 
-        if ($missing === []) {
-            return;
-        }
-
-        $output->error("  data/releases.php does not import these yet:\n\n");
-
-        foreach ($missing as $class) {
-            $output->error(sprintf("      use %s;\n", $class));
-        }
-
-        $output->error("\n");
-    }
-
-    /**
-     * @param list<Finding> $findings
-     * @param Output        $output
-     * @return void
-     */
-    private function reportFindings(array $findings, Output $output): void
-    {
-        foreach ($findings as $finding) {
-            $output->error(sprintf("  %s %s\n", $finding->level->label(), $finding->message));
-        }
-
-        if ($findings === []) {
-            $output->error(sprintf("  %s nothing to report\n", Level::Ok->label()));
-        }
-
-        $output->error("\n");
-    }
 
     /**
      * A byte count, in the unit a person would say it in.

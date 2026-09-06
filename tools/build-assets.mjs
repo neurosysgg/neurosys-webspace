@@ -62,9 +62,10 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+import { ROOT, cli } from './build-cli.mjs';
+
+const { fail, label, path } = cli('build-assets', ['js-dir', 'graph-dir', 'css', 'out']);
 
 /** The URL prefixes public/assets/{js,css}/ are served under. */
 const JS_BASE  = '/assets/js';
@@ -91,36 +92,14 @@ const SPECIFIER = /^\s*(?:import|export)\b[^'"\n]*?['"]([^'"\n]+)['"]\s*;\s*$/gm
  */
 const VERSION_PREFIX = 'v-';
 
-/**
- * Exits with a reason. Declared as returning `never` so it can stand in an expression — it is used
- * as the right-hand side of `??` where a missing argument has no value to fall back to, and without
- * the annotation that reads as using a void call's return value.
- *
- * @returns {never}
- */
-function fail(message) {
-  console.error(`build-assets: ${message}`);
-  process.exit(1);
-}
-
-function label(file) {
-  return relative(ROOT, file).split(/[\\/]/).join('/');
-}
-
-function flag(name, fallback) {
-  const at = process.argv.indexOf(name);
-
-  return at === -1 ? fallback : resolve(process.argv[at + 1] ?? fail(`${name} needs a path`));
-}
-
 /** The tree whose bytes ship, and whose relative paths become the URLs in the manifest. */
-const JS_DIR = flag('--js-dir', join(ROOT, 'public/assets/js'));
+const JS_DIR = path('js-dir', join(ROOT, 'public/assets/js'));
 
 /** The tree the import graph is read from. The same one unless a build has made it unreadable. */
-const GRAPH_DIR = flag('--graph-dir', JS_DIR);
+const GRAPH_DIR = path('graph-dir', JS_DIR);
 
-const CSS_FILE = flag('--css', join(ROOT, 'public/assets/css/style.css'));
-const MANIFEST = flag('--out', join(ROOT, 'src/NeuroSYS/AssetManifest.php'));
+const CSS_FILE = path('css', join(ROOT, 'public/assets/css/style.css'));
+const MANIFEST = path('out', join(ROOT, 'src/NeuroSYS/AssetManifest.php'));
 const ENTRY    = join(GRAPH_DIR, 'main.js');
 
 /** Eight hex characters of SHA-256 — 32 bits over forty-two files, so a collision is not a risk. */
@@ -141,12 +120,12 @@ function jsUrl(file) {
  * version segment would name content nobody has.
  */
 function shipped(file) {
-  const path = join(JS_DIR, relative(GRAPH_DIR, file));
+  const at = join(JS_DIR, relative(GRAPH_DIR, file));
 
   try {
-    return readFileSync(path, 'utf8');
+    return readFileSync(at, 'utf8');
   } catch {
-    return fail(`${label(file)} is in the module graph, but ${label(path)} does not exist.\n`
+    return fail(`${label(file)} is in the module graph, but ${label(at)} does not exist.\n`
               + '              The tree being hashed is missing a module the tree being walked has.');
   }
 }
@@ -157,8 +136,8 @@ function shipped(file) {
  * Directly after the asset root and before everything else, because that is the only position a
  * relative specifier carries with it. A stamp at the end would not survive `./model/Tag.js`.
  */
-function versioned(path) {
-  return path.replace(/^(\/assets\/(?:js|css))\//, `$1/${VERSION_PREFIX}${stamp}/`);
+function versioned(url) {
+  return url.replace(/^(\/assets\/(?:js|css))\//, `$1/${VERSION_PREFIX}${stamp}/`);
 }
 
 // ── walk ────────────────────────────────────────────────────────────────────────────────────────
