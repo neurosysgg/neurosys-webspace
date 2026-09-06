@@ -4,12 +4,16 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use InvalidArgumentException;
 use ArrayObject;
+use InvalidArgumentException;
+use JsonException;
+use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Genre;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
+use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Tool\Http\FilePart;
 use NeuroSYS\Tool\Http\FormField;
 use NeuroSYS\Tool\Http\JsonBody;
@@ -17,6 +21,9 @@ use NeuroSYS\Tool\Http\OutboundHeader;
 use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Response;
 use NeuroSYS\Tool\Http\Transport;
+use NeuroSYS\Tool\Release\Cover;
+use NeuroSYS\Tool\Release\ReleaseFolder;
+use NeuroSYS\Tool\Release\Source;
 use NeuroSYS\Tool\SoundCloud\AccessToken;
 use NeuroSYS\Tool\Http\Url;
 use NeuroSYS\Tool\SoundCloud\Attempt;
@@ -33,6 +40,7 @@ use NeuroSYS\Tool\SoundCloud\TrackKey;
 use NeuroSYS\Tool\SoundCloud\TrackSharing;
 use NeuroSYS\Tool\SoundCloud\TrackUpload;
 use NeuroSYS\Tool\SoundCloud\UploadedTrack;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -731,6 +739,466 @@ final class SoundCloudTest extends TestCase
             } catch (InvalidArgumentException $exception) {
                 self::assertStringContainsString('absolute https://', $exception->getMessage());
             }
+        }
+    }
+
+    /**
+     * The other half of the OAuth dance, and the one that only ever runs once per machine.
+     *
+     * `--authorize` opens a browser, the browser comes back with a code, and this redeems it. Six
+     * fields go out and every one of them is load-bearing: without `code_verifier` the server has
+     * nothing to check the challenge it was sent against, and PKCE is the reason that challenge was
+     * sent at all. The token is written to the store as part of the exchange rather than by the
+     * caller afterwards — same rule as the refresh above, for the same reason.
+     *
+     * @return void
+     */
+    public function testTheAuthorizationCodeIsRedeemedForATokenThatIsThenStored(): void
+    {
+        $sent          = new ArrayObject();
+        $authorization = Authorization::begin('the-verifier', 'the-state');
+
+        $token = new Client(
+            $this->transport($sent, [new Response(200, (string) json_encode([
+                'access_token'  => 'the-first-token',
+                'expires_in'    => 3600,
+                'refresh_token' => 'the-first-refresh',
+                'scope'         => 'non-expiring',
+            ]))]),
+            $this->credentials(),
+            $this->store(),
+        )->exchange($authorization, 'https://neurosys.gg/oauth/callback?code=the-code&state=the-state');
+
+        self::assertCount(1, $sent);
+        self::assertSame(Endpoint::Token->value, $sent[0]->url->render());
+        self::assertSame([
+            'grant_type'    => 'authorization_code',
+            'client_id'     => 'client-id',
+            'client_secret' => 'client-secret',
+            'redirect_uri'  => 'https://neurosys.gg/oauth/callback',
+            'code_verifier' => 'the-verifier',
+            'code'          => 'the-code',
+        ], self::sent($sent[0]));
+
+        self::assertSame('the-first-token', $token->value);
+        self::assertSame('the-first-refresh', $this->store()->read()?->refreshToken);
+        self::assertSame('non-expiring', $this->store()->read()?->scope);
+    }
+
+    /**
+     * A success that is not JSON is refused in terms of what was being attempted.
+     *
+     * Which is the case an API gateway produces rather than the API: a 200 carrying an HTML holding
+     * page decodes to nothing useful, and `json_decode`'s own message on its own would say only
+     * that a syntax error occurred somewhere.
+     *
+     * @return void
+     */
+    public function testASuccessfulAnswerThatIsNotJsonNamesWhatWasBeingAttempted(): void
+    {
+        $this->store()->write(new AccessToken('the-token', time() + 3600, 'refresh'));
+
+        $client = new Client(
+            $this->transport(new ArrayObject(), [new Response(200, '<html>upstream is having a moment</html>')]),
+            $this->credentials(),
+            $this->store(),
+        );
+
+        try {
+            $client->upload($this->upload());
+            self::fail('a non-JSON body should have been refused');
+        } catch (SoundCloudException $refusal) {
+            self::assertStringContainsString(Attempt::Upload->value, $refusal->getMessage());
+            self::assertStringContainsString('something that is not JSON', $refusal->getMessage());
+        }
+    }
+
+    /**
+     * An expired token with nothing to renew it is the one state the client cannot dig itself out
+     * of, so it says which command does.
+     *
+     * @return void
+     */
+    public function testAnExpiredTokenWithNoRefreshTokenSendsTheAuthorHackToTheBrowser(): void
+    {
+        $sent = new ArrayObject();
+
+        $this->store()->write(new AccessToken('stale', time() - 10, ''));
+
+        $client = new Client($this->transport($sent, []), $this->credentials(), $this->store());
+
+        try {
+            $client->upload($this->upload());
+            self::fail('an unrenewable token should have been refused');
+        } catch (SoundCloudException $refusal) {
+            self::assertStringContainsString('carries no refresh token', $refusal->getMessage());
+            self::assertStringContainsString('--authorize', $refusal->getMessage());
+        }
+
+        self::assertCount(0, $sent, 'nothing should go out on a token that cannot be renewed');
+    }
+
+    /**
+     * **Where the store lives, which is the one thing about it that is not in the repository.**
+     *
+     * The rotating refresh token sits outside the repo entirely — no `.gitignore` entry and no
+     * rsync `--exclude` is what stands between it and a webroot, so where "outside" is matters.
+     * The environment override exists for the tests; without it the answer is XDG's, and without
+     * that, `~/.config`.
+     *
+     * @return void
+     */
+    public function testTheStoreLivesUnderXdgConfigUnlessTheEnvironmentSaysOtherwise(): void
+    {
+        $home = getenv(TokenStore::HOME);
+        $xdg  = getenv('XDG_CONFIG_HOME');
+
+        try {
+            putenv(sprintf('%s=%s', TokenStore::HOME, $this->directory->path));
+            self::assertSame(
+                $this->directory->path . '/soundcloud.json',
+                TokenStore::default()->file->path,
+            );
+
+            putenv(TokenStore::HOME);
+            putenv('XDG_CONFIG_HOME=' . $this->directory->path);
+            self::assertSame(
+                $this->directory->path . '/neurosys/soundcloud.json',
+                TokenStore::default()->file->path,
+            );
+
+            putenv('XDG_CONFIG_HOME');
+            self::assertStringEndsWith('/.config/neurosys/soundcloud.json', TokenStore::default()->file->path);
+        } finally {
+            putenv(is_string($home) ? sprintf('%s=%s', TokenStore::HOME, $home) : TokenStore::HOME);
+            putenv(is_string($xdg) ? 'XDG_CONFIG_HOME=' . $xdg : 'XDG_CONFIG_HOME');
+        }
+    }
+
+    /**
+     * A stored file that is JSON but describes no token reads as no token.
+     *
+     * Distinct from the unreadable case above, which is loud: this one is a well-formed file that
+     * simply has nothing in it, and re-authorizing is the right answer rather than an alarm.
+     *
+     * @return void
+     */
+    public function testAStoredFileWithNoAccessTokenInItIsNoToken(): void
+    {
+        $this->directory->file('soundcloud.json')->write('{"expires_at": 99999999999}');
+
+        self::assertNull($this->store()->read());
+    }
+
+    /**
+     * A refusal carrying a description renders both halves of it.
+     *
+     * @return void
+     */
+    public function testARefusalWithADescriptionSaysBothWhatAndWhy(): void
+    {
+        $this->expectException(SoundCloudException::class);
+        $this->expectExceptionMessage('access_denied — the user said no');
+
+        Authorization::begin('v', 'the-state')->code(
+            'https://neurosys.gg/oauth/callback?error=access_denied&error_description=the+user+said+no',
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testARedirectWithTheRightStateAndNoCodeIsRefused(): void
+    {
+        $this->expectException(SoundCloudException::class);
+        $this->expectExceptionMessage('That redirect carries no code.');
+
+        Authorization::begin('v', 'the-state')->code(
+            'https://neurosys.gg/oauth/callback?state=the-state&scope=non-expiring',
+        );
+    }
+
+    /**
+     * Something that is neither a redirected URL nor a code is refused as such.
+     *
+     * The two spellings are what a paste actually goes wrong as: an empty clipboard, and a fragment
+     * of the address bar with the surrounding text still attached.
+     *
+     * @param string $pasted
+     * @return void
+     */
+    #[DataProvider('badPastes')]
+    public function testSomethingThatIsNeitherAUrlNorACodeIsRefused(string $pasted): void
+    {
+        $this->expectException(SoundCloudException::class);
+        $this->expectExceptionMessage('neither a redirected URL nor a code');
+
+        Authorization::begin('v', 's')->code($pasted);
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function badPastes(): array
+    {
+        return [
+            'nothing at all'      => [''],
+            'a sentence about it' => ['the code is abc123'],
+        ];
+    }
+
+    /**
+     * **The upload is the folder's own reading, so nothing is typed twice.**
+     *
+     * `stage-release` reads a release out of its folder and this uploads the same reading — which
+     * is why the title on SoundCloud and the title in `data/releases.php` cannot be two strings
+     * somebody typed separately. The permalink is the folder's slug for the same reason.
+     *
+     * @return void
+     */
+    public function testAnUploadIsTheFoldersOwnReadingOfTheRelease(): void
+    {
+        $upload = TrackUpload::forRelease($this->releaseFolder(), $this->audio(), 'debut single');
+
+        self::assertSame('ill.', $upload->title);
+        self::assertSame('ill', $upload->permalink);
+        self::assertSame('debut single', $upload->description);
+        self::assertSame(Genre::Dubstep, $upload->genre);
+        self::assertSame(TrackSharing::Private, $upload->sharing);
+    }
+
+    /**
+     * **Only artwork the folder prepared is sent.**
+     *
+     * The other two rungs `Cover` knows about are a 19MB master and a picture still inside the
+     * FLAC. Neither is artwork to hand to a service, `Preflight` already warns about both, and the
+     * failure mode if this were wrong is a 19MB upload nobody asked for.
+     *
+     * @param Source|null $source
+     * @param bool        $sent
+     * @return void
+     */
+    #[DataProvider('covers')]
+    public function testTheCoverIsSentOnlyWhenItIsTheWebExport(?Source $source, bool $sent): void
+    {
+        $cover  = $source !== null ? new Cover(new File(__FILE__), $source) : null;
+        $upload = TrackUpload::forRelease($this->releaseFolder($cover), $this->audio());
+
+        self::assertSame($sent, $upload->artwork !== null);
+        self::assertSame($sent, isset(self::fieldsOf($upload)[TrackField::ArtworkData->value]));
+    }
+
+    /**
+     * @return array<string, array{Source|null, bool}>
+     */
+    public static function covers(): array
+    {
+        return [
+            'the web/ export'      => [Source::WebExport, true],
+            'the folder root'      => [Source::FolderRoot, false],
+            'inside the FLAC'      => [Source::EmbeddedPicture, false],
+            'no cover at all'      => [null, false],
+        ];
+    }
+
+    /**
+     * A folder with no title has nothing to call the track, and says which command diagnoses that.
+     *
+     * @return void
+     */
+    public function testAFolderWithNoTitleCannotBecomeAnUpload(): void
+    {
+        $this->expectException(SoundCloudException::class);
+        $this->expectExceptionMessage('stage-release --check');
+
+        TrackUpload::forRelease($this->releaseFolder(title: null), $this->audio());
+    }
+
+    /**
+     * **A form body carries the fields and never the file.**
+     *
+     * The two token requests are form-encoded and the upload is multipart, and the distinction is
+     * made once here rather than at each call site. A `FilePart` reaching `http_build_query()`
+     * would be an `Array to string conversion` notice — which `phpunit.xml.dist` fails on, and
+     * which the tooling would otherwise meet for the first time against the live API.
+     *
+     * @return void
+     */
+    public function testAFormBodyCarriesTheFieldsAndLeavesTheFileOut(): void
+    {
+        $request = Request::form(Endpoint::Token->url(), new Collection(FormField::class)->with(
+            FormField::of('grant_type', 'refresh_token'),
+            FormField::of('refresh_token', 'a token/with+reserved characters'),
+            FormField::of(TrackField::AssetData, $this->audio()),
+        ));
+
+        self::assertSame(
+            'grant_type=refresh_token&refresh_token=a+token%2Fwith%2Breserved+characters',
+            $request->body(),
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testAFieldKnowsWhetherItCarriesAFile(): void
+    {
+        self::assertTrue(FormField::of(TrackField::AssetData, $this->audio())->isFile());
+        self::assertFalse(FormField::of(TrackField::Title, 'ill.')->isFile());
+    }
+
+    /**
+     * JSON that is not an object is refused, rather than reaching a caller as one.
+     *
+     * `json_decode` answers a bare `"ok"` or a `null` body without complaint, and both would then
+     * be read for keys that cannot be there — which is the whole thing {@link JsonBody} exists to
+     * make impossible.
+     *
+     * @param string $body
+     * @return void
+     */
+    #[DataProvider('notObjects')]
+    public function testAJsonBodyThatIsNotAnObjectIsRefused(string $body): void
+    {
+        $this->expectException(JsonException::class);
+        $this->expectExceptionMessage('Expected a JSON object');
+
+        new Response(200, $body)->json();
+    }
+
+    /**
+     * @return array<string, array{string}>
+     */
+    public static function notObjects(): array
+    {
+        return [
+            'a string'  => ['"ok"'],
+            'a number'  => ['42'],
+            'a null'    => ['null'],
+            'a boolean' => ['true'],
+        ];
+    }
+
+    /**
+     * A folder with facts but no files, the way `ReleaseFolderTest` builds one.
+     *
+     * @param Cover|null $cover
+     * @param string|null $title
+     * @return ReleaseFolder
+     */
+    private function releaseFolder(?Cover $cover = null, ?string $title = 'ill.'): ReleaseFolder
+    {
+        return new ReleaseFolder(
+            directory: new Directory('/x'),
+            master:    new File('/x/ill..flac'),
+            title:     $title,
+            bpm:       140,
+            key:       MusicalKey::DSharpMinor,
+            genre:     Genre::Dubstep,
+            cover:     $cover,
+            date:      '2026-09-04',
+            audio:     new SearchableCollection(File::class),
+        );
+    }
+
+    /**
+     * @return FilePart
+     */
+    private function audio(): FilePart
+    {
+        return FilePart::at(new File(__FILE__), 'ill..wav');
+    }
+
+    /**
+     * An upload's fields, keyed by name.
+     *
+     * @param TrackUpload $upload
+     * @return array<string, string|FilePart>
+     */
+    private static function fieldsOf(TrackUpload $upload): array
+    {
+        $fields = [];
+
+        foreach ($upload->fields() as $field) {
+            $fields[$field->name] = $field->value;
+        }
+
+        return $fields;
+    }
+
+    /**
+     * A store whose directory cannot be made is refused before anything is written.
+     *
+     * The directory is created at 0700 rather than the default, because the directory holding a
+     * credential should not be listable by anyone but its owner and a file's own mode says nothing
+     * about that. A path with a regular file where a directory belongs is the reachable version of
+     * that failing.
+     *
+     * @return void
+     */
+    public function testAStoreWhoseDirectoryCannotBeMadeIsRefused(): void
+    {
+        $this->directory->file('occupied')->write('a file where a directory would go');
+
+        $store = new TokenStore(new File($this->directory->path . '/occupied/soundcloud.json'));
+
+        $this->expectException(SoundCloudException::class);
+        $this->expectExceptionMessage('cannot be created.');
+
+        $store->write(new AccessToken('the-token', time() + 3600, 'refresh'));
+    }
+
+    /**
+     * A store that cannot be written says so rather than reporting a token it did not keep.
+     *
+     * Which is the failure that costs a browser round trip: `write()` is called by the client the
+     * moment a refresh token is issued, and SoundCloud's are single-use — so a write that quietly
+     * did nothing would leave the process holding the only copy of a token the store still thinks
+     * is the old one.
+     *
+     * @return void
+     */
+    public function testAStoreThatCannotBeWrittenIsRefused(): void
+    {
+        $this->directory->directory('soundcloud.json')->create();
+
+        $this->expectException(SoundCloudException::class);
+        $this->expectExceptionMessage('cannot be written.');
+
+        try {
+            $this->store()->write(new AccessToken('the-token', time() + 3600, 'refresh'));
+        } finally {
+            $this->directory->directory('soundcloud.json')->remove();
+        }
+    }
+
+    /**
+     * A file that is there and cannot be read is loud, and is not the same as no file.
+     *
+     * `is_file()` guards a file that is absent and does nothing about one that is present and
+     * unreadable — the fault `Support\File` was collapsed into existence to fix. Here the two
+     * answers have to stay apart: absent means "authorize", unreadable means "look at this before
+     * you authorize, because authorizing overwrites it".
+     *
+     * @return void
+     */
+    public function testAStoredFileThatExistsAndCannotBeReadIsNotTreatedAsAbsent(): void
+    {
+        $store = $this->store();
+
+        $store->file->write('{"access_token":"secret"}');
+
+        if (!@chmod($store->file->path, 0o000) || $store->file->read() !== null) {
+            $this->markTestSkipped('this process can read a mode-000 file, so there is nothing to assert');
+        }
+
+        try {
+            $this->expectException(SoundCloudException::class);
+            $this->expectExceptionMessage('exists but cannot be read.');
+
+            $store->read();
+        } finally {
+            @chmod($store->file->path, 0o600);
         }
     }
 }

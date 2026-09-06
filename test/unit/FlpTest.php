@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Model\MusicalKey;
+use NeuroSYS\Tool\Flp\Event;
 use NeuroSYS\Tool\Flp\EventId;
 use NeuroSYS\Tool\Flp\EventWidth;
 use NeuroSYS\Tool\Flp\FlpException;
@@ -489,5 +490,96 @@ final class FlpTest extends TestCase
         }
 
         return $notes;
+    }
+
+    /**
+     * An event's value is one of two things, and asking for the wrong one says so.
+     *
+     * Which matters because the id decides: {@link EventWidth} puts an id in one of three
+     * fixed-width bands or the variable one, and only the reader of a given id knows whether the
+     * bytes it hands back are UTF-16 text, ASCII or a struct. Asking a text event for a number is
+     * therefore a reader bug rather than a malformed file, and it reads better as a message naming
+     * the id than as a `TypeError` from wherever the value ended up.
+     *
+     * @return void
+     */
+    public function testAnEventRefusesToBeReadAsTheKindOfValueItIsNot(): void
+    {
+        $text   = new Event(EventId::Title->value, 'bytes');
+        $number = new Event(EventId::Tempo->value, 140000);
+
+        $this->assertSame(140000, $number->number());
+        $this->assertSame('bytes', $text->text(ascii: true));
+        $this->assertTrue($number->is(EventId::Tempo));
+        $this->assertFalse($number->is(EventId::Title));
+
+        try {
+            (void) $text->number();
+            $this->fail('a text event should not answer as a number');
+        } catch (FlpException $refusal) {
+            $this->assertSame('event 194 carries bytes, not a number', $refusal->getMessage());
+        }
+
+        try {
+            (void) $number->text();
+            $this->fail('a numeric event should not answer as text');
+        } catch (FlpException $refusal) {
+            $this->assertSame('event 156 carries a number, not bytes', $refusal->getMessage());
+        }
+    }
+
+    /**
+     * A note block that is not a whole number of notes is skipped rather than read to the end.
+     *
+     * A note is 24 bytes and the block is not length-prefixed per note, so a block whose length is
+     * not a multiple of that is one this reader has misunderstood — a different FL version, or an
+     * offset arrived at through a desynchronised walk. Reading it anyway would produce pitches out
+     * of whatever the bytes happened to be and hand them to the estimator as evidence.
+     *
+     * @return void
+     */
+    public function testANoteBlockThatIsNotAWholeNumberOfNotesIsNotGuessedAt(): void
+    {
+        $project = Project::of(FlpFile::read($this->flp(
+            $this->data(EventId::PatternNotes->value, str_repeat("\0", 30))
+            . $this->dword(EventId::Tempo->value, 140000),
+        )));
+
+        $this->assertNull($project->keyEstimate, '30 bytes is neither one note nor two');
+    }
+
+    /**
+     * A header that declares a size no FL Studio writes is refused rather than read anyway.
+     *
+     * `FLhd` is always six bytes of `format`, `channels`, `ppq`. A different number means the file
+     * is not what this reader thinks it is, and reading six bytes out of it regardless would put
+     * the cursor in the wrong place for everything after — which is the desynchronised read the
+     * tempo canary exists to catch, arrived at one step earlier and for free.
+     *
+     * @return void
+     */
+    public function testAHeaderDeclaringADifferentSizeIsRefused(): void
+    {
+        $this->expectException(FlpException::class);
+        $this->expectExceptionMessage('FLhd declares 8 bytes, which no FL Studio writes');
+
+        FlpFile::read('FLhd' . pack('V', 8) . pack('vvvv', 0, 26, 96, 0) . 'FLdt' . pack('V', 0));
+    }
+
+    /**
+     * A header with no data chunk after it is refused by name.
+     *
+     * Distinct from the truncation above: this file is long enough, and what sits where `FLdt`
+     * should be is simply not `FLdt`. Saying which of the two magic numbers was missing is the
+     * whole value of having two messages.
+     *
+     * @return void
+     */
+    public function testAHeaderWithNoDataChunkAfterItIsRefused(): void
+    {
+        $this->expectException(FlpException::class);
+        $this->expectExceptionMessage('not a .flp: no FLdt chunk after the header');
+
+        FlpFile::read('FLhd' . pack('V', 6) . pack('vvv', 0, 26, 96) . 'XXXX' . pack('V', 0));
     }
 }

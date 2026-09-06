@@ -7,12 +7,17 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
+use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Tool\Cli\ExitCode;
+use NeuroSYS\Tool\Cli\Output;
+use NeuroSYS\Tool\Cli\Runner;
+use NeuroSYS\Tool\Command\StageRelease;
 use NeuroSYS\Tool\Php\ClassConstant;
 use NeuroSYS\Tool\Php\Value;
 use NeuroSYS\Tool\Release\Cover;
@@ -24,17 +29,23 @@ use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ProjectFile;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use NeuroSYS\Tool\Release\ReleasesFile;
 use NeuroSYS\Tool\Release\Source;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The parts of `tools/lib/Release/` that do not need a folder on disk — see docs/authoring.md.
+ * `tools/lib/Release/` — reading a folder, and the entry `stage-release` prints out of it.
  *
- * What reads a folder shells out to `metaflac` and `ffprobe`, which is not something a unit test
- * should reach for; that half is exercised by running the tool. What is worth pinning here is the
- * part that fails *silently*: an unresolved key is a null, and a null key is a staged release with
- * no key rather than an error anybody sees.
+ * **The line is drawn at the shell-outs, not at the disk.** What reads a folder's *tags* runs
+ * `metaflac` and `ffprobe`, which is not something a unit test should reach for; that half is
+ * exercised by running the tool, and it is why the fixtures below can leave `t.flac` empty — an
+ * unreadable file and a missing tool produce the same empty answer, which is exactly the case the
+ * fallback ladders are for. Everything else here is a real folder in `sys_get_temp_dir()`, because
+ * the project is found on disk and the cover is chosen by looking.
+ *
+ * What is worth pinning is the part that fails *silently*: an unresolved key is a null, and a null
+ * key is a staged release with no key rather than an error anybody sees. See docs/authoring.md.
  */
 final class ReleaseFolderTest extends TestCase
 {
@@ -400,15 +411,31 @@ final class ReleaseFolderTest extends TestCase
     /**
      * A temporary folder holding one synthesised project.
      *
-     * @param bool $keyLock
+     * @param bool         $keyLock
+     * @param list<string> $plugins Names to bury in wrapper blobs, for the credits candidate list.
+     * @param int          $ppq     The project's pulse rate; 96 is what every project tested uses.
+     * @param Source|null  $cover   Which rung of the cover ladder to prepare, or none at all.
      * @return string
      */
-    private static function folderWithProject(bool $keyLock = true): string
-    {
+    private static function folderWithProject(
+        bool $keyLock = true,
+        array $plugins = [],
+        int $ppq = 96,
+        ?Source $cover = null,
+    ): string {
         $path = sys_get_temp_dir() . '/neurosys-flp-' . bin2hex(random_bytes(6));
 
         mkdir($path);
-        file_put_contents($path . '/project.flp', self::project($keyLock));
+        file_put_contents($path . '/project.flp', self::project($keyLock, $plugins, $ppq));
+
+        if ($cover === Source::WebExport) {
+            mkdir($path . '/web');
+            file_put_contents($path . '/web/cover.jpg', '');
+        }
+
+        if ($cover === Source::FolderRoot) {
+            file_put_contents($path . '/cover.png', '');
+        }
         // Preflight stops at "no FLAC" before it reaches the project, so the fixture needs one to
         // exist. It stays empty: Probe answers an unreadable file with no tags, which is the same
         // shape as a master that was never tagged and is exactly the case under test.
@@ -420,10 +447,12 @@ final class ReleaseFolderTest extends TestCase
     /**
      * A project file carrying a tempo, a genre, a title and optionally a locked key.
      *
-     * @param bool $keyLock
+     * @param bool         $keyLock
+     * @param list<string> $plugins
+     * @param int          $ppq
      * @return string
      */
-    private static function project(bool $keyLock): string
+    private static function project(bool $keyLock, array $plugins = [], int $ppq = 96): string
     {
         $utf16 = static fn(string $text): string => mb_convert_encoding($text, 'UTF-16LE', 'UTF-8') . "\0\0";
 
@@ -468,7 +497,13 @@ final class ReleaseFolderTest extends TestCase
             $events .= $text(224, $notes);
         }
 
-        return 'FLhd' . pack('V', 6) . pack('vvv', 0, 26, 96)
+        // A wrapper blob per plugin, three times over, because a name has to be seen three times
+        // before Plugins offers it — see PluginsTest for why two is what a coincidence looks like.
+        foreach ($plugins as $name) {
+            $events .= $text(213, str_repeat(pack('P', strlen($name)) . $name, 3));
+        }
+
+        return 'FLhd' . pack('V', 6) . pack('vvv', 0, 26, $ppq)
             . 'FLdt' . pack('V', strlen($events)) . $events;
     }
 
@@ -478,7 +513,17 @@ final class ReleaseFolderTest extends TestCase
      */
     private static function remove(string $path): void
     {
-        array_map(unlink(...), glob($path . '/*') ?: []);
+        foreach (glob($path . '/*') ?: [] as $entry) {
+            if (is_dir($entry)) {
+                array_map(unlink(...), glob($entry . '/*') ?: []);
+                rmdir($entry);
+
+                continue;
+            }
+
+            unlink($entry);
+        }
+
         rmdir($path);
     }
 
@@ -588,5 +633,267 @@ final class ReleaseFolderTest extends TestCase
 
         // A format with no link is the staged state: the card renders, and clicking it 503s.
         $this->assertNull($release->findFormat(ReleaseFormat::FLAC)?->link);
+    }
+
+    /**
+     * **Credits are written out and commented out, and both halves matter.**
+     *
+     * The candidate list is scraped out of the project's plugin blobs rather than stated by the
+     * format, so it arrives with wreckage in it — see {@link \NeuroSYS\Tool\Flp\Plugins}. Writing
+     * it out saves retyping; commenting it out is what keeps a guess off the site, the way
+     * `description` is left for a person to fill in.
+     *
+     * The sibling test above asserts the *evaluated* release has no credits, which it would also do
+     * if the argument were absent entirely — its fixture has no plugin blobs at all. This one puts
+     * names in the project, so "commented out" is the only reason the release comes back empty.
+     *
+     * @return void
+     */
+    public function testCreditsAreWrittenOutForAPersonToTrimRatherThanApplied(): void
+    {
+        $path = self::folderWithProject(plugins: ['Serum 2', 'Kilohearts']);
+
+        try {
+            $folder = ReleaseFolder::at($path);
+            $php    = EntryWriter::write($folder);
+
+            $this->assertStringContainsString('// madeWith: new Collection(Plugin::class)->with(', $php);
+            $this->assertStringContainsString("//     new Plugin('Serum 2'),", $php);
+            $this->assertStringContainsString("//     new Plugin('Kilohearts'),", $php);
+
+            // Every line of it, so a block that started commented and stopped partway through —
+            // which is what the line-by-line prefixing in Call::line() exists to prevent — fails.
+            foreach (explode("\n", $php) as $line) {
+                if (str_contains($line, 'Plugin')) {
+                    $this->assertStringStartsWith('//', ltrim($line), 'a credit line must stay commented');
+                }
+            }
+
+            $releases = eval(self::evaluable($folder, $php));
+
+            $this->assertSame([], $releases['ill']->madeWith->all());
+        } finally {
+            self::remove($path);
+        }
+    }
+
+    /**
+     * A project with no plugins to credit writes no `madeWith` at all, commented or otherwise.
+     *
+     * @return void
+     */
+    public function testAProjectWithNothingToCreditWritesNoCreditsLine(): void
+    {
+        $path = self::folderWithProject();
+
+        try {
+            $this->assertStringNotContainsString('madeWith', EntryWriter::write(ReleaseFolder::at($path)));
+        } finally {
+            self::remove($path);
+        }
+    }
+
+    /**
+     * The pulse rate is named only when it is not the one every project tested uses.
+     *
+     * A tick is meaningless without it — `Section::named('DROP', 12288)` is a position at the
+     * project's ppq, not a time — so the entry has to carry it whenever it is not the default the
+     * `Arrangement` already assumes. Naming it every time would be correct and would put a
+     * redundant argument on every entry in the file.
+     *
+     * @return void
+     */
+    public function testThePulseRateIsNamedOnlyWhenItIsNotTheUsualOne(): void
+    {
+        $usual = self::folderWithProject();
+
+        try {
+            $this->assertStringNotContainsString('ppq:', EntryWriter::write(ReleaseFolder::at($usual)));
+        } finally {
+            self::remove($usual);
+        }
+
+        $unusual = self::folderWithProject(ppq: 192);
+
+        try {
+            $php = EntryWriter::write(ReleaseFolder::at($unusual));
+
+            // Inline, against the collection it qualifies, because the value is not a block: it is
+            // the sibling of `formats:` in the entry above rather than of `title:`.
+            $this->assertStringContainsString('), ppq: 192)', $php);
+
+            $releases = eval(self::evaluable(ReleaseFolder::at($unusual), $php));
+
+            $this->assertSame(192, $releases['ill']->arrangement?->ppq);
+        } finally {
+            self::remove($unusual);
+        }
+    }
+
+    /**
+     * The file a staged entry is pasted into is the site's own, and this never writes to it.
+     *
+     * @return void
+     */
+    public function testTheReleasesFileIsTheSitesOwnAndIsOnlyEverRead(): void
+    {
+        $file = ReleasesFile::default()->file;
+
+        $this->assertSame(NEUROSYS_ROOT . '/data/releases.php', $file->path);
+        $this->assertTrue($file->exists(), 'the entry writer reports against the real file');
+    }
+
+    /**
+     * A class the data file already imports is not reported as missing, and one it does not is.
+     *
+     * A file that cannot be read counts as importing nothing, which is the right way round: being
+     * told to add an import that is already there costs a glance, and not being told costs a data
+     * file that will not parse.
+     *
+     * @return void
+     */
+    public function testOnlyTheImportsTheDataFileLacksAreReported(): void
+    {
+        $absent = new ReleasesFile(new File(NEUROSYS_ROOT . '/data/no-such-file.php'));
+
+        $this->assertSame(
+            [Release::class, Plugin::class],
+            $absent->missingImports([Release::class, Plugin::class]),
+        );
+
+        $this->assertNotContains(Release::class, ReleasesFile::default()->missingImports([Release::class]));
+    }
+
+    /**
+     * The cover is looked for in three places, in the order of how ready each one is to publish.
+     *
+     * A `web/` export is a pair somebody made for this; an image at the folder root is the working
+     * artwork, usually the 19MB master; the FLAC's own embedded picture is the last resort, which is
+     * where `hello world!` kept its only copy until one was exported. The order is what `Preflight`
+     * then turns into an OK or a "export a web/ pair" WARN, so getting it backwards would recommend
+     * uploading the master.
+     *
+     * The third rung needs `metaflac` to say the FLAC carries a picture and is exercised by running
+     * the tool, the way the rest of the tag ladder is.
+     *
+     * @param Source $prepared
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('coverRungs')]
+    public function testTheCoverIsTakenFromTheReadiestPlaceItIsFound(Source $prepared, string $expected): void
+    {
+        $path = self::folderWithProject(cover: $prepared);
+
+        try {
+            $folder = ReleaseFolder::at($path);
+
+            $this->assertSame($prepared, $folder->sourceOf(Fact::Cover));
+            $this->assertSame($prepared, $folder->cover?->source);
+            $this->assertSame($expected, $folder->cover?->name());
+        } finally {
+            self::remove($path);
+        }
+    }
+
+    /**
+     * @return array<string, array{Source, string}>
+     */
+    public static function coverRungs(): array
+    {
+        return [
+            'a web/ export'            => [Source::WebExport, 'cover.jpg'],
+            'artwork at the root'      => [Source::FolderRoot, 'cover.png'],
+        ];
+    }
+
+    /**
+     * **A folder that fails its checks prints no entry, and that is the whole point of the gate.**
+     *
+     * `stage-release` writes the entry to stdout and everything else to stderr, so the intended use
+     * is `> entry.php` or a paste out of the terminal. An entry printed for a folder with a failing
+     * check is one somebody pastes into `data/releases.php` — at which point the release is on the
+     * site and the discrepancy is in it. So the exit code is not the safeguard; the empty stdout is.
+     *
+     * @return void
+     */
+    public function testAFolderThatFailsItsChecksPrintsNoEntryToPasteAnywhere(): void
+    {
+        $path = self::folderWithProject();
+
+        try {
+            $out   = fopen('php://memory', 'rw+');
+            $error = fopen('php://memory', 'rw+');
+
+            $code = Runner::execute(new StageRelease(), [$path], new Output($out, $error));
+
+            rewind($out);
+            rewind($error);
+
+            $this->assertSame(ExitCode::Failure, $code);
+            $this->assertSame('', stream_get_contents($out));
+            $this->assertStringContainsString('1 check(s) failed', (string) stream_get_contents($error));
+        } finally {
+            self::remove($path);
+        }
+    }
+
+    /**
+     * A folder that passes prints the entry on stdout and the report on stderr.
+     *
+     * The imports go to stderr with the report rather than into the entry, because the entry is a
+     * fragment pasted into the middle of an existing array and a `use` line is not.
+     *
+     * @return void
+     */
+    public function testAFolderThatPassesPrintsItsEntryOnStdoutAndItsReportOnStderr(): void
+    {
+        $path = self::folderWithProject(cover: Source::WebExport);
+
+        try {
+            $out   = fopen('php://memory', 'rw+');
+            $error = fopen('php://memory', 'rw+');
+
+            $code = Runner::execute(new StageRelease(), [$path], new Output($out, $error));
+
+            rewind($out);
+            rewind($error);
+
+            $entry  = (string) stream_get_contents($out);
+            $report = (string) stream_get_contents($error);
+
+            $this->assertSame(ExitCode::Success, $code);
+            $this->assertStringContainsString("'ill' => new Release(", $entry);
+            $this->assertStringContainsString('paste into data/releases.php, newest first', $report);
+            $this->assertStringNotContainsString('use NeuroSYS', $entry, 'imports belong with the report');
+        } finally {
+            self::remove($path);
+        }
+    }
+
+    /**
+     * `--check` stops after the report, which is what makes it safe to run on a folder mid-export.
+     *
+     * @return void
+     */
+    public function testCheckReportsAndStopsWithoutWritingAnEntry(): void
+    {
+        $path = self::folderWithProject(cover: Source::WebExport);
+
+        try {
+            $out   = fopen('php://memory', 'rw+');
+            $error = fopen('php://memory', 'rw+');
+
+            $code = Runner::execute(new StageRelease(), [$path, '--check'], new Output($out, $error));
+
+            rewind($out);
+            rewind($error);
+
+            $this->assertSame(ExitCode::Success, $code);
+            $this->assertSame('', stream_get_contents($out));
+            $this->assertStringContainsString('key lock set', (string) stream_get_contents($error));
+        } finally {
+            self::remove($path);
+        }
     }
 }

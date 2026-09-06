@@ -11,11 +11,14 @@ use NeuroSYS\Tool\Cli\Option;
 use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Cli\UsageException;
+use NeuroSYS\Tool\Command\MergeCoverage;
 use NeuroSYS\Tool\Command\MergeCoverageOption;
+use NeuroSYS\Tool\Command\ReleaseTrack;
 use NeuroSYS\Tool\Command\StageRelease;
 use NeuroSYS\Tool\Command\StageReleaseOption;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use ReflectionProperty;
 
 /**
  * The CLI layer under `tools/lib/Cli/`.
@@ -245,5 +248,109 @@ final class CliTest extends TestCase
         $this->assertSame(0, ExitCode::Success->value);
         $this->assertSame(1, ExitCode::Failure->value);
         $this->assertSame(2, ExitCode::Usage->value);
+    }
+
+    /**
+     * **`merge-coverage` is the command a dropped flag was worst for, and it is now the one with a
+     * test.**
+     *
+     * Both hand-rolled parsers this layer replaced dropped an unrecognised flag in silence. For
+     * this command that meant a mistyped `--clover` reported success and wrote no report — a
+     * failure whose only symptom is a file that is not there, noticed whenever someone next goes
+     * looking for it. `Command::options()` is what makes that a refusal instead, so this asserts
+     * the declaration and the refusal together: a flag declared but not value-taking would parse,
+     * and then `--clover` would swallow the path as an operand.
+     *
+     * @return void
+     */
+    public function testMergeCoverageDeclaresBothItsReportsAsFlagsThatTakeAPath(): void
+    {
+        foreach (MergeCoverageOption::cases() as $option) {
+            $this->assertTrue($option->takesValue(), sprintf('--%s takes a path', $option->flag()));
+        }
+
+        $error = fopen('php://memory', 'rw+');
+
+        $code = Runner::execute(
+            new MergeCoverage(NEUROSYS_ROOT),
+            ['unit.cov', 'e2e', '--clovr', 'build/clover.xml'],
+            new Output(fopen('php://memory', 'rw+'), $error),
+        );
+
+        rewind($error);
+
+        $this->assertSame(ExitCode::Usage, $code);
+        $this->assertStringContainsString("unknown option '--clovr'", (string) stream_get_contents($error));
+    }
+
+    /**
+     * Both operands are required, and the report goes nowhere until they are there.
+     *
+     * The assertion worth having is the empty stdout: this command's product *is* stdout — a
+     * coverage table — so a usage error that printed a header first would look like a report that
+     * found nothing rather than a command that never ran.
+     *
+     * @return void
+     */
+    public function testMergeCoverageWithoutItsTwoInputsReportsUsageAndWritesNothing(): void
+    {
+        $out   = fopen('php://memory', 'rw+');
+        $error = fopen('php://memory', 'rw+');
+
+        $code = Runner::execute(new MergeCoverage(NEUROSYS_ROOT), ['unit.cov'], new Output($out, $error));
+
+        rewind($out);
+        rewind($error);
+
+        $this->assertSame(ExitCode::Usage, $code);
+        $this->assertSame('', stream_get_contents($out));
+        $this->assertStringContainsString(
+            'usage: php tools/merge-coverage.php <unit.cov> <e2e-dir>',
+            (string) stream_get_contents($error),
+        );
+    }
+
+    /**
+     * Every command says the same four things about itself, which is what `Runner` renders.
+     *
+     * @param Command $command
+     * @return void
+     */
+    #[DataProvider('commands')]
+    public function testEveryCommandNamesItselfAfterTheScriptThatRunsIt(Command $command): void
+    {
+        $this->assertFileExists(sprintf('%s/tools/%s.php', NEUROSYS_ROOT, $command->name()));
+        $this->assertNotSame('', $command->usage());
+        $this->assertStringEndsWith('.', $command->description());
+        $this->assertStringContainsString($command->usage(), Runner::usage($command));
+    }
+
+    /**
+     * @return array<string, array{Command}>
+     */
+    public static function commands(): array
+    {
+        return [
+            'stage-release'  => [new StageRelease()],
+            'release-track'  => [new ReleaseTrack()],
+            'merge-coverage' => [new MergeCoverage(NEUROSYS_ROOT)],
+        ];
+    }
+
+    /**
+     * The process's own two streams.
+     *
+     * A factory rather than a default argument because `STDOUT` and `STDERR` exist only under the
+     * CLI SAPI, and a default is evaluated wherever the class is loaded — so this asserts the
+     * constants are what it reached for, which is the whole content of the method.
+     *
+     * @return void
+     */
+    public function testStandardOutputIsTheProcessesOwnTwoStreams(): void
+    {
+        $output = Output::standard();
+
+        $this->assertSame(STDOUT, new ReflectionProperty($output, 'out')->getValue($output));
+        $this->assertSame(STDERR, new ReflectionProperty($output, 'error')->getValue($output));
     }
 }

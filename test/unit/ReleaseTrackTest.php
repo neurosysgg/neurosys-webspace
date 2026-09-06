@@ -416,4 +416,35 @@ final class ReleaseTrackTest extends TestCase
 
         return $releases['ill'];
     }
+
+    /**
+     * What is about to be uploaded, in bytes, before it is.
+     *
+     * The size is reported to the operator rather than checked against anything: a master is tens
+     * of megabytes over a domestic uplink, and the number is what makes a wrong file obvious in the
+     * line before the transfer starts rather than in the minutes after it. A file that has gone
+     * away since answers 0 rather than warning, which is `File::size()`'s decision and is why this
+     * asserts both.
+     *
+     * @return void
+     */
+    public function testTheSizeOfWhatIsAboutToBeSentIsReportedBeforeSendingIt(): void
+    {
+        $path = self::folderOnDisk();
+
+        try {
+            $path->file('ill..wav')->write('forty-four bytes of entirely notional audio.');
+
+            $audio = new PreparedExport($path->file('ill..wav'))->export($this->folder(), RenderFormat::Wav);
+
+            self::assertSame(44, $audio->size());
+            self::assertSame('ill..wav', $audio->name());
+
+            $audio->file->delete();
+
+            self::assertSame(0, $audio->size(), 'a file that has gone away is 0, not a warning');
+        } finally {
+            $path->remove();
+        }
+    }
 }
