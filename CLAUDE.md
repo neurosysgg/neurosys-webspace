@@ -1305,7 +1305,16 @@ the tool.
 - **`data/demos.php` and `data/demos/` are the opposite arrangement, and deliberately so.** They are
   gitignored — `origin` is a public GitHub repository and they name unreleased tracks — and *not*
   excluded from the rsync, because rsync reads the working tree rather than git. So they never reach
-  GitHub and always reach Strato. `--delete` is on, so removing a demo locally removes it live.
+  GitHub and always reach Strato.
+- **`--delete` is on for `public/` and `src/` and deliberately off for `data/`**, which is the one
+  asymmetry in the script and the one worth knowing before trusting it. The two trees it deletes
+  from are wholly generated or wholly committed, so the working tree is authoritative about what
+  should be there. `data/` is not: `demos.php` and `demos/` are **gitignored**, so a clone that has
+  never staged a demo has neither, and a deploy from that machine with `--delete` on would take
+  every demo off the live server — the exact files whose absence from git is the point. The price is
+  that **deleting a demo locally does not delete it live**: the entry goes, so the page and the
+  audio route both 401 like a slug that never existed, and the MP3s stay on the mount until somebody
+  removes them by hand. See `docs/demos.md`.
 - `data/admin.php` holds bcrypt credentials for `/admin/stats`; generate with `php -r "echo password_hash('pw', PASSWORD_BCRYPT);"`
 
 Footer profile links come from `data/profiles.php` — an empty URL hides that link. Brand icons are **vendored** under
@@ -1315,9 +1324,20 @@ usage rules.
 ### What `.htaccess` does to a response
 
 Beyond the `SetHandler` allow-list and the HTTPS redirect, `public/.htaccess` shapes every static
-response. Measured on the live host 2026-09-05: Strato compresses **nothing** and sets **no
-`Cache-Control`** — `main.js` arrived byte-identical to the file on disk, with only an `ETag` and a
-`Last-Modified`.
+response.
+
+**Measured on the live host 2026-09-06, and it is not what the same measurement said the day
+before.** Both blocks are working now: a stamped module comes back `content-encoding: gzip` with
+`cache-control: public, max-age=31536000, immutable`, and a bare `/assets/js/main.js` comes back
+gzipped with `max-age=3600` — so `mod_deflate` is present and the two cache tiers are genuinely
+mutually exclusive rather than merely written to be. Strato adds a `Vary: X-Forwarded-For` of its
+own, which `Accept-Encoding` is appended to.
+
+On 2026-09-05 the answer was the opposite: **nothing** was compressed, `main.js` arrived
+byte-identical to the file on disk with only an `ETag` and a `Last-Modified`, and no `Cache-Control`
+came back at all. Nothing in this repository changed between the two readings. That is the whole
+argument for the paragraph below rather than a curiosity — a shared host can gain or lose a module
+without telling anybody, and the failure is silent in both directions.
 
 **Note what that block does and does not reach.** Every `Header set` here sits inside a
 `<FilesMatch>` keyed on a file extension, so it applies to what Apache serves and never to a
@@ -1332,6 +1352,14 @@ sign. **Re-check after deploying**, since this is not something either test suit
 
 ```bash
 curl -sI -H 'Accept-Encoding: gzip, br' https://neurosys.gg/assets/js/main.js | grep -i 'encoding\|cache'
+```
+
+That URL is the calendar tier and nothing the site emits asks for it. The one a page actually loads
+carries the build stamp, so check that tier too — it is the one the year-long `immutable` is on:
+
+```bash
+curl -s https://neurosys.gg/ | grep -oE '/assets/js/v-[^"]+/main\.js' | head -1 \
+  | xargs -I{} curl -sI -H 'Accept-Encoding: gzip' "https://neurosys.gg{}" | grep -i 'encoding\|cache'
 ```
 
 **The version-segment rewrite is the highest-risk line in the file.** Compression failing costs

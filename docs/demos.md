@@ -193,9 +193,16 @@ Nothing special. `deploy.sh` rsyncs `data/` from the working tree without consul
 deliberate, and it is the opposite of `data/admin.php` and `data/site_auth.php`, which are
 *excluded* from the rsync because the repo copies are placeholders.
 
-`--delete` is on, so a demo removed locally is removed on the server. Removing one is: delete its
-entry from `data/demos.php`, delete `data/demos/{slug}/`, deploy. Its URL then answers `401` like any
-slug that never existed.
+**`--delete` is not on for `data/`**, unlike the `public/` and `src/` rsyncs beside it, and that is
+deliberate: `demos.php` and `demos/` are gitignored, so a clone that has never staged a demo has
+neither, and a deploy from that machine would take every demo off the server.
+
+So removing a demo is two steps and the second is by hand. Delete its entry from `data/demos.php`,
+delete `data/demos/{slug}/`, and deploy — its URL answers `401` like a slug that never existed, and
+the page and the audio route are both shut, because the entry is what the router matches against.
+Then **delete the directory on the mount too**, because the deploy will not: the audio is still
+sitting in `cgi-bin/data/demos/{slug}/` where nothing links to it and no route reaches it, which is
+not the same as gone.
 
 ---
 
