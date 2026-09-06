@@ -31,6 +31,14 @@ enum EventId: int
 
     /* Word band. */
 
+    /**
+     * Opens a channel block; the channel events after it, its name among them, belong to this one.
+     *
+     * The rack channel a note names in its own bytes, which is what makes a note attributable to an
+     * instrument — see {@link Channel}.
+     */
+    case ChannelIndex = 64;
+
     /** Opens a pattern block; every pattern event after it belongs to this index. */
     case PatternIndex = 65;
 
@@ -74,8 +82,25 @@ enum EventId: int
     /** A plugin's wrapper blob, which is where a hosted VST's own name and vendor are buried. */
     case PluginData = 213;
 
-    /** A pattern's notes: 24 bytes each, the MIDI key at offset 12 and the length at offset 8. */
+    /**
+     * A channel's display name — `[Serum 2] SYN phat saw stack`, or a sample's file name.
+     *
+     * FL writes this for mixer effects too, so it is only ever read under a
+     * {@link self::ChannelIndex} cursor; {@link Score::of()} says how that is kept honest.
+     */
+    case ChannelName = 203;
+
+    /** A pattern's notes: 24 bytes each — see {@link Note} for the other ten fields. */
     case PatternNotes = 224;
+
+    /**
+     * The whole playlist in one event: every clip end to end, at a width the file does not state.
+     *
+     * The arrangement lives here — which pattern plays where, and for how long. See
+     * {@link Playlist} for why the clip width has to be probed rather than assumed, and for what
+     * goes wrong quietly when it is not.
+     */
+    case Playlist = 233;
 
     /** Two doubles: the project's creation date, then the time spent on it, both in days. */
     case Timestamp = 237;

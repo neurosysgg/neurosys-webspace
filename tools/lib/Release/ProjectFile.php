@@ -36,11 +36,19 @@ final readonly class ProjectFile
      * @param string       $name    The project's file name, for the report.
      * @param Project|null $project Null when it could not be parsed.
      * @param string|null  $error   Why not, when it could not.
+     * @param FlpFile|null $flp     The parsed file the project was read out of, kept for readers
+     *                              that ask it something {@link Project} does not answer.
+     *                              {@link \NeuroSYS\Tool\Flp\Score} is the one that does, and it
+     *                              needs the events themselves: a pattern's notes and a channel's
+     *                              name arrive under a cursor rather than under an id, so they
+     *                              cannot be pulled out of a finished `Project`. Null exactly when
+     *                              {@link self::$project} is.
      */
     private function __construct(
         public string $name,
         public ?Project $project,
         public ?string $error = null,
+        public ?FlpFile $flp = null,
     ) {}
 
     /**
@@ -138,7 +146,9 @@ final readonly class ProjectFile
     private static function read(string $name, string $bytes): self
     {
         try {
-            return new self($name, Project::of(FlpFile::read($bytes)));
+            $flp = FlpFile::read($bytes);
+
+            return new self($name, Project::of($flp), flp: $flp);
         } catch (FlpException $failure) {
             return new self($name, null, $failure->getMessage());
         }

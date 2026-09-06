@@ -934,25 +934,30 @@ means a new class implementing `Embed`, not a new field on `Release`.
 
 ## The tooling
 
-`tools/` holds three commands and two things that are not. `stage-release`, `release-track` and
-`merge-coverage` implement `NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it
-accepts, and a `run()` returning an `ExitCode`. `dev-router.php` and `coverage-prepend.php`
-implement nothing, because PHP loads them itself: one is handed to `php -S` and one is an
-`auto_prepend_file`, so neither has an argv or an exit code for an interface to attach to. Each
-says so in its docblock.
+`tools/` holds four commands and two things that are not. `stage-release`, `release-track`,
+`extract-midi` and `merge-coverage` implement `NeuroSYS\Tool\Cli\Command` — a name, a usage line,
+the `Option`s it accepts, and a `run()` returning an `ExitCode`. `dev-router.php` and
+`coverage-prepend.php` implement nothing, because PHP loads them itself: one is handed to `php -S`
+and one is an `auto_prepend_file`, so neither has an argv or an exit code for an interface to
+attach to. Each says so in its docblock.
 
 ```
 tools/
 ├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/
 ├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
+├── extract-midi.php
 └── lib/
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
-    ├── Command/          ← the three commands, their option enums, and FolderReport — the report
+    ├── Command/          ← the four commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share
     ├── Export/           ← where a release's audio comes from: Exporter + PreparedExport and
     │                       FlStudioExport, RenderFormat, ExportedAudio/ExportSource
     ├── Flp/              ← the FL Studio project reader: FlpFile + EventId/EventWidth/Event,
     │                       Project, TimeMarker/MarkerType, ScaleNotation, KeyEstimate, Plugins
+    │                       + the notes: Score, Note/PlacedNote, Pattern, Channel,
+    │                       Playlist/PlaylistClip
+    ├── Midi/             ← the standard MIDI file writer: MidiFile + MidiTrack/MidiNote,
+    │                       TimeSignature, VariableLength
     ├── Http/             ← the only outbound requests this repo makes: Transport + CurlTransport,
     │                       Request/Response, FormField, FilePart, OutboundHeader
     ├── Php/              ← the expression tree EntryWriter emits through, so nothing builds
@@ -1040,6 +1045,39 @@ code with one argument different. Four decisions are worth knowing before runnin
   by the phrase its failure message reads it back as. It was a `string $what` threaded through two
   private methods, and `SoundCloudException::refused()` had to describe the format it wanted in
   prose — which is what a missing type looks like.
+
+**`extract-midi` reads the notes, which is the half of the project the rest of the reader skips.**
+`Project` answers what a release entry needs; `Score` answers what a MIDI file needs — the channels,
+the patterns, and the playlist that says which pattern plays where. `php tools/extract-midi.php
+<folder|.flp|.zip>` writes the playlist-expanded arrangement, one track per rack channel named for
+it, and `--patterns` writes every pattern instead, at the ticks the pattern itself holds. Written
+because a remix package wants MIDI and the only way to get it was FL's own export dialog in the
+Windows VM — which is why `hello world!`'s package has one and `ill`'s does not.
+
+**It was built against that export rather than against a specification**, which is the only reason
+its rules can be stated as measurements. Both were run over two projects and diffed note for note:
+7,522 of 7,564 notes identical on one and 3,975 of 3,977 on the other, with every note's position,
+pitch, velocity and channel grouping agreeing. Four things are worth knowing before touching it:
+
+- **A playlist clip's width is version-dependent and the file does not state it** — 32 bytes in
+  FL 12.4, 80 in FL 25 and 26. Read at the wrong width the arrangement is not an error, it is the
+  wrong music, so `Playlist` probes it against a canary the format hands over: a clip's `u16` at
+  offset 4 is 20480 in every project tested across both. The smallest width that divides the event
+  *and* holds the canary at every clip wins, and a playlist that matches none comes back null
+  rather than half-read. Same shape of trap as `EventWidth::NARROW_DWORD`, and the same fix.
+- **A length of zero is normal, and a note of zero length is not.** 1,398 notes of one project —
+  every hat and every foley hit — carry no length, because FL plays a sample for as long as the
+  sample lasts. Written literally they are all silent. `Score::sounded()` gives each the gap to the
+  next note on its channel, or the rest of its clip when it is the last; that rule was recovered
+  from FL's export and agreed on all 1,398.
+- **A note ending exactly on a clip boundary keeps its full length**, where FL shortens some by a
+  tick and not others. 51 notes of the 7,564 end on a boundary, FL shortens 42 and leaves 9, and no
+  rule separates them. Writing the project's own length is the deliberate choice: a rule wrong nine
+  times in fifty-one is worse than none, and a tick at 96 ppq is a thousandth of a bar.
+- **Two tracks are written that FL omits**, on the second project. One has clips whose gain field
+  reads `0.0` where every other clip reads `1.0`; the other does not and is dropped anyway. Two
+  behaviours and one guess, so no rule is written — a remixer can delete a track and cannot recover
+  one that was never there.
 
 **The audio is a port, and the FL Studio half of it deliberately refuses.** `Exporter` has two
 implementations: `PreparedExport`, which hands back a file already in the release folder — which is

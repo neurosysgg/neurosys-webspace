@@ -184,6 +184,31 @@ entirely, and `Release::$embed` is typed for the first one. There is nothing to 
 nothing here to edit when you add one — SoundCloud resolves the profile URL, so a new track appears in it on
 its own.
 
+## MIDI for the remix package
+
+`php tools/extract-midi.php <folder|.flp|.zip>` writes the project's notes as a standard MIDI file,
+so a remix package no longer needs FL's own export dialog in the Windows VM.
+
+```bash
+php tools/extract-midi.php ~/"neuro.SYS PROJECTS/who are u EP/ill (140 d#min skrillie dubstep).zip" --out "ill MIDI.mid"
+```
+
+It takes a release folder, a loose `.flp`, or the zip a project is usually kept in — the same
+discovery `stage-release` uses — and prints its report to stderr, because the file itself is binary.
+The default is the **arrangement**: the playlist expanded, one track per rack channel, named for
+that channel. `--patterns` writes every pattern on its own track instead, at the ticks the pattern
+holds, which is the export to hand someone who wants a chord progression rather than a song.
+
+Two things to expect, both of them properties of the project rather than of the tool:
+
+- **Track names are whatever the channels are called in FL.** `hello world!`'s read
+  `[Serum 2] SYN phat saw stack`; `ill`'s read `Serum 2 #5`, because those channels were never
+  renamed. Renaming them in the rack and re-running is the fix, and it is worth doing before
+  shipping a package — the names are the only labelling a remixer gets.
+- **It is checked against FL's own export, not assumed to match it.** Where the two differ it is
+  written down rather than smoothed over; see the `extract-midi` section of `CLAUDE.md` for the
+  one-tick question and the two extra tracks, and `ExtractMidi::DIVERGENCE` for the decision.
+
 ## After editing releases.php
 
 Upload it manually to `data/` on the server via the PHPStorm Remote Host panel (it's outside the standard deployment mapping — see `docs/deployment.md`).
