@@ -252,6 +252,86 @@ a {
 
 .back-home { margin-top: 1.5rem; }
 
+/* assets/css/views/demo.css */
+/* DemoView — the gated page a demo is sent as. No cover, so no grid: one terminal, then the mixes.
+
+   The <audio> here is the browser's own control and is deliberately left mostly alone. It is the
+   one player on the site that is not a custom element (see DemoView), and the reason is that its
+   built-in behaviour — seeking, keyboard, screen reader, working with JS off — is the feature.
+   Restyling it means replacing it, which would spend all four. */
+
+.demo-hero { margin: 1.5rem 0 2rem; }
+
+.demo-info {
+  h1 {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 6vw, 3.25rem);
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.01em;
+  }
+
+  .tagline {
+    margin: 0.25rem 0 1.25rem;
+    color: var(--muted);
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* The one sentence on the page that explains why the page was hard to reach. Accent-2 rather than
+   accent, because accent is what every link and control already uses — this is not one. */
+.demo-notice {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  line-height: 1.6;
+  color: var(--accent-2);
+  border-left: 2px solid var(--accent-2);
+  padding: 0.1rem 0 0.1rem 0.75rem;
+  margin: 0 0 1.75rem;
+}
+
+.demo-tracks {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Label and duration on one row, the control across the full width under them. The duration is
+   optional — DemoView omits the element entirely where nothing read one — so it is placed by
+   `margin-left: auto` rather than by a grid column that would leave a gap when absent. */
+.demo-track {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 0.9rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+
+  audio {
+    flex-basis: 100%;
+    width: 100%;
+    margin-top: 0.6rem;
+  }
+}
+
+.demo-label {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  color: var(--fg);
+  letter-spacing: 0.04em;
+}
+
+.demo-time {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+
 /* assets/css/views/stats.css */
 /* StatsView. */
 

@@ -24,6 +24,7 @@ export var HtmlTag;
     HtmlTag["Small"] = "small";
     HtmlTag["Strong"] = "strong";
     HtmlTag["Div"] = "div";
+    HtmlTag["Audio"] = "audio";
     HtmlTag["Iframe"] = "iframe";
     HtmlTag["Textarea"] = "textarea";
     HtmlTag["Table"] = "table";

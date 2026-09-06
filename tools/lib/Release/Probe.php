@@ -26,11 +26,76 @@ final readonly class Probe
      */
     public static function run(array $command): array
     {
-        $escaped = implode(' ', array_map(escapeshellarg(...), $command));
-
-        exec($escaped . ' 2>/dev/null', $output, $status);
+        exec(self::escaped($command), $output, $status);
 
         return $status === 0 ? $output : [];
+    }
+
+    /**
+     * Runs a command for its effect rather than its output, and says whether it worked.
+     *
+     * {@link self::run()} cannot answer this: it collapses a failure and a success that printed
+     * nothing to the same empty array, which is the right shape for the readers above — a missing
+     * tag and a missing tool both mean "this file did not tell us" — and the wrong one for
+     * {@link self::encode()}, where nothing is printed on success and the whole question is whether
+     * the file now exists.
+     *
+     * @param list<string> $command Program first, then one argument per element.
+     * @return bool
+     */
+    public static function succeeds(array $command): bool
+    {
+        exec(self::escaped($command), $discarded, $status);
+
+        return $status === 0;
+    }
+
+    /**
+     * Transcodes an audio file to MP3, for streaming behind the demo gate.
+     *
+     * A demo is sent to be listened to in a browser, and the master it is made from is a 30 MB
+     * FLAC. Every byte of that would come back through PHP on shared hosting, once per listen — so
+     * this is not a convenience, it is what makes the arrangement affordable at all. 192 kbps CBR
+     * rather than a V0 variable rate: a browser seeking in a CBR file can calculate the byte offset
+     * from the timestamp, where a VBR file without a seek table has to be scanned, and seeking is
+     * the whole reason `FileResponse` answers ranges. An already-lossy source is handed
+     * {@link \NeuroSYS\Tool\Demo\Encoding::Remux}'s arguments instead and is not re-encoded at all.
+     *
+     * **`-map_metadata -1` is deliberate.** The masters carry Vorbis comments with the working
+     * title, the artist and sometimes a note to self — see `alien house v4.flac`, whose COMMENTS
+     * field reads like a scratchpad. A file that may end up forwarded should carry as little of
+     * that as possible; the page it came from is where the context belongs. `-vn` drops embedded
+     * artwork for the same reason and because a cover in a demo MP3 is bytes nothing shows.
+     *
+     * @param File         $source The master, in whatever format it was exported.
+     * @param File         $target Where it goes. Its directory must exist — this class does not
+     *                             create one, for the reason {@link \NeuroSYS\Support\File} does not.
+     * @param list<string> $codec  The codec arguments — see {@link \NeuroSYS\Tool\Demo\Encoding}.
+     * @return bool
+     */
+    public static function encode(File $source, File $target, array $codec): bool
+    {
+        return self::succeeds([
+            'ffmpeg', '-nostdin', '-y',
+            '-i', $source->path,
+            '-vn', '-map_metadata', '-1',
+            ...$codec,
+            $target->path,
+        ]) && $target->exists() && $target->size() > 0;
+    }
+
+    /**
+     * One command line, escaped, with stderr discarded.
+     *
+     * The escaping is stated once here rather than at each `exec()`, which is the whole reason this
+     * class exists — see its docblock.
+     *
+     * @param list<string> $command
+     * @return string
+     */
+    private static function escaped(array $command): string
+    {
+        return implode(' ', array_map(escapeshellarg(...), $command)) . ' 2>/dev/null';
     }
 
     /**

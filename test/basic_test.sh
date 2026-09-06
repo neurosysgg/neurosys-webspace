@@ -266,6 +266,18 @@ php_ok "download logging is switched off and writes nothing" \
      \$after = is_file(\$f) ? filesize(\$f) : -1;
      (Config::DOWNLOAD_LOGGING === false && \$after === \$before) or exit(1);"
 
+# data/demos.php is gitignored, so most machines have none — which is a valid state and the reason
+# DemoRepository is guarded where ReleaseRepository is not. Where there is one, a bad paste has to
+# fail here rather than as a 401 nobody can get past.
+if [[ -f "$REPO/data/demos.php" ]]; then
+    php_ok "data/demos.php loads and every Demo constructs" \
+        "foreach ((new NeuroSYS\Service\DemoRepository())->all() as \$slug => \$d) {
+             \$d->tracks->isEmpty() and exit(1);
+         }"
+else
+    echo "  SKIP data/demos.php — none on this machine (it is gitignored; that is a valid state)"
+fi
+
 if [[ -f "$REPO/data/.htaccess" ]] && grep -qi 'Require all denied' "$REPO/data/.htaccess"; then
     pass "data/.htaccess denies web access (fallback if data/ ends up inside the webroot)"
 else
@@ -588,6 +600,158 @@ check_method "POST /// is still refused          → 405" POST "$BASE///"       
 # Auth::requireAdminAuth() calls exit, so only a real request can prove it gates.
 check_status "GET /admin/stats (no creds)        → 401" "$BASE/admin/stats"                    401
 check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"                    401
+
+
+echo ""
+echo "=== Demos ==="
+# The half of the site whose gate covers bytes rather than only a page — and almost none of it is
+# visible to PHPUnit. Auth::requireDemoAuth() calls exit, and header() is a no-op under CLI, so the
+# 401, the 206, the 416 and every header below are invisible there. DemoTest covers the decisions;
+# this covers the responses.
+#
+# It writes its own data/demos.php and puts back whatever was there. That is not laziness about
+# fixtures: the real file is gitignored, so there is not reliably one to test against, and the
+# passwords behind its hashes are by design not recoverable. The restore is in the EXIT trap so an
+# interrupt cannot leave the file swapped out.
+
+DEMO_SLUG="verify-fixture"
+DEMO_PASS="VERIF-YFIXT-UREPA-SSWRD"
+DEMOS_FILE="$REPO/data/demos.php"
+DEMOS_SAVED="$(mktemp)"
+DEMO_DIR="$REPO/data/demos/$DEMO_SLUG"
+DEMOS_SWAPPED=0
+
+restore_demos() {
+    [[ $DEMOS_SWAPPED -eq 1 ]] || return 0
+    rm -rf "$DEMO_DIR"
+    if [[ -s "$DEMOS_SAVED" ]]; then
+        mv -f "$DEMOS_SAVED" "$DEMOS_FILE"
+    else
+        rm -f "$DEMOS_FILE" "$DEMOS_SAVED"
+    fi
+    rmdir "$REPO/data/demos" 2>/dev/null || true
+    DEMOS_SWAPPED=0
+}
+
+if [[ -f "$DEMOS_FILE" ]]; then
+    cp -p "$DEMOS_FILE" "$DEMOS_SAVED"
+fi
+
+# Cost 4 is bcrypt's minimum; password_verify() reads the cost out of the hash, so the gate runs
+# exactly the code a real one does.
+DEMO_HASH=$(php -r "echo password_hash('$DEMO_PASS', PASSWORD_BCRYPT, ['cost' => 4]);")
+
+mkdir -p "$DEMO_DIR"
+# Not real audio, and it does not need to be: MimeType::forAudio() reads the extension and
+# FileResponse counts bytes. What is under test is the arithmetic and the status codes.
+printf '0123456789' > "$DEMO_DIR/v1.mp3"
+
+cat > "$DEMOS_FILE" <<PHPFIXTURE
+<?php
+declare(strict_types=1);
+return [
+    '$DEMO_SLUG' => new NeuroSYS\Model\Demo(
+        'verify fixture',
+        new NeuroSYS\Support\PasswordHash('$DEMO_HASH'),
+        new NeuroSYS\Support\Collection(NeuroSYS\Model\DemoTrack::class)->with(
+            new NeuroSYS\Model\DemoTrack('v1', 'v1.mp3', 10),
+        ),
+    ),
+];
+PHPFIXTURE
+
+DEMOS_SWAPPED=1
+trap "restore_demos; kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
+
+# There is no /demos. A listing would publish the names of unreleased tracks, which is the one
+# thing this half of the site is arranged to keep quiet.
+check_status "GET /demos is not a route          → 404" "$BASE/demos"                          404
+
+check_status "GET /demos/{slug} (no creds)       → 401" "$BASE/demos/$DEMO_SLUG"               401
+check_status "GET /demos/{slug}/{label} too      → 401" "$BASE/demos/$DEMO_SLUG/v1"            401
+
+# The one that is easy to get wrong and impossible to notice: a 404 for a slug that names nothing
+# and a 401 for one that names something is a catalogue readable one guess at a time.
+check_status "GET /demos/no-such-demo            → 401" "$BASE/demos/no-such-demo"             401
+check_status "  and its audio route as well      → 401" "$BASE/demos/no-such-demo/v1"          401
+
+check_method "POST /demos/{slug} is still refused→ 405" POST "$BASE/demos/$DEMO_SLUG"          405
+
+# The realm is what a browser keys saved credentials by. One shared realm across every demo is a
+# browser volunteering one demo's password at another demo's prompt.
+demo_realm=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - "$BASE/demos/$DEMO_SLUG" 2>/dev/null \
+             | tr -d '\r' | grep -i '^www-authenticate:' || true)
+if [[ "$demo_realm" == *"demo: $DEMO_SLUG"* ]]; then
+    pass "  each demo challenges in its own realm"
+else
+    fail "the demo challenge does not name the demo: ${demo_realm:-<none>}"
+fi
+
+# Everything past here has to hand over the demo's password, and a request carries exactly one
+# Basic credential. So where the pre-launch site gate is active it has already claimed that header,
+# and no request can satisfy both gates — which is a real property of the site rather than a gap in
+# this script, and is why docs/demos.md says demos are unreachable while the site gate is on.
+if [[ -f "$REPO/data/site_auth.php" ]]; then
+    echo "  SKIP the rest of the demo checks — the site gate is active, and Basic Auth carries"
+    echo "       one credential per request, so no request can satisfy both gates. See docs/demos.md."
+else
+    CURL_ARGS_WITHOUT_DEMO=("${CURL_ARGS[@]}")
+    CURL_ARGS+=(-u "demo:$DEMO_PASS")
+
+    check_status "GET /demos/{slug} (right password) → 200" "$BASE/demos/$DEMO_SLUG"           200
+
+    check_header "  the page is not to be stored"       "$BASE/demos/$DEMO_SLUG"  "^cache-control: no-store, private"
+    check_header "  nor indexed"                        "$BASE/demos/$DEMO_SLUG"  "^x-robots-tag: noindex"
+    # No validator, so no 304: a page reached by handing over a password must not come back on a
+    # guessed ETag. ViewResponse stands down because the controller already said how it may be kept.
+    check_no_header "  and carries no validator"        "$BASE/demos/$DEMO_SLUG"  "^etag:"
+
+    # The audio. This is the difference between a demo and a release: a release redirects to a
+    # HiDrive share URL anyone can forward, and these bytes are under data/, which Apache cannot
+    # reach at all — so this route is the only way to them, and it asks for the password first.
+    check_header "the audio declares what it is"        "$BASE/demos/$DEMO_SLUG/v1"  "^content-type: audio/mpeg"
+    check_header "  and that it can be asked in parts"  "$BASE/demos/$DEMO_SLUG/v1"  "^accept-ranges: bytes"
+    check_header "  and how long it is"                 "$BASE/demos/$DEMO_SLUG/v1"  "^content-length: 10"
+    check_no_header "  and is not to be stored either"  "$BASE/demos/$DEMO_SLUG/v1"  "^etag:"
+
+    # Ranges, which are not a nicety: an <audio> element seeks by asking for one, so a server that
+    # ignores them gives a player that plays and will not skip, with nothing in any console.
+    demo_body=$(curl "${CURL_ARGS[@]}" -r 3-5 "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
+    demo_code=$(curl "${CURL_ARGS[@]}" -r 3-5 -o /dev/null -w '%{http_code}' "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
+    if [[ "$demo_code" == "206" && "$demo_body" == "345" ]]; then
+        pass "a range request gets exactly the bytes it named (206)"
+    else
+        fail "a range request returned $demo_code with '$demo_body' (wanted 206 and '345')"
+    fi
+
+    demo_headers=$(curl "${CURL_ARGS[@]}" -r 3-5 -o /dev/null -D - "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null | tr -d '\r' || true)
+    if grep -qi '^content-range: bytes 3-5/10' <<< "$demo_headers"; then
+        pass "  and says which part it sent"
+    else
+        fail "the 206 did not state its Content-Range"
+    fi
+
+    demo_code=$(curl "${CURL_ARGS[@]}" -r 500- -o /dev/null -w '%{http_code}' "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
+    if [[ "$demo_code" == "416" ]]; then
+        pass "a range past the end is refused (416), not answered with the whole file"
+    else
+        fail "a range past the end returned $demo_code, wanted 416"
+    fi
+
+    # Nothing in a URL may name a file. The last segment is matched against declared labels, never
+    # resolved as a path — so a traversal is a label naming no track, which is a 404 like any other.
+    check_status "  no label names a file             → 404" "$BASE/demos/$DEMO_SLUG/v2"       404
+    check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2fadmin.php" 404
+
+    CURL_ARGS=("${CURL_ARGS_WITHOUT_DEMO[@]}")
+fi
+
+restore_demos
+trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
+
+# And with the fixture gone, the route answers as it does on a machine with no demos at all: still
+# a 401, never a 404, so the absence of a demo is as unreadable as the presence of one.
+check_status "with no demos at all, still         → 401" "$BASE/demos/$DEMO_SLUG"              401
 
 
 echo ""

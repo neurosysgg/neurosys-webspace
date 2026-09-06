@@ -21,5 +21,7 @@ export enum HtmlAttribute {
   Charset   = 'charset',
   Name      = 'name',
   Content   = 'content',
+  Controls  = 'controls',
+  Preload   = 'preload',
   AriaLabel = 'aria-label',
 }

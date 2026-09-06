@@ -43,6 +43,8 @@ neurosys/
 │   ├── profiles.php     ← footer profile links
 │   ├── privacy.html     ← Datenschutzerklärung, served by PrivacyController
 │   ├── admin.php        ← stats page credentials (bcrypt hash)
+│   ├── demos.php        ← unreleased demos + their password hashes (gitignored, deployed)
+│   ├── demos/{slug}/    ← their audio — the only bytes PHP serves itself
 │   └── logs/            ← downloads.log — see "Download logging" below
 │
 ├── test/
@@ -63,6 +65,8 @@ neurosys/
 | `/releases/{slug}/{format}` | HTTP 303 → HiDrive link (`flac`, `wav`, `mp3`, `aiff`, `stems`, `ogg`) |
 | `/imprint` | Impressum (DE + EN) |
 | `/privacy` | Datenschutzerklärung, rendered from `data/privacy.html` |
+| `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
+| `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |
 | `/admin/stats` | download stats (HTTP basic auth) |
 
 Any format declared on a release without a `HiDriveLink` returns a plain-text 503 instead of redirecting.
@@ -72,6 +76,9 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 - All non-asset requests hit `index.php` via `.htaccess` rewrite.
 - `Router` maps URL segments to a `Controller`; the controller fetches its own data, builds a `View`, and returns a `Response`.
 - Download routes issue a 303 to the HiDrive direct-download link — no file passes through PHP.
+- **Except a demo's audio**, which is the one exception and the reason `FileResponse` exists: those
+  files live under `data/`, so the password gates the bytes and not just the page. Byte ranges are
+  answered, because an `<audio>` element seeks by asking for one. See [demos.md](demos.md).
 - Navigation is SPA-style: `Navigation` intercepts link clicks, fetches a content fragment (`X-Requested-With: XMLHttpRequest`), and swaps `#content`. Direct loads and no-JS work identically — all links are real hrefs.
 - Views emit their own tag vocabulary — `<terminal-window>`, `<cover-art>`, `<soundcloud-player>`, `<download-card>` — rather than divs and classes. The ones with behaviour build their own contents, so a view emits the tag and its attributes and nothing else. They upgrade themselves when `Navigation` swaps `#content`, so nothing re-initialises after a navigation. See [frontend.md](frontend.md) for the full set and the no-JS trade-off.
 - The front end compiles with `npm run build` (`assets/ts/` → `public/assets/js/`, and `assets/css/` → `style.css`). Both outputs are committed because the tests and the drift check read them by path; the verify script fails if either has gone stale. `npm run build:prod` then derives `build/dist/` — the same tree minified with the source maps dropped — and that is what `deploy.sh` uploads. See [frontend.md](frontend.md) for the full picture.
@@ -102,6 +109,8 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 
 - [deployment.md](deployment.md) — Strato setup and the deploy workflow
 - [releases.md](releases.md) — adding and updating releases
+- [demos.md](demos.md) — `tools/stage-demo.php`: putting unreleased work behind a per-demo password
+  at `/demos/{slug}`, what the gate covers, and why only the hash is ever kept
 - [authoring.md](authoring.md) — `tools/stage-release.php` and `tools/release-track.php`: generating
   a release entry from its prepared folder, what the folder knows, what it cannot, what the preflight
   checks before upload, and the SoundCloud client that fills in the last three ids

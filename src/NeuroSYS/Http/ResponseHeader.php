@@ -56,6 +56,40 @@ enum ResponseHeader: string implements HeaderName
     case Vary = 'Vary';
 
     /**
+     * That this response may be asked for in pieces, and in which unit.
+     *
+     * Sent by {@link FileResponse} and by nothing else, because it is the only response here whose
+     * body is a file rather than a rendered page. An `<audio>` element reads it before it will let
+     * anyone drag the scrubber — see {@link AcceptRanges}.
+     */
+    case AcceptRanges = 'Accept-Ranges';
+
+    /**
+     * How many bytes the body is.
+     *
+     * PHP works this out on its own for everything else here. A ranged response has to say it,
+     * because the number is the length of the *part* and not of the file.
+     */
+    case ContentLength = 'Content-Length';
+
+    /**
+     * Which part of the file a 206 carries — or, on a 416, how long the file actually is.
+     *
+     * One header name with two grammars, which is why the value is a {@link ContentRange} and not
+     * a string assembled where it is sent.
+     */
+    case ContentRange = 'Content-Range';
+
+    /**
+     * What a crawler may do with this response.
+     *
+     * Sent only on the demo routes. It is not what keeps them out of an index — a crawler is
+     * answered with a 401 and never sees a page — see {@link RobotsPolicy} for the narrower gap
+     * this actually covers, and for why `robots.txt` would be the wrong tool.
+     */
+    case Robots = 'X-Robots-Tag';
+
+    /**
      * The one case here that names a header the site does **not** send.
      *
      * PHP adds it, with its exact patch version, before any of our code runs.

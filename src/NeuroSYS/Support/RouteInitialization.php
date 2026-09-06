@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\Support;
 
 use Closure;
+use NeuroSYS\Controller\DemoAudioController;
+use NeuroSYS\Controller\DemoController;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
@@ -33,6 +35,10 @@ class RouteInitialization
             ->addRoute('/releases', fn() => new ReleasesController())
             ->addRoute('/releases/{slug}', fn($slug) => new ReleaseController($slug))
             ->addRoute('/releases/{slug}/{format}', fn($slug, $format) => new DownloadController($slug, $format))
+            // No '/demos'. A listing would publish the names of unreleased tracks, which is the
+            // one thing this half of the site is arranged to keep quiet — see DemoController.
+            ->addRoute('/demos/{slug}', fn($slug) => new DemoController($slug))
+            ->addRoute('/demos/{slug}/{label}', fn($slug, $label) => new DemoAudioController($slug, $label))
             ->addRoute('/admin/stats', fn() => new StatsController())
             ->addRoute('/imprint', fn() => new ImprintController())
             ->addRoute('/privacy', fn() => new PrivacyController())

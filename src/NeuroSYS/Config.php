@@ -45,6 +45,18 @@ final class Config
     /** What the site is, in three words. The home page headline and the meta description. */
     public const string TAGLINE = 'electronic music.';
 
+    /**
+     * The user name on every demo gate.
+     *
+     * A constant rather than the demo's slug, and the difference is whoever is being sent the link:
+     * they type this and paste the password, where a slug would have them retyping
+     * `virtual-riot-were-not-alone-neuro-sys-bootleg` from an address bar. It is not a secret and
+     * is not meant to be — the password is the whole credential. What keeps one demo's saved
+     * credentials from being offered for another is the **realm**, which
+     * {@link Service\Auth::requireDemoAuth()} builds per slug.
+     */
+    public const string DEMO_USER = 'demo';
+
     // ───────────────────────── third-party origins ─────────────────────────
 
     /**
@@ -128,6 +140,30 @@ final class Config
     public static function downloadLog(): File
     {
         return self::dataFile('logs/downloads.log');
+    }
+
+    /**
+     * Where one demo's audio lives: `data/demos/{slug}/`.
+     *
+     * **Outside the webroot, and that is the feature.** Apache serves `public/`; these files are
+     * not under it, so the only route to them is {@link Controller\DemoAudioController} and the
+     * only way past that is the demo's password. A release's files are on HiDrive behind a share
+     * URL that outlives any password; a demo's are here.
+     *
+     * Derived in one place because two very different callers want it — the controller resolving a
+     * request, and `tools/stage-demo.php` writing the files in the first place — and a tool that
+     * staged into a directory the site does not read would be a demo page of missing audio.
+     *
+     * The slug is not sanitised here. It comes from a route segment, and what makes that safe is
+     * that {@link Service\DemoRepository} has already matched it against a declared demo: a slug
+     * that reaches this is one `data/demos.php` names.
+     *
+     * @param string $slug
+     * @return Directory
+     */
+    public static function demoDir(string $slug): Directory
+    {
+        return self::data()->directory('demos')->directory($slug);
     }
 
     /**

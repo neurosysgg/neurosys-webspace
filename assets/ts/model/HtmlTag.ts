@@ -29,6 +29,10 @@ export enum HtmlTag {
   Small    = 'small',
   Strong   = 'strong',
   Div      = 'div',
+
+  /** The demo page's player. Server-side only — it is native precisely so no client code is needed. */
+  Audio    = 'audio',
+
   Iframe   = 'iframe',
   Textarea = 'textarea',
   Table    = 'table',

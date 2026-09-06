@@ -31,6 +31,18 @@ enum HtmlAttribute: string implements AttributeName
     case Name    = 'name';
     case Content = 'content';
 
+    /**
+     * Show the browser's own play/seek controls. A bare boolean attribute — `attr(…, true)`.
+     *
+     * On `<audio>` its absence is not a styling choice, it is a player with no way to start it.
+     */
+    case Controls = 'controls';
+
+    /**
+     * How much of a media file to fetch before it is played. See {@link MediaPreload}.
+     */
+    case Preload = 'preload';
+
     case AriaLabel = 'aria-label';
 
     /**

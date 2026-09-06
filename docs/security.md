@@ -17,9 +17,12 @@ not a silently shipped hole.
 
 Everything an attacker can reach:
 
-- **Seven routes**, all `GET`/`HEAD`: `/`, `/releases`, `/releases/{slug}`,
-  `/releases/{slug}/{format}`, `/admin/stats` (behind HTTP Basic), `/imprint`, `/privacy`.
-- **Static assets** under `/assets/`, served by the web server, never by PHP.
+- **Nine routes**, all `GET`/`HEAD`: `/`, `/releases`, `/releases/{slug}`,
+  `/releases/{slug}/{format}`, `/demos/{slug}` and `/demos/{slug}/{label}` (each behind that demo's
+  own HTTP Basic password), `/admin/stats` (behind HTTP Basic), `/imprint`, `/privacy`.
+  There is deliberately no `/demos` index — see [demos.md](demos.md).
+- **Static assets** under `/assets/`, served by the web server, never by PHP. The one exception is a
+  demo's audio, which PHP serves itself precisely so that it is *not* static — see below.
 - Everything else answers `404` or `405`.
 
 Everything an attacker controls: the **request target** (the path), the **method**, and a few
@@ -35,6 +38,7 @@ What is *not* in the surface, and the bug class each absence removes:
 | No cookie, no session | session fixation/hijack; the ambient credential CSRF rides |
 | No `<form>`, no state-changing route | CSRF target; mass-assignment |
 | No file upload, no user content | stored XSS; upload/path abuse |
+| No path built from a request | traversal — a demo's audio is addressed by a declared label, never by a file name |
 | No `unserialize()` of request data | object injection |
 | No shell-out, no `eval`, no dynamic include of request data | command injection; LFI/RFI |
 | No third-party script, no CDN | supply-chain script injection |
@@ -181,11 +185,13 @@ decorated path onto a gated route.
 
 ### 3 (again). Authentication
 
-Two gates, both HTTP Basic, both asking the same question of the same shape of credentials file, so
-they ask it in one place — `Auth::accepts()`, which is public and returns a `bool`. The gate's
-*decision* and the `401` it exits with are separate, the way `SecurityHeaders::headers()` is separate
-from `send()`, because a method that ends the request cannot be asserted against; everything worth
-testing lives in `accepts()`.
+Three gates, all HTTP Basic. Two of them — the pre-launch site gate and the admin gate — ask the same
+question of the same shape of credentials file, so they ask it in one place: `Auth::accepts()`. The
+third is a demo's, whose credential is a `PasswordHash` on the `Demo` object itself rather than in a
+file; it is `Auth::admits()`. Both are public and return a `bool`, and both are the *decision*
+separated from the `401` that follows it, the way `SecurityHeaders::headers()` is separate from
+`send()` — a method that ends the request cannot be asserted against, so everything worth testing
+lives in the pair that does not. All three end up in one private comparison.
 
 - **Every comparison is constant-time, and neither is skipped when the other fails.** The password is
   `password_verify()`; the user name is `hash_equals()`, compared on every request just the same.
@@ -199,7 +205,25 @@ testing lives in `accepts()`.
 - The **pre-launch** gate is switched off by the *absence* of `data/site_auth.php`, and that file is
   gitignored precisely so the repo copy cannot switch it on. The **admin** gate has no absent-file
   case: a missing `data/admin.php` is a broken deployment, and `require` says so loudly rather than
-  leaving `/admin/stats` open.
+  leaving `/admin/stats` open. A **demo** gate has no absent case at all — a `Demo` cannot be
+  constructed without a `PasswordHash`, so a demo that is reachable is a demo that is gated.
+- **A demo that does not exist is refused identically to one whose password is wrong**, in status
+  code *and* in elapsed time. A `404` for an unknown slug and a `401` for a known one is a catalogue
+  of unreleased tracks, readable one guess at a time; and returning early on the unknown one would
+  answer in microseconds where a real comparison pays bcrypt, so the uniform `401` would be undone by
+  a stopwatch. `Auth::requireDemoAuth()` verifies against `PasswordHash::unmatchable()` — a real
+  digest with no preimage — and then refuses. Same reasoning as the no-short-circuit rule above, one
+  level out.
+- **A demo's password gates the bytes, not only the page.** Its audio is under `data/`, which the web
+  server does not serve, so `DemoAudioController` is the only route to it and it asks the same
+  question. That is deliberately unlike a release, whose download is a `303` to a HiDrive share URL —
+  a capability that can be forwarded and that outlives any password change. The gated responses also
+  carry `no-store, private`, no `ETag` (so no `304` on a guessed validator) and
+  `X-Robots-Tag: noindex, nofollow, noarchive`. See [demos.md](demos.md).
+- **Only one credential fits in a request.** While `data/site_auth.php` exists, the pre-launch gate
+  claims the `Authorization` header and no request can satisfy a demo gate as well — so demos are
+  unreachable, not weakly reachable. Currently moot (the gate is off), and written down in
+  [demos.md](demos.md) so it is a known interaction rather than a surprise.
 
 **There is no CSRF surface, and that is a property rather than an oversight.** It rests on three
 independent facts, any one of which would be enough: the site sets no cookie and starts no session,

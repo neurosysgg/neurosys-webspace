@@ -15,6 +15,8 @@ export var HtmlAttribute;
     HtmlAttribute["Charset"] = "charset";
     HtmlAttribute["Name"] = "name";
     HtmlAttribute["Content"] = "content";
+    HtmlAttribute["Controls"] = "controls";
+    HtmlAttribute["Preload"] = "preload";
     HtmlAttribute["AriaLabel"] = "aria-label";
 })(HtmlAttribute || (HtmlAttribute = {}));
 //# sourceMappingURL=HtmlAttribute.js.map

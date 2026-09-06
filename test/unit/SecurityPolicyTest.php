@@ -6,10 +6,14 @@ namespace NeuroSYS\Test\Unit;
 
 use FilesystemIterator;
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Http\AcceptRanges;
 use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\BasicChallenge;
+use NeuroSYS\Http\ByteRange;
 use NeuroSYS\Http\CacheControl;
 use NeuroSYS\Http\CacheDirective;
+use NeuroSYS\Http\ContentLength;
+use NeuroSYS\Http\ContentRange;
 use NeuroSYS\Http\ETag;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HeaderValue;
@@ -17,6 +21,7 @@ use NeuroSYS\Http\Location;
 use NeuroSYS\Http\MimeType;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Http\ResponseHeader;
+use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\Security\ContentSecurityPolicy;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
@@ -410,6 +415,18 @@ final class SecurityPolicyTest extends TestCase
         yield 'a media type'              => ['text/html; charset=utf-8', MimeType::html()];
         yield 'a single-value enum'       => ['nosniff', ContentTypeOptions::NoSniff];
 
+        // The demo routes' four. A file response is the only one here whose body is not a rendered
+        // page, so it is the only one that has a length to state, a part to name and a unit to
+        // offer — and the only one a crawler is told to leave alone.
+        yield 'how long the body is'      => ['4096', new ContentLength(4096)];
+        yield 'the part being sent'       => [
+            'bytes 0-1023/5000',
+            ContentRange::of(ByteRange::parse('bytes=0-1023', 5000) ?? self::fail('unparsed')),
+        ];
+        yield 'a range that cannot be met' => ['bytes */5000', ContentRange::unsatisfiable(5000)];
+        yield 'ranges are supported'      => ['bytes', AcceptRanges::Bytes];
+        yield 'what a crawler may do'     => ['noindex, nofollow, noarchive', RobotsPolicy::hide()];
+
         // The four that already rendered before the interface existed. They are here as well as in
         // their own tests above, because this table is the one place that answers "what can the
         // site put after a colon?" — and the audit below is what keeps it able to answer.
@@ -455,12 +472,16 @@ final class SecurityPolicyTest extends TestCase
 
         self::assertSame(
             [
+                'NeuroSYS\Http\AcceptRanges',
                 'NeuroSYS\Http\Allow',
                 'NeuroSYS\Http\BasicChallenge',
                 'NeuroSYS\Http\CacheControl',
+                'NeuroSYS\Http\ContentLength',
+                'NeuroSYS\Http\ContentRange',
                 'NeuroSYS\Http\ETag',
                 'NeuroSYS\Http\Location',
                 'NeuroSYS\Http\MimeType',
+                'NeuroSYS\Http\RobotsPolicy',
                 'NeuroSYS\Http\Security\ContentSecurityPolicy',
                 'NeuroSYS\Http\Security\ContentTypeOptions',
                 'NeuroSYS\Http\Security\PermissionsPolicy',

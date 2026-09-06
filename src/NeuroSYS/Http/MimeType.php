@@ -86,6 +86,44 @@ final readonly class MimeType implements HeaderValue
     }
 
     /**
+     * A demo's audio, named by its file extension.
+     *
+     * The charset is explicitly null and that is the interesting half: every other body this site
+     * sends is text, and this one is samples. A `charset` parameter on `audio/mpeg` is not merely
+     * redundant, it is a claim about bytes that have no characters in them.
+     *
+     * The set is a `match` rather than a lookup that falls back, because a fallback here is the
+     * failure this class exists to prevent: `application/octet-stream` on an MP3 is a file the
+     * browser downloads instead of playing, with `nosniff` alongside it forbidding the browser from
+     * working out that we were wrong. Staged audio is MP3; the rest are the formats
+     * `tools/stage-demo.php` copies through rather than re-encoding.
+     *
+     * @param string $extension The file's extension, without the dot. Case is not significant.
+     * @return self
+     *
+     * @throws MimeTypeException if nothing here knows what that extension holds.
+     */
+    public static function forAudio(string $extension): self
+    {
+        $subtype = match (strtolower($extension)) {
+            'mp3'          => 'mpeg',
+            'm4a', 'mp4'   => 'mp4',
+            'flac'         => 'flac',
+            'wav'          => 'wav',
+            'ogg'          => 'ogg',
+            'opus'         => 'opus',
+            default        => throw new MimeTypeException(sprintf(
+                "MimeType::forAudio() has no type for '%s'. Add the case rather than falling back: "
+                . 'an unrecognised audio file typed as octet-stream downloads instead of playing, '
+                . 'and nosniff stops the browser correcting us.',
+                $extension,
+            )),
+        };
+
+        return new self(TopLevelType::Audio, $subtype, null);
+    }
+
+    /**
      * Returns the `Content-Type` value: the type, and the encoding if there is one to declare.
      *
      * @return string

@@ -47,6 +47,18 @@ enum HtmlTag: string implements TagName
     case Div    = 'div';
 
     /** Created client-side only: the player's frame, and the textarea that decodes entities. */
+    /**
+     * The one media element here, and the one thing on the site that stays native for a reason
+     * beyond convention.
+     *
+     * The demo page's player could have been a custom element, the way the SoundCloud one is. It
+     * is not, because the browser's own controls are the whole feature: they seek, they work with
+     * a keyboard, they work with a screen reader, and — unlike everything else on a release page —
+     * **they work with JavaScript off**, which for something being sent to one person to listen to
+     * is worth more than any styling. See the note in CLAUDE.md on what a no-JS visitor loses.
+     */
+    case Audio    = 'audio';
+
     case Iframe   = 'iframe';
     case Textarea = 'textarea';
 

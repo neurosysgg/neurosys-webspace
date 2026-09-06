@@ -28,9 +28,12 @@ use ReflectionMethod;
  * attribute nobody remembered to add is a guarantee that silently is not there, and the page looks
  * right either way. Adding a copy-returning builder means adding it here too.
  *
- * `Auth::accepts()` is the one member that is not a builder, and it is the one where dropping the
- * result is not merely useless but unsafe: it is the gate's entire decision, and the two `require*`
- * methods are only the challenge wrapped around it.
+ * `Auth::accepts()` and `Auth::admits()` are the two members that are not builders, and they are
+ * the ones where dropping the result is not merely useless but unsafe: each is a gate's entire
+ * decision, and the three `require*` methods are only the challenge wrapped around them. They are
+ * two rather than one because the credential comes from two different places — a `data/` file for
+ * the site and admin gates, a {@link \NeuroSYS\Support\PasswordHash} on the demo itself for the
+ * third.
  *
  * The deliberate discards are all in the tests — proving that a builder did not mutate what it was
  * called on, or that a bad argument threw — and each is spelled `(void)`, which says out loud what
@@ -63,6 +66,7 @@ final class NoDiscardTest extends TestCase
             [
                 'NeuroSYS\Http\Security\ContentSecurityPolicy::allow',
                 'NeuroSYS\Service\Auth::accepts',
+                'NeuroSYS\Service\Auth::admits',
                 'NeuroSYS\Support\Collection::first',
                 'NeuroSYS\Support\Collection::isEmpty',
                 'NeuroSYS\Support\Collection::join',

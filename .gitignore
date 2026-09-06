@@ -14,6 +14,16 @@ deploy.sh
 data/site_auth.php
 data/.site_auth.php
 
+# Demos — unreleased tracks behind a per-demo password. Gitignored because `origin` is a public
+# GitHub repository and these name work that is not out yet: demos.php carries the titles and the
+# bcrypt hashes, data/demos/ carries the audio itself.
+#
+# NOT excluded from deploy.sh, and the pair is deliberate: rsync copies data/ from the working tree
+# without consulting git, so both still reach the server. The credentials files above are the
+# opposite arrangement — they are excluded there because the repo copies are placeholders.
+data/demos.php
+data/demos/
+
 # Composer dev dependencies (PHPUnit) — dev-only, never deployed
 /vendor/
 .phpunit.cache/

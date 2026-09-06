@@ -22,6 +22,7 @@ readonly class Request
      * @param string $authUser
      * @param string $authPassword
      * @param string $ifNoneMatch
+     * @param string $rangeHeader
      */
     private function __construct(
         private ?HttpMethod $method,
@@ -30,6 +31,7 @@ readonly class Request
         private string $authUser,
         private string $authPassword,
         private string $ifNoneMatch = '',
+        private string $rangeHeader = '',
     ) {}
 
     /**
@@ -60,7 +62,15 @@ readonly class Request
             [$user, $pass] = explode(':', base64_decode($b64), 2) + ['', ''];
         }
 
-        return new static($method, $path, $ajax, $user, $pass, self::header(RequestHeader::IfNoneMatch));
+        return new static(
+            $method,
+            $path,
+            $ajax,
+            $user,
+            $pass,
+            self::header(RequestHeader::IfNoneMatch),
+            self::header(RequestHeader::Range),
+        );
     }
 
     /**
@@ -188,4 +198,26 @@ readonly class Request
      * @return string
      */
     public function ifNoneMatch(): string   { return $this->ifNoneMatch; }
+
+    /**
+     * The bytes this request asked for out of a file $size long, or null where it asked for all of
+     * them.
+     *
+     * The size is a parameter rather than something this could know, and that is the whole reason
+     * the raw header is kept and not the parsed value: `bytes=-500` means "the last 500", which is
+     * a different pair of offsets for every file. A request is not the place that knows how long
+     * anything is — {@link FileResponse} is, so it asks.
+     *
+     * Null covers both "no `Range` header" and "one this does not read", because
+     * {@link ByteRange::parse()} answers the same way for both and the caller does the same thing
+     * either way: send the whole file. See that class for why that is a legal answer and not a
+     * shortcut.
+     *
+     * @param int $size The size of the file being asked for.
+     * @return ByteRange|null
+     */
+    public function range(int $size): ?ByteRange
+    {
+        return ByteRange::parse($this->rangeHeader, $size);
+    }
 }

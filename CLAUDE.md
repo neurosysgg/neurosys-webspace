@@ -53,12 +53,11 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **97.84% of
-lines**; of the twenty-four that are left, thirteen are deliberate and named in `docs/testing.md`.
-The other eleven are a gap rather than a decision — guard-clause `throw`s and one unused factory on
-the header-value classes `867372f` added, which nothing has exercised yet. The deliberate count fell
-from eighteen: `DownloadLogger::log()`'s locked append moved into `Support\File::append()`, where it
-is tested directly, leaving only the lines behind the switch itself unreachable.
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.3% of
+lines**; of the twenty-four that are left, fourteen are deliberate and named in `docs/testing.md`.
+The other ten are a gap rather than a decision — guard-clause `throw`s on the header-value classes
+`867372f` added, which nothing has exercised yet. The demo work added two of the same kind and
+closed both, so the pattern for closing the rest is written down in `DemoTest`.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -95,20 +94,22 @@ markup tree, no HTML written as a string either.
 ```
 src/NeuroSYS/
 ├── Controller/     ← one class per route group; fetches its own data, returns a Response
-├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse
+├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse,
+│                     FileResponse + ByteRange/ContentRange/ContentLength/AcceptRanges
 │                     + HttpStatusCode, HttpMethod, MimeType/TopLevelType, Header/HeaderName
 │                     and the two header-name enums
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
-├── Model/          ← Release, Format, Profile, MusicalKey, Genre, ReleaseFormat, Platform (typed value objects + enums)
+├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
+│                     Platform (typed value objects + enums)
 │   ├── Production/ ← what the .flp knows: Arrangement + Section + SectionKind, ProductionTime, Plugin
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
 │   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
-│                     ProfileRepository
+│                     ProfileRepository, DemoRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable) + the TypedItems trait
 │                     they share, File + Directory, Route, RouteInitialization, JsonDeserializable,
-│                     Charset
+│                     Charset, PasswordHash
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
 │   │                 Doctype + Tag/HtmlTag, the attribute-name enums, and the attribute-value
@@ -438,6 +439,12 @@ All requests hit `public/index.php` via `.htaccess` rewrite. It:
 
 Download routes (`/releases/{slug}/{format}`) call `DownloadLogger` and issue a 303 redirect to the HiDrive direct-download link.
 
+**The demo routes are the one place a file passes through PHP**, and that is the whole point of
+them: `/demos/{slug}` and `/demos/{slug}/{label}` sit behind that demo's own password, and the audio
+lives under `data/` where the web server cannot reach it, so the password covers the bytes rather
+than only the page. `FileResponse` answers byte ranges because an `<audio>` element seeks by asking
+for one. See [Demos](#demos).
+
 **Download logging is deliberately off, for legal reasons.** `Config::DOWNLOAD_LOGGING` is `false`, and `log()` returns on it
 before the `DownloadLogEntry` is built — so the referrer is never read and nothing is written. `StatsController` skips reading the
 log entirely and `/admin/stats` says logging is switched off rather than showing an empty table. Both suites assert the switch
@@ -664,7 +671,12 @@ existing only as a CSS selector.
 | `release/ReleaseCard.ts` … | `<release-card slug>` `<release-title>` `<release-meta>` | guards only |
 
 What stays native is what carries meaning or behaviour the browser provides: `<a>`, `<button>`,
-`<h1>`/`<h2>`, `<img>`, `<p>`, `<section>`. The card tags wrap their anchors rather than replacing
+`<h1>`/`<h2>`, `<img>`, `<p>`, `<section>` — and `<audio>`, which is the strongest case of the rule
+and the one worth reading twice. A demo's player could have been an element like
+`<soundcloud-player>`; it is not, because the browser's own control seeks, takes a keyboard, is
+announced by a screen reader, and works with JavaScript off. A release page's empty box with JS off
+is a cost this file accepts, since the page is still a page. **A demo is the audio**, so the same
+cost there is the whole thing missing. See [Demos](#demos). The card tags wrap their anchors rather than replacing
 them, so links keep working without JS, keyboard access is unchanged, and `data-no-spa` still lands on
 a real `<a>`; the wrappers are `display: contents`, so the anchor is still the card to layout. That is
 also why `DownloadList` and `ReleaseList` build nothing and never will — what they wrap has to be
@@ -691,6 +703,10 @@ Two consequences of self-containment worth knowing:
   the accumulated cost of building markup client-side, and it is worth re-reading whenever another
   fragment moves. A `<noscript>` inside `<terminal-window>` and `<cover-art>`, carrying the same
   content, buys it back for the price of rendering it twice.
+
+  **A demo page is the deliberate exception**, and the only page here that does not pay this: its
+  player is a native `<audio>`, so it works with JS off — see [Demos](#demos) for why that case is
+  different from every other one on this list.
 
   **The arrangement is what re-reading it decided.** It is the newest fragment on the release page
   and the obvious candidate for a self-building element — a JSON attribute and a subtree, exactly
@@ -766,7 +782,7 @@ nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`.
 | `SoundCloudPlayerAttribute`, `EmbedAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
 | `TerminalFieldKey` | the JSON keys a terminal row arrives under |
 | `CssClass`, `ElementId`, `SectionKind`, `ArrangementAttribute` | what the stylesheet and the SPA router look for |
-| `RequestHeader`, `RequestedWith` | the header that asks for a fragment, and the one that revalidates |
+| `RequestHeader`, `RequestedWith` | the header that asks for a fragment, the one that revalidates, and `Range` — which no client code writes either; the browser sends it when an `<audio>` is seeked |
 
 The kinds fail differently, which is worth knowing before renaming any of them. A wrong **value**
 usually shows: a broken widget URL, a tone that does not colour. A wrong **name** shows as nothing —
@@ -836,7 +852,7 @@ assets/css/                   ← sources; outside public/, neither web-served n
 ├── main.css                  ← the @import list; the order IS the cascade
 ├── base/                     ← tokens.css (:root), elements.css (* html body a)
 ├── layout/                   ← shell.css (what Layout.php emits), utilities.css
-├── views/                    ← home.css, release.css, stats.css        (cf. src/NeuroSYS/View/)
+├── views/                    ← home.css, release.css, demo.css, stats.css (cf. src/NeuroSYS/View/)
 └── elements/                 ← card.css, terminal.css, CoverArt.css, embed.css,
                                 download.css, arrangement.css           (cf. assets/ts/elements/)
       ↓ npm run build
@@ -932,11 +948,83 @@ entry with them already in it. Player style and the six SoundCloud toggles are `
 `SoundCloudOption` enums with sensible defaults; a normal release never sets them. Adding another provider
 means a new class implementing `Embed`, not a new field on `Release`.
 
+## Demos
+
+Unreleased work at `/demos/{slug}`, behind a password minted per demo. It is the release side turned
+inside out, and the inversion is the whole feature: a release is a public page pointing at a HiDrive
+share URL, and **a demo is a private page whose audio is private too** — the files sit in
+`data/demos/{slug}/`, outside the webroot, so `DemoAudioController` is the only route to them and it
+asks for the password first. A share link outlives the password it was sent with; a demo route does
+not.
+
+```bash
+php tools/stage-demo.php <file>…      # mints a password, transcodes, prints the entry
+php tools/stage-demo.php --rotate     # a new password for a demo already staged
+```
+
+Six decisions are worth knowing before touching any of it. `docs/demos.md` is the workflow.
+
+- **Nothing is discovered — every file on the page is named on the command line.**
+  `~/Music/neuro.SYS/demos/` is a working directory: eight bounces of one bootleg, four release
+  candidates, a mastering export and a zero-byte `alien house.flac`. No rule over it picks the two
+  mixes worth sending, so the tool takes a list and derives only what a file can honestly say. That
+  is the difference from `ReleaseFolder`, which *reads* a prepared directory with a convention
+  behind it.
+- **An unknown slug is refused exactly like a wrong password — in the status code and in the time.**
+  A 404 for a slug that names nothing and a 401 for one that names something is a catalogue of
+  unreleased tracks, readable one guess at a time. So `Auth::requireDemoAuth()` takes a
+  **nullable** `Demo` and challenges either way. The timing half is not decoration: returning early
+  on a null would answer in microseconds where a real comparison pays bcrypt, so the uniform 401
+  would be undone by a stopwatch. It verifies against `PasswordHash::unmatchable()` — a real digest
+  with no preimage — and throws the answer away. Same reasoning as `Auth::matches()`'s refusal to
+  short-circuit, one level out.
+- **There is no `/demos`, and `data/demos.php` is gitignored.** A listing would publish the names of
+  unreleased tracks; so would a public repository holding the file that names them. It is still
+  *deployed*, because `deploy.sh` rsyncs `data/` from the working tree without consulting git — the
+  pairing is deliberate and is the opposite of `data/admin.php`, which is excluded from the rsync
+  because the repo copy is a placeholder. `DemoRepository` is guarded like `ProfileRepository` for
+  the same reason: every clone starts with no demos, and that has to be a working site rather than a
+  fatal.
+- **Only the hash is kept.** `Password::mint()` draws four groups of five Crockford base32
+  characters from `random_int()` (100 bits, no `I`/`L`/`O`/`U` — it gets read off a screen and typed
+  into a browser prompt) and prints the plaintext **once**, to stderr, so `> entry.php` cannot
+  capture it. Nothing writes it down. Losing one means `--rotate`, which prints a replacement and
+  the single entry line to swap — it touches no audio and loses no hand-written description.
+- **Nothing builds a path out of a request.** The URL's last segment is matched against the labels
+  the demo declares; a segment naming none is a null and a 404. `DemoTrack`'s own check on its file
+  name is the *second* guard on that hazard, for a typo in `data/demos.php` rather than for anything
+  a visitor can send.
+- **The player is a native `<audio>`**, not a custom element, which is the one place the site
+  deliberately breaks its own pattern. A release page's empty box with JS off is a cost CLAUDE.md
+  accepts because the page is still a page; a demo *is* the audio. The browser's control also seeks,
+  takes a keyboard and is announced by a screen reader — and seeking is why `FileResponse` answers
+  ranges at all. A server that ignored `Range` would give a player that plays and will not skip,
+  with nothing in any console.
+
+**A demo is unreachable while the pre-launch site gate is on**, and this is a known interaction
+rather than a bug: `Auth::requireSiteAuth()` runs on every request and both gates are HTTP Basic, so
+a request carries one `Authorization` header and cannot satisfy two gates. Moot today — the gate is
+switched off — and the verify script skips the demo HTTP checks with a printed SKIP when it sees
+`data/site_auth.php`. If demos ever have to work behind it, the fix is a decision (the demo password
+is the stronger credential, so the site gate could stand down for `/demos/`) rather than a patch.
+
+```php
+'wna-bootleg' => new Demo(
+    title:       'Virtual Riot — We\'re Not Alone [neuro.SYS bootleg]',
+    password:    new PasswordHash('$2y$12$…'),   // only ever the hash
+    tracks: new Collection(DemoTrack::class)->with(
+        new DemoTrack('v4', 'v4.mp3', 157),      // label, file, seconds — newest first
+        new DemoTrack('v3', 'v3.mp3', 157),
+    ),
+    description: 'v4 is the current one, v3 has the old drop',
+),
+```
+
 ## The tooling
 
-`tools/` holds four commands and two things that are not. `stage-release`, `release-track`,
-`extract-midi` and `merge-coverage` implement `NeuroSYS\Tool\Cli\Command` — a name, a usage line,
-the `Option`s it accepts, and a `run()` returning an `ExitCode`. `dev-router.php` and
+`tools/` holds five commands and two things that are not. `stage-release`, `stage-demo`,
+`release-track`, `extract-midi` and `merge-coverage` implement `NeuroSYS\Tool\Cli\Command` — a name,
+a usage line, the `Option`s it accepts, and a `run()` returning an `ExitCode`. `dev-router.php` and
 `coverage-prepend.php` implement nothing, because PHP loads them itself: one is handed to `php -S`
 and one is an `auto_prepend_file`, so neither has an argv or an exit code for an interface to
 attach to. Each says so in its docblock.
@@ -945,11 +1033,13 @@ attach to. Each says so in its docblock.
 tools/
 ├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/
 ├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
-├── extract-midi.php
+├── extract-midi.php      ├── stage-demo.php
 └── lib/
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
-    ├── Command/          ← the four commands, their option enums, and FolderReport — the report
+    ├── Command/          ← the five commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share
+    ├── Demo/             ← what puts unreleased work behind a password: Password, DemoSource,
+    │                       DemoStage, DemoPreflight, DemoEntryWriter, Encoding
     ├── Export/           ← where a release's audio comes from: Exporter + PreparedExport and
     │                       FlStudioExport, RenderFormat, ExportedAudio/ExportSource
     ├── Flp/              ← the FL Studio project reader: FlpFile + EventId/EventWidth/Event,
@@ -1046,6 +1136,29 @@ code with one argument different. Four decisions are worth knowing before runnin
   private methods, and `SoundCloudException::refused()` had to describe the format it wanted in
   prose — which is what a missing type looks like.
 
+**`stage-demo` is the one command that mints a credential, and the one that writes audio.**
+`stage-release` only ever prints; this transcodes each named master into `data/demos/{slug}/` — which
+is why it calls `Directory::create()` out loud rather than letting a `File` quietly make its own
+parent, the rule `Support\File` states in the negative. Three things it does differently from every
+other command here, each argued for in [Demos](#demos): it takes **many** positional arguments
+because the mixes on a page are chosen rather than discovered; `--check` returns **before the
+password is minted**, so a run made only to read the report cannot leave a real password on screen
+that no entry matches; and `--rotate` takes **no** files at all, because changing a password is one
+line of an entry and restaging would rewrite every file and lose the description.
+
+It shares `Finding` and `Level` with the release preflight and nothing else. Not `FolderReport`:
+that class is built around a `ReleaseFolder` — one path, checked to be a directory, with imports
+reconciled against `data/releases.php` — and none of those three is true here. What is left in
+common is one `foreach` printing a level and a message, and a shared parent for that would announce
+a kind these two are not.
+
+One check in it is worth knowing because the obvious version does not work: **`ffprobe` exits 0 on a
+text file named `bounce v3.flac`.** It takes the codec from the extension, reports `flac`, and
+answers `N/A` for everything it would have had to decode to know — so `Probe::stream()` hands back a
+well-formed `AudioStream` describing nothing, and the demo stages "successfully" with a player that
+will not start. `DemoSource::isReadable()` asks for a **sample rate**, which is the thing a name
+cannot supply.
+
 **`extract-midi` reads the notes, which is the half of the project the rest of the reader skips.**
 `Project` answers what a release entry needs; `Score` answers what a MIDI file needs — the channels,
 the patterns, and the playlist that says which pattern plays where. `php tools/extract-midi.php
@@ -1134,6 +1247,10 @@ the tool.
   trees. It **excludes `data/admin.php` and `data/site_auth.php`**, because the repo copies are
   placeholders and syncing them would overwrite the live credentials. Upload those two by hand when
   they change.
+- **`data/demos.php` and `data/demos/` are the opposite arrangement, and deliberately so.** They are
+  gitignored — `origin` is a public GitHub repository and they name unreleased tracks — and *not*
+  excluded from the rsync, because rsync reads the working tree rather than git. So they never reach
+  GitHub and always reach Strato. `--delete` is on, so removing a demo locally removes it live.
 - `data/admin.php` holds bcrypt credentials for `/admin/stats`; generate with `php -r "echo password_hash('pw', PASSWORD_BCRYPT);"`
 
 Footer profile links come from `data/profiles.php` — an empty URL hides that link. Brand icons are **vendored** under
@@ -1187,5 +1304,6 @@ Apache, not reasoned about.
 The live host serves **HTTP/2** (no HTTP/3 — no `Alt-Svc`), Apache 2.4.68.
 
 See `docs/deployment.md` for first-time FTP setup, `docs/releases.md` for the full release checklist,
+`docs/demos.md` for putting unreleased work behind a per-demo password,
 `docs/branding.md` for brand assets and profile links, `docs/testing.md` for the two test suites, and
 `docs/security.md` for the security posture and the assessment findings.

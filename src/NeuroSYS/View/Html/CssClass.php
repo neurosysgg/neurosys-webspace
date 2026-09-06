@@ -45,6 +45,14 @@ enum CssClass: string
     case SectionTime  = 'section-time';
     case SectionLabel = 'section-label';
 
+    case DemoHero   = 'demo-hero';
+    case DemoInfo   = 'demo-info';
+    case DemoNotice = 'demo-notice';
+    case DemoTracks = 'demo-tracks';
+    case DemoTrack  = 'demo-track';
+    case DemoLabel  = 'demo-label';
+    case DemoTime   = 'demo-time';
+
     case StatsSub   = 'stats-sub';
     case StatsTable = 'stats-table';
     case StatsCount = 'stats-count';

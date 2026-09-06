@@ -27,6 +27,14 @@ export enum CssClass {
   SectionTime  = 'section-time',
   SectionLabel = 'section-label',
 
+  DemoHero     = 'demo-hero',
+  DemoInfo     = 'demo-info',
+  DemoNotice   = 'demo-notice',
+  DemoTracks   = 'demo-tracks',
+  DemoTrack    = 'demo-track',
+  DemoLabel    = 'demo-label',
+  DemoTime     = 'demo-time',
+
   StatsSub     = 'stats-sub',
   StatsTable   = 'stats-table',
   StatsCount   = 'stats-count',

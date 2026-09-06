@@ -37,6 +37,20 @@ enum RequestHeader: string implements HeaderName
     case IfNoneMatch = 'If-None-Match';
 
     /**
+     * Which bytes of a file the client wants, when it does not want all of them.
+     *
+     * Read only by {@link FileResponse}, which is the only response here with a file behind it.
+     * The reason it exists is seeking: an `<audio>` element asks for a range when the scrubber is
+     * dragged, so a server that ignores this plays a demo perfectly and refuses to skip — a broken
+     * control with nothing in the console about it.
+     *
+     * Mirrored in `assets/ts/model/RequestHeader.ts` with no reader on that side, the same
+     * arrangement as {@link self::IfNoneMatch} above: the parity test compares the two case for
+     * case, so a case existing on one side only is what fails.
+     */
+    case Range = 'Range';
+
+    /**
      * @return string
      */
     public function headerName(): string

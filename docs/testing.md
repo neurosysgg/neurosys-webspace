@@ -39,6 +39,19 @@ The division matters in a few concrete places:
   The *decision* is a different matter and is unit-tested: `Auth::accepts()` is public and returns a
   bool, so `AdminTest` can ask it about a wrong password without the answer ending the process. That
   split is the same one `SecurityHeaders` makes between `headers()` and `send()`, for the same reason.
+- **The demo gate is the same split, twice over.** `Auth::requireDemoAuth()` calls `exit`, so the
+  `401` is the verify script's — and so is everything about the audio route, because `header()` is a
+  no-op under CLI and that route's whole answer is a status code and four headers. The decision half
+  is `Auth::admits()`, which `DemoTest` asks about a wrong password without the answer ending the
+  process. What only real HTTP can show is worth listing, because it is most of the feature: the
+  `401`, that an **unknown slug is refused identically to a known one**, the realm naming the demo,
+  the `206` with its `Content-Range`, the `416`, and the absence of an `ETag`.
+- **`data/demos.php` is gitignored, so no test may assume one exists.** `DemoTest` writes its own and
+  hands it to `DemoRepository` through the optional `File` parameter; the verify script swaps in a
+  fixture of its own and restores whatever was there **in the EXIT trap**, so an interrupt cannot
+  leave the real file swapped out. Both are the seam `DownloadController`'s optional repository is,
+  for a stronger reason: the real file holds hashes whose passwords are by design not recoverable, so
+  there would be no way to log in to it.
 - **`autoload.php` uses the `|>` pipe operator**, which is a parse error below PHP 8.5. PHPUnit never
   touches that file (it boots from Composer), so the verify script exercises it directly and checks
   every class under `src/` actually resolves through it.
@@ -132,6 +145,17 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   it in both directions — plus `Auth::accepts()`, the one that is not a builder and the one where a
   dropped result is a gate that never ran. The deliberate discards are the tests that prove a
   builder did *not* mutate its receiver, and each is spelled `(void)`.
+- **An unknown demo is indistinguishable from a wrong password.** A `404` for a slug that names
+  nothing and a `401` for one that names something is a catalogue of unreleased tracks, readable one
+  guess at a time. The verify script asserts both answer `401`; `DemoTest` asserts the reason it is
+  also true of the *timing* — `Auth::requireDemoAuth()` verifies against
+  `PasswordHash::unmatchable()` before refusing, so the unknown case pays the same bcrypt the known
+  one does. A uniform status code undone by a stopwatch is not uniform.
+- **No URL segment can name a file.** A demo's audio is addressed by a label the demo declares, never
+  by a file name, so a traversal is a label matching nothing and a `404` like any other. Both suites
+  check it — `DemoTest` through the controller with encoded dots, the verify script over HTTP — and
+  `DemoTrack` refusing a file name with a separator in it is the second guard, for a typo in
+  `data/demos.php` rather than for anything a visitor can send.
 - **A path-shaped URL really is a path on this site.** `HtmlTest` walks every spelling of a bare
   authority past `Element` — `//host`, `/\host`, and the two that hide one behind a tab or a
   newline, which the enumerated prefix list this replaced let through. `Element` puts the question
@@ -359,8 +383,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **97.84% of lines** (1092/1116), 97.35% of
-methods.
+clover XML and a browsable HTML report. Currently **98.3% of lines** (1354/1378), 97.5% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
@@ -377,7 +400,7 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Thirteen lines, in four groups, none of which a test can reach as the repository stands:
+Fourteen lines, in five groups, none of which a test can reach as the repository stands:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
@@ -396,23 +419,35 @@ Thirteen lines, in four groups, none of which a test can reach as the repository
   have its mode set. `chmod()` on a file you own fails only under conditions a test would have to be
   root to arrange, and the branch exists so a credential is never left readable — the rename branch
   beside it *is* covered, by writing at a name a directory already holds.
+- **`FileResponse::stream()`'s short-read break (1 line)** fires when `fread()` returns nothing on a
+  handle that is not at EOF — a file truncated between the `size()` that set the `Content-Length` and
+  the read that fills it. Same kind of branch as the chmod one above: it exists so a truncated file
+  ends the response rather than looping, and there is no way to arrange it from a test. The guard
+  beside it *is* covered, by deleting the file between constructing the response and sending it — and
+  that one mattered, because opening an unreadable file warns, and by then the headers have gone out,
+  so the warning would print into the audio. `@fopen` is there for the reason `File::read()`'s is.
 
-#### Twelve more, which are a gap rather than a decision
+#### Ten more, which are a gap rather than a decision
 
 These arrived with the header-value classes in `867372f` and nothing has exercised them since, so
 they are listed here to be closed rather than justified:
 
-- **`CacheControl` (5)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — guard clauses that
-  throw `SecurityPolicyException` on an empty or malformed value, plus `CacheControl::doNotStore()`,
-  a factory no call site uses yet. `HiDriveLink`'s equivalent throw is tested by
-  `badShareIdProvider` in `ModelTest`, which is the shape these want.
+- **`CacheControl::of()` (3)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — guard clauses
+  that throw `SecurityPolicyException` on an empty or malformed value. `HiDriveLink`'s equivalent
+  throw is tested by `badShareIdProvider` in `ModelTest`, which is the shape these want, and
+  `DemoTest` closed the two of the same kind that the demo work added — `ContentLength`'s negative
+  length and `RobotsPolicy::of()`'s empty list — so the pattern is now written down twice.
+
+  `CacheControl::doNotStore()` used to be listed here as *"a factory no call site uses yet"*, which
+  was already wrong when it was written (`StatsController` calls it) and is now doubly so: it is what
+  every demo response says.
 
 The rest of this document's claim — that every uncovered line is deliberate — held when it was
-written and does not now. Four small tests in `ResponseTest` would restore it.
+written and does not now. Three small tests in `ResponseTest` would restore it.
 
 ### The development tooling
 
-`tools/lib/` has eight test files and is **deliberately outside the coverage source**. The figure
+`tools/lib/` has nine test files and is **deliberately outside the coverage source**. The figure
 above is a claim about the shipped site; folding in code whose job is to shell out to `metaflac` and
 `ffprobe` would either drop the number or invite contrived tests to prop it up.
 
@@ -443,6 +478,19 @@ above is a claim about the shipped site; folding in code whose job is to shell o
   nothing.
 - `test/unit/ProjectFileTest.php` — finding the project: loose, inside a zip, or named outright by
   `--project`, and what happens when it will not parse.
+- `test/unit/StageDemoTest.php` — `stage-demo`, which is the only command here that mints a
+  credential. The tests that matter are not about the entry it prints: that a password verifies
+  against its own hash and nothing else does, that two hundred draws are two hundred different
+  strings, that **`--check` mints none at all** (a run made only to read the report would otherwise
+  leave a real password on screen that no entry matches), that the plaintext never reaches the stream
+  `> entry.php` captures, and that a file `ffprobe` cannot read is refused before anything is staged.
+  The generator is reached by reflection so the loops cost no bcrypt — the hashing is proved once,
+  separately.
+
+  One case there is worth knowing because the obvious check does not work: **`ffprobe` exits 0 on a
+  text file named `bounce v3.flac`**, reporting the codec its extension implies and `N/A` for
+  everything else. `DemoSource::isReadable()` asks for a sample rate instead, which is the thing a
+  file name cannot supply.
 
 What reads a real folder is exercised by running the tool. The verify script asserts every class
 under `tools/lib/` loads, which is the one thing nothing else would catch — a namespace that
