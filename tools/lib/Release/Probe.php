@@ -10,8 +10,9 @@ use ZipArchive;
 /**
  * The Probe class. Every shell-out this tooling makes, in one place.
  *
- * `metaflac` and `ffprobe` are the two things here that are not PHP, and keeping them behind one
- * class means the escaping is stated once and a machine without them fails the same way everywhere.
+ * `metaflac`, `ffprobe` and `ffmpeg` are the three things here that are not PHP, and keeping them
+ * behind one class means the escaping is stated once and a machine without them fails the same way
+ * everywhere.
  *
  * Failure is an empty result rather than an exception: a missing tag and a missing tool both mean
  * "this folder did not tell us", which the fallback ladders in {@link ReleaseFolder} already handle.
@@ -82,6 +83,46 @@ final readonly class Probe
             ...$codec,
             $target->path,
         ]) && $target->exists() && $target->size() > 0;
+    }
+
+    /**
+     * Decodes an audio file to raw mono 32-bit float samples, little-endian.
+     *
+     * What {@link \NeuroSYS\Tool\Demo\WaveformScan} analyses. `-f f32le` because the port in
+     * `tools/lib/Dsp/` works in floats and `unpack('g')` reads exactly that; `-ac 1` because the
+     * analysis needs one value per instant and ffmpeg is already running — which is why
+     * {@link \NeuroSYS\Tool\Dsp\Analyze::monoDownmix()} has no caller on this side.
+     *
+     * **It cannot be {@link self::run()}**, and that is not a style choice: `exec()` splits stdout
+     * into lines, and float bytes contain newlines about as often as any other byte. `popen()` is
+     * what keeps the stream whole while still handing back an exit status, which `shell_exec()`
+     * would not.
+     *
+     * The result is one string rather than an array of samples on purpose. A three-minute track is
+     * 6.9 million of them; as a PHP array that is roughly 550 MB and does not fit, and as a string
+     * it is 28 MB. Reading one window at a time back out of it is also exactly the contract the C
+     * library states — the caller owns the buffer and supplies a window.
+     *
+     * @param File $file
+     * @param int  $rate The sample rate to decode at, which is the rate the analysis then assumes.
+     * @return string|null null if ffmpeg is absent, refused the file, or produced nothing.
+     */
+    public static function decode(File $file, int $rate): ?string
+    {
+        $pipe = popen(self::escaped([
+            'ffmpeg', '-nostdin', '-v', 'error',
+            '-i', $file->path,
+            '-f', 'f32le', '-ac', '1', '-ar', (string) $rate,
+            '-',
+        ]), 'r');
+
+        if ($pipe === false) {
+            return null;
+        }
+
+        $samples = stream_get_contents($pipe);
+
+        return pclose($pipe) === 0 && $samples !== false && $samples !== '' ? $samples : null;
     }
 
     /**

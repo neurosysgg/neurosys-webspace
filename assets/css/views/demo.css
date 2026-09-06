@@ -45,21 +45,54 @@
 
 /* Label and duration on one row, the control across the full width under them. The duration is
    optional — DemoView omits the element entirely where nothing read one — so it is placed by
-   `margin-left: auto` rather than by a grid column that would leave a gap when absent. */
+   `margin-left: auto` rather than by a grid column that would leave a gap when absent.
+
+   The selector has to match two tags. Where a mix has a waveform DemoView emits <demo-waveform> and
+   where it has none it emits a <div>, both carrying this class, so everything about the box is
+   stated once here and only the canvas is in elements/waveform.css. A browser applies these rules
+   to a custom element whether or not the script that upgrades it ever arrives, which is what keeps
+   a JS-off demo card exactly the card it always was.
+
+   The height is what the waveform needs and the row does not: min-height leaves the drawing
+   somewhere to be, and a card with no waveform simply has more air in it than it used to. It is
+   11rem because of what is measurably in the way — `align-content: space-between` puts the label
+   row at the top and the control at the bottom, and at the old 8.5rem the card's centre line, which
+   is where the waveform is at its loudest and most colourful, fell exactly on the top edge of the
+   control. */
 .demo-track {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 0.75rem 0.9rem;
+  min-height: 11rem;
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
+  align-content: space-between;
   gap: 0.5rem;
 
   audio {
     flex-basis: 100%;
     width: 100%;
     margin-top: 0.6rem;
+  }
+
+  /* Above the canvas, which sits at z-index -1 inside the same box. Without a stacking position of
+     their own these paint under it and the label reads through a drop.
+
+     The halo is the other half of that. A column at full level reaches the top edge of the card, so
+     a track that opens loud puts near-white waveform behind the label — #e8e8f0 on that measures
+     about 2.6:1, under AA's 4.5. A plug of the card's own colour behind the glyphs costs nothing
+     when there is no waveform under them and fixes the case where there is. The <audio> control
+     needs none: the browser paints it opaque. */
+  .demo-label,
+  .demo-time {
+    position: relative;
+    text-shadow: 0 0 0.35rem var(--surface), 0 0 0.2rem var(--surface), 0 0 0.1rem var(--surface);
+  }
+
+  audio {
+    position: relative;
   }
 }
 

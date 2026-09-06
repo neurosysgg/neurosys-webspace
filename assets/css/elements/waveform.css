@@ -1,0 +1,35 @@
+/* <demo-waveform> — the canvas behind a demo's player, and the three colours it draws in.
+
+   The element reads the properties below and nothing else about how it looks: which colour a band
+   takes is a decision that belongs in a stylesheet, and CustomProperty.ts names them on the other
+   side because no test can follow a custom property from where it is declared to where it is read.
+
+   The card's own box — padding, border, the row of label and duration — is .demo-track in
+   views/demo.css, which this element carries as a class. What is here is only what the waveform
+   needs: a positioned box to be absolute inside, and a canvas that fills it. */
+
+demo-waveform {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+
+  /* Purple for the sub, pink for the body, near-white for the air — the site's own accents rather
+     than a CDJ's blue/orange/white, which would be the only three colours on the site that are not
+     from tokens.css. */
+  --wave-low: var(--accent);
+  --wave-mid: var(--accent-2);
+  --wave-high: var(--fg);
+
+  canvas {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* The waveform is behind text; at full strength the label is unreadable over a drop. */
+    opacity: 0.5;
+    /* A needle-drop target, so it says so — the native control below still does everything it did. */
+    cursor: pointer;
+  }
+}

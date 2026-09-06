@@ -26,6 +26,8 @@ export enum Tag {
   ReleaseArrangement = 'release-arrangement',
   ArrangementSection = 'arrangement-section',
 
+  DemoWaveform = 'demo-waveform',
+
   ReleaseList  = 'release-list',
   ReleaseCard  = 'release-card',
   ReleaseTitle = 'release-title',

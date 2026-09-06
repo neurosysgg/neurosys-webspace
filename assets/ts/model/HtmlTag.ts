@@ -34,6 +34,10 @@ export enum HtmlTag {
   Audio    = 'audio',
 
   Iframe   = 'iframe',
+
+  /** What <demo-waveform> draws on. Client-created only, the way Textarea is. */
+  Canvas   = 'canvas',
+
   Textarea = 'textarea',
   Table    = 'table',
   Tr       = 'tr',

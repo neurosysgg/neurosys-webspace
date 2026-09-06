@@ -15,6 +15,7 @@ export var Tag;
     Tag["DownloadMeta"] = "download-meta";
     Tag["ReleaseArrangement"] = "release-arrangement";
     Tag["ArrangementSection"] = "arrangement-section";
+    Tag["DemoWaveform"] = "demo-waveform";
     Tag["ReleaseList"] = "release-list";
     Tag["ReleaseCard"] = "release-card";
     Tag["ReleaseTitle"] = "release-title";

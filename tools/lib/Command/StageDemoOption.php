@@ -37,6 +37,22 @@ enum StageDemoOption: string implements Option
     case Rotate = 'rotate';
 
     /**
+     * Re-read the staged audio of demos that already exist and write their waveforms.
+     *
+     * The second form that takes no files, and it is beside {@link self::Rotate} for the same
+     * reason that one exists: it changes something about a demo that is already staged, without
+     * restaging it — which would mint a new password and lose any description written by hand.
+     *
+     * It reads what is in `data/demos/{slug}/` rather than the masters those were made from. That
+     * is the right way round twice over: it is the audio the page actually serves, and the masters
+     * live on one machine and may be long gone by the time a waveform is wanted.
+     *
+     * Give it slugs to do only those; give it nothing and it does every demo in `data/demos.php`.
+     * ~10 seconds a mix — see {@link \NeuroSYS\Tool\Demo\WaveformScan}.
+     */
+    case Waveforms = 'waveforms';
+
+    /**
      * What the demo is called, where the file name and its tags do not say.
      *
      * Not a rare case here. `alien house v4.flac` carries an empty `TITLE` comment, and the file

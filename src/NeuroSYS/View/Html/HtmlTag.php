@@ -60,6 +60,12 @@ enum HtmlTag: string implements TagName
     case Audio    = 'audio';
 
     case Iframe   = 'iframe';
+    /**
+     * What `<demo-waveform>` draws on. Client-created only, the way {@link self::Textarea} is — a
+     * view emits the custom element and the element makes this.
+     */
+    case Canvas   = 'canvas';
+
     case Textarea = 'textarea';
 
     case Table = 'table';

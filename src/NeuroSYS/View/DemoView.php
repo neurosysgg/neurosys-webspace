@@ -7,7 +7,9 @@ namespace NeuroSYS\View;
 use NeuroSYS\Config;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
+use NeuroSYS\Model\Waveform;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -15,6 +17,8 @@ use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\MediaPreload;
 use NeuroSYS\View\Html\Node;
+use NeuroSYS\View\Html\Tag;
+use NeuroSYS\View\Html\WaveformAttribute;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
@@ -33,6 +37,11 @@ use NeuroSYS\View\Terminal\TerminalTone;
  * Seeking is why {@link \NeuroSYS\Http\FileResponse} answers byte ranges. The two halves belong to
  * each other: this emits the control, and that is what makes dragging it work.
  *
+ * **The waveform does not spend that.** `<demo-waveform>` prepends a canvas to the card and leaves
+ * the control alone, so a visitor with no JavaScript gets the same card without a picture behind
+ * it — which is also what a mix with no sidecar gets, and what every demo staged before
+ * {@link Waveform} existed still gets. A decoration is allowed to be absent; a player is not.
+ *
  * The page names no file. Every `src` is `/demos/<slug>/<label>`, and the label is matched against
  * what the demo declares — see {@link \NeuroSYS\Controller\DemoAudioController}.
  */
@@ -43,10 +52,15 @@ class DemoView extends View
      *
      * @param Demo   $demo The demo to display.
      * @param string $slug Its slug, which is also the first half of every audio URL on the page.
+     * @param SearchableCollection<Waveform> $waveforms One per mix that has one, keyed by label —
+     *                                  see {@link \NeuroSYS\Service\WaveformRepository}. Empty by
+     *                                  default, which is a page of cards with nothing drawn on
+     *                                  them: the ordinary state of a demo staged before waveforms.
      */
     public function __construct(
         private readonly Demo   $demo,
         private readonly string $slug,
+        private readonly SearchableCollection $waveforms = new SearchableCollection(Waveform::class),
     ) {}
 
     /**
@@ -165,23 +179,42 @@ class DemoView extends View
     }
 
     /**
-     * One mix: its label, how long it runs, and the control that plays it.
+     * One mix: its label, how long it runs, the control that plays it, and its shape behind them.
      *
      * `preload="none"` is not decoration — see {@link MediaPreload}. Four mixes of one track on a
      * page would otherwise be four PHP processes reading four files before anyone pressed anything.
+     * It is also why the duration is sent as an attribute rather than left to the player: with
+     * nothing preloaded there is no duration to read until somebody presses play, and clicking the
+     * waveform to seek has to work before that.
+     *
+     * **The card is the custom element**, rather than a wrapper inside it, because the waveform is
+     * the card's background and not a strip within it. Where there is no waveform the same card is
+     * a plain `<div>` — one tag different, nothing else — so the absence costs no markup and no
+     * empty box.
      *
      * @param DemoTrack $track
      * @return Element
      */
     private function track(DemoTrack $track): Element
     {
-        $row = new Element(HtmlTag::Div)
-            ->attr(HtmlAttribute::ClassName, CssClass::DemoTrack)
-            ->containing(
-                new Element(HtmlTag::Span)
-                    ->attr(HtmlAttribute::ClassName, CssClass::DemoLabel)
-                    ->containing($track->label),
-            );
+        $waveform = $this->waveforms->find($track->label);
+
+        $row = new Element($waveform === null ? HtmlTag::Div : Tag::DemoWaveform)
+            ->attr(HtmlAttribute::ClassName, CssClass::DemoTrack);
+
+        if ($waveform !== null) {
+            $row = $row
+                ->attr(WaveformAttribute::Peaks, $waveform->base64())
+                // A duration nothing measured is left off rather than sent as 0 — the element reads
+                // an absent attribute as "no idea", which is what it is, and disables the seek.
+                ->attr(WaveformAttribute::Duration, $track->seconds > 0 ? $track->seconds : null);
+        }
+
+        $row = $row->containing(
+            new Element(HtmlTag::Span)
+                ->attr(HtmlAttribute::ClassName, CssClass::DemoLabel)
+                ->containing($track->label),
+        );
 
         // A duration nothing read is no element at all rather than an empty one, the same way a
         // release with no embed emits no player: an empty span is a gap the stylesheet still spaces.

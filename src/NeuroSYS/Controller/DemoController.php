@@ -13,6 +13,7 @@ use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DemoRepository;
+use NeuroSYS\Service\WaveformRepository;
 use NeuroSYS\View\DemoView;
 
 /**
@@ -34,10 +35,13 @@ readonly class DemoController implements Controller
      * @param DemoRepository|null $demos The catalogue to read, or null for the canonical one.
      *                                   Only tests pass this — `data/demos.php` is gitignored, so
      *                                   there is not reliably one to read on any given machine.
+     * @param WaveformRepository|null $waveforms Where the sidecars are read from, or null for
+     *                                   `data/demos/`. Only tests pass this, for the same reason.
      */
     public function __construct(
         private string $slug,
         private ?DemoRepository $demos = null,
+        private ?WaveformRepository $waveforms = null,
     ) {}
 
     /**
@@ -52,12 +56,18 @@ readonly class DemoController implements Controller
             ($this->demos ?? new DemoRepository())->find($this->slug),
         );
 
+        // Fetched here rather than in the view, and after the gate rather than before it: reading
+        // these is one file read per mix, and a request that has not answered the challenge should
+        // not cause any. It is the rule every controller follows — a controller fetches its own
+        // data — applied to the one page whose data sits behind a password.
+        $waveforms = ($this->waveforms ?? new WaveformRepository())->forDemo($this->slug, $demo);
+
         // Two headers a public page does not send, both attached to the gate rather than to what
         // happens to be behind it. `no-store` keeps the page out of the cache a shared or borrowed
         // machine would leave it in, and — because ViewResponse stands down when a caller has
         // already said how a response may be kept — also means no ETag and so no 304, which is
         // what stops a gated page being handed back on a guessed validator.
-        return new ViewResponse(new DemoView($demo, $this->slug), headers: [
+        return new ViewResponse(new DemoView($demo, $this->slug, $waveforms), headers: [
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
             new Header(ResponseHeader::Robots, RobotsPolicy::hide()),
         ]);

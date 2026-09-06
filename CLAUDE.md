@@ -72,7 +72,14 @@ npm run check      # tsc --noEmit
 ```
 
 `npm run coverage` is a gate rather than a report: its thresholds are 100 for lines, branches and
-functions, so a branch nothing exercises fails the command. That is affordable here and nowhere
+functions, so a branch nothing exercises fails the command. That gate is why `test/js/dom.mjs`
+carries a **recording 2D context** and a `ResizeObserver`: jsdom implements neither, and the real
+`canvas` package is a native build against cairo. Recording is the better test rather than merely
+the cheaper one — what is worth asserting about a waveform is which bar was drawn where, in which
+colour, at which opacity, and a real canvas would answer that only by being read back as an image.
+It also has teeth the other way: `?? 0` on a typed-array index inside `DemoWaveform` was a branch
+nothing could reach, and the gate refusing it is what turned that code into a `charCodeAt` that
+needs no fallback at all. That is affordable here and nowhere
 else — `assets/ts/` is forty small files with one job each. It runs with
 `--test-coverage-include-all`, the front end's version of the `#[CoversClass]` trap: without it a
 module nothing imports is not reported as uncovered, it is not reported at all.
@@ -100,19 +107,20 @@ src/NeuroSYS/
 │                     and the two header-name enums
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
-│                     Platform (typed value objects + enums)
+│                     Platform, Waveform + WaveformColumn/WaveformBand (typed value objects + enums)
 │   ├── Production/ ← what the .flp knows: Arrangement + Section + SectionKind, ProductionTime, Plugin
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
 │   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
-│                     ProfileRepository, DemoRepository
+│                     ProfileRepository, DemoRepository, WaveformRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable) + the TypedItems trait
 │                     they share, File + Directory, Route, RouteInitialization, JsonDeserializable,
 │                     Charset, PasswordHash
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
-│   │                 Doctype + Tag/HtmlTag, the attribute-name enums, and the attribute-value
+│   │                 Doctype + Tag/HtmlTag, the attribute-name enums (WaveformAttribute among
+│   │                 them), and the attribute-value
 │   │                 enums LinkRel / LinkTarget / ScriptType
 │   └── Terminal/   ← Terminal, TerminalCommand, TerminalField + the enums they compose
 ├── Config.php      ← the facts about this site: identity, origins, paths, switches
@@ -472,6 +480,7 @@ assets/ts/                    ← sources; outside public/, neither web-served n
     ├── terminal/             ← TerminalWindow + its five content tags   (cf. View/Terminal/)
     ├── download/             ← DownloadList, DownloadCard, …
     ├── arrangement/          ← ReleaseArrangement, ArrangementSection  (cf. Model/Production/)
+    ├── waveform/             ← DemoWaveform                          (cf. Model/Waveform)
     └── release/              ← ReleaseList, ReleaseCard, …
       ↓ npm run build
 public/assets/js/             ← generated, committed, readable, source-mapped
@@ -665,6 +674,7 @@ existing only as a CSS selector.
 | `terminal/TerminalCursor.ts` | `<terminal-cursor>` | guard; CSS draws the `$` and the blink |
 | `download/DownloadList.ts` | `<download-list>` | nothing, deliberately — see below |
 | `download/DownloadCard.ts` … | `<download-card format>` `<download-label>` `<download-meta>` | guards only |
+| `waveform/DemoWaveform.ts` | `<demo-waveform peaks duration>` | a demo's whole shape behind its player: prepends a canvas, leaves the server's children alone. The one element that neither builds its subtree nor builds nothing |
 | `arrangement/ReleaseArrangement.ts` | `<release-arrangement>` | nothing, deliberately — the sections are server-rendered, see below |
 | `arrangement/ArrangementSection.ts` | `<arrangement-section kind>` | guard; `kind` decides which accent the stylesheet gives it |
 | `release/ReleaseList.ts` | `<release-list>` | nothing, deliberately — see below |
@@ -706,7 +716,10 @@ Two consequences of self-containment worth knowing:
 
   **A demo page is the deliberate exception**, and the only page here that does not pay this: its
   player is a native `<audio>`, so it works with JS off — see [Demos](#demos) for why that case is
-  different from every other one on this list.
+  different from every other one on this list. Its waveform *is* drawn by an element and so is
+  absent with JS off, and that costs nothing — which is the distinction worth keeping hold of. An
+  element that builds what a page is about spends the guarantee; one that draws behind a card the
+  server already wrote whole does not.
 
   **The arrangement is what re-reading it decided.** It is the newest fragment on the release page
   and the obvious candidate for a self-building element — a JSON attribute and a subtree, exactly
@@ -779,7 +792,8 @@ nothing client-side touches `Genre`, `MusicalKey` or `ReleaseFormat`.
 |---|---|
 | `Platform`, `SoundCloudOption`, `SoundCloudPlayerStyle`, `TerminalTone` | values the client resolves |
 | `Tag`, `HtmlTag`, `HtmlAttribute` | what it creates and selects on |
-| `SoundCloudPlayerAttribute`, `EmbedAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute` | what it reads off an element |
+| `SoundCloudPlayerAttribute`, `EmbedAttribute`, `TerminalAttribute`, `CoverArtAttribute`, `LinkAttribute`, `WaveformAttribute` | what it reads off an element |
+| `WaveformBand` | the four byte offsets a waveform column is read at — the one **numeric** mirror, because the values are positions rather than names |
 | `TerminalFieldKey` | the JSON keys a terminal row arrives under |
 | `CssClass`, `ElementId`, `SectionKind`, `ArrangementAttribute` | what the stylesheet and the SPA router look for |
 | `RequestHeader`, `RequestedWith` | the header that asks for a fragment, the one that revalidates, and `Range` — which no client code writes either; the browser sends it when an `<audio>` is seeked |
@@ -854,7 +868,8 @@ assets/css/                   ← sources; outside public/, neither web-served n
 ├── layout/                   ← shell.css (what Layout.php emits), utilities.css
 ├── views/                    ← home.css, release.css, demo.css, stats.css (cf. src/NeuroSYS/View/)
 └── elements/                 ← card.css, terminal.css, CoverArt.css, embed.css,
-                                download.css, arrangement.css           (cf. assets/ts/elements/)
+                                download.css, arrangement.css, waveform.css
+                                                                        (cf. assets/ts/elements/)
       ↓ npm run build
 public/assets/css/style.css   ← generated, committed, deployed
 ```
@@ -958,11 +973,12 @@ asks for the password first. A share link outlives the password it was sent with
 not.
 
 ```bash
-php tools/stage-demo.php <file>…      # mints a password, transcodes, prints the entry
-php tools/stage-demo.php --rotate     # a new password for a demo already staged
+php tools/stage-demo.php <file>…        # mints a password, transcodes, analyses, prints the entry
+php tools/stage-demo.php --waveforms    # waveforms for demos already staged
+php tools/stage-demo.php --rotate       # a new password for a demo already staged
 ```
 
-Six decisions are worth knowing before touching any of it. `docs/demos.md` is the workflow.
+Seven decisions are worth knowing before touching any of it. `docs/demos.md` is the workflow.
 
 - **Nothing is discovered — every file on the page is named on the command line.**
   `~/Music/neuro.SYS/demos/` is a working directory: eight bounces of one bootleg, four release
@@ -1000,6 +1016,19 @@ Six decisions are worth knowing before touching any of it. `docs/demos.md` is th
   takes a keyboard and is announced by a screen reader — and seeking is why `FileResponse` answers
   ranges at all. A server that ignored `Range` would give a player that plays and will not skip,
   with nothing in any console.
+- **The card is a deck screen, and the waveform behind it does not spend that exception.**
+  `<demo-waveform>` prepends a canvas and leaves the server's children where they were, so with JS
+  off the card is the card it always was — no empty box, because the picture is decoration and the
+  player is not. The numbers are a `Waveform`: 512 columns of four bytes, written beside the audio
+  at `data/demos/{slug}/{label}.wave` and inlined into an attribute, ~2.7 KB a mix. **The analysis
+  is build-time and could not be anything else** — ten seconds of FFT per mix through the port in
+  `tools/lib/Dsp/`, which is why the site only ever reads the file. A missing sidecar is a card
+  without a picture rather than an error, the state every demo staged before the format existed is
+  already in. Two measurements decided how it looks and both are written down where they are made:
+  the height is an RMS **relative to the track's own loudest slice**, because a peak envelope is at
+  or above full scale in 287 of 512 columns of a mastered bounce (see `WaveformColumn`); and the
+  three colours are `Spectrum::bars()` at three bands, whose log spacing lands on 20–207 /
+  207–2134 / 2134–22050 Hz without anybody choosing it.
 
 **A demo is unreachable while the pre-launch site gate is on**, and this is a known interaction
 rather than a bug: `Auth::requireSiteAuth()` runs on every request and both gates are HTTP Basic, so
@@ -1039,7 +1068,9 @@ tools/
     ├── Command/          ← the five commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share
     ├── Demo/             ← what puts unreleased work behind a password: Password, DemoSource,
-    │                       DemoStage, DemoPreflight, DemoEntryWriter, Encoding
+    │                       DemoStage, DemoPreflight, DemoEntryWriter, Encoding, WaveformScan
+    ├── Dsp/              ← c-µdsp in PHP: Fft, Analyze, Spectrum — the three modules the
+    │                       demo waveform needs, ported with their tests
     ├── Export/           ← where a release's audio comes from: Exporter + PreparedExport and
     │                       FlStudioExport, RenderFormat, ExportedAudio/ExportSource
     ├── Flp/              ← the FL Studio project reader: FlpFile + EventId/EventWidth/Event,
@@ -1144,7 +1175,9 @@ other command here, each argued for in [Demos](#demos): it takes **many** positi
 because the mixes on a page are chosen rather than discovered; `--check` returns **before the
 password is minted**, so a run made only to read the report cannot leave a real password on screen
 that no entry matches; and `--rotate` takes **no** files at all, because changing a password is one
-line of an entry and restaging would rewrite every file and lose the description.
+line of an entry and restaging would rewrite every file and lose the description. `--waveforms` is
+the fourth, and it is `--rotate`'s shape rather than a staging run's: it reads the operands as
+**slugs**, analyses audio that is already staged, and touches no password, no entry and no audio.
 
 It shares `Finding` and `Level` with the release preflight and nothing else. Not `FolderReport`:
 that class is built around a `ReleaseFolder` — one path, checked to be a directory, with imports
@@ -1158,6 +1191,28 @@ answers `N/A` for everything it would have had to decode to know — so `Probe::
 well-formed `AudioStream` describing nothing, and the demo stages "successfully" with a player that
 will not start. `DemoSource::isReadable()` asks for a **sample rate**, which is the thing a name
 cannot supply.
+
+**`tools/lib/Dsp/` is a port rather than a design**, which is why it is the one directory here whose
+layout was decided somewhere else. `Fft`, `Analyze` and `Spectrum` are `c-µdsp`'s `fft.c`,
+`analyze.c` and `spectrum.c` transliterated, with that library's own tests ported beside them in
+`DspTest` — known input, known output, a 1 kHz tone pinned to the same bar index it lands in over
+there. Three deviations and no more, all stated on `Fft`: a `float` is a double, a length argument
+is gone wherever the array already carries it, and two functions return where the C wrote into a
+caller's scratch buffer, because PHP has no scratch buffer to own. **The rule that made the C
+portable is kept**: nothing under `Dsp/` opens a file or decides a column count. `WaveformScan` is
+the consumer, exactly as `ctui-mus`'s `audiovis-core` is over there.
+
+The three modules with no caller here — `loudness.c`, `scope.c`, `spectrogram.c` — stay in C. The
+verify script asserts every class under `tools/lib/` loads, so a port nothing calls would arrive
+carrying an assertion about itself and nothing else.
+
+**The decode is `Probe::decode()`, and it cannot be `Probe::run()`.** That one is `exec()`, which
+splits stdout into lines; float bytes contain newlines as often as any other byte. `popen()` keeps
+the stream whole and still hands back an exit status. What comes back is one **string** rather than
+an array of samples, which is the constraint the whole design turned on: a three-minute track is 6.9
+million samples, roughly 550 MB as a PHP array and 28 MB as bytes. Reading one window at a time out
+of it is also precisely the contract `c-µdsp` states — the caller owns the buffer and supplies a
+window.
 
 **`extract-midi` reads the notes, which is the half of the project the rest of the reader skips.**
 `Project` answers what a release entry needs; `Score` answers what a MIDI file needs — the channels,

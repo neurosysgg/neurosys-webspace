@@ -34,6 +34,8 @@ import { ElementId } from '../../public/assets/js/model/ElementId.js';
 import { RequestHeader } from '../../public/assets/js/model/RequestHeader.js';
 import { RequestedWith } from '../../public/assets/js/model/RequestedWith.js';
 import { TerminalFieldKey } from '../../public/assets/js/model/TerminalFieldKey.js';
+import { WaveformAttribute } from '../../public/assets/js/model/WaveformAttribute.js';
+import { WaveformBand, STRIDE } from '../../public/assets/js/model/WaveformBand.js';
 import { Config } from '../../public/assets/js/Config.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
@@ -119,6 +121,7 @@ const MIRRORED_NAMES = [
   ['TerminalFieldKey', TerminalFieldKey, 'NeuroSYS\\View\\Terminal\\TerminalFieldKey'],
   ['SectionKind', SectionKind, 'NeuroSYS\\Model\\Production\\SectionKind'],
   ['ArrangementAttribute', ArrangementAttribute, 'NeuroSYS\\View\\Html\\ArrangementAttribute'],
+  ['WaveformAttribute', WaveformAttribute, 'NeuroSYS\\View\\Html\\WaveformAttribute'],
 ];
 
 for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {
@@ -129,6 +132,31 @@ for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {
     );
   });
 }
+
+/**
+ * WaveformBand, which is the one numeric mirror and so cannot use `cases()` above.
+ *
+ * A TypeScript numeric enum compiles to an object carrying the reverse mapping as well — `{0:
+ * 'Level', Level: 0, …}` — so Object.entries answers twice as many pairs as there are cases. The
+ * forward half is the half whose values are numbers.
+ *
+ * It matters more than most of the list above, because these values are byte offsets rather than
+ * names. A name that drifts makes an element fall back to nothing; an offset that drifts makes the
+ * waveform draw its lows in the colour of its highs, which is a picture that looks deliberate.
+ */
+test('WaveformBand mirrors NeuroSYS\\Model\\WaveformBand, offsets included', () => {
+  const forward = Object.entries(WaveformBand).filter(([, value]) => typeof value === 'number');
+
+  assert.deepEqual(
+    forward,
+    php(`echo json_encode(array_map(
+        fn ($c) => [$c->name, $c->value],
+        NeuroSYS\\Model\\WaveformBand::cases(),
+    ));`),
+  );
+
+  assert.equal(STRIDE, php('echo json_encode(NeuroSYS\\Model\\WaveformBand::stride());'));
+});
 
 /**
  * Config, which is not an enum but is the same problem: a fact stated on both sides.

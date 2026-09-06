@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Config;
+use NeuroSYS\Model\Demo;
+use NeuroSYS\Model\Waveform;
+use NeuroSYS\Service\DemoRepository;
+use NeuroSYS\Support\Directory;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -15,6 +19,7 @@ use NeuroSYS\Tool\Demo\DemoPreflight;
 use NeuroSYS\Tool\Demo\DemoSource;
 use NeuroSYS\Tool\Demo\DemoStage;
 use NeuroSYS\Tool\Demo\Password;
+use NeuroSYS\Tool\Demo\WaveformScan;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 
@@ -34,6 +39,9 @@ use NeuroSYS\Tool\Release\Level;
  *   not just the page. That is the whole reason a demo is not a HiDrive link.
  * - **It mints a password and shows it once.** Only the bcrypt hash is kept, in the entry. There is
  *   no way to recover the plaintext afterwards and `--rotate` is what to do instead.
+ * - **It analyses what it staged.** Each mix gets a {@link Waveform} beside it, which is what
+ *   `<demo-waveform>` draws behind the player. `--waveforms` does that half on its own, for demos
+ *   staged before this existed — and, like `--rotate`, without touching a password or an entry.
  *
  * The report goes to **stderr** and the entry to **stdout**, the same split `stage-release` uses —
  * except the password, which goes to stderr with the report so `> entry.php` cannot accidentally
@@ -54,7 +62,8 @@ final readonly class StageDemo implements Command
      */
     public function usage(): string
     {
-        return '<file>… [--title <title>] [--slug <slug>] [--check]   |   --rotate';
+        return '<file>… [--title <title>] [--slug <slug>] [--check]'
+            . "\n                                 --waveforms [<slug>…]   |   --rotate";
     }
 
     /**
@@ -81,6 +90,13 @@ final readonly class StageDemo implements Command
     public function run(Input $input, Output $output): ExitCode
     {
         $paths = self::operands($input);
+
+        // Checked before the two below because it reads the operands as slugs rather than as
+        // files — the only mode that does. Both of these change a demo that is already staged
+        // without restaging it, which is what would mint a new password and lose a description.
+        if ($input->has(StageDemoOption::Waveforms)) {
+            return $this->waveforms($paths, $output);
+        }
 
         // --rotate on its own is the one form that takes no files: it changes one line of an entry
         // that already exists, and restaging to do that would rewrite every file and lose whatever
@@ -127,6 +143,12 @@ final readonly class StageDemo implements Command
             }
 
             return ExitCode::Failure;
+        }
+
+        $directory = $stage->directory();
+
+        foreach ($stage->sources as $source) {
+            self::analyse($directory, $source->target($directory)->name(), $source->label, $output);
         }
 
         return $this->emit($stage, $output);
@@ -178,6 +200,119 @@ final readonly class StageDemo implements Command
         self::credentials(null, $password, $output);
 
         return ExitCode::Success;
+    }
+
+    /**
+     * Waveforms for demos that are already staged, without restaging any of them.
+     *
+     * It reads `data/demos.php` rather than a directory listing, so the demos it knows about are
+     * exactly the ones the site serves — a folder left behind under `data/demos/` by a demo that
+     * was deleted from the entry file is not one, and analysing it would be ten seconds spent on
+     * something no page can reach.
+     *
+     * A slug that names nothing is a failure rather than a shrug, because the only way to type one
+     * is to mean it.
+     *
+     * @param list<string> $slugs The demos to do, or none for all of them.
+     * @param Output       $output
+     * @return ExitCode
+     */
+    private function waveforms(array $slugs, Output $output): ExitCode
+    {
+        $demos   = new DemoRepository()->all();
+        $unknown = array_values(array_diff($slugs, $demos->keys()));
+
+        if ($unknown !== []) {
+            $output->error(sprintf(
+                "\n  no demo called %s in data/demos.php.\n\n",
+                implode(' or ', $unknown),
+            ));
+
+            return ExitCode::Failure;
+        }
+
+        if ($slugs !== []) {
+            $demos = $demos->where(static fn(Demo $demo, string $slug): bool => in_array($slug, $slugs, true));
+        }
+
+        if ($demos->isEmpty()) {
+            $output->error("\n  no demos to analyse — data/demos.php is empty or absent.\n\n");
+
+            return ExitCode::Failure;
+        }
+
+        $output->error("\n");
+        $written = 0;
+
+        foreach ($demos as $slug => $demo) {
+            $directory = Config::demoDir($slug);
+
+            foreach ($demo->tracks as $track) {
+                $written += self::analyse($directory, $track->file, $track->label, $output) ? 1 : 0;
+            }
+        }
+
+        $output->error(sprintf("\n  wrote %d waveform(s). data/demos.php unchanged.\n\n", $written));
+
+        return $written > 0 ? ExitCode::Success : ExitCode::Failure;
+    }
+
+    /**
+     * Analyses one staged mix and writes its sidecar beside it.
+     *
+     * The failure is reported and not fatal, and that is the same judgement `DownloadLogger` makes
+     * about its log: a waveform is what the card is drawn on, not what it plays, so a mix that
+     * could not be analysed should still be a mix on a page. {@link \NeuroSYS\Model\Waveform}'s
+     * reader answers null for the sidecar that is then not there, which is the state every demo
+     * staged before this existed is already in.
+     *
+     * @param Directory $directory The demo's own, which is where both files live.
+     * @param string    $audio     The staged audio's file name.
+     * @param string    $label     The mix's label, which is what the sidecar is named for.
+     * @param Output    $output
+     * @return bool
+     */
+    private static function analyse(Directory $directory, string $audio, string $label, Output $output): bool
+    {
+        $file = $directory->file($audio);
+
+        // Asked separately from the decode below because ffmpeg answers both the same way, and
+        // these are not the same problem: a zero-byte file is a staging run that went wrong, and
+        // `data/demos/alien-house/v3.mp3` is one. A message naming ffmpeg would send whoever reads
+        // it to check an installation that is fine.
+        if (!$file->exists() || $file->size() < 1) {
+            $output->error(sprintf("  %-28s is empty or missing — restage it\n", $audio));
+
+            return false;
+        }
+
+        $started  = hrtime(true);
+        $waveform = WaveformScan::of($file);
+        $seconds  = (hrtime(true) - $started) / 1e9;
+
+        if ($waveform === null) {
+            $output->error(sprintf(
+                "  %-28s could not be decoded — is it really audio, and is ffmpeg installed?\n",
+                $audio,
+            ));
+
+            return false;
+        }
+
+        if (!Waveform::fileIn($directory, $label)->write($waveform->bytes())) {
+            $output->error(sprintf("  %-28s analysed, but the waveform could not be written\n", $audio));
+
+            return false;
+        }
+
+        $output->error(sprintf(
+            "  %-28s %d columns   %.1fs\n",
+            $audio,
+            Waveform::COLUMNS,
+            $seconds,
+        ));
+
+        return true;
     }
 
     /**

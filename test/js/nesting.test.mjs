@@ -90,7 +90,7 @@ test('a root element connects anywhere', () => {
 
   assert.deepEqual(roots, [
     'soundcloud-player', 'soundcloud-profile', 'cover-art', 'terminal-window',
-    'download-list', 'release-arrangement', 'release-list',
+    'download-list', 'release-arrangement', 'demo-waveform', 'release-list',
   ]);
 });
 

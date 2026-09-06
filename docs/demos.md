@@ -20,6 +20,7 @@ exactly like a wrong password, in the same time.
 
 ```bash
 php tools/stage-demo.php <file>… [--title <title>] [--slug <slug>] [--check]
+php tools/stage-demo.php --waveforms [<slug>…]
 php tools/stage-demo.php --rotate
 ```
 
@@ -65,10 +66,51 @@ The command prints its report and the password to **stderr** and the entry to **
 - `data/demos/{slug}/{label}.mp3` — the audio, 192 kbps CBR, metadata and artwork stripped.
   An already-lossy master is **remuxed** rather than re-encoded, so there is no generation loss;
   a FLAC or WAV is encoded, because 30 MB per listen through PHP on shared hosting is not a plan.
+- `data/demos/{slug}/{label}.wave` — 2 KB describing the shape of it, drawn behind the player.
 - Nothing else. It **prints** the `data/demos.php` entry rather than writing it, the same way
   `stage-release` does: that file is hand-ordered, and a file either orders entries or is generated.
 
 Paste the entry into `data/demos.php`, newest first, creating the file if it is not there.
+
+---
+
+## The waveform
+
+Each mix's card is a deck screen: the track's whole shape behind the player, columns as tall as that
+slice is loud and coloured by which frequency band it is made of — purple sub, pink body, near-white
+air. Played columns are lit, the rest dimmed, and clicking anywhere on it needle-drops.
+
+```bash
+php tools/stage-demo.php --waveforms            # every demo in data/demos.php
+php tools/stage-demo.php --waveforms wna-bootleg
+```
+
+Staging a demo does this as part of the run. The flag is for demos that already exist — it re-reads
+the **staged audio** in `data/demos/{slug}/` and writes the sidecars, touching no password, no entry
+and no audio. It is beside `--rotate` for that reason: both change something about a demo without
+restaging it, which is what would mint a new password and lose a hand-written description.
+
+About ten seconds a mix. All of that is FFT: `tools/lib/Dsp/` is a PHP port of `c-µdsp`'s `fft.c`,
+`analyze.c` and `spectrum.c` — a separate repository of ours, not vendored here — and one column is
+an RMS over every sample in it plus three windowed spectra. **None of it runs on the server** — the site
+reads the 2 KB file and hands it to an attribute.
+
+Three things worth knowing before touching it:
+
+- **The height is an RMS relative to the track's own loudest slice, not a peak.** A peak envelope
+  was the obvious choice and is measurably wrong: on `wna-bootleg/v4.mp3`, a mastered bounce,
+  **287 of 512 columns peak at or above full scale** — a flat-topped rectangle for over half the
+  track. Relative rather than absolute because a demo is often an unmastered bounce sitting 12 dB
+  down, which an absolute scale draws as a flat line. Heights therefore compare within a mix and
+  not between two of them, which is the trade a CDJ makes too.
+- **The three bands are not a choice anyone made.** `Spectrum::bars()` places its edges
+  logarithmically between 20 Hz and Nyquist, and at three bands that lands on 20–207 Hz,
+  207–2134 Hz and 2134–22050 Hz — near enough a CDJ's low/mid/high, out of the library as it stood.
+- **A missing sidecar is a card without a picture, not an error.** Every demo staged before this
+  existed is in that state, and so is a mix whose audio will not decode. The card, the label, the
+  duration and the player are all exactly what they were — which is also what a visitor with
+  JavaScript off gets, and why the waveform does not spend the exception that keeps the player
+  native.
 
 ---
 

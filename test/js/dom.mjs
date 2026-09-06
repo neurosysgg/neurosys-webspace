@@ -50,9 +50,93 @@ const dom = new JSDOM(
 for (const name of [
   'window', 'document', 'HTMLElement', 'HTMLAnchorElement', 'Element',
   'customElements', 'DocumentFragment', 'Node', 'Event', 'MouseEvent',
-  'CSSStyleDeclaration', 'history', 'location',
+  'CSSStyleDeclaration', 'getComputedStyle', 'history', 'location',
 ]) {
   globalThis[name] = name === 'window' ? dom.window : dom.window[name];
+}
+
+/**
+ * A 2D context that records instead of rasterising.
+ *
+ * jsdom's HTMLCanvasElement.getContext() answers **null** unless the native `canvas` package is
+ * installed, which is a C++ build against cairo and pango — a real dependency for a project whose
+ * whole front end has none. So <demo-waveform> would paint nothing here, and the coverage gate,
+ * which is 100% and not a report, would have no way to reach the drawing at all.
+ *
+ * Recording is the better test anyway, not merely the cheaper one: what is worth asserting about a
+ * waveform is where the bars are, how tall, in which colour and at which opacity — decisions, not
+ * pixels. A real canvas would answer those questions only by being read back as an image.
+ *
+ * fillStyle and globalAlpha are captured *per call*, since both are set before each rect and the
+ * element's whole played/unplayed distinction is in the alpha.
+ */
+function recordingContext() {
+  const calls = [];
+  const state = { fillStyle: '', globalAlpha: 1 };
+
+  return {
+    calls,
+    get fillStyle() { return state.fillStyle; },
+    set fillStyle(value) { state.fillStyle = value; },
+    get globalAlpha() { return state.globalAlpha; },
+    set globalAlpha(value) { state.globalAlpha = value; },
+    setTransform: (...args) => calls.push(['setTransform', ...args]),
+    clearRect: (...args) => calls.push(['clearRect', ...args]),
+    fillRect: (x, y, width, height) =>
+      calls.push(['fillRect', x, y, width, height, state.fillStyle, state.globalAlpha]),
+  };
+}
+
+const CONTEXT = Symbol('2d');
+
+dom.window.HTMLCanvasElement.prototype.getContext = function getContext(kind) {
+  // Anything but '2d' keeps jsdom's own answer, so an element asking for a context it will not get
+  // still has to handle the null.
+  if (kind !== '2d') return null;
+
+  this[CONTEXT] ??= recordingContext();
+
+  return this[CONTEXT];
+};
+
+/** What was drawn on a canvas, in order: ['fillRect', x, y, w, h, fillStyle, globalAlpha]. */
+export const drawnOn = (canvas) => canvas.getContext('2d').calls;
+
+/**
+ * ResizeObserver, which jsdom does not implement at all.
+ *
+ * <demo-waveform> watches its own box rather than the window's, because connectedCallback runs
+ * before a native <audio> control has been laid out and the canvas would otherwise be sized to a
+ * card that does not exist yet. There is no layout here to observe, so the stub keeps the observed
+ * elements and `resize()` below fires them — which is the same explicitness the sized() helper has:
+ * a test says when the box changed, because nothing else can.
+ */
+const OBSERVED = new Set();
+
+dom.window.ResizeObserver = class ResizeObserver {
+  constructor(callback) { this.callback = callback; }
+  observe(element) { OBSERVED.add(this); this.callback([{ target: element }], this); }
+  disconnect() { OBSERVED.delete(this); }
+};
+
+globalThis.ResizeObserver = dom.window.ResizeObserver;
+
+/** Tells every live observer its box changed — the stub's stand-in for a layout pass. */
+export function resize() {
+  for (const observer of OBSERVED) observer.callback([], observer);
+}
+
+/**
+ * Gives an element a size, because jsdom has no layout and every box is 0×0.
+ *
+ * <demo-waveform> draws nothing into a box with no width, which is a real branch — a card inside a
+ * `display: none` parent — but it is not the one most tests want.
+ */
+export function sized(element, width, height) {
+  Object.defineProperty(element, 'clientWidth', { value: width, configurable: true });
+  Object.defineProperty(element, 'clientHeight', { value: height, configurable: true });
+
+  return element;
 }
 
 /**

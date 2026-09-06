@@ -646,6 +646,17 @@ mkdir -p "$DEMO_DIR"
 # FileResponse counts bytes. What is under test is the arithmetic and the status codes.
 printf '0123456789' > "$DEMO_DIR/v1.mp3"
 
+# A waveform beside it, written through the same class the tooling writes one with. This is the only
+# place the whole path runs end to end — a file on disk, read by WaveformRepository, base64'd into
+# an attribute by DemoView — and every step of it is invisible to PHPUnit, which never asks a server
+# for a gated page. Analysing real audio would cost ten seconds and prove nothing extra: what is
+# under test is that the sidecar is found and reaches the markup, not what is in it.
+php -r "require '$REPO/autoload.php';
+    \$columns = array_fill(0, NeuroSYS\Model\Waveform::COLUMNS,
+        new NeuroSYS\Model\WaveformColumn(0.5, -6.0, -18.0, -30.0));
+    NeuroSYS\Model\Waveform::fileIn(new NeuroSYS\Support\Directory('$DEMO_DIR'), 'v1')
+        ->write(NeuroSYS\Model\Waveform::of(...\$columns)->bytes());"
+
 cat > "$DEMOS_FILE" <<PHPFIXTURE
 <?php
 declare(strict_types=1);
@@ -709,6 +720,25 @@ else
     # The audio. This is the difference between a demo and a release: a release redirects to a
     # HiDrive share URL anyone can forward, and these bytes are under data/, which Apache cannot
     # reach at all — so this route is the only way to them, and it asks for the password first.
+    # The waveform reached the page. It is a decoration, so nothing anywhere fails when it does not
+    # — which is exactly why the one end-to-end check of it is worth having.
+    demo_page=$(curl "${CURL_ARGS[@]}" "$BASE/demos/$DEMO_SLUG" 2>/dev/null || true)
+    if grep -q '<demo-waveform' <<< "$demo_page"; then
+        pass "  the card is the waveform element"
+    else
+        fail "the demo card is not a <demo-waveform> — the sidecar did not reach the view"
+    fi
+
+    demo_peaks=$(grep -oE 'peaks="[A-Za-z0-9+/=]+"' <<< "$demo_page" | head -1 | sed 's/peaks="//;s/"$//')
+    demo_bytes=$(php -r "echo strlen(base64_decode('$demo_peaks', true));")
+    demo_wanted=$(php -r "require '$REPO/autoload.php';
+        echo NeuroSYS\Model\Waveform::COLUMNS * NeuroSYS\Model\WaveformBand::stride();")
+    if [[ "$demo_bytes" == "$demo_wanted" ]]; then
+        pass "  and carries every column of it ($demo_bytes bytes)"
+    else
+        fail "the peaks attribute decoded to $demo_bytes bytes, wanted $demo_wanted"
+    fi
+
     check_header "the audio declares what it is"        "$BASE/demos/$DEMO_SLUG/v1"  "^content-type: audio/mpeg"
     check_header "  and that it can be asked in parts"  "$BASE/demos/$DEMO_SLUG/v1"  "^accept-ranges: bytes"
     check_header "  and how long it is"                 "$BASE/demos/$DEMO_SLUG/v1"  "^content-length: 10"

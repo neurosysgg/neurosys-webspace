@@ -38,6 +38,8 @@ enum Tag: string implements TagName
     case ReleaseArrangement = 'release-arrangement';
     case ArrangementSection = 'arrangement-section';
 
+    case DemoWaveform = 'demo-waveform';
+
     case ReleaseList  = 'release-list';
     case ReleaseCard  = 'release-card';
     case ReleaseTitle = 'release-title';

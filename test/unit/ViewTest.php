@@ -9,6 +9,8 @@ use NeuroSYS\Config;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Layout;
+use NeuroSYS\Model\Demo;
+use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
 use NeuroSYS\Model\Format;
@@ -22,10 +24,14 @@ use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Model\Waveform;
+use NeuroSYS\Model\WaveformColumn;
 use NeuroSYS\Service\DownloadLogEntry;
 use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\PasswordHash;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\View\DemoView;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\NotFoundView;
@@ -42,6 +48,7 @@ use PHPUnit\Framework\TestCase;
 
 #[CoversClass(ReleaseView::class)]
 #[CoversClass(ReleasesView::class)]
+#[CoversClass(DemoView::class)]
 #[CoversClass(NotFoundView::class)]
 #[CoversClass(StatsView::class)]
 #[CoversClass(Layout::class)]
@@ -49,6 +56,59 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(TerminalField::class)]
 final class ViewTest extends TestCase
 {
+    /**
+     * Every page that emits a custom element, rendered into one string.
+     *
+     * The two tag tests below are two directions of one question — is every tag served known, and
+     * is every known tag served — so they read the same corpus, and a page missing from it makes
+     * one of them wrong without making it fail. The demo page is here with a waveform on it because
+     * `<demo-waveform>` is emitted only when a mix has one, and a corpus of demos with no sidecars
+     * would report the tag as built-by-an-element when the server writes it.
+     *
+     * @return string
+     */
+    private function everyPage(): string
+    {
+        return new ReleaseView(
+            $this->release(
+                embed:       new SoundCloudEmbed(trackId: 1, permalink: 'x'),
+                formats:     [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
+                arrangement: $this->arrangement(),
+            ),
+            'ill',
+        )->content()->render()
+            . new ReleasesView($this->catalogue())->content()->render()
+            . new NotFoundView('/x')->content()->render()
+            . new HomeView()->content()->render()
+            . $this->demoPage()->content()->render();
+    }
+
+    /**
+     * A demo of one mix, with a waveform behind it.
+     *
+     * @return DemoView
+     */
+    private function demoPage(): DemoView
+    {
+        $demo = new Demo(
+            title:    'alien house',
+            password: new PasswordHash(password_hash('x', PASSWORD_BCRYPT, ['cost' => 4])),
+            tracks:   new Collection(DemoTrack::class)->with(new DemoTrack('v3', 'v3.mp3', 158)),
+        );
+
+        $waveform = Waveform::of(...array_fill(
+            0,
+            Waveform::COLUMNS,
+            new WaveformColumn(0.5, -12.0, -18.0, -30.0),
+        ));
+
+        return new DemoView(
+            $demo,
+            'alien-house',
+            new SearchableCollection(Waveform::class)->with('v3', $waveform),
+        );
+    }
+
     /**
      * A one-entry catalogue, for the cases that render the list rather than a single release.
      *
@@ -447,17 +507,7 @@ final class ViewTest extends TestCase
      */
     public function testTheViewsEmitOnlyKnownCustomElements(): void
     {
-        $html = new ReleaseView(
-            $this->release(
-                embed:       new SoundCloudEmbed(trackId: 1, permalink: 'x'),
-                formats:     [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
-                arrangement: $this->arrangement(),
-            ),
-            'ill',
-        )->content()->render()
-            . new ReleasesView($this->catalogue())->content()->render()
-            . new NotFoundView('/x')->content()->render()
-            . new HomeView()->content()->render();
+        $html = $this->everyPage();
 
         preg_match_all('/<([a-z][a-z0-9]*-[a-z0-9-]+)/', $html, $m);
 
@@ -472,9 +522,9 @@ final class ViewTest extends TestCase
             |> (fn($x) => self::assertSame([], $x));
         self::assertSame(
             [
-                'arrangement-section', 'cover-art', 'download-card', 'download-label',
-                'download-list', 'download-meta', 'release-arrangement', 'release-card',
-                'release-list', 'release-meta', 'release-title',
+                'arrangement-section', 'cover-art', 'demo-waveform', 'download-card',
+                'download-label', 'download-list', 'download-meta', 'release-arrangement',
+                'release-card', 'release-list', 'release-meta', 'release-title',
                 'soundcloud-player', 'soundcloud-profile', 'terminal-window',
             ],
             $tags,
@@ -491,17 +541,7 @@ final class ViewTest extends TestCase
      */
     public function testEveryTagIsEitherServedOrBuiltByAnElement(): void
     {
-        $html = new ReleaseView(
-            $this->release(
-                embed:       new SoundCloudEmbed(trackId: 1, permalink: 'x'),
-                formats:     [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
-                arrangement: $this->arrangement(),
-            ),
-            'ill',
-        )->content()->render()
-            . new ReleasesView($this->catalogue())->content()->render()
-            . new NotFoundView('/x')->content()->render()
-            . new HomeView()->content()->render();
+        $html = $this->everyPage();
 
         $unserved = array_values(array_filter(
             Tag::cases(),

@@ -30,6 +30,8 @@ import './elements/download/DownloadMeta.js';
 import './elements/arrangement/ReleaseArrangement.js';
 import './elements/arrangement/ArrangementSection.js';
 
+import './elements/waveform/DemoWaveform.js';
+
 import './elements/release/ReleaseList.js';
 import './elements/release/ReleaseCard.js';
 import './elements/release/ReleaseTitle.js';
