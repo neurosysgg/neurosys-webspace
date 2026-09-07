@@ -7,6 +7,8 @@ namespace NeuroSYS;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Support\Charset;
+use NeuroSYS\Support\SitePath;
+use NeuroSYS\Support\UrlScheme;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Document;
 use NeuroSYS\View\Html\Element;
@@ -18,6 +20,8 @@ use NeuroSYS\View\Html\LinkTarget;
 use NeuroSYS\View\Html\MetaName;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\ScriptType;
+use NeuroSYS\View\Html\ViewportContent;
+use NeuroSYS\View\Html\ViewportWidth;
 use NeuroSYS\View\View;
 use NeuroSYS\View\Wordmark;
 
@@ -36,7 +40,7 @@ class Layout
     {
         return new Document(
             new Element(HtmlTag::Html)
-                ->attr(HtmlAttribute::Lang, 'en')
+                ->attr(HtmlAttribute::Lang, $view->language())
                 ->containing(self::head($view->pageTitle()), self::body($view->content())),
         );
     }
@@ -51,7 +55,10 @@ class Layout
             new Element(HtmlTag::Meta)->attr(HtmlAttribute::Charset, Charset::Utf8->canonical()),
             new Element(HtmlTag::Meta)
                 ->attr(HtmlAttribute::Name, MetaName::Viewport)
-                ->attr(HtmlAttribute::Content, 'width=device-width, initial-scale=1.0'),
+                ->attr(HtmlAttribute::Content, new ViewportContent(
+                    width: ViewportWidth::Device,
+                    initialScale: 1.0,
+                )),
             new Element(HtmlTag::Title)->containing($title),
             new Element(HtmlTag::Meta)
                 ->attr(HtmlAttribute::Name, MetaName::Description)
@@ -126,13 +133,13 @@ class Layout
             ->containing(
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::ClassName, CssClass::Logo)
-                    ->attr(HtmlAttribute::Href, '/')
+                    ->attr(HtmlAttribute::Href, SitePath::Home->to())
                     ->containing(...Wordmark::nodes()),
                 new Element(HtmlTag::Nav)
                     ->attr(HtmlAttribute::ClassName, CssClass::SiteNav)
                     ->containing(
                         new Element(HtmlTag::A)
-                            ->attr(HtmlAttribute::Href, '/releases')
+                            ->attr(HtmlAttribute::Href, SitePath::Releases->to())
                             ->containing('releases'),
                     ),
             );
@@ -162,13 +169,15 @@ class Layout
             new Element(HtmlTag::P)->containing(
                 Config::NAME . ' · ',
                 new Element(HtmlTag::A)
-                    ->attr(HtmlAttribute::Href, 'mailto:' . Config::EMAIL)
+                    ->attr(HtmlAttribute::Href, UrlScheme::Mailto->url(Config::EMAIL))
                     ->containing(Config::EMAIL),
                 ' · ',
-                new Element(HtmlTag::A)->attr(HtmlAttribute::Href, '/imprint')->containing('imprint'),
+                new Element(HtmlTag::A)
+                    ->attr(HtmlAttribute::Href, SitePath::Imprint->to())
+                    ->containing('imprint'),
                 ' · ',
                 new Element(HtmlTag::A)
-                    ->attr(HtmlAttribute::Href, '/privacy')
+                    ->attr(HtmlAttribute::Href, SitePath::Privacy->to())
                     ->containing('privacy policy'),
             ),
         );

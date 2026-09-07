@@ -377,7 +377,8 @@ stays on one line. Whitespace between inline content is content — without that
 
 ### `RawHtml` is the single hole
 
-It exists for `data/privacy.html`, a hand-authored document rather than markup a view assembles.
+It exists for `data/privacy.de.html` and `data/privacy.en.html`, a hand-authored document rather
+than markup a view assembles.
 `HtmlTest` pins its call sites, so a second one has to be argued for in a test named for the fact.
 **Never construct one from anything a request can influence.**
 

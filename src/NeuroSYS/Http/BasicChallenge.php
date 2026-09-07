@@ -15,7 +15,9 @@ namespace NeuroSYS\Http;
  *
  * Only `Basic` is offered because only Basic is used, and because the scheme is not a detail to
  * pass in: a `Digest` or `Bearer` challenge has a different grammar and would be a different named
- * constructor rather than a different string.
+ * constructor rather than a different string. It is an {@link AuthScheme} case all the same — this
+ * is the half that *writes* the token and {@link Request::fromGlobals()} is the half that reads it
+ * back, and they used to spell it separately.
  */
 final readonly class BasicChallenge implements HeaderValue
 {
@@ -34,6 +36,6 @@ final readonly class BasicChallenge implements HeaderValue
      */
     public function render(): string
     {
-        return 'Basic realm="' . $this->realm . '"';
+        return AuthScheme::Basic->value . ' realm="' . $this->realm . '"';
     }
 }

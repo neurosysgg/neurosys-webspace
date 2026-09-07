@@ -8,19 +8,30 @@ use Closure;
 use NeuroSYS\Controller\Controller;
 
 /**
- * A registered route — a URL pattern paired with a factory that produces a Controller.
+ * A registered route — a {@link SitePath} paired with a factory that produces a Controller.
  *
  * Pattern syntax: static segments and `{param}` placeholders, e.g. `/releases/{slug}/{format}`.
+ * The pattern is a case rather than a string because the views build their links from the same
+ * cases — see {@link SitePath}, which is where that argument is made.
  */
 readonly class Route
 {
     /**
-     * @param string $pattern
+     * What a placeholder looks like, shared with {@link SitePath::to()}.
+     *
+     * One constant because the two halves of the syntax have to agree: this class turns a
+     * placeholder into a capture group and that method fills it in, and a pattern that only one of
+     * them recognised would match a URL nothing links to, or link to a URL nothing matches.
+     */
+    public const string PLACEHOLDER_PATTERN = '/\{(\w+)\}/';
+
+    /**
+     * @param SitePath $pattern
      * @param Closure $factory
      */
     public function __construct(
-        private string  $pattern,
-        private Closure $factory,
+        private SitePath $pattern,
+        private Closure  $factory,
     ) {}
 
     /**
@@ -35,7 +46,7 @@ readonly class Route
         // let `/releases/ill\n` match and capture the newline into the slug. Not reachable today —
         // parse_url() does not decode %0a and Apache refuses a raw one in the request line — but
         // the anchor that means "the end" should be the one that says so.
-        $regex = '@^' . preg_replace('/\{(\w+)\}/', '([^/]+)', $this->pattern) . '\z@';
+        $regex = '@^' . preg_replace(self::PLACEHOLDER_PATTERN, '([^/]+)', $this->pattern->value) . '\z@';
         if (!preg_match($regex, $path, $m)) {
             return false;
         }

@@ -151,7 +151,7 @@ final class SecurityHeaders
      *   avoid and the arrangement `<soundcloud-player>`'s gate exists to defer.
      * - A report carries `document-uri`, `referrer` and `blocked-uri`. Collecting those is a
      *   privacy-policy decision before it is a code one, on exactly the terms
-     *   {@link Config::DOWNLOAD_LOGGING} is switched off on: `data/privacy.html` makes no such
+     *   {@link Config::DOWNLOAD_LOGGING} is switched off on: the privacy policy makes no such
      *   claim, so it would have to be amended first.
      *
      * `report-to` also wants a `Reporting-Endpoints` header, which would be a sixth

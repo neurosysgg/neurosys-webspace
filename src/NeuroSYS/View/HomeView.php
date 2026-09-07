@@ -6,6 +6,7 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Config;
 use NeuroSYS\Model\Embed\SoundCloudProfileEmbed;
+use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -47,7 +48,7 @@ class HomeView extends View
                     ->containing(...self::accented(Config::TAGLINE)),
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::ClassName, CssClass::BtnPrimary)
-                    ->attr(HtmlAttribute::Href, '/releases')
+                    ->attr(HtmlAttribute::Href, SitePath::Releases->to())
                     // The real arrow, not &rarr;: an entity written here would come back out as
                     // &amp;rarr;, since Text is the only way content gets in and it escapes all of it.
                     ->containing('releases →'),

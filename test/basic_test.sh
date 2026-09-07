@@ -937,6 +937,9 @@ echo "=== Caching ==="
 check_header "a document says it must be revalidated" "$BASE/"       "^cache-control: no-cache"
 check_header "  and hands out a validator to do it with" "$BASE/"    "^etag: \""
 check_header "  and names the header its body depends on" "$BASE/"   "^vary: X-Requested-With"
+check_header "  and the bilingual pages name the language too" "$BASE/imprint" \
+    "^vary: X-Requested-With, Accept-Language"
+check_header "  which the pages that are not do not" "$BASE/releases" "^vary: X-Requested-With$"
 check_revalidates "an unchanged document comes back as a 304" "$BASE/"
 check_revalidates "  and so does a release page" "$BASE/releases/ill"
 check_revalidates "  and the 404, which is a document like any other" "$BASE/nope"
@@ -957,6 +960,81 @@ fi
 check_no_header "the gated page hands out no validator"   "$BASE/admin/stats"        "^etag:"
 check_no_header "a 303 is not cacheable"                  "$BASE/releases/ill/flac"  "^cache-control:"
 check_no_header "  and neither is the 405"                "$BASE/"                   "^cache-control:" "POST"
+
+echo ""
+echo "=== Language negotiation ==="
+# The imprint and the privacy policy carry a German half and an English half, and lead with
+# whichever the visitor asked for. Both halves are always sent — the German imprint is what
+# discharges § 5 DDG, so a language guess can cost a scroll and never a document.
+#
+# Only the verify script can see this end to end: it is the request header, the negotiation, the
+# ordering and the Vary that has to hold them together, and a unit test can hold at most three.
+
+check_language_order() {
+    local desc="$1"; local url="$2"; local accept="$3"; local first="$4"; local second="$5"
+    local body before_first before_second
+    body=$(curl "${CURL_ARGS[@]}" -H "Accept-Language: $accept" "$url" 2>/dev/null) || true
+
+    if [[ "$body" != *"$first"* || "$body" != *"$second"* ]]; then
+        fail "$desc (the page is missing one of its two halves)"
+        return
+    fi
+
+    # Prefix removal rather than `grep -bo -m1`: grep exiting on the first match closes the pipe
+    # under it, and the printf feeding it then dies of SIGPIPE mid-run. Pure bash has no pipe.
+    before_first="${body%%"$first"*}"
+    before_second="${body%%"$second"*}"
+
+    if (( ${#before_first} < ${#before_second} )); then
+        pass "$desc"
+    else
+        fail "$desc ('$first' came after '$second')"
+    fi
+}
+
+check_language_order "a German browser reads the Impressum first" "$BASE/imprint" \
+    "de-DE,de;q=0.9,en;q=0.8" "<h1>Impressum</h1>" "<h1>Imprint</h1>"
+check_language_order "  and an English one reads the Imprint first" "$BASE/imprint" \
+    "en-GB,en;q=0.9" "<h1>Imprint</h1>" "<h1>Impressum</h1>"
+check_language_order "  a browser asking for neither gets the site's own language" "$BASE/imprint" \
+    "fr,es;q=0.8" "<h1>Imprint</h1>" "<h1>Impressum</h1>"
+check_language_order "  and no header at all is the same as asking for neither" "$BASE/imprint" \
+    "" "<h1>Imprint</h1>" "<h1>Impressum</h1>"
+check_language_order "the policy orders its two halves the same way" "$BASE/privacy" \
+    "de" "Datenschutz" "Privacy Policy"
+
+check_body "the German imprint is sent to an English reader too" "$BASE/imprint" "<h1>Impressum</h1>"
+check_body "  and each half says which language it is" "$BASE/imprint" '<section lang="de">'
+
+# The two orderings are different bytes, so they cannot validate against each other even in a cache
+# that ignored Vary. Same belt-and-braces as the document/fragment pair above.
+DE_ETAG=$(curl "${CURL_ARGS[@]}" -H "Accept-Language: de" -o /dev/null -D - "$BASE/imprint" 2>/dev/null \
+          | tr -d '\r' | grep -i '^etag:')
+EN_ETAG=$(curl "${CURL_ARGS[@]}" -H "Accept-Language: en" -o /dev/null -D - "$BASE/imprint" 2>/dev/null \
+          | tr -d '\r' | grep -i '^etag:')
+if [[ -n "$DE_ETAG" && "$DE_ETAG" != "$EN_ETAG" ]]; then
+    pass "the two orderings do not share a validator"
+else
+    fail "the two orderings share a validator ($DE_ETAG)"
+fi
+
+# <html lang> follows the half that leads, so assistive technology is told the page's own language
+# rather than the site's. Each half carries its own lang besides, which is what changes the voice at
+# the boundary.
+check_language_attribute() {
+    local desc="$1"; local accept="$2"; local expected="$3"
+    local body
+    body=$(curl "${CURL_ARGS[@]}" -H "Accept-Language: $accept" "$BASE/imprint" 2>/dev/null) || true
+    if printf '%s' "$body" | grep -q -- "<html lang=\"$expected\">"; then
+        pass "$desc"
+    else
+        fail "$desc (no <html lang=\"$expected\">)"
+    fi
+}
+
+check_language_attribute "the document declares the language it led with" "de" "de"
+check_language_attribute "  and the other one when that is what led" "en" "en"
+
 
 echo ""
 echo "=== Read-only method gate ==="

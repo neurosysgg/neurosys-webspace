@@ -17,4 +17,11 @@ export enum RequestHeader {
    * compared case for case, so a case on one side only is what fails.
    */
   Range = 'Range',
+
+  /**
+   * Written by no client code either — the browser sends it from the visitor's own language
+   * settings, and the imprint and the privacy policy order their two halves by it. Here for the
+   * same reason IfNoneMatch and Range are: the mirror is compared case for case.
+   */
+  AcceptLanguage = 'Accept-Language',
 }

@@ -8,10 +8,14 @@ use BackedEnum;
 use FilesystemIterator;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
+use NeuroSYS\Model\Production\SectionKind;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Support\UrlScheme;
+use NeuroSYS\View\Html\ArrangementAttribute;
 use NeuroSYS\View\Html\Attribute;
 use NeuroSYS\View\Html\AttributeName;
+use NeuroSYS\View\Html\AttributeValue;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\CssClass;
@@ -31,7 +35,10 @@ use NeuroSYS\View\Html\RawHtml;
 use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Html\Text;
+use NeuroSYS\View\Html\ViewportContent;
+use NeuroSYS\View\Html\ViewportWidth;
 use NeuroSYS\View\Terminal\TerminalAttribute;
+use NeuroSYS\View\Terminal\TerminalTone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -44,6 +51,8 @@ use TypeError;
  * and cannot emit.
  */
 #[CoversClass(Element::class)]
+#[CoversClass(ViewportContent::class)]
+#[CoversClass(UrlScheme::class)]
 #[CoversClass(Text::class)]
 #[CoversClass(RawHtml::class)]
 #[CoversClass(Fragment::class)]
@@ -781,6 +790,284 @@ final class HtmlTest extends TestCase
         }
 
         return array_values(array_unique($tags));
+    }
+
+    // ──────────────────── the stylesheet's third copy of two vocabularies ────────────────────
+
+    /**
+     * Which enum each attribute-value selector in the stylesheet draws its values from.
+     *
+     * Declared here rather than discovered, so an attribute-value selector for something new fails
+     * this test until somebody says where its vocabulary lives. That is the point: the two below
+     * are *third* copies. `SectionKind` and `TerminalTone` are pinned PHP↔TS case for case by
+     * `test/js/enum-parity.test.mjs`, and the stylesheet — which reads the same values off the same
+     * attributes — was pinned by nothing at all.
+     *
+     * `tone` has no attribute-name case on the PHP side to key this by, deliberately: it is written
+     * by `<terminal-window>` and read only by the stylesheet, which is exactly the arrangement that
+     * makes this check worth having.
+     *
+     * @var array<string, class-string<BackedEnum>>
+     */
+    private const array VALUE_VOCABULARIES = [
+        'kind' => SectionKind::class,
+        'tone' => TerminalTone::class,
+    ];
+
+    /**
+     * Cases with deliberately no rule of their own, keyed by attribute.
+     *
+     * `plain` is a terminal row with no accent — the default look, which is the absence of a rule
+     * rather than a rule saying nothing. Pinned the way card.css is: a second one has to be argued
+     * for here.
+     *
+     * @var array<string, list<string>>
+     */
+    private const array UNSTYLED_VALUES = ['tone' => ['plain']];
+
+    /**
+     * Every value the stylesheet selects on is a case some enum declares.
+     *
+     * The direction that always holds, and the one that rots silently. Rename `SectionKind::Drop`
+     * and `[kind="drop"]` does not error, it stops matching — so the drop of every arrangement on
+     * the site draws in the default accent, which on a dark page reads as a design decision rather
+     * than as a rename that missed a file. Nothing in any console, and the PHP↔TS parity test is
+     * perfectly happy, because both of the copies it compares were changed together.
+     *
+     * @return void
+     */
+    public function testEveryStyledAttributeValueIsADeclaredCase(): void
+    {
+        $selected = self::valueSelectors();
+
+        self::assertNotEmpty($selected, 'found no attribute-value selectors at all — the scan is broken');
+        self::assertSame(
+            array_keys(self::VALUE_VOCABULARIES),
+            array_keys($selected),
+            'the stylesheet selects on an attribute value with no vocabulary declared for it',
+        );
+
+        foreach ($selected as $attribute => $values) {
+            self::assertSame(
+                [],
+                array_values(array_diff($values, self::casesOf($attribute))),
+                "[{$attribute}=\"…\"] selects on a value no case declares",
+            );
+        }
+    }
+
+    /**
+     * And the other direction: a case with no rule is a look nobody gave it.
+     *
+     * Weaker than the check above, because one case genuinely has no rule — see
+     * {@link self::UNSTYLED_VALUES}. What it catches is a case *added* on both typed sides and
+     * forgotten on the third, which is a section that renders unaccented rather than one that
+     * renders wrong.
+     *
+     * @return void
+     */
+    public function testEveryDeclaredValueIsStyledOrDeliberatelyNot(): void
+    {
+        $selected = self::valueSelectors();
+
+        foreach (self::VALUE_VOCABULARIES as $attribute => $enum) {
+            $expected = array_values(array_diff(
+                self::casesOf($attribute),
+                self::UNSTYLED_VALUES[$attribute] ?? [],
+            ));
+            $styled = $selected[$attribute] ?? [];
+
+            sort($expected);
+            sort($styled);
+
+            self::assertSame($expected, $styled, "{$enum} has a case the stylesheet never accents");
+        }
+    }
+
+    /**
+     * The backing values of the enum behind $attribute.
+     *
+     * @param string $attribute
+     * @return list<string>
+     */
+    private static function casesOf(string $attribute): array
+    {
+        return array_map(
+            static fn(BackedEnum $case): string => (string) $case->value,
+            self::VALUE_VOCABULARIES[$attribute]::cases(),
+        );
+    }
+
+    /**
+     * Every `[attr="value"]` the stylesheet selects on, as values keyed by attribute.
+     *
+     * Comments stripped first, for the reason {@link self::classSelectors()} strips them: prose
+     * naming a selector is not a selector. {@link ArrangementAttribute::Kind} is asserted against
+     * rather than assumed, so this scan cannot quietly stop finding the attribute it exists to
+     * find.
+     *
+     * @return array<string, list<string>>
+     */
+    private static function valueSelectors(): array
+    {
+        $css = preg_replace('#/\*.*?\*/#s', '', self::stylesheet()) ?? '';
+
+        preg_match_all('/\[([a-z-]+)="([^"]*)"\]/', $css, $matches, PREG_SET_ORDER);
+
+        $found = [];
+
+        foreach ($matches as [, $attribute, $value]) {
+            $found[$attribute][] = $value;
+        }
+
+        foreach ($found as $attribute => $values) {
+            $found[$attribute] = array_values(array_unique($values));
+        }
+
+        self::assertArrayHasKey(ArrangementAttribute::Kind->value, $found, 'the scan lost `kind`');
+
+        ksort($found);
+
+        return $found;
+    }
+
+    // ─────────────────── an attribute value with parts of its own ───────────────────
+
+    /**
+     * A value with a grammar renders itself, and `attr()` takes it like any other.
+     *
+     * @return void
+     */
+    public function testAnAttributeValueRendersIntoTheAttribute(): void
+    {
+        self::assertSame(
+            '<meta content="width=device-width, initial-scale=1.0">',
+            new Element(HtmlTag::Meta)
+                ->attr(HtmlAttribute::Content, new ViewportContent())
+                ->render(),
+        );
+    }
+
+    /**
+     * The value is escaped on the way out like any other, rather than trusted for having a type.
+     *
+     * {@link ViewportContent} cannot produce anything needing it — its two parts are an enum case
+     * and a number — so this builds the interface's worst case directly. That is the point of
+     * enforcing in `render()` rather than in the builders: the guarantee holds for whatever an
+     * implementation returns, not only for the one this site ships.
+     *
+     * @return void
+     */
+    public function testAnAttributeValueIsEscapedLikeAnyOther(): void
+    {
+        $hostile = new class () implements AttributeValue {
+            /**
+             * @return string
+             */
+            public function render(): string
+            {
+                return '" onload="alert(1)';
+            }
+        };
+
+        self::assertSame(
+            '<meta content="&quot; onload=&quot;alert(1)">',
+            new Element(HtmlTag::Meta)->attr(HtmlAttribute::Content, $hostile)->render(),
+        );
+    }
+
+    /**
+     * `1.0`, not `1`.
+     *
+     * `(string) 1.0` is `'1'` in PHP, which is a legal viewport scale and would have quietly
+     * changed bytes this site has always sent. A whole number keeps one decimal place and anything
+     * finer keeps the digits it has, so no scale is rounded to fit a format.
+     *
+     * @param float  $scale
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('viewportScaleProvider')]
+    public function testTheViewportScaleKeepsItsDecimal(float $scale, string $expected): void
+    {
+        self::assertSame(
+            'width=device-width, initial-scale=' . $expected,
+            new ViewportContent(initialScale: $scale)->render(),
+        );
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function viewportScaleProvider(): iterable
+    {
+        yield 'life size'   => [1.0, '1.0'];
+        yield 'half'        => [0.5, '0.5'];
+        yield 'two decimals' => [1.25, '1.25'];
+        yield 'double'      => [2.0, '2.0'];
+        yield 'three'       => [3.0, '3.0'];
+    }
+
+    /**
+     * The scale carries no separator of its own.
+     *
+     * The separator in this grammar is a comma, so a decimal comma would turn one descriptor list
+     * into two malformed ones — and `%f` writes exactly that under a German locale. `%F` is what
+     * keeps the number out of whatever locale the machine happens to be in.
+     *
+     * Asserted as a comma count rather than by setting a locale, deliberately: `setlocale` needs
+     * that locale to be installed, so the version that switches to `de_DE` skips on every machine
+     * that has not got one — including, most likely, the machine where this would actually break.
+     * Counting holds everywhere and fails there.
+     *
+     * @return void
+     */
+    public function testTheViewportScaleCarriesNoSeparatorOfItsOwn(): void
+    {
+        self::assertSame(1, substr_count(new ViewportContent(initialScale: 1.0)->render(), ','));
+        self::assertSame(1, substr_count(new ViewportContent(initialScale: 1.25)->render(), ','));
+    }
+
+    /**
+     * @return void
+     */
+    public function testTheViewportWidthIsTheOnlyOneOffered(): void
+    {
+        self::assertSame('device-width', ViewportWidth::Device->value);
+        self::assertSame([ViewportWidth::Device], ViewportWidth::cases());
+    }
+
+    // ─────────────────────────────── url schemes ───────────────────────────────
+
+    /**
+     * The scheme keeps its colon, which is what separates it from a host.
+     *
+     * @return void
+     */
+    public function testASchemeBuildsAnAddressWithItsColon(): void
+    {
+        self::assertSame('mailto:a@b.test', UrlScheme::Mailto->url('a@b.test'));
+        self::assertSame('https://example.test', UrlScheme::Https->url('//example.test'));
+    }
+
+    /**
+     * Both cases are addresses {@link Element} will actually emit, which is the whole point of the
+     * enum being narrower than the set of schemes that exist.
+     *
+     * @return void
+     */
+    public function testEverySchemeCaseIsOneAnElementWillEmit(): void
+    {
+        foreach (UrlScheme::cases() as $scheme) {
+            $href = $scheme === UrlScheme::Mailto
+                ? $scheme->url('a@b.test')
+                : $scheme->url('//example.test');
+
+            self::assertStringContainsString(
+                $href,
+                new Element(HtmlTag::A)->attr(HtmlAttribute::Href, $href)->render(),
+            );
+        }
     }
 
     // ─────────────────────── urls, which escaping cannot help with ───────────────────────

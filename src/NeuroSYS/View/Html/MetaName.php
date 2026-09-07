@@ -29,8 +29,10 @@ enum MetaName: string
     /**
      * How wide the browser should pretend the screen is.
      *
-     * Paired with `width=device-width, initial-scale=1.0`, which is content rather than a name and
-     * so stays a string: it is a descriptor list with its own grammar, not a case.
+     * Paired with {@link ViewportContent}, which is the value half. That used to be the string
+     * `width=device-width, initial-scale=1.0`, on the reasoning that it is a descriptor list with
+     * its own grammar rather than a case — right about the grammar and backwards about what follows
+     * from it. A grammar is what earns a class here; it is a case that cannot hold one.
      */
     case Viewport = 'viewport';
 

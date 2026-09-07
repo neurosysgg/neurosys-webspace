@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -49,7 +50,11 @@ class NotFoundView extends View
                 )->toElement(),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::BackHome)
-                    ->containing(new Element(HtmlTag::A)->attr(HtmlAttribute::Href, '/')->containing('← home')),
+                    ->containing(
+                        new Element(HtmlTag::A)
+                            ->attr(HtmlAttribute::Href, SitePath::Home->to())
+                            ->containing('← home'),
+                    ),
             );
     }
 }

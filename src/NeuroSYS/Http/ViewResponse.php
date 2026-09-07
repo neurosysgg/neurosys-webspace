@@ -108,7 +108,7 @@ readonly class ViewResponse implements Response
      * - Hashing the body needs no coupling to the build stamp, because the stamp is already *in*
      *   the body. A rebuild changes the asset URLs, which changes the markup, which changes the
      *   validator. Nothing had to be wired together for that; it falls out.
-     * - `data/releases.php` and `data/privacy.html` are read on every request and contribute
+     * - `data/releases.php` and both halves of the policy are read on every request and contribute
      *   nothing to the build stamp. Under `no-cache` an edit to either is live immediately, which
      *   keeps `docs/releases.md`'s "no cache to bust, no rebuild needed" true.
      *
@@ -116,6 +116,11 @@ readonly class ViewResponse implements Response
      * {@link ResponseHeader::Vary}. The `ETag` is a second guard on the same hazard: the document
      * and the fragment are different bytes, so they cannot validate against each other even where
      * `Vary` is ignored.
+     *
+     * **Anything else it names comes from the view**, through {@link View::varyOn()}, because the
+     * page is what knows which headers it read. The imprint and the privacy policy add
+     * `Accept-Language`; every other page adds nothing, so no page pays for a dependency it does
+     * not have. The `ETag` is a second guard there too — the two orderings are different bytes.
      *
      * **A caller that supplied its own `Cache-Control` gets none of this**, and no 304 either.
      * That is {@link \NeuroSYS\Controller\StatsController}, which says `no-store, private` because
@@ -143,7 +148,10 @@ readonly class ViewResponse implements Response
         return new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::revalidate()),
             new Header(ResponseHeader::ETag, ETag::forBody($markup)),
-            new Header(ResponseHeader::Vary, Vary::on(RequestHeader::RequestedWith)),
+            new Header(
+                ResponseHeader::Vary,
+                Vary::on(RequestHeader::RequestedWith, ...$this->view->varyOn()),
+            ),
         );
     }
 

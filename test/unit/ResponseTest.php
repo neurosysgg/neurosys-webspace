@@ -533,7 +533,7 @@ final class ResponseTest extends TestCase
         $response = new PrivacyController()->handle($this->request('/privacy'));
         $html     = self::peek($response, 'view')->content()->render();
 
-        $lines = explode("\n", (string) Config::dataFile(DataFile::Privacy)->read())
+        $lines = explode("\n", (string) Config::dataFile(DataFile::PrivacyEnglish)->read())
                 |> (fn($x) => array_map(trim(...), $x))
                 |> array_filter(...)
                 |> array_values(...);

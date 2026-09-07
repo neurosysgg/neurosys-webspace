@@ -9,6 +9,7 @@ use NeuroSYS\DataFile;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
+use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\PrivacyView;
 
 class PrivacyController implements Controller
@@ -19,7 +20,14 @@ class PrivacyController implements Controller
      */
     public function handle(Request $request): Response
     {
-        return new ViewResponse(new PrivacyView(self::policy()));
+        return new ViewResponse(new PrivacyView(
+            self::policy(DataFile::PrivacyGerman),
+            self::policy(DataFile::PrivacyEnglish),
+            // English first, so a request naming neither language gets the site's own — and a tie
+            // does too. See AcceptedLanguages::preferred(), where that argument order *is* the
+            // default rather than merely the first thing tried.
+            $request->acceptedLanguages()->preferred(Language::English, Language::German),
+        ));
     }
 
     /**
@@ -34,10 +42,14 @@ class PrivacyController implements Controller
      * doctype rather than anywhere a log would catch it. `read()` answers null for both causes,
      * which is what the ternary was collapsing them to anyway.
      *
+     * Both halves read the same way, and either being absent is an empty half rather than an
+     * error — which is the state a clone missing one is already allowed to be in.
+     *
+     * @param DataFile $half
      * @return string
      */
-    private static function policy(): string
+    private static function policy(DataFile $half): string
     {
-        return Config::dataFile(DataFile::Privacy)->read() ?? '';
+        return Config::dataFile($half)->read() ?? '';
     }
 }

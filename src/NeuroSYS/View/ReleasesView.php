@@ -6,6 +6,7 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Model\Release;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
@@ -78,7 +79,7 @@ class ReleasesView extends View
                     // catalogue is how most visitors arrive and its href is what pushState puts in
                     // the address bar. The download cards on the page it lands on are built without
                     // one — two spellings of the same page is one more than the site needs.
-                    ->attr(HtmlAttribute::Href, '/releases/' . $slug)
+                    ->attr(HtmlAttribute::Href, SitePath::Release->to($slug))
                     ->containing(
                         new Element(Tag::ReleaseTitle)->containing($release->title),
                         new Element(Tag::ReleaseMeta)->containing($meta),

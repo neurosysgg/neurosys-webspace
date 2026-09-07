@@ -41,7 +41,8 @@ neurosys/
 ├── data/                ← above webroot, never web-accessible
 │   ├── releases.php     ← release catalogue (typed Release objects)
 │   ├── profiles.php     ← footer profile links
-│   ├── privacy.html     ← Datenschutzerklärung, served by PrivacyController
+│   ├── privacy.de.html  ← Datenschutzerklärung — one half, served by PrivacyController
+│   ├── privacy.en.html  ← Privacy Policy — the other; the visitor's language leads
 │   ├── admin.php        ← stats page credentials (bcrypt hash)
 │   ├── demos.php        ← unreleased demos + their password hashes (gitignored, deployed)
 │   ├── demos/{slug}/    ← their audio — the only bytes PHP serves itself
@@ -63,8 +64,8 @@ neurosys/
 | `/releases` | release catalogue |
 | `/releases/{slug}` | release landing page |
 | `/releases/{slug}/{format}` | HTTP 303 → HiDrive link (`flac`, `wav`, `mp3`, `aiff`, `stems`, `ogg`) |
-| `/imprint` | Impressum (DE + EN) |
-| `/privacy` | Datenschutzerklärung, rendered from `data/privacy.html` |
+| `/imprint` | Impressum + Imprint — both, ordered by `Accept-Language` |
+| `/privacy` | Datenschutzerklärung + Privacy Policy, from the two `data/privacy.*.html` files |
 | `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
 | `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |
 | `/admin/stats` | download stats (HTTP basic auth) |
@@ -90,7 +91,7 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 entry is built, so the referrer is never read and nothing is written. `/admin/stats` says so rather than showing an
 empty table, and the verify script asserts the switch stays off.
 
-Turning it on is a privacy-policy decision before a code one — `data/privacy.html` makes no download-tracking claim.
+Turning it on is a privacy-policy decision before a code one — the policy makes no download-tracking claim, in either language.
 Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates the file but not its directory, and
 `deploy.sh` excludes `logs/`, so the directory has to exist on the server first. See `CLAUDE.md`.
 

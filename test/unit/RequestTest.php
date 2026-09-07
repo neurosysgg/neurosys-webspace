@@ -4,15 +4,21 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Http\AcceptedLanguages;
+use NeuroSYS\Http\AuthScheme;
+use NeuroSYS\Http\BasicChallenge;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\RequestedWith;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Http\ServerVariable;
+use NeuroSYS\View\Html\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(Request::class)]
+#[CoversClass(AcceptedLanguages::class)]
+#[CoversClass(AuthScheme::class)]
 #[CoversClass(RequestHeader::class)]
 #[CoversClass(RequestedWith::class)]
 #[CoversClass(ServerVariable::class)]
@@ -417,5 +423,145 @@ final class RequestTest extends TestCase
             'bob',
         ];
         yield 'neither' => [[], ''];
+    }
+
+    // ─────────────────────── the scheme both gates speak ───────────────────────
+
+    /**
+     * @return void
+     */
+    public function testTheChallengeAndTheParseUseTheSameToken(): void
+    {
+        self::assertStringStartsWith(
+            AuthScheme::Basic->value . ' ',
+            new BasicChallenge('realm')->render() . ' ',
+        );
+        self::assertTrue(AuthScheme::Basic->carries('Basic ' . base64_encode('a:b')));
+    }
+
+    /**
+     * The space is part of the token: `Basicxyz` starts with `Basic` and is not a credential.
+     *
+     * @return void
+     */
+    public function testAnotherSchemeIsNotCarried(): void
+    {
+        self::assertFalse(AuthScheme::Basic->carries('Bearer abc123'));
+        self::assertFalse(AuthScheme::Basic->carries('Basicxyz'));
+        self::assertFalse(AuthScheme::Basic->carries(''));
+        self::assertSame(['', ''], AuthScheme::Basic->credentials('Bearer abc123'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testCredentialsSplitOnTheFirstColonOnly(): void
+    {
+        self::assertSame(
+            ['admin', 'a:b:c'],
+            AuthScheme::Basic->credentials('Basic ' . base64_encode('admin:a:b:c')),
+        );
+    }
+
+    // ─────────────────────── which language a visitor wants ───────────────────────
+
+    /**
+     * @param string   $header
+     * @param Language $expected
+     * @return void
+     */
+    #[DataProvider('languageProvider')]
+    public function testTheHeaderPicksALanguage(string $header, Language $expected): void
+    {
+        self::assertSame(
+            $expected,
+            AcceptedLanguages::from($header)->preferred(Language::English, Language::German),
+        );
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function languageProvider(): iterable
+    {
+        yield 'plain German'        => ['de', Language::German];
+        yield 'German with region'  => ['de-AT', Language::German];
+        yield 'weighted, German up' => ['de-DE,de;q=0.9,en;q=0.8', Language::German];
+        yield 'weighted, English up' => ['en-GB,en;q=0.9,de;q=0.8', Language::English];
+        yield 'no header at all'    => ['', Language::English];
+        yield 'nothing we have'     => ['fr,es;q=0.8', Language::English];
+        yield 'a tie goes to the default' => ['en;q=0.5,de;q=0.5', Language::English];
+        yield 'German refused'      => ['de;q=0', Language::English];
+        yield 'whitespace and case' => ['  DE-at ; q=0.7 , en;q=0.2', Language::German];
+        yield 'unparseable weight'  => ['de;q=high', Language::German];
+        yield 'empty entries'       => [',,,', Language::English];
+        yield 'a range that is not one' => ['12345678901,de', Language::German];
+        // A range may carry parameters other than a weight. Rare in the wild, legal in the grammar,
+        // and the arm that skips them is otherwise never run.
+        yield 'a parameter that is not a weight' => ['en;q=0.9,de;x=1;q=0.95', Language::German];
+    }
+
+    /**
+     * A wildcard covers whatever is on offer; an explicit `q=0` still refuses.
+     *
+     * The second assertion is the one worth having: German is the *default* there and the visitor
+     * is given English anyway, because refusing a language outright outranks being the fallback.
+     *
+     * @return void
+     */
+    public function testTheWildcardIsBeatenByAnExplicitRefusal(): void
+    {
+        $accepted = AcceptedLanguages::from('*;q=0.5,de;q=0');
+
+        self::assertSame(Language::English, $accepted->preferred(Language::English, Language::German));
+        self::assertSame(Language::English, $accepted->preferred(Language::German, Language::English));
+    }
+
+    /**
+     * But a refusal with nothing else acceptable still gets a page.
+     *
+     * There is no "406 Not Acceptable" here and there should not be: both halves are sent whatever
+     * happens, and the only question this answers is which one comes first.
+     *
+     * @return void
+     */
+    public function testRefusingEverythingStillYieldsTheDefault(): void
+    {
+        self::assertSame(
+            Language::German,
+            AcceptedLanguages::from('de;q=0')->preferred(Language::German, Language::English),
+        );
+    }
+
+    /**
+     * The better of two ranges sharing a primary subtag is what the client meant by sending both.
+     *
+     * @return void
+     */
+    public function testTwoRangesForOneLanguageKeepTheHigherWeight(): void
+    {
+        self::assertSame(
+            Language::German,
+            AcceptedLanguages::from('de-AT;q=0.9,de;q=0.1,en;q=0.5')
+                ->preferred(Language::English, Language::German),
+        );
+    }
+
+    /**
+     * The header reaches the request, which is the half a unit test of the parser cannot show.
+     *
+     * @return void
+     */
+    public function testTheRequestCarriesTheAcceptLanguageHeader(): void
+    {
+        $request = $this->request([
+            'REQUEST_URI'          => '/imprint',
+            'HTTP_ACCEPT_LANGUAGE' => 'de-DE,de;q=0.9',
+        ]);
+
+        self::assertSame(
+            Language::German,
+            $request->acceptedLanguages()->preferred(Language::English, Language::German),
+        );
     }
 }

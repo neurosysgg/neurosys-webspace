@@ -8,6 +8,7 @@ use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Support\UrlScheme;
 use NoDiscard;
 use Uri\WhatWg\Url;
 
@@ -53,8 +54,16 @@ final readonly class Element implements Node
      * absent and why: `http:` because {@link \NeuroSYS\Http\Security\StrictTransportSecurity} means
      * we do not emit one, and `data:` because a `data:text/html` document runs script in the
      * origin that navigated to it.
+     *
+     * **A list of cases rather than {@link UrlScheme::cases()}**, which would say the same thing
+     * today and stop saying it the moment a scheme is added for one call site. This is what is
+     * switched on; the enum is the vocabulary it may be written in — the distinction
+     * {@link \NeuroSYS\Http\Security\CspScheme::Data} makes on the other side of the site, where
+     * a case is kept for a source the policy deliberately no longer allows.
+     *
+     * @var list<UrlScheme>
      */
-    private const array URL_SCHEMES = ['https:', 'mailto:'];
+    private const array URL_SCHEMES = [UrlScheme::Https, UrlScheme::Mailto];
 
     /**
      * The host a site-relative URL is resolved against, and that host on its own.
@@ -128,6 +137,7 @@ final readonly class Element implements Node
      * |---------------|-----------------------|
      * | `'visual'`, 5 | `player-style="visual"`, `height="5"` |
      * | `CssClass::Hero`, any backed enum | its value — `class="hero"` |
+     * | `new ViewportContent(…)`, any {@link AttributeValue} | what it renders |
      * | `''`          | `options=""` — an empty value, which is not the same as no attribute |
      * | `true`        | `narrow` — a bare boolean attribute |
      * | `false`, null | nothing at all        |
@@ -140,16 +150,27 @@ final readonly class Element implements Node
      * {@link self::render()}, so neither can be got around by building an element another way.
      *
      * @param AttributeName $attribute
-     * @param string|int|bool|BackedEnum|null $value
+     * @param string|int|bool|BackedEnum|AttributeValue|null $value
      * @return self
      */
     #[NoDiscard('attr() returns a copy carrying the attribute; the element it was called on is unchanged')]
     public function attr(
         AttributeName $attribute,
-        string|int|bool|BackedEnum|null $value = true,
+        string|int|bool|BackedEnum|AttributeValue|null $value = true,
     ): self {
         if ($value === false || $value === null) {
             return $this;
+        }
+
+        // Both of these normalise; neither guarantees anything. That is why they are here and not
+        // in render(), where the escaping and the scheme check live: what those two protect has to
+        // hold for an element built any way at all, and what these two do is only ever shorthand
+        // for the string a call site would otherwise have written out.
+        //
+        // A value with parts renders itself, so the grammar lives in one class instead of in the
+        // call — see AttributeValue.
+        if ($value instanceof AttributeValue) {
+            $value = $value->render();
         }
 
         // A backed enum stands for its value, so a call site passes CssClass::Hero rather than
@@ -271,7 +292,10 @@ final readonly class Element implements Node
             $this->tag->tagName(),
             $name,
             $value,
-            implode(' / ', self::URL_SCHEMES),
+            implode(' / ', array_map(
+                static fn(UrlScheme $scheme): string => $scheme->value,
+                self::URL_SCHEMES,
+            )),
         ));
     }
 
@@ -293,7 +317,7 @@ final readonly class Element implements Node
 
         return array_any(
             self::URL_SCHEMES,
-            static fn(string $scheme): bool => str_starts_with($lower, $scheme),
+            static fn(UrlScheme $scheme): bool => str_starts_with($lower, $scheme->value),
         );
     }
 

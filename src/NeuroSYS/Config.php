@@ -93,7 +93,7 @@ final class Config
      *
      * The early return in {@link Service\DownloadLogger::log()} happens before the {@link
      * Service\DownloadLogEntry} is built, so the referrer is never even read. Turning this on is a
-     * privacy-policy decision before it is a code one: `data/privacy.html` makes no download-tracking
+     * privacy-policy decision before it is a code one: the policy makes no download-tracking
      * claim, so it would have to be amended first. See CLAUDE.md.
      */
     public const bool DOWNLOAD_LOGGING = false;

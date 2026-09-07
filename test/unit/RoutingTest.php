@@ -11,8 +11,10 @@ use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
+use NeuroSYS\Exception\RouteException;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Support\RouteInitialization;
+use NeuroSYS\Support\SitePath;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +22,7 @@ use ReflectionProperty;
 
 #[CoversClass(Route::class)]
 #[CoversClass(RouteInitialization::class)]
+#[CoversClass(SitePath::class)]
 final class RoutingTest extends TestCase
 {
     /**
@@ -27,7 +30,7 @@ final class RoutingTest extends TestCase
      */
     public function testStaticPatternMatchesExactlyAndCapturesNothing(): void
     {
-        $route = new Route('/releases', fn() => new ReleasesController());
+        $route = new Route(SitePath::Releases, fn() => new ReleasesController());
 
         self::assertSame([], $route->matches('/releases'));
         self::assertFalse($route->matches('/releases/ill'));
@@ -40,7 +43,7 @@ final class RoutingTest extends TestCase
      */
     public function testPlaceholderCapturesOneSegment(): void
     {
-        $route = new Route('/releases/{slug}', fn($slug) => new ReleaseController($slug));
+        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
 
         self::assertSame(['ill'], $route->matches('/releases/ill'));
         self::assertSame(['hello-world'], $route->matches('/releases/hello-world'));
@@ -51,7 +54,7 @@ final class RoutingTest extends TestCase
      */
     public function testPlaceholderDoesNotSpanASlash(): void
     {
-        $route = new Route('/releases/{slug}', fn($slug) => new ReleaseController($slug));
+        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
 
         self::assertFalse($route->matches('/releases/ill/flac'));
     }
@@ -62,7 +65,7 @@ final class RoutingTest extends TestCase
     public function testMultiplePlaceholdersCaptureInOrder(): void
     {
         $route = new Route(
-            '/releases/{slug}/{format}',
+            SitePath::Download,
             fn($slug, $format) => new DownloadController($slug, $format),
         );
 
@@ -74,7 +77,7 @@ final class RoutingTest extends TestCase
      */
     public function testEmptySegmentDoesNotMatchAPlaceholder(): void
     {
-        $route = new Route('/releases/{slug}', fn($slug) => new ReleaseController($slug));
+        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
 
         self::assertFalse($route->matches('/releases/'));
     }
@@ -85,7 +88,7 @@ final class RoutingTest extends TestCase
     public function testFactoryReceivesTheCapturedParams(): void
     {
         $route = new Route(
-            '/releases/{slug}/{format}',
+            SitePath::Download,
             fn($slug, $format) => new DownloadController($slug, $format),
         );
 
@@ -97,22 +100,111 @@ final class RoutingTest extends TestCase
 
     /**
      * The pattern is interpolated straight into a regex, so a literal that happens to be
-     * a metacharacter would silently become a wildcard. Every registered pattern must
-     * therefore stay metacharacter-free — this asserts that, rather than the escaping.
+     * a metacharacter would silently become a wildcard. Every pattern must therefore stay
+     * metacharacter-free — this asserts that, rather than the escaping.
+     *
+     * Over {@link SitePath::cases()} rather than over the registered routes, which is stricter in
+     * the direction that matters now: a case is a pattern whether or not anything has registered
+     * it yet, and it is also what a view builds a link from.
      *
      * @return void
      */
-    public function testEveryRegisteredPatternIsFreeOfRegexMetacharacters(): void
+    public function testEveryPatternIsFreeOfRegexMetacharacters(): void
     {
-        foreach (RouteInitialization::routes() as $route) {
-            $pattern = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
+        foreach (SitePath::cases() as $path) {
             self::assertMatchesRegularExpression(
                 '#^(/|(/[\w-]+|/\{\w+\})+)$#',
-                $pattern,
-                "Route pattern '$pattern' contains something that is not a plain segment "
+                $path->value,
+                "SitePath::{$path->name} contains something that is not a plain segment "
                 . 'or a {placeholder}; Route::matches() does not preg_quote it.',
             );
         }
+    }
+
+    /**
+     * @return void
+     */
+    public function testEveryRegisteredRouteUsesADeclaredPath(): void
+    {
+        foreach (RouteInitialization::routes() as $route) {
+            self::assertInstanceOf(
+                SitePath::class,
+                new ReflectionProperty(Route::class, 'pattern')->getValue($route),
+            );
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function testToFillsPlaceholdersInOrder(): void
+    {
+        self::assertSame('/', SitePath::Home->to());
+        self::assertSame('/releases', SitePath::Releases->to());
+        self::assertSame('/releases/ill', SitePath::Release->to('ill'));
+        self::assertSame('/releases/ill/flac', SitePath::Download->to('ill', 'flac'));
+        self::assertSame('/demos/wna-bootleg/v4', SitePath::DemoAudio->to('wna-bootleg', 'v4'));
+    }
+
+    /**
+     * The mistake an arrow function makes here: `fn()` captures by value, so a shift inside it
+     * leaves the outer list untouched and every placeholder is filled with the first value —
+     * `/releases/ill/ill`, which is well formed, matches a route, and is the wrong page.
+     *
+     * @return void
+     */
+    public function testToDoesNotRepeatTheFirstValue(): void
+    {
+        self::assertSame('/releases/ill/wav', SitePath::Download->to('ill', 'wav'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testToEncodesEachValueAsOneSegment(): void
+    {
+        self::assertSame('/releases/hello%20world', SitePath::Release->to('hello world'));
+        self::assertSame('/releases/a%2Fb', SitePath::Release->to('a/b'));
+    }
+
+    /**
+     * @return void
+     */
+    public function testToRefusesTooFewValues(): void
+    {
+        $this->expectException(RouteException::class);
+        $this->expectExceptionMessage('SitePath::Download takes 2 value(s)');
+
+        SitePath::Download->to('ill');
+    }
+
+    /**
+     * @return void
+     */
+    public function testToRefusesTooManyValues(): void
+    {
+        $this->expectException(RouteException::class);
+        $this->expectExceptionMessage('SitePath::Home takes 0 value(s)');
+
+        SitePath::Home->to('ill');
+    }
+
+    /**
+     * Every path a view can build is one the router answers on. That is the whole reason the
+     * patterns are an enum: the two used to be written in different files and nothing compared
+     * them.
+     *
+     * @return void
+     */
+    public function testEveryDeclaredPathIsRegistered(): void
+    {
+        $registered = [];
+
+        foreach (RouteInitialization::routes() as $route) {
+            $registered[] = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
+        }
+
+        self::assertSame(SitePath::cases(), $registered);
     }
 
     /**

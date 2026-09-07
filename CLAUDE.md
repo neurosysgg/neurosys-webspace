@@ -53,8 +53,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.28% of
-lines** (1488/1514); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.40% of
+lines** (1609/1635); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -63,7 +63,10 @@ both, so the pattern for closing the rest is written down in `DemoTest`. The rem
 section. **The lazy-collection work is the same twenty-six lines and not one more** — it added two
 of its own (`SectionPosition`'s range guard, and `first()`'s answer when a *pending chain* runs out,
 which is a different loop from the fast path's `array_find`) and closed both in the same pass, which
-is what that pattern is for.
+is what that pattern is for. **So is the attribute-value work**, which added three — `SitePath`'s
+arity guard both ways, and the `Accept-Language` parameter that is not a weight — and closed all
+three in the same pass. The twenty-six are a property of what is *deliberately* untested, not a
+budget that grows with the code.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -110,7 +113,8 @@ src/NeuroSYS/
 ├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse,
 │                     FileResponse + ByteRange/ContentRange/ContentLength/AcceptRanges
 │                     + HttpStatusCode, HttpMethod, MimeType/TopLevelType, Header/HeaderName
-│                     and the two header-name enums, ServerVariable
+│                     and the two header-name enums, AuthScheme, AcceptedLanguages,
+│                     ServerVariable
 │   └── Security/   ← ContentSecurityPolicy + CspSourceList, PermissionsPolicy + the enums they
 │                     compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
@@ -124,13 +128,14 @@ src/NeuroSYS/
 │                     ProfileRepository, DemoRepository, WaveformRepository
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable and lazy, objects or
 │                     scalars)
-│                     + the TypedItems trait they share, File + Directory, Route,
-│                     RouteInitialization, JsonDeserializable, Charset, PasswordHash
+│                     + the TypedItems trait they share, File + Directory, Route + SitePath,
+│                     RouteInitialization, JsonDeserializable, Charset, UrlScheme, PasswordHash
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
 │   │                 Doctype + Tag/HtmlTag, the attribute-name enums (WaveformAttribute among
-│   │                 them), and the attribute-value
-│   │                 enums LinkRel / LinkTarget / ScriptType / MediaPreload / MetaName
+│   │                 them), the attribute-value
+│   │                 enums LinkRel / LinkTarget / ScriptType / MediaPreload / MetaName /
+│   │                 Language / ViewportWidth, and the AttributeValue interface + ViewportContent
 │   └── Terminal/   ← Terminal, TerminalCommand, TerminalField + the enums they compose
 ├── Config.php      ← the facts about this site: identity, origins, paths, switches
 ├── DataFile.php    ← every file the site reads out of data/, named rather than spelled
@@ -168,6 +173,19 @@ pre-launch gate runs on *every request that reaches PHP*. A plaintext request ha
 wire before any redirect can be read, so the redirect fixes that request and the header stops there
 being another. It is a year with `includeSubDomains`; `StrictTransportSecurity::ONE_DAY` exists for
 ramping an estate you have not checked, and `preload` is deliberately not offered — see the class.
+
+**Both sides of the Basic handshake now spell its token once.** `BasicChallenge` wrote
+`Basic realm="…"` into the 401 and `Request::fromGlobals()` matched `'Basic '` on the way back in,
+in two files, neither knowing about the other — and a mismatch there is the quietest failure on the
+site: `Request::authorization()`'s docblock already describes it about the header's *name*, and it
+is the same failure. Both gates would refuse everything, identically, on every attempt, with
+nothing in any log, and the first thing anybody would suspect is the credentials file. It is
+`AuthScheme::Basic` at both ends now, and the grammar under it —
+`Basic SP base64(user ":" pass)` — lives in `credentials()` rather than as two `explode()`s in the
+middle of building a request. The space is part of the token, deliberately: `Basicxyz` starts with
+`Basic` and is not a credential. What it does **not** change is that a payload with no colon is a
+user name and an empty password rather than a refusal; that is older than the class and pinned by a
+test named for it, and it costs nothing because an empty password matches no bcrypt digest.
 
 The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405. The `Allow`
 header is built from `HttpMethod::allowed()`, which filters the cases by `isReadOnly()` — so the
@@ -258,12 +276,22 @@ name nothing recognises resolves to a `File` like any other, `read()` answers nu
 repository turns that null into an empty collection *on purpose* — because a clone that has never
 staged a demo has to be a site rather than a fatal. So the guard that makes a fresh checkout work is
 the guard that swallows a typo, and `releaes.php` is an empty catalogue with a 200 and nothing in
-any log. Two of the seven cases are where the credentials live, and `site_auth.php` is worse than
+any log. Two of the eight cases are where the credentials live, and `site_auth.php` is worse than
 quiet: its **absence is the off switch**, so a misspelling there does not fail, it stands the
 pre-launch gate down. The vocabulary already existed before the enum did — as a hand-maintained data
 provider in `ConfigTest` that listed four of the seven and could not notice the rest. That provider
 now iterates the cases and asks `isTracked()`, which is checked against git rather than against a
 comment.
+
+**The privacy policy is two cases, not one.** `privacy.de.html` and `privacy.en.html` were one
+`privacy.html` holding a German document and an English one end to end — which is how two
+e-recht24 exports get concatenated by hand, and it was fine for as long as the order was fixed. It
+is not fixed any more (see [Language](#language)), and separating the halves at read time would
+mean searching a legal document for a heading. Both are tracked, so a clone has the policy it needs;
+a half that fails to read is an empty half, which is the answer `File::read()` already gave for the
+single file. **`deploy.sh` has no `--delete` on `data/`**, so the old `privacy.html` is still on the
+mount and has to be removed by hand — the same asymmetry that keeps demos safe, cutting the other
+way for once.
 
 **It cannot create a directory, and that is the decision rather than the omission.** `write()` and
 `append()` both fail on a path whose directory is missing. The downloads log's directory is excluded
@@ -335,8 +363,28 @@ header. `preload` is `MediaPreload` and `<meta name>` is `MetaName` on the same 
 is the whole vocabulary of an attribute used nowhere else on the site, and it fails the way the rest
 of this list does, which is not at all: a `<meta>` whose name nothing recognises is laid out as
 nothing and moved past, so a misspelled `viewport` renders every phone at 980px with the media
-queries answering for a screen nobody is holding. These are server-only, so they have no TypeScript
-mirror and none is wanted.
+queries answering for a screen nobody is holding. `lang` is `Language` on the same grounds and
+fails the same way — a language tag nothing recognises is not an error, it is a screen reader
+picking the wrong voice and a hyphenation dictionary picking the wrong words. These are
+server-only, so they have no TypeScript mirror and none is wanted.
+
+**A value with a *grammar* is a class, not a case**, and `attr()` takes one through an
+`AttributeValue` interface — the same shape `HeaderValue` has on the HTTP side, arrived at the same
+way and second for the same reason. `ViewportContent` is the one implementation:
+`width=device-width, initial-scale=1.0` is a descriptor list of name-value pairs, and it was being
+assembled inside the `->attr(…)` call, which is the one place a grammar cannot be checked. Its
+width is a `ViewportWidth` case and its scale is a `float`, so neither half can be misspelled.
+Note the two rules the class exists to keep: the scale renders `1.0` rather than PHP's `(string)`
+of it, which is `1` — the same instinct that kept `Charset` carrying two spellings of one encoding
+— and it is formatted with `%F` rather than `%f`, because `%f` under a German locale writes a
+decimal comma and a comma is this grammar's own separator.
+
+**Unwrapping happens in `attr()`, and both guarantees stay in `render()`.** That is not a
+contradiction of the rule two paragraphs down: unwrapping is *normalisation* — shorthand for the
+string a call site would otherwise have typed — where escaping and the scheme check are guarantees,
+which have to hold for an element built any way at all. `Attribute` still holds a `?string`, so
+what a hostile `AttributeValue` returned is escaped exactly like anything else. `HtmlTest` builds
+one to prove it.
 
 `Element::attr()` is the whole attribute API. What you pass decides what renders: a string or int is
 a value, `true` is a bare boolean attribute, and `false`/`null` leave it off. `''` and `null` are
@@ -367,7 +415,13 @@ thing standing in front of. Two rules:
   `htmlspecialchars` touches. `AttributeName::isUrl()` says which attributes those are, case by case
   and not enum by enum, since `href` and `class` live in the same one. The allowlist is
   site-relative, `https:` and `mailto:`. **A leading slash is not the same claim as "somewhere on
-  this site", so it is asked rather than assumed.** This used to be a two-entry list of the prefixes
+  this site", so it is asked rather than assumed.** The allowlist itself is `UrlScheme` cases now
+  rather than two strings — a scheme is a fact about a URL and not about markup, so it sits in
+  `Support/` beside `Charset` for the same two-reader reason, and the footer and the imprint build
+  their `mailto:` through it instead of concatenating a prefix each. The *list* stays its own
+  constant rather than collapsing to `UrlScheme::cases()`: the enum is the vocabulary a URL may be
+  written in, the constant is what is switched on — the distinction `CspScheme::Data` already
+  makes. This used to be a two-entry list of the prefixes
   an authority can open with — `//host` and `/\host`, the same URL spelled the way that does not
   look like it — and a list of the spellings that occurred to us is the shape of mistake this class
   exists to avoid. It had missed one: the WHATWG parser strips tab, CR and LF from a URL *before*
@@ -382,9 +436,11 @@ thing standing in front of. Two rules:
 The renderer is the backstop and reports the fault on whatever page draws the footer; the constructor
 reports it when `data/profiles.php` loads, which is where the mistake actually is.
 
-**`RawHtml` is the single hole, and it is meant to be conspicuous.** It exists for `data/privacy.html`,
-a hand-authored document rather than markup a view assembles. `HtmlTest` pins its call sites, so a
-second one has to be argued for in a test named for the fact. Never construct one from anything a
+**`RawHtml` is the single hole, and it is meant to be conspicuous.** It exists for the two halves
+of `data/privacy.*.html`, a hand-authored document rather than markup a view assembles. `HtmlTest`
+pins its call *files*, so a second view has to be argued for in a test named for the fact — the
+policy's two constructions are both in `PrivacyView`, which is why splitting it changed nothing
+there. Never construct one from anything a
 request can influence.
 
 Rendering pretty-prints: an element of only elements puts each on its own line, one with any `Text`
@@ -657,11 +713,28 @@ callback's return declaration already carries one.
 All requests hit `public/index.php` via `.htaccess` rewrite. It:
 
 1. Builds a `Request` from `$_SERVER`
-2. `Router::dispatch()` maps URL segments to a `Controller`
+2. `Router::dispatch()` maps URL segments to a `Controller`, matching against `SitePath` cases
 3. The controller fetches its own data (via `ReleaseRepository` or log file), builds a `View`, returns a `Response`
 4. `Response::send()` handles headers/output — `ViewResponse` wraps in `Layout::wrap()` on full-page loads, emits a fragment on AJAX
 
 Download routes (`/releases/{slug}/{format}`) call `DownloadLogger` and issue a 303 redirect to the HiDrive direct-download link.
+
+**Every address the site has is a `SitePath` case, and that is one vocabulary rather than two.** The
+router used to declare `/releases/{slug}` while nine views concatenated `'/releases/' . $slug`, in
+different files, with nothing between them — the largest untyped vocabulary left here and the one
+that fails most quietly: a view naming a path the router does not have renders a link that looks
+perfectly fine and answers with the site's own 404. The case's *value* is the pattern, placeholders
+and all, so `Route::matches()` matches with it and `SitePath::to(...)` fills it in; the placeholder
+syntax is one constant both read. `to()` refuses the wrong number of values, which is the check a
+concatenation cannot make — `'/releases/' . $slug . '/'` is a perfectly good string and a URL that
+matches nothing. Two details worth knowing: each value is `rawurlencode`d, a no-op for every slug,
+format and label in `data/` today; and the callback that fills them **must** be a `function` with
+`use (&$values)`, because `fn()` captures by value and every placeholder would take the first value
+— `/releases/ill/ill`, well formed, matching a route, and the wrong page. `RoutingTest` pins that
+one by name.
+
+**The tests keep writing paths out in full, deliberately.** A test asking `SitePath::Release->to('ill')`
+would pass with the enum wrong. Same reason the verify script curls real URLs.
 
 **The demo routes are the one place a file passes through PHP**, and that is the whole point of
 them: `/demos/{slug}` and `/demos/{slug}/{label}` sit behind that demo's own password, and the audio
@@ -674,8 +747,8 @@ before the `DownloadLogEntry` is built — so the referrer is never read and not
 log entirely and `/admin/stats` says logging is switched off rather than showing an empty table. Both suites assert the switch
 stays off, and the unit test additionally asserts the referrer is never read.
 
-To turn it on later: flip `Config::DOWNLOAD_LOGGING` to `true`. That is a privacy-policy decision before a code one — `data/privacy.html` currently
-makes no download-tracking claim, so amend it first. Note the old failure mode is still latent underneath: `fopen(..., 'ab')`
+To turn it on later: flip `Config::DOWNLOAD_LOGGING` to `true`. That is a privacy-policy decision before a code one — the policy currently
+makes no download-tracking claim in either language, so amend both halves first. Note the old failure mode is still latent underneath: `fopen(..., 'ab')`
 creates the log file but not its directory, and `data/logs/` is excluded from `deploy.sh`, so a freshly enabled logger writes
 nothing on the server until that directory exists.
 
@@ -1105,9 +1178,20 @@ ordering decision is never made twice.
 **`elements/` mirrors `assets/ts/elements/` at the component level**, because there the directory is
 the component and not the file: `terminal.css` styles `<terminal-window>` and the five tags it
 builds. The invariant is **every `Tag` case is styled by exactly one part**, asserted in both
-directions by `HtmlTest`. That closes the last unchecked mirror on the site — a tag name in the CSS
-had nothing on the other end of it, so renaming a case left the stylesheet quietly not matching,
-which on a dark page reads as a layout bug rather than a typo.
+directions by `HtmlTest`. That closes one unchecked mirror — a tag name in the CSS had nothing on
+the other end of it, so renaming a case left the stylesheet quietly not matching, which on a dark
+page reads as a layout bug rather than a typo.
+
+**The attribute *values* it selects on were the other one, and they are a third copy.**
+`arrangement.css` selects `[kind="drop"]` and `terminal.css` selects `[tone="error"]`, which are
+`SectionKind` and `TerminalTone` backing values — pinned PHP↔TS case for case by
+`enum-parity.test.mjs`, and in the stylesheet pinned by nothing at all. So a rename made on both
+typed sides together passes every parity test there was and stops the CSS matching, and a drop that
+draws in the default accent reads as a design decision. `HtmlTest` now asserts it both ways, with
+the vocabularies declared in one constant so a *new* attribute-value selector fails until somebody
+says where its values come from. The weaker direction has one deliberate exception, pinned the way
+`card.css` is: `TerminalTone::Plain` has no rule, because the plain row is the absence of an accent
+rather than a rule saying so.
 
 `card.css` is the single part named for a concept rather than a component, because the catalogue
 entry and the download entry genuinely share a look across `release/` and `download/`. It is meant to
@@ -1178,6 +1262,43 @@ three ids come from, or let `php tools/release-track.php <folder> --upload` uplo
 entry with them already in it. Player style and the six SoundCloud toggles are `SoundCloudPlayerStyle` /
 `SoundCloudOption` enums with sensible defaults; a normal release never sets them. Adding another provider
 means a new class implementing `Embed`, not a new field on `Release`.
+
+## Language
+
+The imprint and the privacy policy are the only bilingual pages here, and they always were — each
+carries a German half and an English half, one after the other. What changed is that the order is
+the visitor's rather than fixed: `Accept-Language` decides which half they meet first.
+
+Four things are worth knowing before touching any of it.
+
+- **Both halves are always sent. Only the order changes.** The German imprint is what discharges
+  § 5 DDG and § 18 Abs. 2 MStV, so it is never the half left out; a wrong guess costs a visitor one
+  scroll, where a wrong *omission* would cost rather more than that. `PageTest` asserts both halves
+  are present under either language, which is the property worth pinning rather than the ordering.
+- **Nothing here is translated.** The two halves were already written; the German titles
+  (`Impressum`, `Datenschutzerklärung`) are words already in those documents. `AcceptedLanguages`
+  chooses between things that exist and never invents one.
+- **A page that reads a request header owes a `Vary` naming it**, and both facts are stated in one
+  place so the second cannot be forgotten: `View::varyOn()` declares the headers, `ViewResponse`
+  builds the header from it, and only those two pages are on the list — so nothing else pays for a
+  dependency it does not have. Forget it and there is no error at all; a cache simply becomes free
+  to hand one visitor the copy it built for another, which here means the wrong language and
+  nothing else visibly wrong. The `ETag` is the belt to that brace, since the two orderings are
+  different bytes. The verify script checks both, because only it can see a real header.
+- **The default is the argument order, not a branch.** `preferred(Language::English,
+  Language::German)` is an English page that will speak German if asked; a tie, a header naming
+  neither, and no header at all all come back English. There is no 406 and there should not be:
+  the question is only which half leads.
+
+`AcceptedLanguages` parses RFC 9110 §12.5.4 — weights, `*`, `q=0` as a real refusal that outranks
+the wildcard — and matches on the **primary subtag**, so `de-AT` and `de-DE` both want the German
+half. Two ranges sharing a subtag keep the higher weight, which is what a client means by sending
+both. Anything unreadable is skipped rather than rejected: this is the one header on the site whose
+value is a browser setting, so it arrives however some client felt like writing it, and a malformed
+entry means one preference cannot be honoured rather than that the page cannot be served.
+
+`<html lang>` follows the leading half, and each half carries its own `lang` besides — so a screen
+reader changes voice at the boundary instead of reading German aloud in English.
 
 ## Demos
 

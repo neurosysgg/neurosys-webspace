@@ -11,6 +11,7 @@ use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\ArrangementAttribute;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
@@ -242,7 +243,7 @@ class ReleaseView extends View
             ->containing(
                 new Element(HtmlTag::A)
                     ->attr(LinkAttribute::NoSpa)
-                    ->attr(HtmlAttribute::Href, '/releases/' . $this->slug . '/' . $type->value)
+                    ->attr(HtmlAttribute::Href, SitePath::Download->to($this->slug, $type->value))
                     ->containing(
                         new Element(Tag::DownloadLabel)->containing($type->label()),
                         new Element(Tag::DownloadMeta)->containing(self::formatMeta($type)),

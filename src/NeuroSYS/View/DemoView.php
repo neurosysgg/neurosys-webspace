@@ -10,6 +10,7 @@ use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -232,7 +233,7 @@ class DemoView extends View
             new Element(HtmlTag::Audio)
                 ->attr(HtmlAttribute::Controls, true)
                 ->attr(HtmlAttribute::Preload, MediaPreload::None)
-                ->attr(HtmlAttribute::Src, '/demos/' . $this->slug . '/' . $track->label),
+                ->attr(HtmlAttribute::Src, SitePath::DemoAudio->to($this->slug, $track->label)),
         );
     }
 }

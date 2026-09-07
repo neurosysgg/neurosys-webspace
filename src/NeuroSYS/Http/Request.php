@@ -23,6 +23,7 @@ readonly class Request
      * @param string $authPassword
      * @param string $ifNoneMatch
      * @param string $rangeHeader
+     * @param string $acceptLanguage
      */
     private function __construct(
         private ?HttpMethod $method,
@@ -32,6 +33,7 @@ readonly class Request
         private string $authPassword,
         private string $ifNoneMatch = '',
         private string $rangeHeader = '',
+        private string $acceptLanguage = '',
     ) {}
 
     /**
@@ -56,10 +58,11 @@ readonly class Request
 
         $authorization = self::authorization();
 
-        // Authorization header fallback for hosts that strip PHP_AUTH_* vars
-        if ($user === '' && str_starts_with($authorization, 'Basic ')) {
-            [, $b64] = explode(' ', $authorization, 2);
-            [$user, $pass] = explode(':', base64_decode($b64), 2) + ['', ''];
+        // Authorization header fallback for hosts that strip PHP_AUTH_* vars. The scheme and the
+        // grammar under it are AuthScheme's, so the token this matches on is the same case
+        // BasicChallenge writes into the 401 that asked for it.
+        if ($user === '' && AuthScheme::Basic->carries($authorization)) {
+            [$user, $pass] = AuthScheme::Basic->credentials($authorization);
         }
 
         return new static(
@@ -70,6 +73,7 @@ readonly class Request
             $pass,
             self::header(RequestHeader::IfNoneMatch),
             self::header(RequestHeader::Range),
+            self::header(RequestHeader::AcceptLanguage),
         );
     }
 
@@ -224,5 +228,21 @@ readonly class Request
     public function range(int $size): ?ByteRange
     {
         return ByteRange::parse($this->rangeHeader, $size);
+    }
+
+    /**
+     * Which languages this visitor would rather read.
+     *
+     * Parsed rather than kept raw, unlike {@link self::$rangeHeader} above — and the difference is
+     * instructive. A `Range` cannot be read without knowing how long the file is, which a request
+     * has no way to know; an `Accept-Language` is a complete statement on its own, and what varies
+     * per caller is only which languages that page has to offer. So the parse happens here and the
+     * choosing happens at {@link AcceptedLanguages::preferred()}.
+     *
+     * @return AcceptedLanguages
+     */
+    public function acceptedLanguages(): AcceptedLanguages
+    {
+        return AcceptedLanguages::from($this->acceptLanguage);
     }
 }

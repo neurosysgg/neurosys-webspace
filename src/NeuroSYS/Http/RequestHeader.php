@@ -51,6 +51,25 @@ enum RequestHeader: string implements HeaderName
     case Range = 'Range';
 
     /**
+     * Which languages the visitor would rather read, and how much rather.
+     *
+     * The site is English, so most pages ignore this. The imprint and the privacy policy are not:
+     * each carries a German half and an English half, and {@link AcceptedLanguages} decides which
+     * one a visitor meets first. See {@link \NeuroSYS\View\View::language()}.
+     *
+     * **Whatever reads this owes a `Vary`**, and that is the whole hazard here rather than a note
+     * beside it: two visitors asking for the same URL get different bytes, so a cache that has not
+     * been told hands one of them the other's page. {@link ViewResponse} takes the header names it
+     * varies on from the view, which is what keeps the two facts — "I read this" and "I depend on
+     * this" — from being stated separately.
+     *
+     * Mirrored in `assets/ts/model/RequestHeader.ts` with no reader on that side, the same
+     * arrangement as {@link self::IfNoneMatch} and {@link self::Range}: the browser sends it on its
+     * own, from the visitor's own language settings, and no client code here writes it.
+     */
+    case AcceptLanguage = 'Accept-Language';
+
+    /**
      * @return string
      */
     public function headerName(): string

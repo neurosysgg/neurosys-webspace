@@ -6,8 +6,10 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
 use NeuroSYS\DataFile;
+use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\HomeView;
+use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\PrivacyView;
@@ -204,7 +206,7 @@ final class PageTest extends TestCase
      */
     public function testThePrivacyPolicyIsTitled(): void
     {
-        self::assertSame('Privacy Policy — neuro.SYS', new PrivacyView('')->pageTitle());
+        self::assertSame('Privacy Policy — neuro.SYS', new PrivacyView('', '')->pageTitle());
     }
 
     /**
@@ -217,7 +219,7 @@ final class PageTest extends TestCase
      */
     public function testThePolicyDocumentIsEmittedVerbatim(): void
     {
-        $html = new PrivacyView('<h2 id="a">Datenschutz</h2><p>text &amp; more</p>')->content()->render();
+        $html = new PrivacyView('<h2 id="a">Datenschutz</h2>', '<p>text &amp; more</p>')->content()->render();
 
         self::assertStringContainsString('<h2 id="a">Datenschutz</h2>', $html);
         self::assertStringContainsString('<p>text &amp; more</p>', $html);
@@ -230,7 +232,8 @@ final class PageTest extends TestCase
     public function testTheRealPolicyRendersInsideThePageSection(): void
     {
         $html = new PrivacyView(
-            (string) Config::dataFile(DataFile::Privacy)->read(),
+            (string) Config::dataFile(DataFile::PrivacyGerman)->read(),
+            (string) Config::dataFile(DataFile::PrivacyEnglish)->read(),
         )->content()->render();
 
         self::assertStringStartsWith('<section class="page-section">', $html);
@@ -262,7 +265,7 @@ final class PageTest extends TestCase
     public static function staticPageProvider(): iterable
     {
         yield 'imprint' => [new ImprintView()];
-        yield 'privacy' => [new PrivacyView('<p>policy</p>')];
+        yield 'privacy' => [new PrivacyView('<p>Datenschutz</p>', '<p>policy</p>')];
     }
 
     /**
@@ -309,8 +312,140 @@ final class PageTest extends TestCase
     {
         yield 'home'     => [new HomeView()];
         yield 'imprint'  => [new ImprintView()];
-        yield 'privacy'  => [new PrivacyView('')];
+        yield 'privacy'  => [new PrivacyView('', '')];
         yield 'releases' => [new ReleasesView(new ReleaseRepository()->all())];
         yield '404'      => [new NotFoundView('/x')];
+    }
+
+    // ─────────────────── which half of a bilingual page comes first ───────────────────
+
+    /**
+     * Both halves are always there. Only the order changes.
+     *
+     * That is the property worth pinning rather than the ordering itself: the German imprint is
+     * what discharges § 5 DDG, so a language guess that dropped it would turn a preference into a
+     * compliance failure. A wrong guess costs a visitor one scroll.
+     *
+     * @param Language $language
+     * @return void
+     */
+    #[DataProvider('languageProvider')]
+    public function testBothHalvesOfTheImprintAreAlwaysRendered(Language $language): void
+    {
+        $html = new ImprintView($language)->content()->render();
+
+        self::assertStringContainsString('<h1>Impressum</h1>', $html);
+        self::assertStringContainsString('<h1>Imprint</h1>', $html);
+        self::assertSame(2, substr_count($html, '<h1>'));
+    }
+
+    /**
+     * @param Language $language
+     * @return void
+     */
+    #[DataProvider('languageProvider')]
+    public function testBothHalvesOfThePolicyAreAlwaysRendered(Language $language): void
+    {
+        $html = new PrivacyView('<p>de</p>', '<p>en</p>', $language)->content()->render();
+
+        self::assertStringContainsString('<p>de</p>', $html);
+        self::assertStringContainsString('<p>en</p>', $html);
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function languageProvider(): iterable
+    {
+        yield 'English' => [Language::English];
+        yield 'German'  => [Language::German];
+    }
+
+    /**
+     * @return void
+     */
+    public function testTheImprintLeadsWithTheRequestedLanguage(): void
+    {
+        self::assertLessThan(
+            strpos(new ImprintView(Language::German)->content()->render(), '<h1>Imprint</h1>'),
+            strpos(new ImprintView(Language::German)->content()->render(), '<h1>Impressum</h1>'),
+        );
+
+        self::assertLessThan(
+            strpos(new ImprintView(Language::English)->content()->render(), '<h1>Impressum</h1>'),
+            strpos(new ImprintView(Language::English)->content()->render(), '<h1>Imprint</h1>'),
+        );
+    }
+
+    /**
+     * @return void
+     */
+    public function testThePolicyLeadsWithTheRequestedLanguage(): void
+    {
+        $german = new PrivacyView('<p>de</p>', '<p>en</p>', Language::German)->content()->render();
+
+        self::assertLessThan(strpos($german, '<p>en</p>'), strpos($german, '<p>de</p>'));
+
+        $english = new PrivacyView('<p>de</p>', '<p>en</p>', Language::English)->content()->render();
+
+        self::assertLessThan(strpos($english, '<p>de</p>'), strpos($english, '<p>en</p>'));
+    }
+
+    /**
+     * Each half says which language it is, so a screen reader changes voice at the boundary.
+     *
+     * @return void
+     */
+    public function testEachHalfDeclaresItsOwnLanguage(): void
+    {
+        $imprint = new ImprintView()->content()->render();
+
+        self::assertStringContainsString('<section lang="de">', $imprint);
+        self::assertStringContainsString('<section lang="en">', $imprint);
+
+        $policy = new PrivacyView('', '')->content()->render();
+
+        self::assertStringContainsString('<section lang="de">', $policy);
+        self::assertStringContainsString('<section lang="en">', $policy);
+    }
+
+    /**
+     * The title follows the leading half, in words the document already used.
+     *
+     * @return void
+     */
+    public function testTheTitleFollowsTheLeadingHalf(): void
+    {
+        self::assertSame('Impressum — neuro.SYS', new ImprintView(Language::German)->pageTitle());
+        self::assertSame('Imprint — neuro.SYS', new ImprintView(Language::English)->pageTitle());
+        self::assertSame(
+            'Datenschutzerklärung — neuro.SYS',
+            new PrivacyView('', '', Language::German)->pageTitle(),
+        );
+    }
+
+    /**
+     * A page whose body depends on a request header has to say so, or a cache is free to hand one
+     * visitor the copy it built for another — which here means the wrong language and nothing else
+     * visibly wrong at all. {@link \NeuroSYS\Http\ViewResponse} builds the header from this.
+     *
+     * @return void
+     */
+    public function testOnlyTheBilingualPagesVaryOnLanguage(): void
+    {
+        self::assertSame([RequestHeader::AcceptLanguage], new ImprintView()->varyOn());
+        self::assertSame([RequestHeader::AcceptLanguage], new PrivacyView('', '')->varyOn());
+        self::assertSame([], new HomeView()->varyOn());
+    }
+
+    /**
+     * Every other page is English and says nothing about it.
+     *
+     * @return void
+     */
+    public function testAPageThatHasNotThoughtAboutLanguageIsEnglish(): void
+    {
+        self::assertSame(Language::English, new HomeView()->language());
+        self::assertSame(Language::German, new ImprintView(Language::German)->language());
     }
 }

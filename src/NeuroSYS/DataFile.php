@@ -49,8 +49,24 @@ enum DataFile: string
      */
     case SiteAuth = 'site_auth.php';
 
-    /** The privacy policy, hand-authored HTML — the one document {@link View\Html\RawHtml} exists for. */
-    case Privacy = 'privacy.html';
+    /**
+     * The privacy policy in German — half of the one document {@link View\Html\RawHtml} exists for.
+     *
+     * **Two files rather than one, split at the boundary that was always in it.** The policy was a
+     * single `privacy.html` holding a German document and an English one end to end, which is how
+     * two e-recht24 exports get concatenated by hand. Now that
+     * {@link \NeuroSYS\View\PrivacyView} shows the visitor's own language first, the halves have
+     * to be separable — and separating them at read time would mean searching a legal document for
+     * a heading, which is the fragile way round.
+     *
+     * Both are tracked, so a clone has the policy it needs; a half that fails to read is an empty
+     * half rather than an error, which is what {@link \NeuroSYS\Support\File::read()} already
+     * answered for the single file.
+     */
+    case PrivacyGerman = 'privacy.de.html';
+
+    /** The privacy policy in English, the other half of {@link self::PrivacyGerman}. */
+    case PrivacyEnglish = 'privacy.en.html';
 
     /**
      * The downloads log, and the only case that is written rather than read.
@@ -65,7 +81,7 @@ enum DataFile: string
     /**
      * Whether the repository carries this file, and so whether every clone has it.
      *
-     * The four that are tracked have to be present for the site to be the site; the other three
+     * The five that are tracked have to be present for the site to be the site; the other three
      * each have their own reason to be absent — two are gitignored so that a public repository
      * cannot publish what they hold, and the third does not exist until something logs a download.
      * That difference is what the test asserting these files are where {@link Config::dataFile()}
@@ -76,7 +92,8 @@ enum DataFile: string
     public function isTracked(): bool
     {
         return match ($this) {
-            self::Releases, self::Profiles, self::Admin, self::Privacy => true,
+            self::Releases, self::Profiles, self::Admin,
+            self::PrivacyGerman, self::PrivacyEnglish => true,
             self::Demos, self::SiteAuth, self::DownloadLog            => false,
         };
     }
