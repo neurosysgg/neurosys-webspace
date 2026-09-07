@@ -188,7 +188,7 @@ final class ReleaseFolderTest extends TestCase
 
             $this->assertSame(
                 [ReleaseFormat::FLAC, ReleaseFormat::WAV, ReleaseFormat::MP3, ReleaseFormat::STEMS],
-                $formats,
+                $formats->all(),
             );
         } finally {
             array_map(unlink(...), glob($path . '/*') ?: []);

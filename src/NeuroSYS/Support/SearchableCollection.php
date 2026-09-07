@@ -24,7 +24,7 @@ use TypeError;
  * exists at all, and iteration yields that key alongside the item — which is the whole reason
  * `ReleasesView` can name each release by its slug while listing it.
  *
- * @template T of object
+ * @template T
  * @implements IteratorAggregate<string, T>
  */
 class SearchableCollection implements Countable, IteratorAggregate

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Support\Collection;
 
 /**
  * The Vary class. Which request headers a stored response depends on.
@@ -22,8 +23,8 @@ use NeuroSYS\Exception\SecurityPolicyException;
  */
 final readonly class Vary implements HeaderValue
 {
-    /** @param list<RequestHeader> $headers */
-    private function __construct(private array $headers) {}
+    /** @param Collection<RequestHeader> $headers */
+    private function __construct(private Collection $headers) {}
 
     /**
      *
@@ -40,7 +41,7 @@ final readonly class Vary implements HeaderValue
             );
         }
 
-        return new self(array_values($headers));
+        return new self(new Collection(RequestHeader::class)->with(...$headers));
     }
 
     /**
@@ -50,9 +51,6 @@ final readonly class Vary implements HeaderValue
      */
     public function render(): string
     {
-        return implode(', ', array_map(
-            static fn(RequestHeader $header): string => $header->value,
-            $this->headers,
-        ));
+        return $this->headers->join(', ', static fn(RequestHeader $header): string => $header->value);
     }
 }

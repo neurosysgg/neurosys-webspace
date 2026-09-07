@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
+use NeuroSYS\Support\Collection;
+
 /**
  * The TerminalCommand class. The command line above a terminal's output, declared rather than typed.
  *
@@ -24,8 +26,8 @@ namespace NeuroSYS\View\Terminal;
  */
 final readonly class TerminalCommand
 {
-    /** @var list<string> The arguments, in order. */
-    private array $arguments;
+    /** @var Collection<string> The arguments, in order. */
+    private Collection $arguments;
 
     /**
      * Constructs an instance of {@link self}.
@@ -41,7 +43,7 @@ final readonly class TerminalCommand
         public string $program,
         string ...$arguments,
     ) {
-        $this->arguments = array_values($arguments);
+        $this->arguments = new Collection('string')->with(...$arguments);
     }
 
     /**
@@ -57,10 +59,7 @@ final readonly class TerminalCommand
      */
     public function render(): string
     {
-        return implode(' ', [
-            $this->program,
-            ...array_map(self::token(...), $this->arguments),
-        ]);
+        return implode(' ', [$this->program, ...$this->arguments->map(self::token(...))]);
     }
 
     /**

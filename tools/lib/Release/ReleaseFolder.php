@@ -7,6 +7,7 @@ namespace NeuroSYS\Tool\Release;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
@@ -288,11 +289,17 @@ final readonly class ReleaseFolder
     /**
      * The formats this folder can offer, in the order the catalogue lists them.
      *
-     * @return list<ReleaseFormat>
+     * The keys of {@link self::$audio} *are* the answer — it is keyed by
+     * {@link ReleaseFormat::value} — so this is one `map()` over that collection rather than
+     * `array_map()` over its `keys()`, which unwrapped it to ask a question it could answer.
+     *
+     * @return Collection<ReleaseFormat>
      */
-    public function formats(): array
+    public function formats(): Collection
     {
-        return array_map(ReleaseFormat::from(...), $this->audio->keys());
+        return new Collection(ReleaseFormat::class)->with(...$this->audio->map(
+            static fn(File $file, string $format): ReleaseFormat => ReleaseFormat::from($format),
+        ));
     }
 
     /**

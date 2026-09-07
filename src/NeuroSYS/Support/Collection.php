@@ -25,7 +25,7 @@ use TypeError;
  * {@link SearchableCollection} — see that trait for why it is a trait and not a base class. What is
  * here is what makes this one a **list**: `with()` appends, and iteration yields integer keys.
  *
- * @template T of object
+ * @template T
  * @implements IteratorAggregate<int, T>
  */
 class Collection implements Countable, IteratorAggregate

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use NeuroSYS\Support\Collection;
+
 /**
  * The Fragment class. Several nodes with no element around them.
  *
@@ -13,8 +15,8 @@ namespace NeuroSYS\View\Html;
  */
 final readonly class Fragment implements Node
 {
-    /** @var list<Node> */
-    private array $nodes;
+    /** @var Collection<Node> */
+    private Collection $nodes;
 
     /**
      * Constructs an instance of {@link self} from the given nodes, in order.
@@ -23,7 +25,7 @@ final readonly class Fragment implements Node
      */
     public function __construct(Node ...$nodes)
     {
-        $this->nodes = array_values($nodes);
+        $this->nodes = new Collection(Node::class)->with(...$nodes);
     }
 
     /**
@@ -51,9 +53,9 @@ final readonly class Fragment implements Node
      */
     public function render(int $depth = 0): string
     {
-        return implode(
+        return $this->nodes->join(
             "\n" . str_repeat('  ', $depth),
-            array_map(static fn(Node $node): string => $node->render($depth), $this->nodes),
+            static fn(Node $node): string => $node->render($depth),
         );
     }
 }

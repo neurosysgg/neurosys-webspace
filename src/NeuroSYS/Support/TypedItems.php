@@ -48,13 +48,29 @@ use TypeError;
  * `$links->map(self::profileLink(...))` stays a first-class callable rather than growing a closure
  * around it. Key-first would have broken every one of those.
  *
+ * **What a collection may hold is anything with a type, not only an object.** The bound was
+ * `T of object` for as long as {@link self::guard()} was a bare `instanceof`, which is a check only
+ * an object can pass — so `list<string>`, `list<float>` and every `array_fill()` buffer stayed
+ * outside the type for a reason that was about the check rather than about them. It is
+ * `get_debug_type()` beside the `instanceof` now, and the two scalar shapes that were already
+ * written out longhand — {@link \NeuroSYS\View\Terminal\TerminalCommand}'s arguments and
+ * {@link \NeuroSYS\Support\File::lines()} — are collections like anything else.
+ *
+ * **What deliberately did not follow it in is `tools/lib/Dsp/`.** Those three classes are a port of
+ * `c-µdsp` whose stated contract is that the caller owns the buffer, and
+ * {@link \NeuroSYS\Tool\Dsp\Fft::transform()} is the codebase's only genuine in-place mutation:
+ * its butterfly reads and writes four arbitrary indices of two arrays per iteration, which no
+ * immutable collection expresses and no per-element callback can see. Measured at 512 floats a
+ * window, rebuilding a collection per window costs 354 ms against `array_fill`'s 1 ms. The port
+ * keeps arrays, and that is one named exception rather than a hole in the type.
+ *
  * **{@link self::map()} answers with a `list` and not with a collection**, which is a constraint
  * rather than a preference: a collection is defined by a `class-string`, and six of the nine call
  * sites map to a `string` or an `array`, neither of which is a class. Every one of them spreads
  * straight into `containing(...)` or `implode()`, so a collection there would be built only to be
  * unwrapped again. `where()` returns `static` and chains; `map()` ends the chain.
  *
- * @template T of object
+ * @template T
  */
 trait TypedItems
 {
@@ -62,11 +78,49 @@ trait TypedItems
     private array $items = [];
 
     /**
+     * The scalar types a collection may be declared to hold, spelled as
+     * {@link https://www.php.net/get_debug_type get_debug_type()} reports them.
+     *
+     * **`null` and `array` are deliberately absent.** A collection of nulls holds no information,
+     * and a collection of arrays is the shape every one of these was written to replace — allowing
+     * it would let the escape hatch back in under the type's own name.
+     */
+    private const array SCALARS = ['string', 'int', 'float', 'bool'];
+
+    /**
      * Constructs an instance of {@link self}.
      *
-     * @param class-string<T> $type The fully-qualified class name this collection holds.
+     * **The declared type is checked here, and that is the same move {@link \NeuroSYS\Model\Link\HiDriveLink}
+     * makes on a share id.** {@link self::guard()} asks `instanceof`, which answers `false` for a
+     * string naming no class rather than complaining about it — so before this check existed,
+     * `new Collection('Reelase')` was not an error but a collection that silently rejected
+     * everything ever offered to it, reporting the typo as a `TypeError` about the *item*. Naming
+     * the fault where it is written is worth one `class_exists()`.
+     *
+     * `interface_exists()` is asked separately because `class_exists()` answers `false` for an
+     * interface — `Collection(Node::class)` is one of the most common shapes here. Enums need no
+     * third question: `class_exists()` already answers `true` for them.
+     *
+     * @param class-string<T>|'string'|'int'|'float'|'bool' $type What this collection holds: a
+     *                        fully-qualified class, interface or enum name, or one of
+     *                        {@link self::SCALARS}.
+     * @throws TypeError if $type names neither.
      */
-    public function __construct(public readonly string $type) {}
+    public function __construct(public readonly string $type)
+    {
+        if (
+            !in_array($type, self::SCALARS, true)
+            && !class_exists($type)
+            && !interface_exists($type)
+        ) {
+            throw new TypeError(sprintf(
+                "%s cannot hold '%s': it names no class, interface or enum, and is not one of %s.",
+                static::class,
+                $type,
+                implode(', ', self::SCALARS),
+            ));
+        }
+    }
 
     /**
      * @return int
@@ -224,6 +278,17 @@ trait TypedItems
      * readonly property rather than an implementation detail: `Release`, `Terminal` and both embeds
      * read it to check the *element* type of a collection they were handed.
      *
+     * **`instanceof` is asked first and answers `false` rather than throwing** when `$this->type`
+     * names a scalar — that is PHP's own behaviour for a non-class string, and it is what lets the
+     * two questions sit in one expression. The scalar half compares `get_debug_type()`, which is
+     * also what the error message below reports, so a rejection names the two types in the same
+     * vocabulary the constructor accepted.
+     *
+     * **`int` satisfies `float`, and nothing else widens.** That is the one coercion PHP itself
+     * makes under `declare(strict_types=1)` — a `float` parameter takes an `int` — so a collection
+     * that refused `array_fill(0, 512, 0)` would be stricter than the language it is written in.
+     * The value is kept as it arrived rather than cast, exactly as a parameter would.
+     *
      * @param T $item
      * @return void
      * @throws TypeError if it is not.
@@ -234,11 +299,17 @@ trait TypedItems
             return;
         }
 
+        $actual = get_debug_type($item);
+
+        if ($actual === $this->type || ($this->type === 'float' && $actual === 'int')) {
+            return;
+        }
+
         throw new TypeError(sprintf(
             '%s expects %s, got %s',
             static::class,
             $this->type,
-            get_debug_type($item),
+            $actual,
         ));
     }
 }

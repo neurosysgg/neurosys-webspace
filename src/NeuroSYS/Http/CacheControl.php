@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Support\Collection;
 
 /**
  * The CacheControl class. Whether a response may be reused, as typed directives.
@@ -23,9 +24,9 @@ final readonly class CacheControl implements HeaderValue
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param list<CacheDirective> $directives
+     * @param Collection<CacheDirective> $directives
      */
-    private function __construct(private array $directives) {}
+    private function __construct(private Collection $directives) {}
 
     /**
      * Keep it, but ask before reusing it.
@@ -69,7 +70,7 @@ final readonly class CacheControl implements HeaderValue
             );
         }
 
-        return new self(array_values($directives));
+        return new self(new Collection(CacheDirective::class)->with(...$directives));
     }
 
     /**
@@ -79,9 +80,6 @@ final readonly class CacheControl implements HeaderValue
      */
     public function render(): string
     {
-        return implode(', ', array_map(
-            static fn(CacheDirective $directive): string => $directive->value,
-            $this->directives,
-        ));
+        return $this->directives->join(', ', static fn(CacheDirective $directive): string => $directive->value);
     }
 }

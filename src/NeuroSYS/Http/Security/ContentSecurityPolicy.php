@@ -6,6 +6,7 @@ namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
 use NeuroSYS\Http\HeaderValue;
+use NeuroSYS\Support\SearchableCollection;
 use NoDiscard;
 
 /**
@@ -23,11 +24,12 @@ final readonly class ContentSecurityPolicy implements HeaderValue
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param array<string, list<CspSource>> $directives Source lists keyed by directive value.
-     *                                                   Normally left empty and built with
-     *                                                   {@link self::allow()}.
+     * @param SearchableCollection<CspSourceList> $directives Source lists keyed by directive
+     *                        value. Normally left empty and built with {@link self::allow()}.
      */
-    public function __construct(private array $directives = []) {}
+    public function __construct(
+        private SearchableCollection $directives = new SearchableCollection(CspSourceList::class),
+    ) {}
 
     /**
      * Returns a copy of this policy with $directive allowed to load from $sources.
@@ -47,7 +49,7 @@ final readonly class ContentSecurityPolicy implements HeaderValue
             ));
         }
 
-        if (isset($this->directives[$directive->value])) {
+        if ($this->directives->find($directive->value) !== null) {
             throw new SecurityPolicyException(sprintf(
                 "CSP directive '%s' is already set. A browser honours the first occurrence and "
                 . 'ignores the rest, so the second one would silently do nothing.',
@@ -55,7 +57,10 @@ final readonly class ContentSecurityPolicy implements HeaderValue
             ));
         }
 
-        return new self([...$this->directives, $directive->value => array_values($sources)]);
+        return new self($this->directives->with(
+            $directive->value,
+            new CspSourceList()->with(...$sources),
+        ));
     }
 
     /**
@@ -65,16 +70,13 @@ final readonly class ContentSecurityPolicy implements HeaderValue
      */
     public function render(): string
     {
-        $rendered = [];
-
-        foreach ($this->directives as $directive => $sources) {
-            $rendered[] = $directive . ' ' . implode(
+        return $this->directives->join(
+            '; ',
+            static fn(CspSourceList $sources, string $directive): string => $directive . ' ' . $sources->join(
                 ' ',
-                array_map(static fn(CspSource $source): string => $source->source(), $sources),
-            );
-        }
-
-        return implode('; ', $rendered);
+                static fn(CspSource $source): string => $source->source(),
+            ),
+        );
     }
 
     /**
@@ -88,10 +90,9 @@ final readonly class ContentSecurityPolicy implements HeaderValue
         $hosts = [];
 
         foreach ($this->directives as $sources) {
-            foreach ($sources as $source) {
-                if ($source instanceof CspHost) {
-                    $hosts[] = $source->origin;
-                }
+            foreach ($sources->where(static fn(CspSource $s): bool => $s instanceof CspHost) as $host) {
+                /** @var CspHost $host */
+                $hosts[] = $host->origin;
             }
         }
 

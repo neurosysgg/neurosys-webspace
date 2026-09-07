@@ -29,6 +29,7 @@ use NeuroSYS\Http\Security\CspHost;
 use NeuroSYS\Http\Security\CspKeyword;
 use NeuroSYS\Http\Security\CspScheme;
 use NeuroSYS\Http\Security\CspSource;
+use NeuroSYS\Http\Security\CspSourceList;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
@@ -44,6 +45,7 @@ use RecursiveIteratorIterator;
 
 #[CoversClass(ContentSecurityPolicy::class)]
 #[CoversClass(CspHost::class)]
+#[CoversClass(CspSourceList::class)]
 #[CoversClass(CspKeyword::class)]
 #[CoversClass(CspScheme::class)]
 #[CoversClass(CspDirective::class)]

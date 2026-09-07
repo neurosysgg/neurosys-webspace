@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use NeuroSYS\Support\Collection;
+
 /**
  * The LinkRel enum. The relationships this site declares on a `<link>` or an `<a>`.
  *
@@ -65,9 +67,8 @@ enum LinkRel: string
      */
     public static function tokens(self ...$relations): string
     {
-        return implode(' ', array_map(
-            static fn (self $relation): string => $relation->value,
-            $relations,
-        ));
+        return new Collection(self::class)
+            ->with(...$relations)
+            ->join(' ', static fn (self $relation): string => $relation->value);
     }
 }

@@ -153,10 +153,10 @@ final class ProjectFileTest extends TestCase
         // The name is the project's own, not the path it sits at inside the archive.
         self::assertSame('ill..flp', $found->name);
 
-        self::assertSame(['ill. [project].zip'], array_map(
-            static fn(File $file): string => $file->name(),
-            $this->directory->files(),
-        ));
+        self::assertSame(
+            ['ill. [project].zip'],
+            $this->directory->files()->map(static fn(File $file): string => $file->name()),
+        );
     }
 
     /**

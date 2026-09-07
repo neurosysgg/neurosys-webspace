@@ -53,11 +53,16 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.3% of
-lines**; of the twenty-four that are left, fourteen are deliberate and named in `docs/testing.md`.
-The other ten are a gap rather than a decision — guard-clause `throw`s on the header-value classes
-`867372f` added, which nothing has exercised yet. The demo work added two of the same kind and
-closed both, so the pattern for closing the rest is written down in `DemoTest`.
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.2% of
+lines** (1418/1444); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
+guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
+`Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
+both, so the pattern for closing the rest is written down in `DemoTest`. The remaining six, in
+`FileResponse`, `Auth` and `File`, are the drift `docs/testing.md` names at the end of its coverage
+section. **The collection work moved the percentage without adding an uncovered line** — every
+class it touched reports 100%, and the figure fell because it deleted covered lines (each
+`implode(', ', array_map(…))` became one `join()`), which shrinks the denominator.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -105,7 +110,8 @@ src/NeuroSYS/
 │                     FileResponse + ByteRange/ContentRange/ContentLength/AcceptRanges
 │                     + HttpStatusCode, HttpMethod, MimeType/TopLevelType, Header/HeaderName
 │                     and the two header-name enums, ServerVariable
-│   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
+│   └── Security/   ← ContentSecurityPolicy + CspSourceList, PermissionsPolicy + the enums they
+│                     compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
 │                     Platform, Waveform + WaveformColumn/WaveformBand (typed value objects + enums)
 │   ├── Production/ ← what the .flp knows: Arrangement + Section + SectionKind, ProductionTime, Plugin
@@ -114,9 +120,9 @@ src/NeuroSYS/
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
 │                     ProfileRepository, DemoRepository, WaveformRepository
-├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable) + the TypedItems trait
-│                     they share, File + Directory, Route, RouteInitialization, JsonDeserializable,
-│                     Charset, PasswordHash
+├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable, objects or scalars)
+│                     + the TypedItems trait they share, File + Directory, Route,
+│                     RouteInitialization, JsonDeserializable, Charset, PasswordHash
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
 │   │                 Doctype + Tag/HtmlTag, the attribute-name enums (WaveformAttribute among
@@ -443,7 +449,17 @@ classes *and* on the trait.
 filter over `Fact::cases()`, `FlpFile::all()` — none crosses a public boundary, and the rule below
 already says a collection does not replace a variadic. PHP's own `array_find`/`array_any`/`array_all`
 are the API there. `CurlTransport::parts()` keeps its `foreach` for a different reason: it rekeys by
-field name, which is not a `map`.
+field name, which is not a `map`. `Dsp/`'s buffers and `DownloadStats`'s tally accumulator stay
+arrays for a third reason again — both are written to in a loop, and `with()` copies; see *What
+deliberately did not go in* below.
+
+**And a great many things stay arrays because PHP hands them over that way.** `cases()` (19 sites),
+`preg_match`'s `&$matches` (17), `unpack` (16), `file` (10), `parse_url` (7), `explode` (6),
+`json_decode` (5), `glob`, `range` — about ninety points across `src/` and `tools/` where a builtin
+answers with an array and no amount of typing on this side changes that. The target is therefore
+**all-collection in the interior with an adapter at each door**, not zero arrays anywhere:
+`Directory::files()` is the model, where `glob()` is the door and the `Collection<File>` is what
+crosses the boundary.
 
 **`with()` copies; it does not append.** That is what makes a collection safe to hold inside a
 `readonly` value object: `readonly` protects the reference, not what it points at, so a mutable
@@ -485,11 +501,86 @@ with `$cache !== []`, which is true of *every* `Collection` — so a gated page 
 to a guessed validator the moment `cacheHeaders()` returned one. `isEmpty()` is what it should have
 been asking all along, and the test named for that hazard caught it in the same run.
 
-Not everything with a `list<…>` in its docblock wants one. `PermissionsPolicy::$denied` and
-`ContentSecurityPolicy::$directives` are private, never escape, and are built only through a
-variadic — `PermissionsPolicyFeature ...$features` — which PHP already enforces at the boundary. A
-collection there adds indirection and no guarantee. The rule is: **a collection replaces a
-hand-rolled type check on data crossing a public boundary; it does not replace a variadic.**
+**The rule is about the parameter, not the store, and that distinction took a while to draw.** This
+file used to say `PermissionsPolicy::$denied` and `ContentSecurityPolicy::$directives` wanted no
+collection because they are built only through a variadic that PHP already enforces. The first half
+of that is still exactly right — `deny(PermissionsPolicyFeature ...$features)` keeps its variadic,
+and a `Collection` parameter there would replace a check the language makes for free with one we
+make ourselves. The second half was a non-sequitur: what a class *stores* after the variadic has
+guarded the boundary is a separate question, and storing an array meant every one of these classes
+rendered itself with `implode(', ', array_map(…))` — which is `join()` spelled out. So `Allow`,
+`Vary`, `CacheControl`, `RobotsPolicy`, `PermissionsPolicy`, `Fragment` and `TerminalCommand` all
+hold a `Collection` behind a variadic constructor now, and their `render()` is one `join()` each.
+The rule, restated: **a collection replaces a hand-rolled type check on data crossing a public
+boundary, and it is what a class holds afterwards; it does not replace a variadic.**
+
+### What a collection may hold
+
+**`T of object` was a limit of the check rather than a decision about the data.** `guard()` was a
+bare `instanceof`, which is a test only an object can pass — so `list<string>`, `list<float>` and
+every counted tally stayed outside the type for a reason that was never argued, only inherited. It
+asks `get_debug_type()` beside the `instanceof` now, and `Collection('string')`,
+`SearchableCollection('int')` and the rest are collections like any other.
+
+Three things fell out of it, and each is worth knowing before adding a fourth:
+
+- **`null` and `array` are refused as declared types**, and `TypedItems::SCALARS` says so out loud.
+  A collection of nulls holds no information; a collection of arrays is the shape every one of
+  these was written to replace, so allowing it would let the escape hatch back in under the type's
+  own name. That refusal is load-bearing rather than tidy — see `CspSourceList` below, which exists
+  because of it.
+- **`int` satisfies `float`, and nothing else widens.** That is the one coercion PHP itself makes
+  under `declare(strict_types=1)`, so a collection that refused `array_fill(0, 512, 0)` would be
+  stricter than the language it is written in. The value is kept as it arrived rather than cast,
+  exactly as a parameter would.
+- **The declared type is now checked in the constructor**, the same move `HiDriveLink` makes on a
+  share id and `CspHost` makes on an origin. `instanceof` answers `false` for a string naming no
+  class rather than complaining about it, so `new Collection('Reelase')` was not an error but a
+  collection that silently rejected everything ever offered to it — reporting the typo as a
+  `TypeError` about the *item*. `class_exists()` and `interface_exists()` are both asked, because
+  the first answers `false` for an interface and `Collection(Node::class)` is among the commonest
+  shapes here; enums need no third question.
+
+**`CspSourceList` is the one place PHP's lack of nested generics costs something.**
+`ContentSecurityPolicy` holds source lists keyed by directive — a map of lists — and a collection is
+defined by a `class-string`, so the outer `SearchableCollection` has to be told what its values are.
+Told `Collection::class` it would check only that each value is *some* collection, not that it is a
+collection of `CspSource`, which is the entire question worth asking about a policy. Naming the
+inner list recovers both halves. It is also what refusing `'array'` above forced: a collection of
+arrays would have let the map keep untyped values under a collection's name, and closing that door
+is what produced the honest structure.
+
+### What deliberately did not go in
+
+**`tools/lib/Dsp/` keeps raw arrays, and it is one function rather than a directory's worth of
+exception.** `Fft::transform()` is the codebase's only genuine in-place mutation: its butterfly
+reads and writes four arbitrary indices of two arrays per iteration, and the bit-reversal above it
+swaps two more. No immutable collection expresses that, and no per-element callback can see another
+element. Measured at 512 floats a window and ~2000 windows a mix: `array_fill` 1 ms, one batched
+`with()` per window 354 ms, incremental `with()` 1321 ms. Everything else in those three classes —
+`hann()`, `magnitude()`, `Analyze::mono()`, `Spectrum::bars()` — builds a *fresh* array in a loop
+and returns it, so it is already `map`-shaped and already immutable; it stays arrays because the
+port's stated contract is that the caller owns the buffer, and because the hot path is the one place
+the 1.5x iteration cost of a collection is worth counting.
+
+**Three query methods were designed and then not written**, each because it had no caller, which is
+the same test `first()`'s backwards twin failed:
+
+- **`do(fn(&$value, $key))`**, an in-place walk, was the obvious answer to the buffers above. It is
+  mechanically fine — an arrow function does take a by-ref parameter — but it *is* `map()`, with the
+  result landing in the old array instead of a new one, and it cannot reach the only code that
+  wanted it. It also measured **5.2x slower** than the indexed loop it would replace (the closure
+  call per element, not the reference: a raw by-ref `foreach` is *faster* than indexing), it would
+  put a mutation on the class whose immutability makes it safe inside every `readonly` value object
+  here, and it would be the first member meant to be discarded — inverting the `with()`/`add()`
+  convention this file spends a paragraph on. If in-place ever becomes necessary, the honest shape
+  is a separate `Buffer` type, not a hole in this one.
+- **`mapTo(class-string, fn)`**, returning a collection rather than a list, has exactly one caller
+  (`ReleaseFolder::formats()`, written as `with(...map(…))`). Every other `map()` on the site spreads
+  straight into `containing(...)` or `implode()`, which is why `map()` answers with a list in the
+  first place.
+- **`zip()` / `unique()`** would each have served one call site in `Dsp/` and one in `hosts()` —
+  both excluded above, both doors.
 
 ## How the router works
 

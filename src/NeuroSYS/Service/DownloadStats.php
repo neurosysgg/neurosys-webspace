@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Support\SearchableCollection;
+
 /**
  * The DownloadStats class. What the downloads log adds up to.
  *
@@ -22,16 +24,16 @@ final readonly class DownloadStats
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param int                $total    How many entries were read.
-     * @param array<string, int> $byFormat Counts keyed by `slug/format`.
-     * @param array<string, int> $byDay    Counts keyed by date, **in date order** — the sort lives
-     *                                     here rather than in the view, because a tally by day that
-     *                                     arrives shuffled is not a tally by day.
+     * @param int                          $total    How many entries were read.
+     * @param SearchableCollection<int>      $byFormat Counts keyed by `slug/format`.
+     * @param SearchableCollection<int>      $byDay    Counts keyed by date, **in date order** — the
+     *                        sort lives here rather than in the view, because a tally by day that
+     *                        arrives shuffled is not a tally by day.
      */
     private function __construct(
-        public int   $total,
-        public array $byFormat,
-        public array $byDay,
+        public int                   $total,
+        public SearchableCollection  $byFormat,
+        public SearchableCollection  $byDay,
     ) {}
 
     /**
@@ -66,7 +68,36 @@ final readonly class DownloadStats
 
         ksort($byDay);
 
-        return new self($total, $byFormat, $byDay);
+        return new self($total, self::counts($byFormat), self::counts($byDay));
+    }
+
+    /**
+     * A tally as a collection keyed by whatever it was grouped by.
+     *
+     * **The accumulator above stays a plain array on purpose.** `$byFormat[$key] = … + 1` is a
+     * counted read of an append-only file, and {@link SearchableCollection::with()} copies rather
+     * than writes — so accumulating into one would clone the whole tally once per log line. This is
+     * the adapter at the door: the array is local to the loop that fills it, and the collection is
+     * what crosses the boundary.
+     *
+     * The `(string)` cast is the one {@link \NeuroSYS\View\StatsView} used to make with
+     * `array_map(strval(...), array_keys($rows))`. PHP casts a decimal-looking array key to `int`
+     * on the way in, so a tally is `array-key`-keyed however carefully it was built; a collection's
+     * keys are strings, and doing the cast here is what let the view stop zipping two arrays back
+     * together.
+     *
+     * @param array<array-key, int> $counts
+     * @return SearchableCollection<int>
+     */
+    private static function counts(array $counts): SearchableCollection
+    {
+        $collection = new SearchableCollection('int');
+
+        foreach ($counts as $key => $count) {
+            $collection = $collection->with((string) $key, $count);
+        }
+
+        return $collection;
     }
 
     /**

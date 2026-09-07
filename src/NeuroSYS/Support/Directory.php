@@ -85,17 +85,25 @@ final readonly class Directory
      * Directories are left out: every caller wants files, and one that had to check each entry
      * would be doing by hand what this exists to have done once.
      *
+     * `glob()` is the door: it answers with a plain array of paths, so the adapter is the
+     * {@link Collection} built from it rather than anything further in. What crosses the boundary
+     * is a collection, which is what lets a caller ask `->first()` or `->where()` of a directory
+     * without unwrapping it first.
+     *
      * @param string $pattern A glob pattern matched against the name — `*.flac`, `*`.
-     * @return list<File>
+     * @return Collection<File>
      */
-    public function files(string $pattern = '*'): array
+    public function files(string $pattern = '*'): Collection
     {
         $matches = glob($this->path . '/' . $pattern) ?: [];
 
-        return array_values(array_filter(
-            array_map(static fn(string $path): File => new File($path), $matches),
-            static fn(File $file): bool => $file->exists(),
-        ));
+        $files = new Collection(File::class);
+
+        foreach ($matches as $path) {
+            $files = $files->with(new File($path));
+        }
+
+        return $files->where(static fn(File $file): bool => $file->exists());
     }
 
     /**

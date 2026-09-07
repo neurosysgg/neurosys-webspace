@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -92,22 +93,20 @@ class StatsView extends View
     }
 
     /**
-     * @param array<string, int> $rows Counts keyed by whatever the table is grouped by.
+     * @param SearchableCollection<int> $rows Counts keyed by whatever the table is grouped by.
      * @return Element
      */
-    private static function table(array $rows): Element
+    private static function table(SearchableCollection $rows): Element
     {
         return new Element(HtmlTag::Table)
             ->attr(HtmlAttribute::ClassName, CssClass::StatsTable)
-            ->containing(...array_map(
-                static fn(string $key, int $count): Element => new Element(HtmlTag::Tr)->containing(
+            ->containing(...$rows->map(
+                static fn(int $count, string $key): Element => new Element(HtmlTag::Tr)->containing(
                     new Element(HtmlTag::Td)->containing($key),
                     new Element(HtmlTag::Td)
                         ->attr(HtmlAttribute::ClassName, CssClass::StatsCount)
                         ->containing((string) $count),
                 ),
-                array_map(strval(...), array_keys($rows)),
-                array_values($rows),
             ));
     }
 }

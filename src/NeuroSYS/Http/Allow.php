@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\Collection;
+
 /**
  * The Allow class. Which methods a route accepts, sent with a 405.
  *
@@ -15,8 +17,8 @@ namespace NeuroSYS\Http;
  */
 final readonly class Allow implements HeaderValue
 {
-    /** @param list<HttpMethod> $methods */
-    private function __construct(private array $methods) {}
+    /** @param Collection<HttpMethod> $methods */
+    private function __construct(private Collection $methods) {}
 
     /**
      * Every method that only reads — which on this site is every method the router answers.
@@ -25,10 +27,11 @@ final readonly class Allow implements HeaderValue
      */
     public static function readOnly(): self
     {
-        return new self(array_values(array_filter(
-            HttpMethod::cases(),
-            static fn(HttpMethod $method): bool => $method->isReadOnly(),
-        )));
+        return new self(
+            new Collection(HttpMethod::class)
+                ->with(...HttpMethod::cases())
+                ->where(static fn(HttpMethod $method): bool => $method->isReadOnly()),
+        );
     }
 
     /**
@@ -38,9 +41,6 @@ final readonly class Allow implements HeaderValue
      */
     public function render(): string
     {
-        return implode(', ', array_map(
-            static fn(HttpMethod $method): string => $method->value,
-            $this->methods,
-        ));
+        return $this->methods->join(', ', static fn(HttpMethod $method): string => $method->value);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
+use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -143,7 +144,7 @@ final readonly class StageRelease implements Command
             Fact::Bpm     => $folder->bpm !== null ? (string) $folder->bpm : null,
             Fact::Key     => $folder->key?->value,
             Fact::Genre   => $folder->genre?->value,
-            Fact::Formats => implode(', ', array_column($folder->formats(), 'name')),
+            Fact::Formats => $folder->formats()->join(', ', static fn(ReleaseFormat $f): string => $f->name),
             Fact::Cover   => $folder->cover?->name(),
         };
     }

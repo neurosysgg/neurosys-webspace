@@ -309,7 +309,7 @@ final class AdminTest extends TestCase
      */
     private static function tally(DownloadStats $stats): array
     {
-        return [$stats->total, $stats->byFormat, $stats->byDay];
+        return [$stats->total, $stats->byFormat->all(), $stats->byDay->all()];
     }
 
     /**

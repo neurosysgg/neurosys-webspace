@@ -6,6 +6,7 @@ namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
 use NeuroSYS\Http\HeaderValue;
+use NeuroSYS\Support\Collection;
 
 /**
  * The PermissionsPolicy class. A `Permissions-Policy` header built from typed features.
@@ -19,9 +20,9 @@ final readonly class PermissionsPolicy implements HeaderValue
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param list<PermissionsPolicyFeature> $denied
+     * @param Collection<PermissionsPolicyFeature> $denied
      */
-    private function __construct(private array $denied) {}
+    private function __construct(private Collection $denied) {}
 
     /**
      * Denies the given features to every origin, this one included.
@@ -39,7 +40,7 @@ final readonly class PermissionsPolicy implements HeaderValue
             );
         }
 
-        return new self(array_values($features));
+        return new self(new Collection(PermissionsPolicyFeature::class)->with(...$features));
     }
 
     /**
@@ -59,9 +60,6 @@ final readonly class PermissionsPolicy implements HeaderValue
      */
     public function render(): string
     {
-        return implode(', ', array_map(
-            static fn(PermissionsPolicyFeature $feature): string => $feature->denied(),
-            $this->denied,
-        ));
+        return $this->denied->join(', ', static fn(PermissionsPolicyFeature $feature): string => $feature->denied());
     }
 }

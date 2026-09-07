@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Support\Collection;
 
 /**
  * The RobotsPolicy class. What a crawler may do with a response, as typed directives.
@@ -29,9 +30,9 @@ final readonly class RobotsPolicy implements HeaderValue
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param list<RobotsDirective> $directives
+     * @param Collection<RobotsDirective> $directives
      */
-    private function __construct(private array $directives) {}
+    private function __construct(private Collection $directives) {}
 
     /**
      * Everything this site knows how to ask for, which is what a demo page asks.
@@ -64,7 +65,7 @@ final readonly class RobotsPolicy implements HeaderValue
             );
         }
 
-        return new self(array_values($directives));
+        return new self(new Collection(RobotsDirective::class)->with(...$directives));
     }
 
     /**
@@ -74,6 +75,6 @@ final readonly class RobotsPolicy implements HeaderValue
      */
     public function render(): string
     {
-        return implode(', ', array_map(static fn(RobotsDirective $d): string => $d->value, $this->directives));
+        return $this->directives->join(', ', static fn(RobotsDirective $d): string => $d->value);
     }
 }

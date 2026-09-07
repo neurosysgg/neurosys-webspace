@@ -16,6 +16,7 @@ use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\TypedItems;
+use NeuroSYS\View\Html\Node;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
@@ -165,6 +166,132 @@ final class SupportTest extends TestCase
     public function testExposesItsDeclaredType(): void
     {
         self::assertSame(stdClass::class, new Collection(stdClass::class)->type);
+    }
+
+    // ─────────────────────────── scalar collections ───────────────────────────
+
+    /**
+     * @return void
+     */
+    public function testHoldsScalarsOfTheDeclaredType(): void
+    {
+        self::assertSame(['a', 'b'], new Collection('string')->with('a', 'b')->all());
+        self::assertSame([1, 2], new Collection('int')->with(1, 2)->all());
+        self::assertSame([1.5], new Collection('float')->with(1.5)->all());
+        self::assertSame([true, false], new Collection('bool')->with(true, false)->all());
+    }
+
+    /**
+     * @return void
+     */
+    public function testRejectsAScalarOfTheWrongType(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageIsOrContains('expects string, got int');
+        (void) new Collection('string')->with(1);
+    }
+
+    /**
+     * @return void
+     */
+    public function testRejectsAnObjectInAScalarCollection(): void
+    {
+        $this->expectException(TypeError::class);
+        (void) new Collection('int')->with(new stdClass());
+    }
+
+    /**
+     * `int` satisfies `float` because that is the one widening PHP itself performs under
+     * `declare(strict_types=1)`; a collection stricter than the language would refuse
+     * `array_fill(0, 512, 0)`.
+     *
+     * @return void
+     */
+    public function testAnIntSatisfiesAFloatCollection(): void
+    {
+        self::assertSame([0, 1.5], new Collection('float')->with(0, 1.5)->all());
+    }
+
+    /**
+     * The widening is one-way, exactly as a parameter's is.
+     *
+     * @return void
+     */
+    public function testAFloatDoesNotSatisfyAnIntCollection(): void
+    {
+        $this->expectException(TypeError::class);
+        (void) new Collection('int')->with(1.5);
+    }
+
+    /**
+     * @return void
+     */
+    public function testScalarsWorkInASearchableCollectionToo(): void
+    {
+        self::assertSame('v', new SearchableCollection('string')->with('k', 'v')->find('k'));
+    }
+
+    // ────────────────────── the declared type is checked ──────────────────────
+
+    /**
+     * The fault this exists for: `instanceof` answers `false` for a string naming no class, so a
+     * misspelled type used to be a collection that silently rejected everything.
+     *
+     * @return void
+     */
+    public function testRefusesATypeThatNamesNothing(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageIsOrContains('Reelase');
+        (void) new Collection('Reelase');
+    }
+
+    /**
+     * @return void
+     */
+    public function testRefusesNullAndArrayAsDeclaredTypes(): void
+    {
+        $refused = 0;
+
+        foreach (['null', 'array', 'mixed', 'iterable', ''] as $type) {
+            try {
+                (void) new Collection($type);
+            } catch (TypeError) {
+                $refused++;
+            }
+        }
+
+        self::assertSame(5, $refused);
+    }
+
+    /**
+     * `class_exists()` answers false for an interface, so the constructor has to ask twice.
+     *
+     * @return void
+     */
+    public function testAcceptsAnInterfaceAsItsDeclaredType(): void
+    {
+        self::assertSame(Node::class, new Collection(Node::class)->type);
+    }
+
+    /**
+     * Enums need no third question — `class_exists()` already answers true for them.
+     *
+     * @return void
+     */
+    public function testAcceptsAnEnumAsItsDeclaredType(): void
+    {
+        self::assertCount(1, new Collection(ReleaseFormat::class)->with(ReleaseFormat::FLAC));
+    }
+
+    /**
+     * @return void
+     */
+    public function testTheRefusalNamesTheCollectionAndTheScalarsItWouldAccept(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageIsOrContains(SearchableCollection::class);
+        (void) new SearchableCollection('Nope');
     }
 
     // ───────────────────────── SearchableCollection ─────────────────────────
@@ -647,11 +774,11 @@ final class SupportTest extends TestCase
 
             self::assertSame(
                 ['a.flac', 'b.wav'],
-                array_map(static fn(File $f): string => $f->name(), $directory->files()),
+                $directory->files()->map(static fn(File $f): string => $f->name()),
             );
             self::assertSame(
                 ['a.flac'],
-                array_map(static fn(File $f): string => $f->name(), $directory->files('*.flac')),
+                $directory->files('*.flac')->map(static fn(File $f): string => $f->name()),
             );
         } finally {
             $directory->directory('web')->remove();
@@ -718,7 +845,7 @@ final class SupportTest extends TestCase
 
         try {
             self::assertFalse($directory->file('taken')->write('anything'));
-            self::assertSame([], $directory->files('taken.*'), 'the temporary file was cleaned up');
+            self::assertSame([], $directory->files('taken.*')->all(), 'the temporary file was cleaned up');
         } finally {
             $occupied->remove();
             $directory->remove();
