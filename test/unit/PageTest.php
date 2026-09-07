@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
+use NeuroSYS\DataFile;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\ImprintView;
@@ -229,7 +230,7 @@ final class PageTest extends TestCase
     public function testTheRealPolicyRendersInsideThePageSection(): void
     {
         $html = new PrivacyView(
-            (string) Config::dataFile('privacy.html')->read(),
+            (string) Config::dataFile(DataFile::Privacy)->read(),
         )->content()->render();
 
         self::assertStringStartsWith('<section class="page-section">', $html);

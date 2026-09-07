@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
+use NeuroSYS\DataFile;
 use NeuroSYS\Http\Security\CspHost;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -17,6 +18,7 @@ use PHPUnit\Framework\TestCase;
  * that lands outside the webroot.
  */
 #[CoversClass(Config::class)]
+#[CoversClass(DataFile::class)]
 final class ConfigTest extends TestCase
 {
     // ───────────────────────────── paths ─────────────────────────────
@@ -26,7 +28,7 @@ final class ConfigTest extends TestCase
      */
     public function testDataPathResolvesInsideTheRepositoryDataDirectory(): void
     {
-        self::assertSame(NEUROSYS_ROOT . '/data/releases.php', Config::dataFile('releases.php')->path);
+        self::assertSame(NEUROSYS_ROOT . '/data/releases.php', Config::dataFile(DataFile::Releases)->path);
     }
 
     /**
@@ -34,7 +36,7 @@ final class ConfigTest extends TestCase
      */
     public function testDataPathTakesANestedFile(): void
     {
-        self::assertSame(NEUROSYS_ROOT . '/data/logs/downloads.log', Config::dataFile('logs/downloads.log')->path);
+        self::assertSame(NEUROSYS_ROOT . '/data/logs/downloads.log', Config::dataFile(DataFile::DownloadLog)->path);
     }
 
     /**
@@ -59,30 +61,69 @@ final class ConfigTest extends TestCase
      */
     public function testTheDownloadLogIsNamedRelativeToTheDataDirectory(): void
     {
-        self::assertSame(Config::dataFile('logs/downloads.log')->path, Config::downloadLog()->path);
+        self::assertSame(Config::dataFile(DataFile::DownloadLog)->path, Config::downloadLog()->path);
     }
 
     /**
      * Every data file the application actually loads has to be one dataFile() resolves.
      *
-     * @param string $file
+     * The provider used to be four names written out here, which is the arrangement
+     * {@link DataFile} was extracted from: it listed the four the repository carries, said nothing
+     * about the three it does not, and had no way to notice a fifth arriving. Iterating the cases
+     * asks the enum instead, so a case added without a file — or a file added without a case —
+     * fails here rather than reading as an empty catalogue on a page.
+     *
+     * @param DataFile $file
      * @return void
      */
     #[DataProvider('dataFileProvider')]
-    public function testTheDataFilesTheSiteLoadsAreWhereDataPathSaysTheyAre(string $file): void
+    public function testTheDataFilesTheSiteLoadsAreWhereDataPathSaysTheyAre(DataFile $file): void
     {
-        self::assertTrue(Config::dataFile($file)->exists(), $file . ' should be where dataFile() says');
+        self::assertTrue(
+            Config::dataFile($file)->exists(),
+            $file->value . ' should be where dataFile() says',
+        );
     }
 
     /**
-     * @return iterable
+     * The tracked cases, which are the ones a clone is guaranteed to have.
+     *
+     * @return iterable<string, array{DataFile}>
      */
     public static function dataFileProvider(): iterable
     {
-        yield 'catalogue' => ['releases.php'];
-        yield 'profiles'  => ['profiles.php'];
-        yield 'admin'     => ['admin.php'];
-        yield 'privacy'   => ['privacy.html'];
+        foreach (DataFile::cases() as $file) {
+            if ($file->isTracked()) {
+                yield $file->name => [$file];
+            }
+        }
+    }
+
+    /**
+     * The other side of {@link DataFile::isTracked()}, and the half a list of names cannot state.
+     *
+     * An untracked case is untracked for a reason that is the point of it: two are gitignored so a
+     * public repository cannot publish what they hold, and the log does not exist until something
+     * writes one. What is asserted is that the predicate agrees with git rather than with a comment
+     * — so moving a file into or out of the repository fails here until the case is told.
+     *
+     * @return void
+     */
+    public function testWhetherADataFileIsTrackedAgreesWithTheRepository(): void
+    {
+        foreach (DataFile::cases() as $file) {
+            $tracked = exec(sprintf(
+                'git -C %s ls-files --error-unmatch -- %s 2>/dev/null',
+                escapeshellarg(NEUROSYS_ROOT),
+                escapeshellarg('data/' . $file->value),
+            )) !== '';
+
+            self::assertSame(
+                $file->isTracked(),
+                $tracked,
+                $file->value . ' is ' . ($tracked ? '' : 'not ') . 'in git, and isTracked() disagrees',
+            );
+        }
     }
 
     // ───────────────────────────── identity ─────────────────────────────

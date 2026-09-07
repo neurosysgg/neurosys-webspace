@@ -15,6 +15,7 @@ use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\LinkRel;
 use NeuroSYS\View\Html\LinkTarget;
+use NeuroSYS\View\Html\MetaName;
 use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\View;
@@ -49,11 +50,11 @@ class Layout
         return new Element(HtmlTag::Head)->containing(
             new Element(HtmlTag::Meta)->attr(HtmlAttribute::Charset, Charset::Utf8->canonical()),
             new Element(HtmlTag::Meta)
-                ->attr(HtmlAttribute::Name, 'viewport')
+                ->attr(HtmlAttribute::Name, MetaName::Viewport)
                 ->attr(HtmlAttribute::Content, 'width=device-width, initial-scale=1.0'),
             new Element(HtmlTag::Title)->containing($title),
             new Element(HtmlTag::Meta)
-                ->attr(HtmlAttribute::Name, 'description')
+                ->attr(HtmlAttribute::Name, MetaName::Description)
                 ->attr(HtmlAttribute::Content, Config::description()),
             new Element(HtmlTag::Link)
                 ->attr(HtmlAttribute::Rel, LinkRel::Stylesheet)

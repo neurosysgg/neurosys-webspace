@@ -12,6 +12,7 @@ use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
+use NeuroSYS\DataFile;
 use NeuroSYS\Exception\MimeTypeException;
 use NeuroSYS\Http\CacheControl;
 use NeuroSYS\Http\ETag;
@@ -531,7 +532,7 @@ final class ResponseTest extends TestCase
         $response = new PrivacyController()->handle($this->request('/privacy'));
         $html     = self::peek($response, 'view')->content()->render();
 
-        $lines = explode("\n", (string) Config::dataFile('privacy.html')->read())
+        $lines = explode("\n", (string) Config::dataFile(DataFile::Privacy)->read())
                 |> (fn($x) => array_map(trim(...), $x))
                 |> array_filter(...)
                 |> array_values(...);

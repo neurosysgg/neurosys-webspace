@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\Config;
+use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\File;
 
@@ -38,7 +39,7 @@ class DownloadLogger
             time:     date('c'),
             slug:     $slug,
             format:   $format->value,
-            referrer: $_SERVER['HTTP_REFERER'] ?? '',
+            referrer: ServerVariable::Referer->string() ?? '',
         );
 
         // The locked append lives on File now, and the failure is still silent on purpose: the

@@ -7,6 +7,7 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\RequestedWith;
 use NeuroSYS\Http\RequestHeader;
+use NeuroSYS\Http\ServerVariable;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -14,6 +15,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(Request::class)]
 #[CoversClass(RequestHeader::class)]
 #[CoversClass(RequestedWith::class)]
+#[CoversClass(ServerVariable::class)]
 final class RequestTest extends TestCase
 {
     /** @var array<string, mixed> */
@@ -297,5 +299,123 @@ final class RequestTest extends TestCase
         yield 'fetch'      => ['fetch', false];
         yield 'empty'      => ['', false];
         yield 'substring'  => ['not-XMLHttpRequest', false];
+    }
+
+    // ───────────────────────────── ServerVariable ─────────────────────────────
+
+    /**
+     * The keys, spelled out once, against the names Apache and PHP actually use.
+     *
+     * This is the whole reason the enum exists, so it is asserted the same way {@link RequestHeader}
+     * asserts its wire names: the value is the environment's spelling, and a case that drifts from
+     * it reads at runtime as a request that simply did not carry the value.
+     *
+     * {@link ServerVariable::Referer} is the one worth looking at twice — one `r`, because HTTP
+     * lost it in 1996 and never got it back, while the property it fills spells it correctly.
+     *
+     * @return void
+     */
+    public function testTheServerVariablesAreNamedAsTheEnvironmentSpellsThem(): void
+    {
+        self::assertSame([
+            'REQUEST_METHOD',
+            'REQUEST_URI',
+            'PHP_AUTH_USER',
+            'PHP_AUTH_PW',
+            'HTTP_AUTHORIZATION',
+            'REDIRECT_HTTP_AUTHORIZATION',
+            'HTTP_REFERER',
+        ], array_column(ServerVariable::cases(), 'value'));
+    }
+
+    /**
+     * A key that is there comes back; one that is not comes back null rather than ''.
+     *
+     * Null and not the empty string, because the callers want different defaults out of the same
+     * absence — `GET`, `/` and `''` — and a reader that picked one for them would have made
+     * {@link Request::fromGlobals()} say `?: 'GET'`, which is a different question.
+     *
+     * @return void
+     */
+    public function testAServerVariableReadsItsKeyAndAnswersNullWhenItIsAbsent(): void
+    {
+        $_SERVER = ['REQUEST_URI' => '/releases'];
+
+        self::assertSame('/releases', ServerVariable::RequestUri->string());
+        self::assertNull(ServerVariable::RequestMethod->string());
+    }
+
+    /**
+     * A key holding something that is not a string is the same as one that is not there.
+     *
+     * The guard the bare `$_SERVER['HTTP_REFERER'] ?? ''` in `DownloadLogger` never had: under
+     * `strict_types=1` a non-string reaching {@link \NeuroSYS\Service\DownloadLogEntry}'s
+     * `string`-typed constructor is an uncaught TypeError, which would take a download down over a
+     * log line. Unreachable through Apache, and exactly the reasoning
+     * {@link \NeuroSYS\Service\DownloadLogEntry::fromJson()} sets out for input nothing here wrote.
+     *
+     * @return void
+     */
+    public function testAServerVariableHoldingSomethingOtherThanAStringReadsAsAbsent(): void
+    {
+        $_SERVER = ['HTTP_REFERER' => ['https://example.invalid/'], 'REQUEST_METHOD' => 405];
+
+        self::assertNull(ServerVariable::Referer->string());
+        self::assertNull(ServerVariable::RequestMethod->string());
+    }
+
+    /**
+     * The two spellings of one header, and why only one of them can be derived.
+     *
+     * `HTTP_AUTHORIZATION` is what the derivation in {@link Request::header()} would produce for a
+     * header named `Authorization`; `REDIRECT_HTTP_AUTHORIZATION` is Apache's own name for the same
+     * value seen from the far side of an internal rewrite, and no transform of a header name
+     * reaches it. That asymmetry is the rule for what belongs on this enum rather than on
+     * {@link RequestHeader}, so it is asserted rather than described.
+     *
+     * @return void
+     */
+    public function testOnlyOneOfTheAuthorizationSpellingsIsOneAHeaderNameCanProduce(): void
+    {
+        $derive = static fn(string $header): string
+            => 'HTTP_' . str_replace('-', '_', strtoupper($header));
+
+        self::assertSame(ServerVariable::Authorization->value, $derive('Authorization'));
+        self::assertNotSame(ServerVariable::RedirectAuthorization->value, $derive('Authorization'));
+    }
+
+    /**
+     * Both spellings are read, and the unprefixed one wins when both are set.
+     *
+     * @param array<string, string> $server
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('authorizationProvider')]
+    public function testTheAuthorizationHeaderIsReadUnderEitherName(array $server, string $expected): void
+    {
+        $request = $this->request(['REQUEST_URI' => '/'] + $server);
+
+        self::assertSame($expected, $request->authUser());
+    }
+
+    /**
+     * @return iterable<string, array{array<string, string>, string}>
+     */
+    public static function authorizationProvider(): iterable
+    {
+        $basic = static fn(string $user): string => 'Basic ' . base64_encode($user . ':pw');
+
+        yield 'unprefixed'  => [['HTTP_AUTHORIZATION' => $basic('alice')], 'alice'];
+        yield 'redirected'  => [['REDIRECT_HTTP_AUTHORIZATION' => $basic('bob')], 'bob'];
+        yield 'both, first wins' => [
+            ['HTTP_AUTHORIZATION' => $basic('alice'), 'REDIRECT_HTTP_AUTHORIZATION' => $basic('bob')],
+            'alice',
+        ];
+        yield 'empty falls through' => [
+            ['HTTP_AUTHORIZATION' => '', 'REDIRECT_HTTP_AUTHORIZATION' => $basic('bob')],
+            'bob',
+        ];
+        yield 'neither' => [[], ''];
     }
 }

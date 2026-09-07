@@ -124,12 +124,17 @@ final class Config
      * places that need the string itself: `require` is a language construct and takes a path, not a
      * file.
      *
-     * @param string $file A path relative to `data/`, e.g. `releases.php` or `logs/downloads.log`.
+     * The argument is a {@link DataFile} rather than the path it used to be, and the reason is the
+     * paragraph above turned around: every caller of this collapses a missing file to an empty
+     * result, so a mistyped name is not an error anywhere — it is an empty catalogue, an empty
+     * footer, or a gate that stands down. See that enum.
+     *
+     * @param DataFile $file The file, named rather than spelled.
      * @return File
      */
-    public static function dataFile(string $file): File
+    public static function dataFile(DataFile $file): File
     {
-        return self::data()->file($file);
+        return self::data()->file($file->value);
     }
 
     /**
@@ -139,7 +144,7 @@ final class Config
      */
     public static function downloadLog(): File
     {
-        return self::dataFile('logs/downloads.log');
+        return self::dataFile(DataFile::DownloadLog);
     }
 
     /**

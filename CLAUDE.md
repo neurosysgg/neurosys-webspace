@@ -104,7 +104,7 @@ src/NeuroSYS/
 ├── Http/           ← Request, Response interface, ViewResponse, RedirectResponse, PlainTextResponse,
 │                     FileResponse + ByteRange/ContentRange/ContentLength/AcceptRanges
 │                     + HttpStatusCode, HttpMethod, MimeType/TopLevelType, Header/HeaderName
-│                     and the two header-name enums
+│                     and the two header-name enums, ServerVariable
 │   └── Security/   ← ContentSecurityPolicy, PermissionsPolicy + the enums they compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
 │                     Platform, Waveform + WaveformColumn/WaveformBand (typed value objects + enums)
@@ -121,9 +121,10 @@ src/NeuroSYS/
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
 │   │                 Doctype + Tag/HtmlTag, the attribute-name enums (WaveformAttribute among
 │   │                 them), and the attribute-value
-│   │                 enums LinkRel / LinkTarget / ScriptType
+│   │                 enums LinkRel / LinkTarget / ScriptType / MediaPreload / MetaName
 │   └── Terminal/   ← Terminal, TerminalCommand, TerminalField + the enums they compose
 ├── Config.php      ← the facts about this site: identity, origins, paths, switches
+├── DataFile.php    ← every file the site reads out of data/, named rather than spelled
 ├── Layout.php      ← static wrap(View): Document — the full HTML shell
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
@@ -192,6 +193,21 @@ not parse comes back **verbatim**, so it matches no route and 404s — answering
 would be the quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning null rather than
 guessing GET.
 
+**The `$_SERVER` keys a request is built from are `ServerVariable` cases**, because every reader of
+that superglobal here ends in a default — `?? 'GET'`, `?? '/'`, `?? ''` — which is exactly what
+makes a misspelled key indistinguishable from a request that did not carry the value.
+`PHP_AUTH_USER` is the one that matters: a typo there leaves the user `''`, which no stored
+credential equals, so both gates refuse everything with a 401 that reads as a wrong password.
+
+Not every key belongs on it, and the rule is whose name it is. A request header arrives under
+`HTTP_` plus the name upper-cased with dashes as underscores — PHP's transform, so
+`Request::header()` applies it to a `RequestHeader` case rather than anybody retyping the result. A
+case earns a place on `ServerVariable` when that derivation cannot reach the name
+(`REDIRECT_HTTP_AUTHORIZATION` is Apache's invention, not HTTP's) or when the reader has no
+`Request` to ask — which is `HTTP_REFERER`, deliberately: `DownloadLogger` must read it *behind* the
+`DOWNLOAD_LOGGING` guard, and an argument would be evaluated in front of it. Note the spelling. The
+header lost an `r` in 1996 and the property it fills, `$referrer`, did not.
+
 Every header a response sends is a `Header` — a `HeaderName` case and a `HeaderValue`, formatted in
 one place instead of a `header('Name: ' . $value)` call per site. The names live in two enums on
 purpose: `SecurityHeader` is exhaustive and tested as such, and `ResponseHeader` is everything else.
@@ -227,6 +243,18 @@ along the way: `is_file()` guards a file that is absent and does nothing about o
 and unreadable, so `file_get_contents()` warned, and the headers have already gone out by then —
 the warning printed into the page ahead of the doctype. `File::read()` answers `null` for both
 causes, which is what every caller was collapsing them to anyway.
+
+**And what it is handed is a `DataFile`, not a path.** That is the same argument one level up: a
+name nothing recognises resolves to a `File` like any other, `read()` answers null for it, and each
+repository turns that null into an empty collection *on purpose* — because a clone that has never
+staged a demo has to be a site rather than a fatal. So the guard that makes a fresh checkout work is
+the guard that swallows a typo, and `releaes.php` is an empty catalogue with a 200 and nothing in
+any log. Two of the seven cases are where the credentials live, and `site_auth.php` is worse than
+quiet: its **absence is the off switch**, so a misspelling there does not fail, it stands the
+pre-launch gate down. The vocabulary already existed before the enum did — as a hand-maintained data
+provider in `ConfigTest` that listed four of the seven and could not notice the rest. That provider
+now iterates the cases and asks `isTracked()`, which is checked against git rather than against a
+comment.
 
 **It cannot create a directory, and that is the decision rather than the omission.** `write()` and
 `append()` both fail on a path whose directory is missing. The downloads log's directory is excluded
@@ -294,7 +322,12 @@ grounds the names did: misspell `modulepreload` and forty-one preload hints stop
 silence, misspell `noopener` and a security boundary on every outbound link is quietly not there,
 and drop `module` from the script tag and `import` becomes a syntax error. `rel` is a token list, so
 `LinkRel::tokens(…)` builds it variadically the way `HttpMethod::allowed()` builds the `Allow`
-header. These are server-only, so they have no TypeScript mirror and none is wanted.
+header. `preload` is `MediaPreload` and `<meta name>` is `MetaName` on the same grounds — the second
+is the whole vocabulary of an attribute used nowhere else on the site, and it fails the way the rest
+of this list does, which is not at all: a `<meta>` whose name nothing recognises is laid out as
+nothing and moved past, so a misspelled `viewport` renders every phone at 980px with the media
+queries answering for a screen nobody is holding. These are server-only, so they have no TypeScript
+mirror and none is wanted.
 
 `Element::attr()` is the whole attribute API. What you pass decides what renders: a string or int is
 a value, `true` is a bare boolean attribute, and `false`/`null` leave it off. `''` and `null` are

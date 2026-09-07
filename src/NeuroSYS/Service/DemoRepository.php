@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\Config;
+use NeuroSYS\DataFile;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
@@ -37,7 +38,7 @@ class DemoRepository
      */
     public function __construct(?File $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? Config::dataFile('demos.php');
+        $this->dataFile = $dataFile ?? Config::dataFile(DataFile::Demos);
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Controller;
 
 use NeuroSYS\Config;
+use NeuroSYS\DataFile;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
@@ -37,6 +38,6 @@ class PrivacyController implements Controller
      */
     private static function policy(): string
     {
-        return Config::dataFile('privacy.html')->read() ?? '';
+        return Config::dataFile(DataFile::Privacy)->read() ?? '';
     }
 }

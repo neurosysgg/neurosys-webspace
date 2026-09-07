@@ -23,6 +23,8 @@ use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\LinkAttribute;
 use NeuroSYS\View\Html\LinkRel;
 use NeuroSYS\View\Html\LinkTarget;
+use NeuroSYS\View\Html\MediaPreload;
+use NeuroSYS\View\Html\MetaName;
 use NeuroSYS\View\Html\RawHtml;
 use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\Tag;
@@ -53,6 +55,8 @@ use RecursiveIteratorIterator;
 #[CoversClass(LinkAttribute::class)]
 #[CoversClass(TerminalAttribute::class)]
 #[CoversClass(SoundCloudPlayerAttribute::class)]
+#[CoversClass(MetaName::class)]
+#[CoversClass(MediaPreload::class)]
 final class HtmlTest extends TestCase
 {
     // ───────────────────────────── attributes ─────────────────────────────
@@ -282,6 +286,12 @@ final class HtmlTest extends TestCase
         }
         foreach (ScriptType::cases() as $case) {
             yield 'ScriptType::' . $case->name => [HtmlAttribute::Type, $case];
+        }
+        foreach (MetaName::cases() as $case) {
+            yield 'MetaName::' . $case->name => [HtmlAttribute::Name, $case];
+        }
+        foreach (MediaPreload::cases() as $case) {
+            yield 'MediaPreload::' . $case->name => [HtmlAttribute::Preload, $case];
         }
     }
 

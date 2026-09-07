@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\Config;
+use NeuroSYS\DataFile;
 use NeuroSYS\Http\BasicChallenge;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
@@ -162,7 +163,7 @@ class Auth
      */
     public static function requireSiteAuth(Request $request, ?File $file = null): void
     {
-        $file ??= Config::dataFile('site_auth.php');
+        $file ??= Config::dataFile(DataFile::SiteAuth);
 
         if (!$file->exists()) {
             return;
@@ -186,7 +187,7 @@ class Auth
      */
     public static function requireAdminAuth(Request $request, ?File $file = null): void
     {
-        if (!self::accepts($request, $file ?? Config::dataFile('admin.php'))) {
+        if (!self::accepts($request, $file ?? Config::dataFile(DataFile::Admin))) {
             self::challenge(self::challengeValue());
         }
     }

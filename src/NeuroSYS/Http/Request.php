@@ -46,13 +46,13 @@ readonly class Request
     {
         // tryFrom, not from: REQUEST_METHOD is whatever the client sent, and an unrecognised one
         // has to be refused rather than throw. Null is not read-only, which is the safe default.
-        $method   = HttpMethod::tryFrom(strtoupper($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-        $path     = self::normalisePath($_SERVER['REQUEST_URI'] ?? '/');
+        $method   = HttpMethod::tryFrom(strtoupper(ServerVariable::RequestMethod->string() ?? 'GET'));
+        $path     = self::normalisePath(ServerVariable::RequestUri->string() ?? '/');
 
         $ajax = RequestedWith::XmlHttpRequest->matches(self::header(RequestHeader::RequestedWith));
 
-        $user = $_SERVER['PHP_AUTH_USER'] ?? '';
-        $pass = $_SERVER['PHP_AUTH_PW']   ?? '';
+        $user = ServerVariable::AuthUser->string()     ?? '';
+        $pass = ServerVariable::AuthPassword->string() ?? '';
 
         $authorization = self::authorization();
 
@@ -106,13 +106,18 @@ readonly class Request
      * looks exactly like a wrong password. So both spellings are read, the way the cache tiers in
      * the same file set both `VERSIONED` and `REDIRECT_VERSIONED` for the same reason.
      *
+     * Both are {@link ServerVariable} cases rather than the string pair they were, because a name
+     * Apache invents is one nothing can derive and so one nothing can check — see that enum.
+     *
      * @return string
      */
     private static function authorization(): string
     {
-        foreach (['HTTP_AUTHORIZATION', 'REDIRECT_HTTP_AUTHORIZATION'] as $key) {
-            if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
-                return $_SERVER[$key];
+        $names = [ServerVariable::Authorization, ServerVariable::RedirectAuthorization];
+
+        foreach ($names as $variable) {
+            if (($value = $variable->string()) !== null && $value !== '') {
+                return $value;
             }
         }
 
