@@ -360,6 +360,43 @@ test('the card changing size repaints it at the new one', () => {
   assert.equal(el.querySelector('canvas').width, 256 * window.devicePixelRatio);
 });
 
+/**
+ * **A repaint is not a resize**, and the difference is most of the cost of playing a mix.
+ *
+ * Assigning canvas.width or .height reallocates the backing store and resets the context, whether
+ * or not the value changed — and paint() runs on every timeupdate, four times a second, per card.
+ * jsdom does not model that reset, which is exactly why this counts the assignment rather than
+ * looking for cleared pixels: the property is the thing with the cost behind it.
+ */
+test('a repaint at an unchanged size does not reallocate the backing store', () => {
+  const el = card({ peaks: peaks([[255, 255, 0, 0]]) });
+  const canvas = el.querySelector('canvas');
+
+  let resized = 0;
+  const store = { width: canvas.width, height: canvas.height };
+
+  for (const side of ['width', 'height']) {
+    Object.defineProperty(canvas, side, {
+      configurable: true,
+      get: () => store[side],
+      set: (value) => { resized++; store[side] = value; },
+    });
+  }
+
+  el.querySelector('audio').dispatchEvent(new window.Event('timeupdate'));
+
+  assert.equal(resized, 0);
+  // And it still drew, so this is not a repaint that was skipped altogether.
+  assert.equal(rects(el).length > 0, true);
+
+  // The box genuinely changing is what the assignment is for, and it still happens.
+  sized(el, 256, HEIGHT);
+  resize();
+
+  assert.equal(resized > 0, true);
+  assert.equal(canvas.width, 256 * window.devicePixelRatio);
+});
+
 /** connectedCallback fires again when an element is moved, and the SPA swap is what moves one. */
 test('moving it repaints without building a second canvas', () => {
   const el = card({ peaks: peaks([[255, 255, 0, 0]]) });

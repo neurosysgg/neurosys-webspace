@@ -677,6 +677,62 @@ final class MidiTest extends TestCase
     }
 
     /**
+     * **A tempo the three-byte payload cannot state is refused, not truncated.**
+     *
+     * `pack('N')` gives four bytes and the event takes three, so a tempo slow enough to need the
+     * fourth used to lose it silently — 3 BPM writing itself as roughly 18.6, which is a file that
+     * plays at the wrong speed with nothing anywhere reading as wrong. Nothing this repository
+     * reads can reach it, FL's own floor being 10 BPM, but every other value this package cannot
+     * hold throws and this one was the exception.
+     *
+     * @return void
+     */
+    public function testATempoTooSlowToStateIsRefused(): void
+    {
+        $this->expectException(MidiException::class);
+
+        (void) new MidiFile(96, new Collection(MidiTrack::class), 3.0);
+    }
+
+    /**
+     * And the one either side of the boundary still writes, so the guard is a bound rather than a
+     * new floor under ordinary tempos.
+     *
+     * @return void
+     */
+    public function testTheSlowestStatableTempoIsStillWritten(): void
+    {
+        $track  = new MidiTrack('X', 0, new Collection(MidiNote::class)->with(new MidiNote(0, 60, 100, 96)));
+        $parsed = $this->parse(
+            new MidiFile(96, new Collection(MidiTrack::class)->with($track), 3.6)->render(),
+        );
+
+        self::assertEqualsWithDelta(3.6, $parsed['bpm'], 0.01);
+    }
+
+    /**
+     * The conductor chunk ends the way every other chunk does.
+     *
+     * It spelled the end-of-track type as a bare `0x2F` — the one meta type in `MidiFile` not
+     * named, a line below its own `TEMPO` and `TIME_SIGNATURE` constants — so changing the value on
+     * `MidiTrack` could not have reached it. Both call {@link MidiTrack::terminator()} now, and a
+     * chunk missing it is one a player reads past the end of.
+     *
+     * @return void
+     */
+    public function testEveryChunkEndsWithTheSameTerminator(): void
+    {
+        $bytes      = new MidiFile(96, new Collection(MidiTrack::class)->with(
+            new MidiTrack('X', 0, new Collection(MidiNote::class)->with(new MidiNote(0, 60, 100, 96))),
+        ), 140.0)->render();
+        $terminator = MidiTrack::terminator();
+
+        self::assertSame("\x00\xFF\x2F\x00", $terminator, 'delta of nothing, then the meta that says stop');
+        self::assertSame(2, substr_count($bytes, $terminator), 'the conductor chunk and the one track');
+        self::assertStringEndsWith($terminator, $bytes);
+    }
+
+    /**
      * Reads a rendered file back — deliberately a second implementation, not the writer in reverse.
      *
      * @param string $bytes

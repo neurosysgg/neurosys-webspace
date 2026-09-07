@@ -62,7 +62,7 @@ final readonly class Note
      *
      * @param int  $position  Ticks from the start of the pattern, at the project's ppq.
      * @param int  $length    Ticks. **Zero is normal** and means a one-shot — see
-     *                        {@link Score::resolved()} for what a length of nothing turns into.
+     *                        {@link Score::sounded()} for what a length of nothing turns into.
      * @param int  $key       The MIDI key, 0–131; see {@link self::isPlayable()}.
      * @param int  $channel   The rack channel this note plays, which is what a MIDI track is.
      * @param int  $velocity  In FL's 0–128 scale, which is one wider than MIDI's.

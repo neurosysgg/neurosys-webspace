@@ -65,8 +65,12 @@ export class DemoWaveform extends HTMLElement {
         if (width < 1 || height < 1)
             return;
         const ratio = window.devicePixelRatio || 1;
-        canvas.width = Math.round(width * ratio);
-        canvas.height = Math.round(height * ratio);
+        const backingWidth = Math.round(width * ratio);
+        const backingHeight = Math.round(height * ratio);
+        if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+            canvas.width = backingWidth;
+            canvas.height = backingHeight;
+        }
         const context = canvas.getContext('2d');
         if (context === null)
             return;

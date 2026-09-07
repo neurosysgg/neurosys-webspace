@@ -96,9 +96,25 @@ final readonly class MidiTrack
             $last  = $tick;
         }
 
-        $body .= VariableLength::encode(0) . self::meta(self::END_OF_TRACK, '');
+        $body .= self::terminator();
 
         return 'MTrk' . pack('N', strlen($body)) . $body;
+    }
+
+    /**
+     * The two events every chunk ends with: a delta of nothing, and the meta that says stop.
+     *
+     * **Public because {@link MidiFile}'s conductor chunk ends exactly the same way**, and used to
+     * spell the type as a bare `0x2F` — the one meta type in that file not named, sitting a line
+     * below its own `TEMPO` and `TIME_SIGNATURE` constants. So changing the value here could not
+     * have reached it, and a chunk missing this is one a player reads past the end of. Sharing the
+     * whole pair rather than exposing the constant is what leaves nothing to assemble twice.
+     *
+     * @return string
+     */
+    public static function terminator(): string
+    {
+        return VariableLength::encode(0) . self::meta(self::END_OF_TRACK, '');
     }
 
     /**

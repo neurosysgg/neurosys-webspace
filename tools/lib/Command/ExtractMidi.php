@@ -252,12 +252,18 @@ final readonly class ExtractMidi implements Command
     }
 
     /**
-     * The notes of one track, with the two values MIDI cannot hold dealt with out loud.
+     * The notes of one track, with the values MIDI cannot hold dealt with out loud.
      *
      * FL counts velocity to 128 and keys to 131; MIDI stops at 127 for both. A key above it is
      * dropped rather than folded down an octave, because a note moved an octave is a wrong note
-     * where a note missing is a missing note — and either way the count is printed, so a file that
-     * is not quite the project says so.
+     * where a note missing is a missing note — and every count below is printed, so a file that is
+     * not quite the project says so.
+     *
+     * **Velocity goes wrong at both ends and the report says which.** 128 comes down to 127, and
+     * FL's 0 — a note it plays silently — goes *up* to 1, because a note-on of velocity zero is a
+     * note-off in this format and writing it literally would delete the note rather than quieten
+     * it. Both used to increment one counter under a line reading "clamped to 127", which is the
+     * wrong sentence about half of them.
      *
      * @param list<PlacedNote> $placed
      * @param Output           $output
@@ -268,7 +274,8 @@ final readonly class ExtractMidi implements Command
     {
         $notes   = new Collection(MidiNote::class);
         $dropped = 0;
-        $clamped = 0;
+        $lowered = 0;
+        $raised  = 0;
 
         foreach ($placed as $note) {
             if (!$note->note->isPlayable()) {
@@ -276,8 +283,15 @@ final readonly class ExtractMidi implements Command
                 continue;
             }
 
-            $velocity = min(MidiNote::MAX_VELOCITY, max(1, $note->note->velocity));
-            $clamped += $velocity === $note->note->velocity ? 0 : 1;
+            $velocity = min(MidiNote::MAX_VELOCITY, max(MidiNote::MIN_VELOCITY, $note->note->velocity));
+
+            // **Counted in two directions, because they are two different facts.** One clamp does
+            // both — FL counts velocity to 128 where MIDI stops at 127, and FL also writes 0 for a
+            // note it plays silently, which MIDI reads as a note-off rather than as a quiet note.
+            // Reporting them together said "clamped to 127" about a note that had been raised to 1,
+            // which is a report describing the opposite of what happened to it.
+            $lowered += $velocity < $note->note->velocity ? 1 : 0;
+            $raised  += $velocity > $note->note->velocity ? 1 : 0;
 
             $notes = $notes->with(new MidiNote($note->tick, $note->note->key, $velocity, $note->length));
         }
@@ -286,8 +300,23 @@ final readonly class ExtractMidi implements Command
             $output->error(sprintf("  WARN  %s: %d note(s) above MIDI's key range, dropped\n", $track, $dropped));
         }
 
-        if ($clamped > 0) {
-            $output->error(sprintf("  note  %s: %d velocity(s) clamped to 127\n", $track, $clamped));
+        if ($lowered > 0) {
+            $output->error(sprintf(
+                "  note  %s: %d velocity(s) lowered to %d\n",
+                $track,
+                $lowered,
+                MidiNote::MAX_VELOCITY,
+            ));
+        }
+
+        if ($raised > 0) {
+            $output->error(sprintf(
+                "  note  %s: %d silent note(s) raised to velocity %d — a velocity of nothing is a "
+                . "note-off, not a quiet note\n",
+                $track,
+                $raised,
+                MidiNote::MIN_VELOCITY,
+            ));
         }
 
         return $notes;

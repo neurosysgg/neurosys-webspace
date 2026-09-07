@@ -35,6 +35,19 @@ final readonly class MidiFile
     private const int MAX_DIVISION = 0x7FFF;
 
     /**
+     * The largest value a tempo meta event can state, its payload being three bytes.
+     *
+     * Which puts the slowest music a MIDI file can describe at about 3.58 BPM. FL's own floor is
+     * 10, so nothing this repository reads can reach it — but this constructor takes a float from
+     * wherever, and the failure is the quiet kind the class beside it is full of guards against:
+     * `pack('N')` gives four bytes, `substr(…, 1)` drops the high one to fit the payload, and 3 BPM
+     * writes itself as ~18.6 with nothing anywhere reading as wrong. Every other value this package
+     * cannot hold throws — a key, a velocity, a length, a division, a variable-length quantity — so
+     * this one does too rather than being the one that truncates.
+     */
+    private const int MAX_MICROSECONDS_PER_QUARTER = 0xFFFFFF;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param int                   $division      Ticks per quarter note — the project's ppq.
@@ -45,7 +58,7 @@ final readonly class MidiFile
      *                                             {@link \NeuroSYS\Tool\Flp\FlpFile} — so the
      *                                             caller reports it rather than this inventing one.
      * @param TimeSignature|null    $timeSignature Null for MIDI's own default of 4/4.
-     * @throws MidiException if the division is not something the header can state.
+     * @throws MidiException if the division or the tempo is not something the file can state.
      */
     public function __construct(
         public int $division,
@@ -56,6 +69,32 @@ final readonly class MidiFile
         if ($division < 1 || $division > self::MAX_DIVISION) {
             throw new MidiException(sprintf('a division of %d cannot be written to the header', $division));
         }
+
+        // Checked here rather than where it is written, beside the division, because both are
+        // facts about whether this file can exist at all — and a constructor is where this package
+        // says so. A tempo of zero or less is not refused: that is `conductor()` leaving the event
+        // out entirely, which is a different answer from stating one wrongly.
+        if ($tempo !== null && $tempo > 0 && self::microseconds($tempo) > self::MAX_MICROSECONDS_PER_QUARTER) {
+            throw new MidiException(sprintf(
+                'a tempo of %g BPM needs %d microseconds per quarter note, past the %d that three '
+                . 'bytes can state — about %.2f BPM is the slowest a MIDI file describes',
+                $tempo,
+                self::microseconds($tempo),
+                self::MAX_MICROSECONDS_PER_QUARTER,
+                self::MICROSECONDS_PER_MINUTE / self::MAX_MICROSECONDS_PER_QUARTER,
+            ));
+        }
+    }
+
+    /**
+     * A tempo in BPM as the microseconds per quarter note a tempo meta event counts in.
+     *
+     * @param float $tempo Above zero, which the two callers each establish for themselves.
+     * @return int
+     */
+    private static function microseconds(float $tempo): int
+    {
+        return (int) round(self::MICROSECONDS_PER_MINUTE / $tempo);
     }
 
     /**
@@ -101,12 +140,13 @@ final readonly class MidiFile
             . MidiTrack::meta(self::TIME_SIGNATURE, $signature->render());
 
         if ($this->tempo !== null && $this->tempo > 0) {
-            $microseconds = (int) round(self::MICROSECONDS_PER_MINUTE / $this->tempo);
+            // Three bytes, which the constructor has already established this value fits in.
+            $microseconds = self::microseconds($this->tempo);
 
             $body .= VariableLength::encode(0) . MidiTrack::meta(self::TEMPO, substr(pack('N', $microseconds), 1));
         }
 
-        $body .= VariableLength::encode(0) . MidiTrack::meta(0x2F, '');
+        $body .= MidiTrack::terminator();
 
         return 'MTrk' . pack('N', strlen($body)) . $body;
     }

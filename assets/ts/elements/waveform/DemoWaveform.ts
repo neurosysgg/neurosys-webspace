@@ -163,9 +163,23 @@ export class DemoWaveform extends HTMLElement {
     if (width < 1 || height < 1) return;
 
     const ratio = window.devicePixelRatio || 1;
+    const backingWidth = Math.round(width * ratio);
+    const backingHeight = Math.round(height * ratio);
 
-    canvas.width = Math.round(width * ratio);
-    canvas.height = Math.round(height * ratio);
+    // **Only when the box actually changed.** Assigning either of these reallocates the backing
+    // store and resets the context, and paint() runs on every timeupdate — four times a second per
+    // mix, on a page that is one card per mix. Throwing away a full-size buffer that often to draw
+    // it at the same size again is more work than everything below it put together: a 1400×200 card
+    // at devicePixelRatio 2 is ~2.2 MB a frame. The clearRect below is what an unchanged canvas
+    // needs instead, and it is the cheaper of the two by a long way.
+    //
+    // setTransform stays unconditional. It replaces rather than multiplies, so running it on a
+    // canvas that was not reset is a no-op — and skipping it on one that *was* would leave the
+    // drawing in device pixels.
+    if (canvas.width !== backingWidth || canvas.height !== backingHeight) {
+      canvas.width = backingWidth;
+      canvas.height = backingHeight;
+    }
 
     const context = canvas.getContext('2d');
 

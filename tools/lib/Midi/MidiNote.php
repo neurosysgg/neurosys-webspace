@@ -26,6 +26,17 @@ final readonly class MidiNote
     public const int MAX_VELOCITY = 127;
 
     /**
+     * The quietest velocity that is still a note.
+     *
+     * Named rather than left as the `1` in the guard below, because it is a floor with a reason and
+     * not an off-by-one: a note-on of velocity zero **is** a note-off in this format, so zero is not
+     * a quiet note but an absent one. {@link \NeuroSYS\Tool\Command\ExtractMidi} raises FL's silent
+     * notes to this and says how many, which is a different fact from lowering FL's 128 to 127 —
+     * and the two used to be counted together and reported as one.
+     */
+    public const int MIN_VELOCITY = 1;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param int $tick     Ticks from the start of the track.
@@ -50,8 +61,13 @@ final readonly class MidiNote
             throw new MidiException(sprintf('key %d is outside MIDI\'s 0-%d', $key, self::MAX_KEY));
         }
 
-        if ($velocity < 1 || $velocity > self::MAX_VELOCITY) {
-            throw new MidiException(sprintf('velocity %d is outside 1-%d', $velocity, self::MAX_VELOCITY));
+        if ($velocity < self::MIN_VELOCITY || $velocity > self::MAX_VELOCITY) {
+            throw new MidiException(sprintf(
+                'velocity %d is outside %d-%d',
+                $velocity,
+                self::MIN_VELOCITY,
+                self::MAX_VELOCITY,
+            ));
         }
 
         if ($length < 1) {

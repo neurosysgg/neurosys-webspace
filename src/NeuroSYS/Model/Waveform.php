@@ -50,8 +50,21 @@ final readonly class Waveform
      *
      * 512 over a card ~700px wide is a shade under one and a half pixels per column — finer than
      * the display, so the canvas averages rather than invents. It is also what fixes the size: 2,052
-     * bytes on disk and 2,732 base64 characters in the attribute, per mix, and **Strato compresses
-     * nothing**, so that number is what actually goes over the wire.
+     * bytes on disk and 2,732 base64 characters in the attribute, per mix.
+     *
+     * **What that costs on the wire is 2 KB, not 2.7.** The attribute rides inside the demo page,
+     * which is `text/html`, which `public/.htaccess` hands to `mod_deflate` — and gzip gives back
+     * almost exactly what base64's four-thirds took: 2,732 characters compress to 2,032 bytes,
+     * measured on a synthetic three-minute bounce, and a mix with an actual arrangement in it does
+     * better still, because a level column that repeats is a level column that compresses.
+     *
+     * That is worth stating carefully rather than confidently, and this docblock previously said
+     * the opposite — that Strato compressed nothing, so the base64 figure was the wire figure. It
+     * was written from a reading taken on 2026-09-05, when that was true; the same host was serving
+     * gzip again on 2026-09-06 with nothing in this repository having changed. Both `.htaccess`
+     * blocks are `<IfModule>`-guarded, so the module coming or going is silence in either
+     * direction. See CLAUDE.md's deployment section, which carries the check to re-run and the two
+     * readings that motivated it. **Do not size anything here on compression being present.**
      */
     public const int COLUMNS = 512;
 
