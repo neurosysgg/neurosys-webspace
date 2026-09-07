@@ -13,6 +13,7 @@ use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\File;
 use NeuroSYS\View\StatsView;
 
@@ -77,8 +78,8 @@ class StatsController implements Controller
      */
     private static function response(StatsView $view): ViewResponse
     {
-        return new ViewResponse($view, headers: [
+        return new ViewResponse($view, headers: new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ]);
+        ));
     }
 }

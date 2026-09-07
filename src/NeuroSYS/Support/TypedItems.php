@@ -160,6 +160,32 @@ trait TypedItems
     }
 
     /**
+     * The last item, or null for an empty collection.
+     *
+     * Here because {@link \NeuroSYS\Model\Production\Arrangement::lastStart()} was the one
+     * remaining place in `src/` that called {@link Collection::all()} to get at an array — not to
+     * do anything with the array, but because `end()` was the only way to ask this question. That
+     * is exactly the escape hatch the query methods above were written to close, and it stayed open
+     * only because nothing had needed the far end of a collection before.
+     *
+     * `array_key_last()` rather than `end()`: `end()` moves the array's internal pointer, which is
+     * a write to the store from a method that promises to be a read.
+     *
+     * **No predicate, unlike {@link self::first()}**, and the asymmetry is deliberate rather than
+     * an omission. `first()` has one because {@link \NeuroSYS\Model\Release::findFormat()} is a
+     * search; nothing here searches backwards. PHP gives `array_find()` and no `array_find_last()`,
+     * so the predicate form would be a hand-rolled reverse loop written for nobody — and the day
+     * something wants one, `where(…)->last()` already answers it.
+     *
+     * @return T|null
+     */
+    #[NoDiscard('last() answers with an item and changes nothing, so a call whose result goes nowhere does nothing')]
+    public function last(): mixed
+    {
+        return $this->items === [] ? null : $this->items[array_key_last($this->items)];
+    }
+
+    /**
      * The keys, in insertion order.
      *
      * Integers for a {@link Collection} and strings for a {@link SearchableCollection}, which is why

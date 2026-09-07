@@ -31,7 +31,7 @@ final readonly class DemoPreflight
      */
     public static function check(DemoStage $stage): array
     {
-        if ($stage->sources === []) {
+        if ($stage->sources->isEmpty()) {
             return [Finding::fail('no files named — a demo is the mixes it carries')];
         }
 
@@ -150,10 +150,9 @@ final readonly class DemoPreflight
      */
     private static function consistency(DemoStage $stage): array
     {
-        $lengths = array_values(array_filter(array_map(
-            static fn(DemoSource $source): int => $source->seconds(),
-            $stage->sources,
-        )));
+        $lengths = array_values(array_filter(
+            $stage->sources->map(static fn(DemoSource $source): int => $source->seconds()),
+        ));
 
         if (count($lengths) < 2) {
             return [];

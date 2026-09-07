@@ -737,10 +737,9 @@ final class DemoTest extends TestCase
 
         self::assertInstanceOf(ViewResponse::class, $response);
 
-        $lines = array_map(
-            static fn(Header $header): string => $header->line(),
-            new ReflectionProperty(ViewResponse::class, 'headers')->getValue($response),
-        );
+        /** @var Collection<Header> $headers */
+        $headers = new ReflectionProperty(ViewResponse::class, 'headers')->getValue($response);
+        $lines   = $headers->map(static fn(Header $header): string => $header->line());
 
         self::assertContains('Cache-Control: no-store, private', $lines);
         self::assertContains('X-Robots-Tag: noindex, nofollow, noarchive', $lines);
@@ -753,10 +752,10 @@ final class DemoTest extends TestCase
         $response->send(self::request());
         $markup = (string) ob_get_clean();
 
-        self::assertSame(
-            [],
-            new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup),
-        );
+        /** @var Collection<Header> $cache */
+        $cache = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup);
+
+        self::assertTrue($cache->isEmpty());
     }
 
     /**

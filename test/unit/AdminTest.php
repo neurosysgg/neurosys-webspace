@@ -12,6 +12,7 @@ use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\View\StatsView;
@@ -275,11 +276,12 @@ final class AdminTest extends TestCase
         $response = new ReflectionMethod(StatsController::class, 'response')
             ->invoke(null, new StatsView());
 
+        /** @var Collection<Header> $headers */
         $headers = new ReflectionProperty($response, 'headers')->getValue($response);
 
         self::assertSame(
             ['Cache-Control: no-store, private'],
-            array_map(static fn(Header $h): string => $h->line(), $headers),
+            $headers->map(static fn(Header $h): string => $h->line()),
         );
     }
 

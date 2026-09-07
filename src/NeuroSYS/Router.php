@@ -37,7 +37,7 @@ readonly class Router
             return new PlainTextResponse(
                 HttpStatusCode::MethodNotAllowed,
                 "This site is read-only.\n",
-                [new Header(ResponseHeader::Allow, Allow::readOnly())],
+                new Collection(Header::class)->with(new Header(ResponseHeader::Allow, Allow::readOnly())),
             );
         }
 

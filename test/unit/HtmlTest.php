@@ -8,6 +8,7 @@ use BackedEnum;
 use FilesystemIterator;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\View\Html\Attribute;
 use NeuroSYS\View\Html\AttributeName;
@@ -25,6 +26,7 @@ use NeuroSYS\View\Html\LinkRel;
 use NeuroSYS\View\Html\LinkTarget;
 use NeuroSYS\View\Html\MediaPreload;
 use NeuroSYS\View\Html\MetaName;
+use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\RawHtml;
 use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\Tag;
@@ -35,6 +37,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use TypeError;
 
 /**
  * The markup tree: every page is one of these, so what it can and cannot do is what the site can
@@ -366,6 +369,40 @@ final class HtmlTest extends TestCase
         $this->expectExceptionMessageIsOrContains('<img>');
 
         (void) new Element(HtmlTag::Img)->containing('x');
+    }
+
+    /**
+     * The children are a `Collection<Node>`, so the constructor is checked and not merely annotated.
+     *
+     * `containing()` is a variadic and PHP has always guarded it; the constructor took a plain
+     * `array` whose `list<Node>` lived in a docblock, which is the arrangement the attributes were
+     * moved out of one parameter earlier on the same signature. A string getting in that way was
+     * not a TypeError naming the element — it was a fatal in `renderChildren()` calling `render()`
+     * on a string, at whatever depth of the tree it happened to sit.
+     *
+     * @return void
+     */
+    public function testTheChildrenAreTypeCheckedAndNotJustDocumented(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageIsOrContains(Node::class);
+
+        (void) new Collection(Node::class)->with('<b>not a node</b>');
+    }
+
+    /**
+     * The element carries whatever children it is handed, and renders them in order.
+     *
+     * @return void
+     */
+    public function testTheConstructorTakesAChildCollection(): void
+    {
+        $children = new Collection(Node::class)->with(new Text('a'), new Element(HtmlTag::Br));
+
+        self::assertSame(
+            '<p>a<br></p>',
+            new Element(HtmlTag::P, null, $children)->render(),
+        );
     }
 
     /**

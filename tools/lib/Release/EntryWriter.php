@@ -105,7 +105,11 @@ final readonly class EntryWriter
             ...self::production($folder),
         ];
 
-        return new Entry($slug, Call::create(Release::class, $arguments, stacked: true));
+        return new Entry($slug, Call::create(
+            Release::class,
+            new Collection(Argument::class)->with(...$arguments),
+            stacked: true,
+        ));
     }
 
     /**
@@ -120,7 +124,7 @@ final readonly class EntryWriter
 
         foreach ($folder->formats() as $format) {
             $arguments[] = new Argument(
-                Call::create(Format::class, [new Argument(new Value($format))]),
+                Call::create(Format::class, new Collection(Argument::class)->with(new Argument(new Value($format)))),
                 comment: 'share id for ' . ($folder->fileFor($format)?->name() ?? $format->value),
             );
         }
@@ -159,7 +163,11 @@ final readonly class EntryWriter
             $arguments[] = new Argument(new Value($embed?->secretToken ?? ''), 'secretToken');
         }
 
-        return Call::create(SoundCloudEmbed::class, $arguments, stacked: $embed !== null);
+        return Call::create(
+            SoundCloudEmbed::class,
+            new Collection(Argument::class)->with(...$arguments),
+            stacked: $embed !== null,
+        );
     }
 
     /**
@@ -178,16 +186,16 @@ final readonly class EntryWriter
 
         $arguments = [];
 
-        if ($project->structure() !== []) {
+        if (!$project->structure()->isEmpty()) {
             $arguments[] = new Argument(self::arrangement($project->structure(), $project->ppq), 'arrangement');
         }
 
         if ($project->timeSpent !== null) {
             $arguments[] = new Argument(
-                Call::onClass(ProductionTime::class, 'of', [
+                Call::onClass(ProductionTime::class, 'of', new Collection(Argument::class)->with(
                     new Argument(new Value(intdiv($project->timeSpent, 3600))),
                     new Argument(new Value(intdiv($project->timeSpent % 3600, 60))),
-                ]),
+                )),
                 'timeSpent',
             );
         }
@@ -198,7 +206,7 @@ final readonly class EntryWriter
         if ($project->plugins !== []) {
             $credits = array_map(
                 static fn(string $name): Argument => new Argument(
-                    Call::create(Plugin::class, [new Argument(new Value($name))]),
+                    Call::create(Plugin::class, new Collection(Argument::class)->with(new Argument(new Value($name)))),
                 ),
                 $project->plugins,
             );
@@ -215,18 +223,19 @@ final readonly class EntryWriter
      * The ppq is named only when it differs from the default every project tested uses, which keeps
      * the entry as terse as the rest of the file.
      *
-     * @param list<TimeMarker> $markers
+     * @param Collection<TimeMarker> $markers
      * @param int              $ppq
      * @return Call
      */
-    private static function arrangement(array $markers, int $ppq): Call
+    private static function arrangement(Collection $markers, int $ppq): Call
     {
-        $sections = array_map(
-            static fn(TimeMarker $marker): Argument => new Argument(Call::onClass(Section::class, 'named', [
-                new Argument(new Value($marker->name)),
-                new Argument(new Value($marker->tick)),
-            ])),
-            $markers,
+        $sections = $markers->map(
+            static fn(TimeMarker $marker): Argument => new Argument(
+                Call::onClass(Section::class, 'named', new Collection(Argument::class)->with(
+                    new Argument(new Value($marker->name)),
+                    new Argument(new Value($marker->tick)),
+                )),
+            ),
         );
 
         $arguments = [new Argument(self::collection(Section::class, $sections))];
@@ -235,7 +244,7 @@ final readonly class EntryWriter
             $arguments[] = new Argument(new Value($ppq), 'ppq');
         }
 
-        return Call::create(Arrangement::class, $arguments);
+        return Call::create(Arrangement::class, new Collection(Argument::class)->with(...$arguments));
     }
 
     /**
@@ -248,9 +257,12 @@ final readonly class EntryWriter
     private static function collection(string $type, array $items): Call
     {
         return Call::onValue(
-            Call::create(Collection::class, [new Argument(new ClassConstant($type))]),
+            Call::create(
+                Collection::class,
+                new Collection(Argument::class)->with(new Argument(new ClassConstant($type))),
+            ),
             'with',
-            $items,
+            new Collection(Argument::class)->with(...$items),
             stacked: true,
         );
     }

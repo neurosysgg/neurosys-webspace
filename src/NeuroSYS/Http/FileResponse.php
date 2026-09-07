@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\File;
 
 /**
@@ -47,13 +48,13 @@ readonly class FileResponse implements Response
      * @param MimeType $type    What the bytes are. {@link MimeType::forAudio()} builds it from the
      *                          extension and refuses one it does not know, because `nosniff` means
      *                          a wrong answer here cannot be corrected by the browser.
-     * @param list<Header> $headers Extra headers, in the position every other response here takes
+     * @param Collection<Header> $headers Extra headers, in the position every other response here takes
      *                          them. The demo routes pass {@link RobotsPolicy}.
      */
     public function __construct(
         private File     $file,
         private MimeType $type,
-        private array    $headers = [],
+        private Collection $headers = new Collection(Header::class),
     ) {}
 
     /**
@@ -112,18 +113,18 @@ readonly class FileResponse implements Response
     {
         http_response_code($status->value);
 
-        $headers = [
+        $headers = new Collection(Header::class)->with(
             new Header(ResponseHeader::ContentType, $this->type),
             new Header(ResponseHeader::ContentLength, new ContentLength($length)),
             new Header(ResponseHeader::AcceptRanges, AcceptRanges::Bytes),
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ];
+        );
 
         if ($range !== null) {
-            $headers[] = new Header(ResponseHeader::ContentRange, $range);
+            $headers = $headers->with(new Header(ResponseHeader::ContentRange, $range));
         }
 
-        foreach ([...$headers, ...$this->headers] as $header) {
+        foreach ($headers->with(...$this->headers) as $header) {
             header($header->line());
         }
     }

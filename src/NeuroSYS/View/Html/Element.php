@@ -6,6 +6,7 @@ namespace NeuroSYS\View\Html;
 
 use BackedEnum;
 use NeuroSYS\Exception\MarkupException;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NoDiscard;
 use Uri\WhatWg\Url;
@@ -83,19 +84,38 @@ final readonly class Element implements Node
     private SearchableCollection $attributes;
 
     /**
+     * The element's content, in the order it was added.
+     *
+     * A `Collection` for the reason {@link self::$attributes} is a `SearchableCollection`, and it
+     * is the same argument on the parameter beside it: {@link self::containing()} is a variadic and
+     * so is checked by PHP, but the constructor is public and took a plain `array` whose `list<Node>`
+     * was a docblock's promise. A string reaching it that way is not a `TypeError` naming the
+     * element, it is a fatal in {@link self::renderChildren()} calling `render()` on a string.
+     *
+     * Listed rather than keyed, unlike the attributes: children have order and no names, and
+     * nothing here overwrites one. Not promoted, for the same reason — the default is a `new`, and
+     * a parameter default has to be a constant expression.
+     *
+     * @var Collection<Node>
+     */
+    private Collection $children;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param TagName $tag The element to build.
      * @param SearchableCollection<Attribute>|null $attributes Normally left null and built with
      *                                         {@link self::attr()}. Keyed by the attribute's name.
-     * @param list<Node> $children The element's content. Built with {@link self::containing()}.
+     * @param Collection<Node>|null $children The element's content. Normally left null and built
+     *                                        with {@link self::containing()}.
      */
     public function __construct(
         private TagName $tag,
         ?SearchableCollection $attributes = null,
-        private array   $children   = [],
+        ?Collection $children = null,
     ) {
         $this->attributes = $attributes ?? new SearchableCollection(Attribute::class);
+        $this->children   = $children   ?? new Collection(Node::class);
     }
 
     /**
@@ -169,13 +189,12 @@ final readonly class Element implements Node
             ));
         }
 
-        return new self($this->tag, $this->attributes, [
-            ...$this->children,
+        return new self($this->tag, $this->attributes, $this->children->with(
             ...array_map(
                 static fn(Node|string $child): Node => $child instanceof Node ? $child : new Text($child),
                 $children,
             ),
-        ]);
+        ));
     }
 
     /**
@@ -198,7 +217,7 @@ final readonly class Element implements Node
 
         $close = '</' . $this->tag->tagName() . '>';
 
-        if ($this->children === []) {
+        if ($this->children->isEmpty()) {
             return $open . $close;
         }
 
@@ -318,13 +337,10 @@ final readonly class Element implements Node
      */
     private function renderChildren(int $depth): string
     {
-        $inline = array_any($this->children, static fn(Node $child): bool => $child instanceof Text);
+        $inline = $this->children->first(static fn(Node $child): bool => $child instanceof Text);
 
-        if ($inline) {
-            return implode('', array_map(
-                static fn(Node $child): string => $child->render($depth),
-                $this->children,
-            ));
+        if ($inline !== null) {
+            return $this->children->join('', static fn(Node $child): string => $child->render($depth));
         }
 
         $pad      = str_repeat('  ', $depth);

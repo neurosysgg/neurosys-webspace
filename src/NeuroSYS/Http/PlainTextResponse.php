@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\Collection;
+
 /**
  * The PlainTextResponse class. Sends a plain-text HTTP response and terminates.
  */
@@ -14,12 +16,12 @@ readonly class PlainTextResponse implements Response
      *
      * @param HttpStatusCode $status  The HTTP status code.
      * @param string         $body    The response body.
-     * @param list<Header>   $headers Extra headers to send, e.g. `Allow:` on a 405.
+     * @param Collection<Header> $headers Extra headers to send, e.g. `Allow:` on a 405.
      */
     public function __construct(
         private HttpStatusCode $status,
         private string         $body,
-        private array          $headers = [],
+        private Collection     $headers = new Collection(Header::class),
     ) {}
 
     /**

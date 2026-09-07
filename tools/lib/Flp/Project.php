@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Flp;
 
 use NeuroSYS\Model\MusicalKey;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\File;
 
 /**
@@ -55,7 +56,7 @@ final readonly class Project
      * @param string|null      $version     The FL Studio version that last saved it.
      * @param int              $ppq
      * @param int              $channelCount
-     * @param list<TimeMarker> $markers
+     * @param Collection<TimeMarker> $markers
      * @param list<string>     $mixerTracks
      * @param list<string>     $patterns
      * @param list<string>     $plugins
@@ -71,7 +72,7 @@ final readonly class Project
         public ?string $version,
         public int $ppq,
         public int $channelCount,
-        public array $markers,
+        public Collection $markers,
         public array $mixerTracks,
         public array $patterns,
         public array $plugins,
@@ -122,11 +123,11 @@ final readonly class Project
      * The markers of one type, in the order the project holds them.
      *
      * @param MarkerType $type
-     * @return list<TimeMarker>
+     * @return Collection<TimeMarker>
      */
-    public function markersOf(MarkerType $type): array
+    public function markersOf(MarkerType $type): Collection
     {
-        return array_values(array_filter($this->markers, static fn(TimeMarker $m): bool => $m->type === $type));
+        return $this->markers->where(static fn(TimeMarker $m): bool => $m->type === $type);
     }
 
     /**
@@ -135,9 +136,9 @@ final readonly class Project
      * Deduplicated on tick, because FL rewrites the whole marker list on each arrangement and a
      * project with two arrangements carries both.
      *
-     * @return list<TimeMarker>
+     * @return Collection<TimeMarker>
      */
-    public function structure(): array
+    public function structure(): Collection
     {
         $byTick = [];
 
@@ -147,7 +148,7 @@ final readonly class Project
 
         ksort($byTick);
 
-        return array_values($byTick);
+        return new Collection(TimeMarker::class)->with(...array_values($byTick));
     }
 
     /**
@@ -157,7 +158,7 @@ final readonly class Project
      */
     public function timeSignature(): ?string
     {
-        return $this->markersOf(MarkerType::TimeSignature)[0]->name ?? null;
+        return $this->markersOf(MarkerType::TimeSignature)->first()?->name;
     }
 
     /**
@@ -167,7 +168,7 @@ final readonly class Project
      */
     public function hasKeyLock(): bool
     {
-        return $this->markersOf(MarkerType::Scale) !== [];
+        return !$this->markersOf(MarkerType::Scale)->isEmpty();
     }
 
     /**
@@ -177,9 +178,9 @@ final readonly class Project
      * meaningful on a scale marker — FL writes a zero there for the other two kinds.
      *
      * @param FlpFile $flp
-     * @return list<TimeMarker>
+     * @return Collection<TimeMarker>
      */
-    private static function markers(FlpFile $flp): array
+    private static function markers(FlpFile $flp): Collection
     {
         $markers  = [];
         $position = null;
@@ -210,7 +211,9 @@ final readonly class Project
             $position = null;
         }
 
-        return $markers;
+        // Collected into an array and wrapped once: with() copies, so appending inside the loop
+        // would clone the collection for every marker `ill.` carries, and it carries 51.
+        return new Collection(TimeMarker::class)->with(...$markers);
     }
 
     /**
@@ -220,10 +223,10 @@ final readonly class Project
      * so this hands back null and {@link \NeuroSYS\Tool\Release\Preflight} says which ones it saw.
      * The corpus has nothing but unanimous projects; `ill` carries the same D# Minor 51 times.
      *
-     * @param list<TimeMarker> $markers
+     * @param Collection<TimeMarker> $markers
      * @return MusicalKey|null
      */
-    private static function agreedKey(array $markers): ?MusicalKey
+    private static function agreedKey(Collection $markers): ?MusicalKey
     {
         $keys = [];
 

@@ -27,6 +27,7 @@ use NeuroSYS\Http\TopLevelType;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Support\Charset;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\View\HomeView;
@@ -127,10 +128,10 @@ final class ResponseTest extends TestCase
     {
         $markup = $this->render($response, $request);
 
-        /** @var list<Header> $headers */
+        /** @var Collection<Header> $headers */
         $headers = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup);
 
-        return array_map(static fn(Header $h): string => $h->line(), $headers);
+        return $headers->map(static fn(Header $h): string => $h->line());
     }
 
     /**
@@ -251,13 +252,13 @@ final class ResponseTest extends TestCase
      */
     public function testExtraHeadersAreSentAlongsideTheBody(): void
     {
-        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
+        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ]);
+        ));
 
         self::assertSame(
             ['Cache-Control: no-store, private'],
-            array_map(static fn(Header $h): string => $h->line(), self::peek($response, 'headers')),
+            self::peek($response, 'headers')->map(static fn(Header $h): string => $h->line()),
         );
         self::assertStringContainsString('<main', $this->render($response, $this->request('/')));
     }
@@ -336,9 +337,9 @@ final class ResponseTest extends TestCase
      */
     public function testAResponseThatAlreadySaidHowItMayBeKeptIsLeftAlone(): void
     {
-        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
+        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ]);
+        ));
 
         self::assertSame([], $this->cacheHeadersOf($response, $this->request('/')));
     }
@@ -350,9 +351,9 @@ final class ResponseTest extends TestCase
      */
     public function testAGatedPageNeverAnswers304(): void
     {
-        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, [
+        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ]);
+        ));
 
         $etag = ETag::forBody($this->render($response, $this->request('/')))->render();
 

@@ -16,6 +16,7 @@ use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DemoRepository;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\View\NotFoundView;
 
 /**
@@ -80,8 +81,10 @@ readonly class DemoAudioController implements Controller
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);
         }
 
-        return new FileResponse($file, MimeType::forAudio($file->extension()), [
-            new Header(ResponseHeader::Robots, RobotsPolicy::hide()),
-        ]);
+        return new FileResponse(
+            $file,
+            MimeType::forAudio($file->extension()),
+            new Collection(Header::class)->with(new Header(ResponseHeader::Robots, RobotsPolicy::hide())),
+        );
     }
 }

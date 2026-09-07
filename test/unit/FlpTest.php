@@ -344,11 +344,11 @@ final class FlpTest extends TestCase
             . $this->dword(EventId::Tempo->value, 140000),
         )));
 
-        $this->assertSame(['INTRO', 'DROP'], array_map(static fn($m): string => $m->name, $project->structure()));
+        $this->assertSame(['INTRO', 'DROP'], $project->structure()->map(static fn($m): string => $m->name));
         $this->assertSame('4/4', $project->timeSignature());
         $this->assertSame(MusicalKey::DSharpMinor, $project->key);
         $this->assertTrue($project->hasKeyLock());
-        $this->assertSame(3, $project->markersOf(MarkerType::Scale)[0]->root);
+        $this->assertSame(3, $project->markersOf(MarkerType::Scale)->first()?->root);
     }
 
     /**
@@ -365,8 +365,8 @@ final class FlpTest extends TestCase
             . $this->dword(EventId::Tempo->value, 140000),
         )));
 
-        $this->assertEqualsWithDelta(27.43, $project->structure()[0]->seconds(140.0, 96), 0.01);
-        $this->assertSame(0.0, $project->structure()[0]->seconds(0.0, 96));
+        $this->assertEqualsWithDelta(27.43, $project->structure()->first()?->seconds(140.0, 96), 0.01);
+        $this->assertSame(0.0, $project->structure()->first()?->seconds(0.0, 96));
     }
 
     /**

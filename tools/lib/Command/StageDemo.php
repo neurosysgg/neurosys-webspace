@@ -154,7 +154,7 @@ final readonly class StageDemo implements Command
             return ExitCode::Success;
         }
 
-        if (($failed = $stage->write()) !== []) {
+        if (!($failed = $stage->write())->isEmpty()) {
             foreach ($failed as $source) {
                 $output->error(sprintf(
                     "  could not stage %s — is ffmpeg installed?\n",
@@ -192,7 +192,7 @@ final readonly class StageDemo implements Command
             . "      declare(strict_types=1);\n\n"
             . "%s\n"
             . "      return [ … ];\n\n",
-            count($stage->sources),
+            $stage->sources->count(),
             $stage->directory()->path,
             self::importLines(DemoEntryWriter::imports($stage, $password)),
         ));

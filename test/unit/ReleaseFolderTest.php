@@ -281,13 +281,17 @@ final class ReleaseFolderTest extends TestCase
     {
         $inline = static fn(Argument $argument): Call => Call::create(
             Format::class,
-            [new Argument(new Value('a')), $argument],
+            new Collection(Argument::class)->with(new Argument(new Value('a')), $argument),
         );
 
         // Stacked, the same two arguments are exactly what the half-state is written as.
         $this->assertStringContainsString(
             '// a note',
-            Call::create(Format::class, [Argument::comment('a note')], stacked: true)->render(),
+            Call::create(
+                Format::class,
+                new Collection(Argument::class)->with(Argument::comment('a note')),
+                stacked: true,
+            )->render(),
         );
 
         $this->expectException(InvalidArgumentException::class);
@@ -306,7 +310,10 @@ final class ReleaseFolderTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot be commented');
 
-        Call::create(Format::class, [new Argument(new Value('a')), Argument::comment('a note')])->render();
+        Call::create(
+            Format::class,
+            new Collection(Argument::class)->with(new Argument(new Value('a')), Argument::comment('a note')),
+        )->render();
     }
 
     /**

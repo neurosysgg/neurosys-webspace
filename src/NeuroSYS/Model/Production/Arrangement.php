@@ -69,9 +69,7 @@ final readonly class Arrangement
      */
     public function lastStart(int $bpm): float
     {
-        $sections = $this->sections->all();
-
-        return $sections === [] ? 0.0 : end($sections)->seconds($bpm, $this->ppq);
+        return $this->sections->last()?->seconds($bpm, $this->ppq) ?? 0.0;
     }
 
     /**

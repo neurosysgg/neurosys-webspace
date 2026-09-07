@@ -74,7 +74,7 @@ final readonly class DemoEntryWriter
      */
     private static function entry(DemoStage $stage, Password $password): Entry
     {
-        return new Entry($stage->slug, Call::create(Demo::class, [
+        return new Entry($stage->slug, Call::create(Demo::class, new Collection(Argument::class)->with(
             new Argument(new Value($stage->title), 'title'),
             new Argument(self::password($password), 'password'),
             new Argument(self::tracks($stage), 'tracks'),
@@ -82,7 +82,7 @@ final readonly class DemoEntryWriter
             // left off — a demo is sent with an ask attached, and a null here renders as
             // "work in progress", which is what a forgotten description looks like on the page.
             new Argument(new Value(null), 'description', comment: 'what you are asking them for'),
-        ], stacked: true));
+        ), stacked: true));
     }
 
     /**
@@ -97,7 +97,10 @@ final readonly class DemoEntryWriter
      */
     private static function password(Password $password): Call
     {
-        return Call::create(PasswordHash::class, [new Argument(new Value($password->hash->digest()))]);
+        return Call::create(
+            PasswordHash::class,
+            new Collection(Argument::class)->with(new Argument(new Value($password->hash->digest()))),
+        );
     }
 
     /**
@@ -112,19 +115,22 @@ final readonly class DemoEntryWriter
 
         foreach ($stage->sources as $source) {
             $arguments[] = new Argument(
-                Call::create(DemoTrack::class, [
+                Call::create(DemoTrack::class, new Collection(Argument::class)->with(
                     new Argument(new Value($source->label)),
                     new Argument(new Value($source->target($stage->directory())->name())),
                     new Argument(new Value($source->seconds())),
-                ]),
+                )),
                 comment: $source->file->name(),
             );
         }
 
         return Call::onValue(
-            Call::create(Collection::class, [new Argument(new ClassConstant(DemoTrack::class))]),
+            Call::create(
+                Collection::class,
+                new Collection(Argument::class)->with(new Argument(new ClassConstant(DemoTrack::class))),
+            ),
             'with',
-            $arguments,
+            new Collection(Argument::class)->with(...$arguments),
             stacked: true,
         );
     }

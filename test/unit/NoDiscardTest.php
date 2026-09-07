@@ -47,15 +47,15 @@ final class NoDiscardTest extends TestCase
      *
      * The copy-returning builders, the collections' query methods, and the auth gate's decision.
      *
-     * **The six query methods appear three times each**, and that is this test working rather than
+     * **The seven query methods appear three times each**, and that is this test working rather than
      * failing. They are declared once in {@link \NeuroSYS\Support\TypedItems}; PHP flattens a
      * trait's members into each using class, so reflection reports them on `Collection` and
      * `SearchableCollection` as well as on the trait itself — which is exactly what
      * {@link self::classesUnderSrc()} says it prefers, since the direction this test can survive is
      * counting one twice rather than missing one entirely.
      *
-     * None of the six copies anything, unlike the builders around them. They are pinned for the
-     * other half of the same reason: all six are pure, so a result that goes nowhere is never
+     * None of the seven copies anything, unlike the builders around them. They are pinned for the
+     * other half of the same reason: all seven are pure, so a result that goes nowhere is never
      * anything but a bug.
      *
      * @return void
@@ -71,6 +71,7 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Support\Collection::isEmpty',
                 'NeuroSYS\Support\Collection::join',
                 'NeuroSYS\Support\Collection::keys',
+                'NeuroSYS\Support\Collection::last',
                 'NeuroSYS\Support\Collection::map',
                 'NeuroSYS\Support\Collection::where',
                 'NeuroSYS\Support\Collection::with',
@@ -78,6 +79,7 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Support\SearchableCollection::isEmpty',
                 'NeuroSYS\Support\SearchableCollection::join',
                 'NeuroSYS\Support\SearchableCollection::keys',
+                'NeuroSYS\Support\SearchableCollection::last',
                 'NeuroSYS\Support\SearchableCollection::map',
                 'NeuroSYS\Support\SearchableCollection::where',
                 'NeuroSYS\Support\SearchableCollection::with',
@@ -85,6 +87,7 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Support\TypedItems::isEmpty',
                 'NeuroSYS\Support\TypedItems::join',
                 'NeuroSYS\Support\TypedItems::keys',
+                'NeuroSYS\Support\TypedItems::last',
                 'NeuroSYS\Support\TypedItems::map',
                 'NeuroSYS\Support\TypedItems::where',
                 'NeuroSYS\View\Html\Element::attr',

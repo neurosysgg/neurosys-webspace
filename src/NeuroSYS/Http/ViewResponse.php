@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Layout;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
 use NeuroSYS\View\Html\HtmlTag;
@@ -30,14 +31,21 @@ readonly class ViewResponse implements Response
      *
      * @param View           $view    The view to render.
      * @param HttpStatusCode $status  The HTTP status code.
-     * @param list<Header>   $headers Extra headers, e.g. `Cache-Control:` on an authenticated
+     * @param Collection<Header> $headers Extra headers, e.g. `Cache-Control:` on an authenticated
      *                                page. Same parameter {@link PlainTextResponse} takes, in the
      *                                same position, so the two responses are shaped alike.
+     *
+     *                                A collection rather than the `list<Header>` it was: the
+     *                                annotation was the only thing saying what the array held, on
+     *                                a constructor four call sites reach from outside this
+     *                                namespace. It is the same move the outbound
+     *                                {@link \NeuroSYS\Tool\Http\Request} already made for the
+     *                                headers it sends.
      */
     public function __construct(
         private View           $view,
         private HttpStatusCode $status = HttpStatusCode::Ok,
-        private array          $headers = [],
+        private Collection     $headers = new Collection(Header::class),
     ) {}
 
     /**
@@ -67,7 +75,7 @@ readonly class ViewResponse implements Response
 
         // A validator the browser already holds means the copy it already holds is current. 304 and
         // nothing else — no Content-Type, because there is no content to describe.
-        if ($cache !== [] && ETag::forBody($markup)->matches($request->ifNoneMatch())) {
+        if (!$cache->isEmpty() && ETag::forBody($markup)->matches($request->ifNoneMatch())) {
             http_response_code(HttpStatusCode::NotModified->value);
             self::sendAll($cache);
 
@@ -84,7 +92,7 @@ readonly class ViewResponse implements Response
     }
 
     /**
-     * The headers that say whether this document may be reused, or `[]` if the caller already said.
+     * The headers that say whether this document may be reused, or none if the caller already said.
      *
      * **`no-cache` is not `no-store`.** It means keep the copy and ask before reusing it, so a
      * return visit costs a round trip and no bytes — the 304 above. What it buys over a `max-age`
@@ -120,26 +128,30 @@ readonly class ViewResponse implements Response
      * 503 are {@link PlainTextResponse}.
      *
      * @param string $markup
-     * @return list<Header>
+     * @return Collection<Header>
      */
-    private function cacheHeaders(string $markup): array
+    private function cacheHeaders(string $markup): Collection
     {
-        if (array_any($this->headers, fn($header) => $header->name === ResponseHeader::CacheControl)) {
-            return [];
+        $said = $this->headers->first(
+            static fn(Header $header): bool => $header->name === ResponseHeader::CacheControl,
+        );
+
+        if ($said !== null) {
+            return new Collection(Header::class);
         }
 
-        return [
+        return new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::revalidate()),
             new Header(ResponseHeader::ETag, ETag::forBody($markup)),
             new Header(ResponseHeader::Vary, Vary::on(RequestHeader::RequestedWith)),
-        ];
+        );
     }
 
     /**
-     * @param list<Header> $headers
+     * @param Collection<Header> $headers
      * @return void
      */
-    private static function sendAll(array $headers): void
+    private static function sendAll(Collection $headers): void
     {
         foreach ($headers as $header) {
             header($header->line());

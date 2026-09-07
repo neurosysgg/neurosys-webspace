@@ -20,6 +20,7 @@ use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Layout;
 use NeuroSYS\Router;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleaseView;
@@ -199,11 +200,12 @@ final class SecurityTest extends TestCase
         $response = new Router(RouteInitialization::routes())
             ->dispatch($this->request('POST'));
 
+        /** @var Collection<Header> $headers */
         $headers = new ReflectionProperty($response, 'headers')->getValue($response);
 
         self::assertSame(
             ['Allow: GET, HEAD'],
-            array_map(static fn(Header $h): string => $h->line(), $headers),
+            $headers->map(static fn(Header $h): string => $h->line()),
         );
     }
 

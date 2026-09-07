@@ -405,14 +405,20 @@ What stayed behind in each class is what genuinely differs — `with()`, `find()
 `array<string, T>`, and `rebuilt()`, which is the trait's one abstract member. That difference is the
 reason there are two classes at all.
 
-**The trait also holds the six query methods, and they are the default way this codebase handles a
-group of things:** `where()`, `map()`, `join()`, `first()`, `keys()`, `isEmpty()`. They were written
-because `all()` had quietly become the escape hatch *out* of the type — sixteen call sites reached
+**The trait also holds the seven query methods, and they are the default way this codebase handles a
+group of things:** `where()`, `map()`, `join()`, `first()`, `last()`, `keys()`, `isEmpty()`. They
+were written because `all()` had quietly become the escape hatch *out* of the type — sixteen reached
 for it or hand-rolled a `foreach`, and nine of those unwrapped the collection for no purpose but to
 hand the array to `array_map`. A collection that must be unwrapped before it can be asked anything
 only types its own construction.
 
-Three decisions are worth knowing before adding a seventh:
+`last()` arrived last and is the shape of argument that earns one. `Arrangement::lastStart()` was
+the only place left in `src/` calling `all()` to get at an array — not to do anything with the array,
+but because `end()` was the only way to ask for the far end. It takes **no predicate**, unlike
+`first()`: nothing here searches backwards, PHP gives `array_find()` and no `array_find_last()`, and
+`where(…)->last()` already answers the day something wants one.
+
+Three decisions are worth knowing before adding an eighth:
 
 - **The callback takes the value first and the key second.** That is the order PHP's own
   `array_find`, `array_any` and `array_all` use — `Element::renderChildren()` already calls one —
@@ -429,9 +435,9 @@ Three decisions are worth knowing before adding a seventh:
   and `array_filter` preserves keys, so it reindexes; a `SearchableCollection` keeps them, which is
   what it is for.
 
-All six carry `#[\NoDiscard]` — they are pure, so a dropped result is never anything but a bug — and
-`NoDiscardTest` pins them three times each, since PHP reports a trait's members on both using classes
-*and* on the trait.
+All seven carry `#[\NoDiscard]` — they are pure, so a dropped result is never anything but a bug —
+and `NoDiscardTest` pins them three times each, since PHP reports a trait's members on both using
+classes *and* on the trait.
 
 **What deliberately stays a plain array.** `Preflight`'s findings, `ReleaseFolder::missing()`'s
 filter over `Fact::cases()`, `FlpFile::all()` — none crosses a public boundary, and the rule below
@@ -462,6 +468,22 @@ which is what keeps last-write-wins), `ReleaseFolder`'s audio files (keyed by `R
 in the order the catalogue lists them), and an outbound `Request`'s headers and body fields. None of
 those had a hand-rolled check to replace, which is the weaker half of the rule: they had *no* check,
 and an `array<string, string|FilePart>` is a docblock's promise rather than the language's.
+
+**And since that, five more, found by asking which `array_*` calls the query methods should have
+been doing.** `Element`'s **children** are the one worth reading twice: they are the sibling
+parameter of the attributes on the same public constructor, so the argument that moved one had
+already been made about the other and stopped one parameter short. `containing()` is a variadic and
+PHP guards it; the constructor took a bare `array`, and a string reaching it that way is not a
+`TypeError` naming the element but a fatal in `renderChildren()` calling `render()` on a string.
+`ViewResponse`, `PlainTextResponse` and `FileResponse` take a `Collection<Header>` for the same
+reason the outbound `Request` already did. In `tools/`: `Project::$markers`, whose `markersOf()` was
+`where()` spelled `array_values(array_filter(…))`; `Call::$arguments`, reached by three public
+factories; and `DemoStage::$sources`, whose `write()` was another longhand `where()`.
+
+One of those turned up a live bug rather than a latent one. `ViewResponse::send()` guarded the 304
+with `$cache !== []`, which is true of *every* `Collection` — so a gated page started answering 304
+to a guessed validator the moment `cacheHeaders()` returned one. `isEmpty()` is what it should have
+been asking all along, and the test named for that hazard caught it in the same run.
 
 Not everything with a `list<…>` in its docblock wants one. `PermissionsPolicy::$denied` and
 `ContentSecurityPolicy::$directives` are private, never escape, and are built only through a

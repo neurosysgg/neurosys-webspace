@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Demo;
 
 use NeuroSYS\Config;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Release\FlacTag;
@@ -31,12 +32,12 @@ final readonly class DemoStage
      *
      * @param string           $title   What the demo is called.
      * @param string           $slug    Its URL, and the directory its audio is staged into.
-     * @param list<DemoSource> $sources The mixes, in the order they were named.
+     * @param Collection<DemoSource> $sources The mixes, in the order they were named.
      */
     private function __construct(
         public string $title,
         public string $slug,
-        public array  $sources,
+        public Collection $sources,
     ) {}
 
     /**
@@ -64,7 +65,11 @@ final readonly class DemoStage
 
         $title ??= self::derivedTitle($paths[0] ?? '');
 
-        return new self($title, $slug ?? ReleaseFolder::slugFor($title), $sources);
+        return new self(
+            $title,
+            $slug ?? ReleaseFolder::slugFor($title),
+            new Collection(DemoSource::class)->with(...$sources),
+        );
     }
 
     /**
@@ -89,9 +94,9 @@ final readonly class DemoStage
      * missing directory, because an `@mkdir` added to "fix" the downloads log once made a directory
      * on the live server that had to be deleted by hand. This is a caller that genuinely wants one.
      *
-     * @return list<DemoSource> The ones that failed, which is empty when all of them worked.
+     * @return Collection<DemoSource> The ones that failed, which is empty when all of them worked.
      */
-    public function write(): array
+    public function write(): Collection
     {
         $directory = $this->directory();
 
@@ -99,10 +104,7 @@ final readonly class DemoStage
             return $this->sources;
         }
 
-        return array_values(array_filter(
-            $this->sources,
-            fn(DemoSource $source): bool => !$source->stage($directory),
-        ));
+        return $this->sources->where(fn(DemoSource $source): bool => !$source->stage($directory));
     }
 
     /**

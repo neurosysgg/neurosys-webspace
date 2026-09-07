@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Php;
 
 use InvalidArgumentException;
+use NeuroSYS\Support\Collection;
 
 /**
  * The Call class. `new Release(…)`, `Section::named(…)`, or `…->with(…)`.
@@ -30,14 +31,14 @@ final readonly class Call implements Expression
      *
      * @param Expression|null $target    The value being called on, for a `->method()` call.
      * @param string          $name      What precedes the parentheses.
-     * @param list<Argument>  $arguments
+     * @param Collection<Argument> $arguments
      * @param bool            $stacked   One argument per line.
      * @param string|null     $class     The class named, for the import list.
      */
     private function __construct(
         private ?Expression $target,
         private string $name,
-        private array $arguments,
+        private Collection $arguments,
         private bool $stacked,
         private ?string $class = null,
     ) {}
@@ -46,12 +47,15 @@ final readonly class Call implements Expression
      * `new Foo(…)`.
      *
      * @param class-string   $class
-     * @param list<Argument> $arguments
+     * @param Collection<Argument> $arguments
      * @param bool           $stacked
      * @return self
      */
-    public static function create(string $class, array $arguments = [], bool $stacked = false): self
-    {
+    public static function create(
+        string $class,
+        Collection $arguments = new Collection(Argument::class),
+        bool $stacked = false,
+    ): self {
         return new self(null, 'new ' . Value::shortName($class), $arguments, $stacked, $class);
     }
 
@@ -60,12 +64,16 @@ final readonly class Call implements Expression
      *
      * @param class-string   $class
      * @param string         $method
-     * @param list<Argument> $arguments
+     * @param Collection<Argument> $arguments
      * @param bool           $stacked
      * @return self
      */
-    public static function onClass(string $class, string $method, array $arguments = [], bool $stacked = false): self
-    {
+    public static function onClass(
+        string $class,
+        string $method,
+        Collection $arguments = new Collection(Argument::class),
+        bool $stacked = false,
+    ): self {
         return new self(null, Value::shortName($class) . '::' . $method, $arguments, $stacked, $class);
     }
 
@@ -74,14 +82,14 @@ final readonly class Call implements Expression
      *
      * @param Expression     $target
      * @param string         $method
-     * @param list<Argument> $arguments
+     * @param Collection<Argument> $arguments
      * @param bool           $stacked
      * @return self
      */
     public static function onValue(
         Expression $target,
         string $method,
-        array $arguments = [],
+        Collection $arguments = new Collection(Argument::class),
         bool $stacked = false,
     ): self {
         return new self($target, $method, $arguments, $stacked);

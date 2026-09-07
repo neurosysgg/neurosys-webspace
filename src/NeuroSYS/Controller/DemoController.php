@@ -14,6 +14,7 @@ use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Service\WaveformRepository;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\View\DemoView;
 
 /**
@@ -67,9 +68,12 @@ readonly class DemoController implements Controller
         // machine would leave it in, and — because ViewResponse stands down when a caller has
         // already said how a response may be kept — also means no ETag and so no 304, which is
         // what stops a gated page being handed back on a guessed validator.
-        return new ViewResponse(new DemoView($demo, $this->slug, $waveforms), headers: [
-            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-            new Header(ResponseHeader::Robots, RobotsPolicy::hide()),
-        ]);
+        return new ViewResponse(
+            new DemoView($demo, $this->slug, $waveforms),
+            headers: new Collection(Header::class)->with(
+                new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
+                new Header(ResponseHeader::Robots, RobotsPolicy::hide()),
+            ),
+        );
     }
 }
