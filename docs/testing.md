@@ -383,7 +383,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.2% of lines** (1418/1444), 97.9% of methods.
+clover XML and a browsable HTML report. Currently **98.28% of lines** (1488/1514), 97.9% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,

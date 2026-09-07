@@ -131,7 +131,7 @@ final class ResponseTest extends TestCase
         /** @var Collection<Header> $headers */
         $headers = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup);
 
-        return $headers->map(static fn(Header $h): string => $h->line());
+        return $headers->map(static fn(Header $h): string => $h->line())->toValues();
     }
 
     /**
@@ -258,7 +258,7 @@ final class ResponseTest extends TestCase
 
         self::assertSame(
             ['Cache-Control: no-store, private'],
-            self::peek($response, 'headers')->map(static fn(Header $h): string => $h->line()),
+            self::peek($response, 'headers')->map(static fn(Header $h): string => $h->line())->toValues(),
         );
         self::assertStringContainsString('<main', $this->render($response, $this->request('/')));
     }

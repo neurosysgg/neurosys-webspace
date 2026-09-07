@@ -240,7 +240,7 @@ final readonly class StageDemo implements Command
     private function waveforms(array $slugs, Output $output): ExitCode
     {
         $demos   = new DemoRepository()->all();
-        $unknown = array_values(array_diff($slugs, $demos->keys()));
+        $unknown = array_values(array_diff($slugs, $demos->toKeys()));
 
         if ($unknown !== []) {
             $output->error(sprintf(

@@ -42,7 +42,8 @@ class ReleasesView extends View
                 new Element(HtmlTag::H2)
                     ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
                     ->containing('releases'),
-                new Element(Tag::ReleaseList)->containing(...$this->releases->map(self::card(...))),
+                new Element(Tag::ReleaseList)
+                    ->containing(...$this->releases->map(self::card(...))->toValues()),
             );
     }
 

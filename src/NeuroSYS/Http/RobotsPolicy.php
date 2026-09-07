@@ -75,6 +75,6 @@ final readonly class RobotsPolicy implements HeaderValue
      */
     public function render(): string
     {
-        return $this->directives->join(', ', static fn(RobotsDirective $d): string => $d->value);
+        return $this->directives->map(static fn(RobotsDirective $d): string => $d->value)->join(', ');
     }
 }

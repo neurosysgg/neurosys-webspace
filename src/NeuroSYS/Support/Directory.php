@@ -90,6 +90,13 @@ final readonly class Directory
      * is a collection, which is what lets a caller ask `->first()` or `->where()` of a directory
      * without unwrapping it first.
      *
+     * **`settled()`, because a listing is a snapshot and not a live query.** `where()` is lazy and
+     * `exists()` is a `stat()`, so left pending this would re-read the filesystem on every
+     * materialisation — two questions of the same object could answer differently, and
+     * {@link self::remove()} would interleave its stats with its deletes. `glob()` has already
+     * answered once here; settling keeps the whole listing one answer taken at one moment, which is
+     * what every caller has always read it as.
+     *
      * @param string $pattern A glob pattern matched against the name — `*.flac`, `*`.
      * @return Collection<File>
      */
@@ -103,7 +110,7 @@ final readonly class Directory
             $files = $files->with(new File($path));
         }
 
-        return $files->where(static fn(File $file): bool => $file->exists());
+        return $files->where(static fn(File $file): bool => $file->exists())->settled();
     }
 
     /**

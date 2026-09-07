@@ -154,7 +154,7 @@ class Layout
                 new Element(HtmlTag::Nav)
                     ->attr(HtmlAttribute::ClassName, CssClass::ProfileLinks)
                     ->attr(HtmlAttribute::AriaLabel, 'Profiles')
-                    ->containing(...$links->map(self::profileLink(...))),
+                    ->containing(...$links->map(self::profileLink(...))->toValues()),
             );
         }
 

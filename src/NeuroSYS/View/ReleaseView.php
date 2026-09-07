@@ -152,7 +152,7 @@ class ReleaseView extends View
         if (!$release->madeWith->isEmpty()) {
             $fields[] = new TerminalField(
                 'made with',
-                $release->madeWith->join(', ', static fn(Plugin $plugin): string => $plugin->name),
+                $release->madeWith->map(static fn(Plugin $plugin): string => $plugin->name)->join(', '),
             );
         }
 
@@ -182,7 +182,7 @@ class ReleaseView extends View
             new Element(HtmlTag::H2)->containing('arrangement'),
             ...$arrangement->sections->map(
                 fn(Section $section): Element => $this->section($section, $bpm, $arrangement->ppq),
-            ),
+            )->toValues(),
         );
     }
 
@@ -219,7 +219,7 @@ class ReleaseView extends View
     {
         return new Element(Tag::DownloadList)->containing(
             new Element(HtmlTag::H2)->containing('downloads'),
-            ...$this->release->formats->map($this->downloadCard(...)),
+            ...$this->release->formats->map($this->downloadCard(...))->toValues(),
         );
     }
 

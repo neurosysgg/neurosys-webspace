@@ -175,7 +175,7 @@ class DemoView extends View
     {
         return new Element(HtmlTag::Div)
             ->attr(HtmlAttribute::ClassName, CssClass::DemoTracks)
-            ->containing(...$this->demo->tracks->map($this->track(...)));
+            ->containing(...$this->demo->tracks->map($this->track(...))->toValues());
     }
 
     /**

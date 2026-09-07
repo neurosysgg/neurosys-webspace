@@ -166,8 +166,8 @@ The only place a structure crosses rather than a scalar, because it is the only 
 generic: a release lists five metadata rows and a 404 lists one error line.
 
 ```php
-// Terminal::toElement()
-json_encode(array_map(fn (TerminalField $f) => $f->toArray(), $this->fields->all()), …)
+// Terminal::toElement() — TerminalField is JsonSerializable, so the rows cross as a collection
+json_encode($this->fields->toValues(), …)
 ```
 
 ```ts

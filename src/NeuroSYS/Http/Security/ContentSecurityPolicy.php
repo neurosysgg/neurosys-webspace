@@ -70,13 +70,11 @@ final readonly class ContentSecurityPolicy implements HeaderValue
      */
     public function render(): string
     {
-        return $this->directives->join(
-            '; ',
-            static fn(CspSourceList $sources, string $directive): string => $directive . ' ' . $sources->join(
-                ' ',
-                static fn(CspSource $source): string => $source->source(),
-            ),
-        );
+        return $this->directives
+            ->map(static fn(CspSourceList $sources, string $directive): string => $directive . ' ' . $sources
+                ->map(static fn(CspSource $source): string => $source->source())
+                ->join(' '))
+            ->join('; ');
     }
 
     /**

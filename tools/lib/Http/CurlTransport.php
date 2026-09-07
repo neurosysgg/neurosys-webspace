@@ -143,6 +143,6 @@ final readonly class CurlTransport implements Transport
      */
     private function headers(Request $request): array
     {
-        return $request->headers->map(static fn(Header $header): string => $header->line());
+        return $request->headers->map(static fn(Header $header): string => $header->line())->toValues();
     }
 }

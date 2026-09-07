@@ -75,17 +75,23 @@ final readonly class Arrangement
     /**
      * Each section with the fraction of the arrangement it begins at, for drawing a timeline.
      *
+     * Lazy, like every `map()`: a {@link SectionPosition} out of range is reported when the
+     * collection is materialised rather than here. Sections arrive in playing order from the
+     * project file, so that guard is for a hand-written entry.
+     *
      * @param int $bpm
-     * @return list<array{section: Section, offset: float}>
+     * @return Collection<SectionPosition>
+     * @throws ReleaseVerificationException on materialisation, if a section
+     *                        starts after the last one does.
      */
-    public function positions(int $bpm): array
+    public function positions(int $bpm): Collection
     {
         $span = $this->lastStart($bpm);
 
-        return $this->sections->map(fn(Section $section): array => [
-            'section' => $section,
+        return $this->sections->map(fn(Section $section): SectionPosition => new SectionPosition(
+            $section,
             // A single-section arrangement has no span to divide by and sits at the start.
-            'offset'  => $span > 0.0 ? $section->seconds($bpm, $this->ppq) / $span : 0.0,
-        ]);
+            $span > 0.0 ? $section->seconds($bpm, $this->ppq) / $span : 0.0,
+        ));
     }
 }

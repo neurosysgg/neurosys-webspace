@@ -144,7 +144,7 @@ final readonly class StageRelease implements Command
             Fact::Bpm     => $folder->bpm !== null ? (string) $folder->bpm : null,
             Fact::Key     => $folder->key?->value,
             Fact::Genre   => $folder->genre?->value,
-            Fact::Formats => $folder->formats()->join(', ', static fn(ReleaseFormat $f): string => $f->name),
+            Fact::Formats => $folder->formats()->map(static fn(ReleaseFormat $f): string => $f->name)->join(', '),
             Fact::Cover   => $folder->cover?->name(),
         };
     }

@@ -51,6 +51,6 @@ final readonly class Vary implements HeaderValue
      */
     public function render(): string
     {
-        return $this->headers->join(', ', static fn(RequestHeader $header): string => $header->value);
+        return $this->headers->map(static fn(RequestHeader $header): string => $header->value)->join(', ');
     }
 }

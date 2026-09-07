@@ -80,6 +80,8 @@ final readonly class CacheControl implements HeaderValue
      */
     public function render(): string
     {
-        return $this->directives->join(', ', static fn(CacheDirective $directive): string => $directive->value);
+        return $this->directives
+            ->map(static fn(CacheDirective $directive): string => $directive->value)
+            ->join(', ');
     }
 }

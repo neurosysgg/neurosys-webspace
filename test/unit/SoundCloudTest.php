@@ -326,7 +326,7 @@ final class SoundCloudTest extends TestCase
      */
     public function testAnUploadIsPrivateUnlessSomethingSaidOtherwise(): void
     {
-        $sharing = $this->upload()->fields()->all()[2];
+        $sharing = $this->upload()->fields()->toArray()[2];
 
         self::assertSame(TrackSharing::Private, $this->upload()->sharing);
         self::assertSame(TrackField::Sharing->value, $sharing->name);
@@ -342,7 +342,7 @@ final class SoundCloudTest extends TestCase
     {
         $names = array_map(
             static fn(FormField $field): string => $field->name,
-            new TrackUpload('ill.', FilePart::at(new File(__FILE__)))->fields()->all(),
+            new TrackUpload('ill.', FilePart::at(new File(__FILE__)))->fields()->toArray(),
         );
 
         self::assertSame(

@@ -139,7 +139,7 @@ final class ServiceTest extends TestCase
         $links = new ProfileRepository($file)->all();
 
         self::assertCount(1, $links);
-        self::assertSame(Platform::GitHub, array_first($links->all())?->platform);
+        self::assertSame(Platform::GitHub, $links->first()?->platform);
     }
 
     /**
@@ -171,7 +171,7 @@ final class ServiceTest extends TestCase
 
         $order = array_map(
             static fn(Profile $p): Platform => $p->platform,
-            new ProfileRepository($file)->all()->all(),
+            new ProfileRepository($file)->all()->toArray(),
         );
 
         self::assertSame([Platform::SoundCloud, Platform::YouTube, Platform::GitHub], $order);

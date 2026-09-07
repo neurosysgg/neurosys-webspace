@@ -98,7 +98,7 @@ final readonly class SoundCloudEmbed implements Embed
      */
     public function toElement(string $title): Element
     {
-        $options = $this->options->join(' ', static fn (SoundCloudOption $option): string => $option->value);
+        $options = $this->options->map(static fn (SoundCloudOption $option): string => $option->value)->join(' ');
 
         return new Element(Tag::SoundCloudPlayer)
             ->attr(SoundCloudPlayerAttribute::TrackId, $this->trackId)

@@ -150,9 +150,10 @@ final readonly class DemoPreflight
      */
     private static function consistency(DemoStage $stage): array
     {
-        $lengths = array_values(array_filter(
-            $stage->sources->map(static fn(DemoSource $source): int => $source->seconds()),
-        ));
+        $lengths = $stage->sources
+            ->map(static fn(DemoSource $source): int => $source->seconds())
+            ->where(static fn(int $seconds): bool => $seconds !== 0)
+            ->toValues();
 
         if (count($lengths) < 2) {
             return [];

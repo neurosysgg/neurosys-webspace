@@ -23,7 +23,7 @@ enum TerminalAttribute: string implements AttributeName
     /** The command line above the output. */
     case Command = 'command';
 
-    /** The output rows, as JSON — see {@link TerminalField::toArray()}. */
+    /** The output rows, as JSON — see {@link TerminalField::jsonSerialize()}. */
     case Fields = 'fields';
 
     /** Constrains the window's width. A boolean attribute. */

@@ -47,16 +47,21 @@ final class NoDiscardTest extends TestCase
      *
      * The copy-returning builders, the collections' query methods, and the auth gate's decision.
      *
-     * **The seven query methods appear three times each**, and that is this test working rather than
+     * **The ten query methods appear three times each**, and that is this test working rather than
      * failing. They are declared once in {@link \NeuroSYS\Support\TypedItems}; PHP flattens a
      * trait's members into each using class, so reflection reports them on `Collection` and
      * `SearchableCollection` as well as on the trait itself — which is exactly what
      * {@link self::classesUnderSrc()} says it prefers, since the direction this test can survive is
      * counting one twice rather than missing one entirely.
      *
-     * None of the seven copies anything, unlike the builders around them. They are pinned for the
-     * other half of the same reason: all seven are pure, so a result that goes nowhere is never
-     * anything but a bug.
+     * Nine of the ten copy nothing, unlike the builders around them, and are pinned for the other
+     * half of the same reason: they are pure, so a result that goes nowhere is never anything but a
+     * bug — and since the collections went lazy that includes the three materialising ones, where a
+     * dropped `toValues()` is a chain that ran its callbacks for nothing at all.
+     *
+     * `settled()` is the tenth and belongs to both halves: it copies like a builder *and* runs
+     * whatever was pending. Dropping it is the one discard here that does work and then throws the
+     * work away — which is exactly the mistake it was written to stop.
      *
      * @return void
      */
@@ -70,25 +75,34 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Support\Collection::first',
                 'NeuroSYS\Support\Collection::isEmpty',
                 'NeuroSYS\Support\Collection::join',
-                'NeuroSYS\Support\Collection::keys',
                 'NeuroSYS\Support\Collection::last',
                 'NeuroSYS\Support\Collection::map',
+                'NeuroSYS\Support\Collection::settled',
+                'NeuroSYS\Support\Collection::toArray',
+                'NeuroSYS\Support\Collection::toKeys',
+                'NeuroSYS\Support\Collection::toValues',
                 'NeuroSYS\Support\Collection::where',
                 'NeuroSYS\Support\Collection::with',
                 'NeuroSYS\Support\SearchableCollection::first',
                 'NeuroSYS\Support\SearchableCollection::isEmpty',
                 'NeuroSYS\Support\SearchableCollection::join',
-                'NeuroSYS\Support\SearchableCollection::keys',
                 'NeuroSYS\Support\SearchableCollection::last',
                 'NeuroSYS\Support\SearchableCollection::map',
+                'NeuroSYS\Support\SearchableCollection::settled',
+                'NeuroSYS\Support\SearchableCollection::toArray',
+                'NeuroSYS\Support\SearchableCollection::toKeys',
+                'NeuroSYS\Support\SearchableCollection::toValues',
                 'NeuroSYS\Support\SearchableCollection::where',
                 'NeuroSYS\Support\SearchableCollection::with',
                 'NeuroSYS\Support\TypedItems::first',
                 'NeuroSYS\Support\TypedItems::isEmpty',
                 'NeuroSYS\Support\TypedItems::join',
-                'NeuroSYS\Support\TypedItems::keys',
                 'NeuroSYS\Support\TypedItems::last',
                 'NeuroSYS\Support\TypedItems::map',
+                'NeuroSYS\Support\TypedItems::settled',
+                'NeuroSYS\Support\TypedItems::toArray',
+                'NeuroSYS\Support\TypedItems::toKeys',
+                'NeuroSYS\Support\TypedItems::toValues',
                 'NeuroSYS\Support\TypedItems::where',
                 'NeuroSYS\View\Html\Element::attr',
                 'NeuroSYS\View\Html\Element::containing',

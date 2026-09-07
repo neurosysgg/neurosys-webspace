@@ -340,7 +340,7 @@ final readonly class Element implements Node
         $inline = $this->children->first(static fn(Node $child): bool => $child instanceof Text);
 
         if ($inline !== null) {
-            return $this->children->join('', static fn(Node $child): string => $child->render($depth));
+            return $this->children->map(static fn(Node $child): string => $child->render($depth))->join('');
         }
 
         $pad      = str_repeat('  ', $depth);

@@ -155,7 +155,7 @@ final class ProjectFileTest extends TestCase
 
         self::assertSame(
             ['ill. [project].zip'],
-            $this->directory->files()->map(static fn(File $file): string => $file->name()),
+            $this->directory->files()->map(static fn(File $file): string => $file->name())->toValues(),
         );
     }
 

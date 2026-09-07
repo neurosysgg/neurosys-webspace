@@ -188,7 +188,7 @@ final class ReleaseFolderTest extends TestCase
 
             $this->assertSame(
                 [ReleaseFormat::FLAC, ReleaseFormat::WAV, ReleaseFormat::MP3, ReleaseFormat::STEMS],
-                $formats->all(),
+                $formats->toArray(),
             );
         } finally {
             array_map(unlink(...), glob($path . '/*') ?: []);
@@ -220,10 +220,10 @@ final class ReleaseFolderTest extends TestCase
             $this->assertSame(MusicalKey::DSharpMinor, $release->key);
             $this->assertSame(
                 ['INTRO', 'DROP'],
-                array_map(static fn($s): string => $s->label, $release->arrangement->sections->all()),
+                $release->arrangement->sections->map(static fn($s): string => $s->label)->toValues(),
             );
             $this->assertSame('1h 00m', $release->timeSpent?->render());
-            $this->assertSame([], $release->madeWith->all(), 'credits are commented out for a person');
+            $this->assertSame([], $release->madeWith->toArray(), 'credits are commented out for a person');
         } finally {
             self::remove($path);
         }
@@ -723,7 +723,7 @@ final class ReleaseFolderTest extends TestCase
 
             $releases = eval(self::evaluable($folder, $php));
 
-            $this->assertSame([], $releases['ill']->madeWith->all());
+            $this->assertSame([], $releases['ill']->madeWith->toArray());
         } finally {
             self::remove($path);
         }

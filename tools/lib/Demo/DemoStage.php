@@ -94,6 +94,8 @@ final readonly class DemoStage
      * missing directory, because an `@mkdir` added to "fix" the downloads log once made a directory
      * on the live server that had to be deleted by hand. This is a caller that genuinely wants one.
      *
+     * Every mix is staged before this returns — see the `settled()` on the way out.
+     *
      * @return Collection<DemoSource> The ones that failed, which is empty when all of them worked.
      */
     public function write(): Collection
@@ -104,7 +106,10 @@ final readonly class DemoStage
             return $this->sources;
         }
 
-        return $this->sources->where(fn(DemoSource $source): bool => !$source->stage($directory));
+        // `settled()` because this predicate *does* the staging rather than describing it: it is
+        // the one side-effecting callback on the site, and a lazy filter cannot carry one. See
+        // {@link \NeuroSYS\Support\TypedItems::settled()}, which is named for this method.
+        return $this->sources->where(fn(DemoSource $source): bool => !$source->stage($directory))->settled();
     }
 
     /**

@@ -344,7 +344,10 @@ final class FlpTest extends TestCase
             . $this->dword(EventId::Tempo->value, 140000),
         )));
 
-        $this->assertSame(['INTRO', 'DROP'], $project->structure()->map(static fn($m): string => $m->name));
+        $this->assertSame(
+            ['INTRO', 'DROP'],
+            $project->structure()->map(static fn($m): string => $m->name)->toValues(),
+        );
         $this->assertSame('4/4', $project->timeSignature());
         $this->assertSame(MusicalKey::DSharpMinor, $project->key);
         $this->assertTrue($project->hasKeyLock());

@@ -53,9 +53,8 @@ final readonly class Fragment implements Node
      */
     public function render(int $depth = 0): string
     {
-        return $this->nodes->join(
-            "\n" . str_repeat('  ', $depth),
-            static fn(Node $node): string => $node->render($depth),
-        );
+        return $this->nodes
+            ->map(static fn(Node $node): string => $node->render($depth))
+            ->join("\n" . str_repeat('  ', $depth));
     }
 }

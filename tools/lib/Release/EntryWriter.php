@@ -236,7 +236,7 @@ final readonly class EntryWriter
                     new Argument(new Value($marker->tick)),
                 )),
             ),
-        );
+        )->toValues();
 
         $arguments = [new Argument(self::collection(Section::class, $sections))];
 

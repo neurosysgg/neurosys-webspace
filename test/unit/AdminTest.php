@@ -281,7 +281,7 @@ final class AdminTest extends TestCase
 
         self::assertSame(
             ['Cache-Control: no-store, private'],
-            $headers->map(static fn(Header $h): string => $h->line()),
+            $headers->map(static fn(Header $h): string => $h->line())->toValues(),
         );
     }
 
@@ -309,7 +309,7 @@ final class AdminTest extends TestCase
      */
     private static function tally(DownloadStats $stats): array
     {
-        return [$stats->total, $stats->byFormat->all(), $stats->byDay->all()];
+        return [$stats->total, $stats->byFormat->toArray(), $stats->byDay->toArray()];
     }
 
     /**

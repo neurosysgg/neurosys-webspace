@@ -53,16 +53,17 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.2% of
-lines** (1418/1444); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.28% of
+lines** (1488/1514); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
 both, so the pattern for closing the rest is written down in `DemoTest`. The remaining six, in
 `FileResponse`, `Auth` and `File`, are the drift `docs/testing.md` names at the end of its coverage
-section. **The collection work moved the percentage without adding an uncovered line** — every
-class it touched reports 100%, and the figure fell because it deleted covered lines (each
-`implode(', ', array_map(…))` became one `join()`), which shrinks the denominator.
+section. **The lazy-collection work is the same twenty-six lines and not one more** — it added two
+of its own (`SectionPosition`'s range guard, and `first()`'s answer when a *pending chain* runs out,
+which is a different loop from the fast path's `array_find`) and closed both in the same pass, which
+is what that pattern is for.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -114,13 +115,15 @@ src/NeuroSYS/
 │                     compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
 │                     Platform, Waveform + WaveformColumn/WaveformBand (typed value objects + enums)
-│   ├── Production/ ← what the .flp knows: Arrangement + Section + SectionKind, ProductionTime, Plugin
+│   ├── Production/ ← what the .flp knows: Arrangement + Section + SectionKind + SectionPosition,
+│   │                 ProductionTime, Plugin
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
 │   │                 (the whole account); each renders its element from typed params
 │   └── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
 │                     ProfileRepository, DemoRepository, WaveformRepository
-├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable, objects or scalars)
+├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable and lazy, objects or
+│                     scalars)
 │                     + the TypedItems trait they share, File + Directory, Route,
 │                     RouteInitialization, JsonDeserializable, Charset, PasswordHash
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
@@ -406,25 +409,81 @@ member would have had to become `protected`; and `static::class` still names the
 than the trait, so the `TypeError` reads exactly as it did when the `sprintf` sat in both files.
 `SupportTest` asserts that message, which is what would catch a later slip to `self::class`.
 
-What stayed behind in each class is what genuinely differs — `with()`, `find()`, `all()`
-/`getIterator()`, whose bodies are identical but whose return types are `list<T>` against
-`array<string, T>`, and `rebuilt()`, which is the trait's one abstract member. That difference is the
+What stayed behind in each class is what genuinely differs — `with()`, `find()`, `getIterator()`,
+`ofType()` and `sequenced()`, the last two being the trait's abstract members. That difference is the
 reason there are two classes at all.
 
-**The trait also holds the seven query methods, and they are the default way this codebase handles a
-group of things:** `where()`, `map()`, `join()`, `first()`, `last()`, `keys()`, `isEmpty()`. They
-were written because `all()` had quietly become the escape hatch *out* of the type — sixteen reached
-for it or hand-rolled a `foreach`, and nine of those unwrapped the collection for no purpose but to
-hand the array to `array_map`. A collection that must be unwrapped before it can be asked anything
-only types its own construction.
+### A chain stays a collection, and it runs once
 
-`last()` arrived last and is the shape of argument that earns one. `Arrangement::lastStart()` was
-the only place left in `src/` calling `all()` to get at an array — not to do anything with the array,
-but because `end()` was the only way to ask for the far end. It takes **no predicate**, unlike
-`first()`: nothing here searches backwards, PHP gives `array_find()` and no `array_find_last()`, and
-`where(…)->last()` already answers the day something wants one.
+**Every transforming step answers with a collection and every one of them is lazy.** `where()` and
+`map()` record a stream transformer and run *nothing*; the callbacks are first called by a
+materialiser — `toArray()`, `toValues()`, `toKeys()`, `first()`, `last()`, `join()`, `settled()`,
+`count()`, `isEmpty()`, `getIterator()` — which folds every pending step over **one pass** of the
+source:
 
-Three decisions are worth knowing before adding an eighth:
+```php
+$this->directives
+    ->map(static fn(CacheDirective $directive): string => $directive->value)
+    ->join(', ');
+```
+
+The passes are **fused**, not staged: `->where(even)->map(rename)` over `1..6` calls its callbacks
+in the order `w1 w2 m2 w3 w4 m4 w5 w6 m6`, so each element goes through the whole chain before the
+next is touched and nothing in between is ever built. `SupportTest` asserts that order, because it
+is the one property an eager implementation passes every other test without having. It also means
+the short-circuiting materialisers genuinely short-circuit — `first()` on that chain stops after
+`w1 w2 m2`, and `isEmpty()` after `w1`.
+
+`stream()` builds a fresh generator each time it is asked, so a pipeline is re-iterable and a nested
+`foreach` over one works; the classic once-only-`Generator` trap does not apply.
+
+**`map()` reads its element type off the callback's own return declaration**, via
+`ReflectionFunction`, which is why it takes no type argument. A `class-string` parameter beside a
+callback that already declares `: string` is the same fact written twice, and stating it once puts
+it where PHP itself enforces it — a callback returning the wrong thing is a `TypeError` at the
+`return`, naming the function, before the collection sees the value. **So a mapped item is not
+`guard()`ed**, and that is provable rather than lax. A callback with no declared return type, or a
+union or nullable one, throws at the `map()` call; everything else a return type can say (`void`,
+`array`, `object`, `static`) is refused by the constructor, which names it.
+
+`map()` answers with the **base** shape rather than `static`: a mapped `CspSourceList` holds strings,
+not `CspSource`s, so calling it a source list would be a lie. `where()` and `settled()` keep the
+subclass, because neither changes what is held.
+
+**A map keeps its keys through a `map()`.** This used to reindex — the implementation talking, since
+`array_map` given two arrays returns one. The consequence to know is that a mapped
+`SearchableCollection` can no longer be spread into a call, because string keys are named arguments,
+so every spreading call site asks `toValues()` and says so.
+
+**The one rule laziness added: a step that does work runs where it is asked for.** Every callback
+here is pure except one — `DemoStage::write()` filters on a predicate that *transcodes with ffmpeg*
+and reports whether that worked. Left pending, `write()` writes nothing: its caller's `isEmpty()`
+stops at the first failure with every mix behind it unstaged, and the loop that reports the failures
+encodes them all a second time. `settled()` is what that method ends in, and it is the member this
+change made necessary. `Directory::files()` ends in one too, for the weaker version of the same
+reason: `exists()` is a `stat()`, and a directory listing is a snapshot rather than a live query.
+Since `settled()` answers with the collection itself when nothing is pending, `assertSame($c,
+$c->settled())` is how a test asks "is there work pending here?" without reaching for a private
+member.
+
+**What laziness costs is written down rather than waved at.** With no steps pending every
+materialiser reads the store directly and builds no generator at all — `toValues()` is **0.45 µs**
+against **3.35 µs** for a one-step pipeline, on the two-item collection `Element` holds. That fast
+path is why the eager majority is exactly as cheap as it was. The one hot call site that *is* lazy
+is `Element::renderChildren()`, which went from `implode('', array_map(…))` at **2.29 µs** to
+`map(…)->join('')` at **5.16 µs**; over a whole page that is **1.141 ms → 1.257 ms**, about **10%**
+of the time spent rendering markup and a fraction of a percent of a request. If that ever stops
+being worth a chain that stays inside the type, `renderChildren()` is the one place to spend a
+`foreach` and the only one.
+
+The other place `map()` is called in a loop is `ContentSecurityPolicy::render()`, where the inner
+one runs inside the outer one's callback: **16.45 µs → 40.32 µs** per render, so **+24 µs on every
+response**. A `map()` costs 1.76 µs before it maps anything — 0.65 µs of `ReflectionFunction`,
+0.58 µs to construct the collection, the rest copying — and that is the price of the type coming
+from the callback rather than from an argument. Both figures are here so the next person weighing
+this has them rather than a guess.
+
+Three more decisions are worth knowing before adding an eleventh member:
 
 - **The callback takes the value first and the key second.** That is the order PHP's own
   `array_find`, `array_any` and `array_all` use — `Element::renderChildren()` already calls one —
@@ -433,17 +492,29 @@ Three decisions are worth knowing before adding an eighth:
   `$links->map(self::profileLink(...))` needs no closure around it. Key-first would have broken
   every such site, and `ReleasesView::card()` had its own parameters swapped to match rather than
   become the exception.
-- **`map()` answers with a `list`, not a collection.** A collection is defined by a `class-string`,
-  and most call sites map to a `string` or an `array` — neither is a class, and every one of them
-  spreads into `containing(...)` or joins. So `where()` returns `static` and chains; `map()` and
-  `join()` end the chain.
-- **`rebuilt()` is abstract because `where()` cannot decide for both.** A `Collection` is a `list<T>`
-  and `array_filter` preserves keys, so it reindexes; a `SearchableCollection` keeps them, which is
-  what it is for.
+- **`sequenced()` is abstract because a filter is the only thing that can put holes in a list.** A
+  `Collection` renumbers after a `where()` — so a `map()` following one sees `0, 1, 2` exactly as it
+  did when `where()` rebuilt an array eagerly — and a `SearchableCollection` keeps its keys, its
+  implementation being a `return $stream` rather than a `yield from` so the map pays nothing for a
+  layer that hands back what it was given. It is pushed by `where()` alone: resequencing after every
+  step, which is how this was first written, spent a generator layer per step renumbering keys that
+  were already in order.
+- **`ofType()` must answer with its own class**, not the sibling. `map()` writes `$copy->items`
+  across instances, which PHP allows only between instances of the class that declared the private
+  member — so the obvious way to make a map answer with a list is not a type error but a fatal.
 
-All seven carry `#[\NoDiscard]` — they are pure, so a dropped result is never anything but a bug —
-and `NoDiscardTest` pins them three times each, since PHP reports a trait's members on both using
-classes *and* on the trait.
+`last()` takes **no predicate**, unlike `first()`: nothing here searches backwards, PHP gives
+`array_find()` and no `array_find_last()`, and `where(…)->last()` already answers the day something
+wants one.
+
+All ten carry `#[\NoDiscard]` and `NoDiscardTest` pins them three times each, since PHP reports a
+trait's members on both using classes *and* on the trait. Nine are pure, so a dropped result is never
+anything but a bug; `settled()` is the tenth and belongs to both halves — dropping it is the one
+discard here that does work and then throws the work away, which is the mistake it exists to stop.
+
+**`all()` and `keys()` are gone**, replaced by `toArray()` / `toValues()` / `toKeys()`. `all()` said
+nothing about which of the two shapes you were getting; the new three say it in their names, and
+`toArray()` is the door — everything above it stays inside the type.
 
 **What deliberately stays a plain array.** `Preflight`'s findings, `ReleaseFolder::missing()`'s
 filter over `Fact::cases()`, `FlpFile::all()` — none crosses a public boundary, and the rule below
@@ -563,8 +634,11 @@ and returns it, so it is already `map`-shaped and already immutable; it stays ar
 port's stated contract is that the caller owns the buffer, and because the hot path is the one place
 the 1.5x iteration cost of a collection is worth counting.
 
-**Three query methods were designed and then not written**, each because it had no caller, which is
-the same test `first()`'s backwards twin failed:
+**Two query methods were designed and then not written**, each because it had no caller, which is
+the same test `first()`'s backwards twin failed. There were three: `mapTo(class-string, fn)` was the
+third, and it has since been written under another name — it is what `map()` became when it started
+answering with a collection, and it needed no `class-string` argument in the end because the
+callback's return declaration already carries one.
 
 - **`do(fn(&$value, $key))`**, an in-place walk, was the obvious answer to the buffers above. It is
   mechanically fine — an arrow function does take a by-ref parameter — but it *is* `map()`, with the
@@ -575,10 +649,6 @@ the same test `first()`'s backwards twin failed:
   here, and it would be the first member meant to be discarded — inverting the `with()`/`add()`
   convention this file spends a paragraph on. If in-place ever becomes necessary, the honest shape
   is a separate `Buffer` type, not a hole in this one.
-- **`mapTo(class-string, fn)`**, returning a collection rather than a list, has exactly one caller
-  (`ReleaseFolder::formats()`, written as `with(...map(…))`). Every other `map()` on the site spreads
-  straight into `containing(...)` or `implode()`, which is why `map()` answers with a list in the
-  first place.
 - **`zip()` / `unique()`** would each have served one call site in `Dsp/` and one in `hosts()` —
   both excluded above, both doors.
 

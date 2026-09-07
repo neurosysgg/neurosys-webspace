@@ -6,6 +6,8 @@ namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
 use DateTime;
+use NeuroSYS\Http\Security\CspSource;
+use NeuroSYS\Http\Security\CspSourceList;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
@@ -40,7 +42,7 @@ final class SupportTest extends TestCase
         $collection = new Collection(stdClass::class);
 
         self::assertCount(0, $collection);
-        self::assertSame([], $collection->all());
+        self::assertSame([], $collection->toArray());
     }
 
     /**
@@ -54,7 +56,7 @@ final class SupportTest extends TestCase
         $collection = new Collection(stdClass::class)->with($a, $b);
 
         self::assertCount(2, $collection);
-        self::assertSame([$a, $b], $collection->all());
+        self::assertSame([$a, $b], $collection->toArray());
     }
 
     /**
@@ -175,10 +177,10 @@ final class SupportTest extends TestCase
      */
     public function testHoldsScalarsOfTheDeclaredType(): void
     {
-        self::assertSame(['a', 'b'], new Collection('string')->with('a', 'b')->all());
-        self::assertSame([1, 2], new Collection('int')->with(1, 2)->all());
-        self::assertSame([1.5], new Collection('float')->with(1.5)->all());
-        self::assertSame([true, false], new Collection('bool')->with(true, false)->all());
+        self::assertSame(['a', 'b'], new Collection('string')->with('a', 'b')->toArray());
+        self::assertSame([1, 2], new Collection('int')->with(1, 2)->toArray());
+        self::assertSame([1.5], new Collection('float')->with(1.5)->toArray());
+        self::assertSame([true, false], new Collection('bool')->with(true, false)->toArray());
     }
 
     /**
@@ -209,7 +211,7 @@ final class SupportTest extends TestCase
      */
     public function testAnIntSatisfiesAFloatCollection(): void
     {
-        self::assertSame([0, 1.5], new Collection('float')->with(0, 1.5)->all());
+        self::assertSame([0, 1.5], new Collection('float')->with(0, 1.5)->toArray());
     }
 
     /**
@@ -377,7 +379,7 @@ final class SupportTest extends TestCase
 
         $collection = new SearchableCollection(stdClass::class)->with('a', $a)->with('b', $b);
 
-        self::assertSame(['a' => $a, 'b' => $b], $collection->all());
+        self::assertSame(['a' => $a, 'b' => $b], $collection->toArray());
     }
 
     /**
@@ -385,7 +387,7 @@ final class SupportTest extends TestCase
      */
     public function testAnEmptySearchableCollectionHandsBackAnEmptyArray(): void
     {
-        self::assertSame([], new SearchableCollection(stdClass::class)->all());
+        self::assertSame([], new SearchableCollection(stdClass::class)->toArray());
     }
     // ─────────────────────────── The query methods ───────────────────────────
 
@@ -417,7 +419,7 @@ final class SupportTest extends TestCase
             ->with($a, $b, $c)
             ->where(static fn(stdClass $item): bool => $item->n !== 2);
 
-        self::assertSame([$a, $c], $kept->all());
+        self::assertSame([$a, $c], $kept->toArray());
     }
 
     /**
@@ -433,7 +435,7 @@ final class SupportTest extends TestCase
             ->with(self::numbered(1), self::numbered(2), self::numbered(3))
             ->where(static fn(stdClass $item): bool => $item->n !== 2);
 
-        self::assertSame([0, 1], $kept->keys());
+        self::assertSame([0, 1], $kept->toKeys());
     }
 
     /**
@@ -449,7 +451,7 @@ final class SupportTest extends TestCase
             ->with('b', self::numbered(2))
             ->where(static fn(stdClass $item): bool => $item->n === 2);
 
-        self::assertSame(['b'], $kept->keys());
+        self::assertSame(['b'], $kept->toKeys());
     }
 
     /**
@@ -465,15 +467,22 @@ final class SupportTest extends TestCase
     }
 
     /**
+     * A collection rather than a list, and one that holds what the callback said it returns.
+     *
+     * The type is read off the `: int` and nowhere else — passing it as an argument too would be
+     * the same fact written twice, and the second copy is the one that goes stale.
+     *
      * @return void
      */
-    public function testMapAnswersWithAList(): void
+    public function testMapAnswersWithACollectionOfTheCallbacksReturnType(): void
     {
         $mapped = new Collection(stdClass::class)
             ->with(self::numbered(1), self::numbered(2))
             ->map(static fn(stdClass $item): int => $item->n);
 
-        self::assertSame([1, 2], $mapped);
+        self::assertInstanceOf(Collection::class, $mapped);
+        self::assertSame('int', $mapped->type);
+        self::assertSame([1, 2], $mapped->toValues());
     }
 
     /**
@@ -489,7 +498,7 @@ final class SupportTest extends TestCase
             ->with('b', self::numbered(2))
             ->map(static fn(stdClass $item, string $key): string => $key . $item->n);
 
-        self::assertSame(['a1', 'b2'], $mapped);
+        self::assertSame(['a1', 'b2'], $mapped->toValues());
     }
 
     /**
@@ -505,33 +514,117 @@ final class SupportTest extends TestCase
             ->with('a', self::numbered(7))
             ->map(self::plainNumber(...));
 
-        self::assertSame([7], $mapped);
+        self::assertSame([7], $mapped->toValues());
     }
 
     /**
-     * Keyed or not, `map()` answers with a list — because `array_map` given two arrays returns one,
-     * and because every caller spreads or joins the result, where a key would mean nothing.
+     * The inversion, and the behaviour change with the widest blast radius.
+     *
+     * This used to reindex, on the reasoning that `array_map` given two arrays returns one — the
+     * implementation talking rather than the type. A `SearchableCollection` is a map, and the whole
+     * reason `ReleasesView` can name each release by its slug is that it stays one through a
+     * `map()`. What follows is that the result can no longer be spread into a call, since string
+     * keys are named arguments, so a spreading call site asks {@link Collection::toValues()} and
+     * says so.
      *
      * @return void
      */
-    public function testMapDiscardsTheKeysOfAMap(): void
+    public function testMapKeepsTheKeysOfAMap(): void
     {
         $mapped = new SearchableCollection(stdClass::class)
             ->with('z', self::numbered(1))
             ->with('a', self::numbered(2))
             ->map(static fn(stdClass $item): int => $item->n);
 
-        self::assertSame([0, 1], array_keys($mapped));
+        self::assertSame(['z' => 1, 'a' => 2], $mapped->toArray());
+    }
+
+    /**
+     * A list maps to a list and a map maps to a map. Neither becomes the other.
+     *
+     * @return void
+     */
+    public function testMapAnswersWithTheSameShapeItWasCalledOn(): void
+    {
+        self::assertInstanceOf(
+            SearchableCollection::class,
+            new SearchableCollection(stdClass::class)->map(static fn(stdClass $i): int => $i->n),
+        );
+        self::assertInstanceOf(
+            Collection::class,
+            new Collection(stdClass::class)->map(static fn(stdClass $i): int => $i->n),
+        );
+    }
+
+    /**
+     * A subclass is a claim about the element type, so `where()` keeps it and `map()` cannot.
+     *
+     * {@link CspSourceList} is the whole reason the distinction is worth a test: it exists to say
+     * its list holds {@link \NeuroSYS\Http\Security\CspSource}, which is exactly what stops
+     * being true the moment a callback turns those into something else.
+     *
+     * @return void
+     */
+    public function testASubclassSurvivesWhereAndIsLeftBehindByMap(): void
+    {
+        $sources = new CspSourceList();
+
+        self::assertInstanceOf(CspSourceList::class, $sources->where(static fn(): bool => true));
+
+        $mapped = $sources->map(static fn(CspSource $source): string => $source->source());
+
+        self::assertInstanceOf(Collection::class, $mapped);
+        self::assertNotInstanceOf(CspSourceList::class, $mapped);
     }
 
     /**
      * @return void
      */
-    public function testJoinMapsAndThenImplodes(): void
+    public function testMapRefusesACallbackThatDeclaresNoReturnType(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageMatches('/declares none/');
+
+        (void) new Collection('int')->map(static fn(int $n) => $n);
+    }
+
+    /**
+     * A collection cannot hold null, so a callback that may answer with one is refused where it is
+     * written rather than at whichever item first turns out to be null.
+     *
+     * @return void
+     */
+    public function testMapRefusesANullableReturnType(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageMatches('/cannot hold null/');
+
+        (void) new Collection('int')->map(static fn(int $n): ?string => null);
+    }
+
+    /**
+     * `array` is refused as a declared type, so it is refused as a mapped-to one — the constructor
+     * is the single place that decides, and its message names the type rather than the callback.
+     *
+     * @return void
+     */
+    public function testMapRefusesAReturnTypeNoCollectionCanHold(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageMatches("/cannot hold 'array'/");
+
+        (void) new Collection('int')->with(1)->map(static fn(int $n): array => [$n]);
+    }
+
+    /**
+     * @return void
+     */
+    public function testJoinImplodesWhateverTheChainProduced(): void
     {
         $joined = new Collection(stdClass::class)
             ->with(self::numbered(1), self::numbered(2), self::numbered(3))
-            ->join(' · ', static fn(stdClass $item): string => (string) $item->n);
+            ->map(static fn(stdClass $item): string => (string) $item->n)
+            ->join(' · ');
 
         self::assertSame('1 · 2 · 3', $joined);
     }
@@ -541,7 +634,273 @@ final class SupportTest extends TestCase
      */
     public function testJoinAnswersEmptyForAnEmptyCollection(): void
     {
-        self::assertSame('', new Collection(stdClass::class)->join(', ', static fn(): string => 'x'));
+        self::assertSame('', new Collection('string')->join(', '));
+    }
+
+    /**
+     * `join()` lost its callback when `map()` started answering with a collection, so what is left
+     * is a collection of strings or a mistake. Saying which is cheaper than `implode()`'s own
+     * answer, which for a collection of objects is a fatal about string conversion.
+     *
+     * @return void
+     */
+    public function testJoinRefusesACollectionThatDoesNotHoldStrings(): void
+    {
+        $this->expectException(TypeError::class);
+        $this->expectExceptionMessageMatches('/map\(\) it to a string first/');
+
+        (void) new Collection('int')->with(1, 2)->join(', ');
+    }
+
+    // ─────────────────────────── One pass, fused ───────────────────────────
+
+    /**
+     * The property the whole pipeline exists for, and the one an eager implementation passes every
+     * other test without having.
+     *
+     * A staged `where()`-then-`map()` would trace `w1 w2 w3 w4 w5 w6` and only then `m2 m4 m6`,
+     * building an intermediate list in between. Fused, each element goes through the whole chain
+     * before the next is touched — which is what the interleaving below says and what nothing else
+     * here can distinguish.
+     *
+     * @return void
+     */
+    public function testTransformingStepsRunFusedRatherThanOneAfterTheOther(): void
+    {
+        $trace = [];
+
+        $chain = new Collection('int')
+            ->with(1, 2, 3, 4, 5, 6)
+            ->where(static function (int $n) use (&$trace): bool {
+                $trace[] = "w$n";
+
+                return $n % 2 === 0;
+            })
+            ->map(static function (int $n) use (&$trace): string {
+                $trace[] = "m$n";
+
+                return "n$n";
+            });
+
+        self::assertSame([], $trace, 'a transforming step must run nothing until something asks');
+
+        self::assertSame(['n2', 'n4', 'n6'], $chain->toValues());
+        self::assertSame(
+            ['w1', 'w2', 'm2', 'w3', 'w4', 'm4', 'w5', 'w6', 'm6'],
+            $trace,
+        );
+    }
+
+    /**
+     * Both short-circuiting materialisers, asserted by what the chain was *not* asked to do.
+     *
+     * @return void
+     */
+    public function testFirstAndIsEmptyStopAtTheFirstAnswer(): void
+    {
+        $seen  = 0;
+        $chain = new Collection('int')
+            ->with(1, 2, 3, 4, 5, 6)
+            ->map(static function (int $n) use (&$seen): int {
+                $seen++;
+
+                return $n * 10;
+            });
+
+        self::assertSame(10, $chain->first());
+        self::assertSame(1, $seen, 'first() ran the chain for one element');
+
+        $seen = 0;
+        self::assertFalse($chain->isEmpty());
+        self::assertSame(1, $seen, 'isEmpty() ran the chain for one element');
+
+        $seen = 0;
+        self::assertSame(40, $chain->first(static fn(int $n): bool => $n > 30));
+        self::assertSame(4, $seen, 'a predicate stops at the match rather than at the end');
+    }
+
+    /**
+     * A `Generator` is exhausted once; a method that builds one is not. That distinction is what
+     * lets a pending pipeline be held, iterated, counted and iterated again — including nested
+     * inside its own `foreach`, which is what `Element::renderChildren()` does one collection down.
+     *
+     * @return void
+     */
+    public function testAPipelineCanBeMaterialisedMoreThanOnce(): void
+    {
+        $chain = new Collection('int')
+            ->with(1, 2, 3)
+            ->map(static fn(int $n): int => $n * 2);
+
+        self::assertSame([2, 4, 6], $chain->toValues());
+        self::assertSame([2, 4, 6], $chain->toValues());
+        self::assertCount(3, $chain);
+        self::assertSame([2, 4, 6], iterator_to_array($chain, false));
+
+        $pairs = [];
+
+        foreach ($chain as $outer) {
+            foreach ($chain as $inner) {
+                $pairs[] = $outer + $inner;
+            }
+        }
+
+        self::assertSame([4, 6, 8, 6, 8, 10, 8, 10, 12], $pairs);
+    }
+
+    /**
+     * Appending is a store operation, so it runs what is pending first — which is what keeps
+     * `->map(…)->with($x)` meaning what it reads as, with $x on the end of the mapped items rather
+     * than waiting behind a transformation that was never meant to touch it.
+     *
+     * @return void
+     */
+    public function testWithRunsAPendingPipelineBeforeAppending(): void
+    {
+        $chain = new Collection('int')->with(1, 2)->map(static fn(int $n): string => "n$n");
+
+        self::assertSame(['n1', 'n2', 'z'], $chain->with('z')->toValues());
+        self::assertSame(['n1', 'n2'], $chain->toValues(), 'with() copies rather than appends');
+    }
+
+    /**
+     * A list renumbers between steps, so a `map()` after a `where()` is handed `0, 1, 2` — exactly
+     * what it was handed when `where()` rebuilt an array eagerly. A map keeps its keys throughout.
+     *
+     * @return void
+     */
+    public function testAListIsRenumberedBetweenStepsAndAMapIsNot(): void
+    {
+        self::assertSame(
+            ['0:20', '1:40'],
+            new Collection('int')
+                ->with(10, 20, 30, 40)
+                ->where(static fn(int $n): bool => $n % 20 === 0)
+                ->map(static fn(int $n, int $key): string => "$key:$n")
+                ->toValues(),
+        );
+
+        self::assertSame(
+            ['b:20'],
+            new SearchableCollection('int')
+                ->with('a', 10)
+                ->with('b', 20)
+                ->where(static fn(int $n): bool => $n === 20)
+                ->map(static fn(int $n, string $key): string => "$key:$n")
+                ->toValues(),
+        );
+    }
+
+    /**
+     * The one materialiser that cannot short-circuit — the far end of a stream is only knowable by
+     * reaching it — and the one that had no test at all until the pipeline gave it a second way to
+     * be wrong.
+     *
+     * @return void
+     */
+    public function testLastAnswersTheFarEndOfWhateverTheChainProduced(): void
+    {
+        self::assertNull(new Collection('int')->last());
+        self::assertSame(3, new Collection('int')->with(1, 2, 3)->last());
+        self::assertSame(
+            'n4',
+            new Collection('int')
+                ->with(1, 2, 3, 4, 5)
+                ->where(static fn(int $n): bool => $n % 2 === 0)
+                ->map(static fn(int $n): string => "n$n")
+                ->last(),
+        );
+        self::assertNull(
+            new Collection('int')->with(1)->where(static fn(): bool => false)->last(),
+        );
+    }
+
+    // ─────────────────────────── settled() ───────────────────────────
+
+    /**
+     * The member laziness made necessary, and the hazard it exists for.
+     *
+     * {@link \NeuroSYS\Tool\Demo\DemoStage::write()} filters on a predicate that transcodes with
+     * ffmpeg, so *when* that predicate runs is the whole behaviour of the method. Left pending it
+     * runs at whatever first asks a question — and `isEmpty()`, which is what its caller asks, stops
+     * at the first match with every mix behind it unstaged.
+     *
+     * @return void
+     */
+    public function testSettledRunsThePendingStepsWhereItIsAsked(): void
+    {
+        $staged = [];
+
+        $failed = new Collection('string')
+            ->with('a', 'b', 'c')
+            ->where(static function (string $mix) use (&$staged): bool {
+                $staged[] = $mix;
+
+                return $mix !== 'b';
+            })
+            ->settled();
+
+        self::assertSame(['a', 'b', 'c'], $staged, 'every item went through before settled() returned');
+        self::assertSame(['a', 'c'], $failed->toValues());
+
+        (void) $failed->isEmpty();
+        (void) $failed->toValues();
+
+        self::assertSame(['a', 'b', 'c'], $staged, 'and the answer can be asked twice for free');
+    }
+
+    /**
+     * The behaviour that makes `settled()` worth having: without it the predicate runs once for the
+     * first item and again for all of them, so a side-effecting one both skips work and repeats it.
+     *
+     * @return void
+     */
+    public function testALazyFilterShortCircuitsAndThenRunsAgain(): void
+    {
+        $seen    = [];
+        $pending = new Collection('string')
+            ->with('a', 'b', 'c')
+            ->where(static function (string $mix) use (&$seen): bool {
+                $seen[] = $mix;
+
+                return true;
+            });
+
+        self::assertFalse($pending->isEmpty());
+        self::assertSame(['a'], $seen, 'isEmpty() stopped at the first item');
+
+        (void) $pending->toValues();
+
+        self::assertSame(['a', 'a', 'b', 'c'], $seen, "and 'a' was put through a second time");
+    }
+
+    /**
+     * Nothing pending is nothing to run, so this is the collection itself — which is also what lets
+     * a caller assert `assertSame($c, $c->settled())` to say a collection carries no pending work,
+     * without reaching for its private members.
+     *
+     * @return void
+     */
+    public function testSettledIsTheSameCollectionWhenNothingIsPending(): void
+    {
+        $collection = new Collection('int')->with(1, 2);
+
+        self::assertSame($collection, $collection->settled());
+        self::assertNotSame($collection, $collection->where(static fn(): bool => true)->settled());
+    }
+
+    /**
+     * Settling changes when the work happens, not what the collection holds — so a subclass
+     * survives it, exactly as it survives {@link Collection::where()}.
+     *
+     * @return void
+     */
+    public function testSettledKeepsASubclass(): void
+    {
+        self::assertInstanceOf(
+            CspSourceList::class,
+            new CspSourceList()->where(static fn(): bool => true)->settled(),
+        );
     }
 
     /**
@@ -575,6 +934,14 @@ final class SupportTest extends TestCase
     {
         self::assertNull(new Collection(stdClass::class)->first());
         self::assertNull(new Collection(stdClass::class)->with(new stdClass())->first(static fn(): bool => false));
+
+        // And through a pending pipeline, which is a different loop: the fast path above asks
+        // array_find(), a chain has to be run out before it can say there was nothing.
+        self::assertNull(
+            new Collection('int')->with(1, 2)->map(static fn(int $n): string => "n$n")->first(
+                static fn(string $name): bool => $name === 'n3',
+            ),
+        );
     }
 
     /**
@@ -584,14 +951,14 @@ final class SupportTest extends TestCase
     {
         self::assertSame(
             [0, 1],
-            new Collection(stdClass::class)->with(new stdClass(), new stdClass())->keys(),
+            new Collection(stdClass::class)->with(new stdClass(), new stdClass())->toKeys(),
         );
         self::assertSame(
             ['a', 'b'],
             new SearchableCollection(stdClass::class)
                 ->with('a', new stdClass())
                 ->with('b', new stdClass())
-                ->keys(),
+                ->toKeys(),
         );
     }
 
@@ -774,11 +1141,11 @@ final class SupportTest extends TestCase
 
             self::assertSame(
                 ['a.flac', 'b.wav'],
-                $directory->files()->map(static fn(File $f): string => $f->name()),
+                $directory->files()->map(static fn(File $f): string => $f->name())->toValues(),
             );
             self::assertSame(
                 ['a.flac'],
-                $directory->files('*.flac')->map(static fn(File $f): string => $f->name()),
+                $directory->files('*.flac')->map(static fn(File $f): string => $f->name())->toValues(),
             );
         } finally {
             $directory->directory('web')->remove();
@@ -845,7 +1212,7 @@ final class SupportTest extends TestCase
 
         try {
             self::assertFalse($directory->file('taken')->write('anything'));
-            self::assertSame([], $directory->files('taken.*')->all(), 'the temporary file was cleaned up');
+            self::assertSame([], $directory->files('taken.*')->toArray(), 'the temporary file was cleaned up');
         } finally {
             $occupied->remove();
             $directory->remove();

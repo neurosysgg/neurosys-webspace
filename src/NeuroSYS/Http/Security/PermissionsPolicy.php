@@ -60,6 +60,8 @@ final readonly class PermissionsPolicy implements HeaderValue
      */
     public function render(): string
     {
-        return $this->denied->join(', ', static fn(PermissionsPolicyFeature $feature): string => $feature->denied());
+        return $this->denied
+            ->map(static fn(PermissionsPolicyFeature $feature): string => $feature->denied())
+            ->join(', ');
     }
 }

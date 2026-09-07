@@ -205,7 +205,7 @@ final class SecurityTest extends TestCase
 
         self::assertSame(
             ['Allow: GET, HEAD'],
-            $headers->map(static fn(Header $h): string => $h->line()),
+            $headers->map(static fn(Header $h): string => $h->line())->toValues(),
         );
     }
 

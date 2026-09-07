@@ -6,13 +6,15 @@ namespace NeuroSYS\Support;
 
 use ArrayIterator;
 use Countable;
+use Generator;
 use IteratorAggregate;
 use NoDiscard;
+use Throwable;
 use Traversable;
 use TypeError;
 
 /**
- * The Collection class. A type-safe generic collection for objects of a single class.
+ * The Collection class. A type-safe generic collection, held as a list.
  *
  * Immutable: {@link self::with()} returns a new instance rather than mutating this one, which is
  * what makes a collection safe to hold inside a readonly value object. `readonly` protects the
@@ -21,9 +23,11 @@ use TypeError;
  * {@link \NeuroSYS\Http\Security\ContentSecurityPolicy::allow()}, and named for it: `with` reads
  * as a copy where `add` would read as a mutation, so a discarded return value looks wrong.
  *
- * The store, the declared type and the type check live in {@link TypedItems}, shared with
- * {@link SearchableCollection} — see that trait for why it is a trait and not a base class. What is
- * here is what makes this one a **list**: `with()` appends, and iteration yields integer keys.
+ * The store, the pending pipeline, the declared type, the type check and every query method live in
+ * {@link TypedItems}, shared with {@link SearchableCollection} — see that trait for why it is a
+ * trait and not a base class, and for how a chain of transformations comes to run in one pass. What
+ * is here is what makes this one a **list**: `with()` appends, {@link self::sequenced()} renumbers,
+ * and iteration yields integer keys.
  *
  * @template T
  * @implements IteratorAggregate<int, T>
@@ -36,15 +40,23 @@ class Collection implements Countable, IteratorAggregate
     /**
      * Returns a copy of this collection with one or more items appended.
      *
+     * Appending is a **store** operation, so any pending transformations are run first and the copy
+     * starts from their results — which is what keeps `->map(…)->with($x)` meaning what it reads as,
+     * with $x on the end of the mapped items rather than waiting behind a transformation that was
+     * never meant to touch it.
+     *
      * @param T ...$items
      * @return static
      * @throws TypeError if any item is not an instance of the declared type. The copy is
      *                     discarded with the exception, so a rejected batch cannot half-apply.
+     * @throws Throwable whatever a pending step throws, since running them comes first.
      */
     #[NoDiscard('with() copies rather than appends, so a call whose result goes nowhere does nothing')]
     public function with(mixed ...$items): static
     {
-        $copy = clone $this;
+        $copy        = clone $this;
+        $copy->items = $this->toArray();
+        $copy->steps = [];
 
         foreach ($items as $item) {
             $this->guard($item);
@@ -54,32 +66,52 @@ class Collection implements Countable, IteratorAggregate
     }
 
     /**
-     * A copy holding $items, reindexed.
+     * $stream, renumbered from zero.
      *
-     * The reindex is the whole reason this is not shared with {@link SearchableCollection}:
-     * `array_filter` preserves keys, so a `where()` that dropped the second of three items would
-     * leave `[0 => …, 2 => …]` — an array PHP will still iterate and a `list<T>` it is not.
+     * The reindex is the whole reason this is not shared with {@link SearchableCollection}: a filter
+     * that dropped the second of three items would otherwise leave `1 => …` missing — an array PHP
+     * will still iterate and a `list<T>` it is not. It runs after every step rather than once at the
+     * end, so a `map()` following a `where()` is handed `0, 1, 2` exactly as it was when `where()`
+     * rebuilt an array eagerly.
      *
-     * @param array<array-key, T> $items
-     * @return static
+     * @param Generator<array-key, T> $stream
+     * @return Generator<int, T>
      */
-    private function rebuilt(array $items): static
+    private function sequenced(Generator $stream): Generator
     {
-        $copy        = clone $this;
-        $copy->items = array_values($items);
+        $index = 0;
 
-        return $copy;
+        foreach ($stream as $item) {
+            yield $index++ => $item;
+        }
     }
 
     /**
-     * `with()` only ever appends to an array that started empty, so this is always a list — the
-     * trait's store is typed `array-key` because it is shared with the map, not because this one
-     * can grow holes.
+     * An empty list holding $type.
      *
-     * @return list<T>
+     * It must answer with **this** class and not the other kind. {@link TypedItems::map()} writes
+     * `$copy->items` across instances, which PHP allows only between instances of the class the
+     * private member was declared in — so a sibling here is not a type error but a fatal, and the
+     * obvious way to make a map answer with a list is the one thing this cannot be used for.
+     *
+     * @param class-string|'string'|'int'|'float'|'bool' $type
+     * @return self
      */
-    public function all(): array { return $this->items; }
+    private function ofType(string $type): self
+    {
+        return new self($type);
+    }
 
-    /** @return ArrayIterator<int, T> */
-    public function getIterator(): Traversable { return new ArrayIterator($this->items); }
+    /**
+     * With nothing pending this is the store itself, which `with()` only ever appends to and so is
+     * always a list; with a pipeline pending it is what that pipeline produces, renumbered by
+     * {@link self::sequenced()}. The trait's store is typed `array-key` because it is shared with
+     * the map, not because this one can grow holes.
+     *
+     * @return ArrayIterator<int, T>|Generator<int, T>
+     */
+    public function getIterator(): Traversable
+    {
+        return $this->steps === [] ? new ArrayIterator($this->items) : $this->stream();
+    }
 }

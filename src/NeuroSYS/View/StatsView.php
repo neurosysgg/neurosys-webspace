@@ -107,6 +107,6 @@ class StatsView extends View
                         ->attr(HtmlAttribute::ClassName, CssClass::StatsCount)
                         ->containing((string) $count),
                 ),
-            ));
+            )->toValues());
     }
 }

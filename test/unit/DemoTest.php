@@ -739,7 +739,7 @@ final class DemoTest extends TestCase
 
         /** @var Collection<Header> $headers */
         $headers = new ReflectionProperty(ViewResponse::class, 'headers')->getValue($response);
-        $lines   = $headers->map(static fn(Header $header): string => $header->line());
+        $lines   = $headers->map(static fn(Header $header): string => $header->line())->toValues();
 
         self::assertContains('Cache-Control: no-store, private', $lines);
         self::assertContains('X-Robots-Tag: noindex, nofollow, noarchive', $lines);

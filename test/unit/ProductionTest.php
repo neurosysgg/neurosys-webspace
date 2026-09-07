@@ -13,6 +13,7 @@ use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Production\SectionKind;
+use NeuroSYS\Model\Production\SectionPosition;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Support\Collection;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -153,7 +154,9 @@ final class ProductionTest extends TestCase
         $this->assertFalse($arrangement->isEmpty());
         $this->assertEqualsWithDelta(164.571, $arrangement->lastStart(140), 0.001);
 
-        $offsets = array_map(static fn(array $p): float => $p['offset'], $arrangement->positions(140));
+        $offsets = $arrangement->positions(140)
+            ->map(static fn(SectionPosition $p): float => $p->offset)
+            ->toValues();
 
         $this->assertEqualsWithDelta([0.0, 1 / 3, 1.0], $offsets, 0.001);
     }
@@ -168,10 +171,27 @@ final class ProductionTest extends TestCase
         $arrangement = new Arrangement(new Collection(Section::class)->with(Section::named('INTRO', 0)));
 
         $this->assertSame(0.0, $arrangement->lastStart(140));
-        $this->assertSame([0.0], array_map(
-            static fn(array $p): float => $p['offset'],
-            $arrangement->positions(140),
-        ));
+        $this->assertSame([0.0], $arrangement->positions(140)
+            ->map(static fn(SectionPosition $p): float => $p->offset)
+            ->toValues());
+    }
+
+    /**
+     * An offset is a fraction, so anything outside 0..1 is a section that starts after the last one
+     * does — which means the sections were not in playing order, which means the entry is wrong.
+     *
+     * It is a `map()` callback, so the guard fires when the collection is materialised rather than
+     * when `positions()` is called. That is the one place laziness moved a verification exception,
+     * and `Arrangement::positions()` carries an `@throws` saying so.
+     *
+     * @return void
+     */
+    public function testASectionCannotBePlacedOutsideTheArrangement(): void
+    {
+        $this->expectException(ReleaseVerificationException::class);
+        $this->expectExceptionMessageMatches('/must be between 0 and 1/');
+
+        new SectionPosition(Section::named('DROP', 12288), 3.0);
     }
 
     /**
@@ -183,7 +203,7 @@ final class ProductionTest extends TestCase
 
         $this->assertTrue($empty->isEmpty());
         $this->assertSame(0.0, $empty->lastStart(140));
-        $this->assertSame([], $empty->positions(140));
+        $this->assertTrue($empty->positions(140)->isEmpty());
     }
 
     /**
@@ -269,6 +289,6 @@ final class ProductionTest extends TestCase
 
         $this->assertNull($release->arrangement);
         $this->assertNull($release->timeSpent);
-        $this->assertSame([], $release->madeWith->all());
+        $this->assertSame([], $release->madeWith->toArray());
     }
 }

@@ -59,7 +59,7 @@ final readonly class TerminalCommand
      */
     public function render(): string
     {
-        return implode(' ', [$this->program, ...$this->arguments->map(self::token(...))]);
+        return implode(' ', [$this->program, ...$this->arguments->map(self::token(...))->toValues()]);
     }
 
     /**

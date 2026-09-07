@@ -291,15 +291,22 @@ final readonly class ReleaseFolder
      *
      * The keys of {@link self::$audio} *are* the answer — it is keyed by
      * {@link ReleaseFormat::value} — so this is one `map()` over that collection rather than
-     * `array_map()` over its `keys()`, which unwrapped it to ask a question it could answer.
+     * `array_map()` over its `toKeys()`, which unwrapped it to ask a question it could answer.
+     *
+     * `toValues()` because a map's keys survive a `map()` now, and a
+     * `SearchableCollection<ReleaseFormat>` keyed by format value would say the same thing twice.
+     * The answer is a list, so the keys are dropped where that is decided rather than ignored by
+     * every caller.
      *
      * @return Collection<ReleaseFormat>
      */
     public function formats(): Collection
     {
-        return new Collection(ReleaseFormat::class)->with(...$this->audio->map(
-            static fn(File $file, string $format): ReleaseFormat => ReleaseFormat::from($format),
-        ));
+        return new Collection(ReleaseFormat::class)->with(
+            ...$this->audio
+                ->map(static fn(File $file, string $format): ReleaseFormat => ReleaseFormat::from($format))
+                ->toValues(),
+        );
     }
 
     /**

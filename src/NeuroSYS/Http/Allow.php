@@ -41,6 +41,6 @@ final readonly class Allow implements HeaderValue
      */
     public function render(): string
     {
-        return $this->methods->join(', ', static fn(HttpMethod $method): string => $method->value);
+        return $this->methods->map(static fn(HttpMethod $method): string => $method->value)->join(', ');
     }
 }

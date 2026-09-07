@@ -69,6 +69,7 @@ enum LinkRel: string
     {
         return new Collection(self::class)
             ->with(...$relations)
-            ->join(' ', static fn (self $relation): string => $relation->value);
+            ->map(static fn (self $relation): string => $relation->value)
+            ->join(' ');
     }
 }

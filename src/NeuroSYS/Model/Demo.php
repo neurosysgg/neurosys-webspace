@@ -89,7 +89,7 @@ final readonly class Demo
             ));
         }
 
-        $labels = $this->tracks->map(static fn(DemoTrack $track): string => $track->label);
+        $labels = $this->tracks->map(static fn(DemoTrack $track): string => $track->label)->toValues();
 
         if (count(array_unique($labels)) !== count($labels)) {
             throw new ReleaseVerificationException(sprintf(
