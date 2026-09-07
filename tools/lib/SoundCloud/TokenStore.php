@@ -103,8 +103,10 @@ final readonly class TokenStore
 
         $json = json_encode($token->toArray(), JSON_PRETTY_PRINT | JSON_THROW_ON_ERROR) . "\n";
 
-        // 0600 is applied to the temporary file before the rename, inside write(): a file created
-        // world-readable and narrowed a moment later is world-readable for that moment.
+        // 0600 is applied to the temporary file before the token is written into it, inside
+        // write(): a file created world-readable and narrowed a moment later is world-readable for
+        // that moment, and this is the one file in the repository where that moment holds a
+        // credential. See File::write(), which is where the order is enforced and argued for.
         if (!$this->file->write($json, 0o600)) {
             throw new SoundCloudException(sprintf('%s cannot be written.', $this->file->path));
         }

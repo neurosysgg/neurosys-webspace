@@ -322,6 +322,28 @@ else
     fail "src/ phones out: $(echo "$phoning" | tr '\n' ' ')"
 fi
 
+# File::write() narrows the temporary file before it fills it, and the order is the whole
+# guarantee rather than a detail of how it is written. file_put_contents() creates at the umask
+# default — 0644 under the usual 022 — so a chmod placed *after* the write leaves the contents
+# readable by anyone on the machine for exactly as long as the two calls take. The one thing this
+# writes on a real machine is the SoundCloud refresh token, which is single-use and rotates.
+#
+# Asserted here because nothing at runtime can see that window: both orders end with the same file
+# at the same mode, so PHPUnit can only check where it landed and never how it got there. Same
+# instinct as the CSP being asserted at build time rather than observed at run time.
+# Comment lines are stripped before the two are located, because the paragraph above the code says
+# both names in prose — a check that read those would be asserting the explanation rather than the
+# thing explained, and would pass on a method that had been rewritten the wrong way round.
+write_body=$(sed -n '/public function write(/,/^    }$/p' "$REPO/src/NeuroSYS/Support/File.php" \
+    | grep -vE '^[[:space:]]*(//|\*|/\*)')
+narrowed_at=$(echo "$write_body" | grep -n "chmod(" | head -1 | cut -d: -f1)
+filled_at=$(echo "$write_body" | grep -n "file_put_contents(" | head -1 | cut -d: -f1)
+if [[ -n "$narrowed_at" && -n "$filled_at" && "$narrowed_at" -lt "$filled_at" ]]; then
+    pass "File::write() applies its mode before the contents"
+else
+    fail "File::write() chmods at line ${narrowed_at:-none} and writes at line ${filled_at:-none} — a credential is world-readable in between"
+fi
+
 if grep -RIlq --exclude-dir=.git --exclude-dir=vendor --exclude-dir=.idea \
        -e '\$2[aby]\$[0-9]\{2\}\$' "$REPO/data/releases.php" "$REPO/data/profiles.php" 2>/dev/null; then
     fail "a bcrypt hash is sitting in a non-credential data file"

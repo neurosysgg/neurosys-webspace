@@ -601,6 +601,15 @@ final class SupportTest extends TestCase
     }
 
     /**
+     * That the mode lands, which is the half this can see.
+     *
+     * **The other half is the order, and no runtime assertion can reach it.** Applying the mode
+     * before the contents and applying it after both end with the same file at the same mode; what
+     * differs is only whether the contents sat there world-readable in between, which is a window
+     * this process cannot sample from inside itself. `test/basic_test.sh` asserts the order against
+     * the source instead — the same move the CSP checks make, and it was verified to fail when the
+     * two statements are swapped back.
+     *
      * @return void
      */
     public function testAModeIsAppliedBeforeTheContentsAreReachable(): void
@@ -611,6 +620,14 @@ final class SupportTest extends TestCase
         try {
             self::assertTrue($file->write('{}', 0o600));
             self::assertSame('0600', substr(sprintf('%o', fileperms($file->path)), -4));
+
+            // A mode-less write is left to the umask rather than narrowed to something of this
+            // class's choosing — the site appends a log and writes nothing, so the only caller that
+            // asks for a mode is the one holding a credential.
+            $plain = $directory->file('plain.txt');
+
+            self::assertTrue($plain->write('hello'));
+            self::assertSame('hello', $plain->read());
         } finally {
             $directory->remove();
         }

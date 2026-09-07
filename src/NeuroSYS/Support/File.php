@@ -120,21 +120,33 @@ final readonly class File
      * that finds half of one has lost it. A reader sees the old contents or the new ones.
      *
      * @param string   $contents
-     * @param int|null $mode Applied to the temporary file *before* the rename, so the contents are
-     *                       never briefly readable at the default mode. Null leaves it to the umask.
+     * @param int|null $mode Applied to the temporary file *before a byte of $contents is in it*, so
+     *                       the contents are never readable at the default mode. Null leaves it to
+     *                       the umask.
      * @return bool
      */
     public function write(string $contents, ?int $mode = null): bool
     {
         $temporary = $this->path . '.' . getmypid() . '.tmp';
 
-        if (@file_put_contents($temporary, $contents) === false) {
+        // Created empty, then narrowed, then filled — and the order is the whole point rather than
+        // a style. `file_put_contents()` creates at `0666 & ~umask`, so writing first and chmod-ing
+        // after put the contents on disk at 0644 under the usual umask and narrowed them a
+        // statement later: world-readable for exactly as long as the two calls took. The one thing
+        // this writes on a real machine is a single-use refresh token, so that window is the
+        // failure this argument exists to prevent. An empty file at the default mode says nothing
+        // to anybody, which is why creating one first costs nothing.
+        if (@touch($temporary) === false) {
+            return false;
+        }
+
+        if ($mode !== null && !@chmod($temporary, $mode)) {
             @unlink($temporary);
 
             return false;
         }
 
-        if ($mode !== null && !@chmod($temporary, $mode)) {
+        if (@file_put_contents($temporary, $contents) === false) {
             @unlink($temporary);
 
             return false;

@@ -89,20 +89,40 @@ final readonly class StageDemo implements Command
      */
     public function run(Input $input, Output $output): ExitCode
     {
-        $paths = self::operands($input);
+        $paths    = self::operands($input);
+        $rotating = $input->has(StageDemoOption::Rotate);
 
-        // Checked before the two below because it reads the operands as slugs rather than as
-        // files — the only mode that does. Both of these change a demo that is already staged
-        // without restaging it, which is what would mint a new password and lose a description.
+        // **Dispatched on the flags, and never on how many operands came with them.** That is the
+        // fix for a real silence rather than a tidy-up: `--rotate` used to be reachable only when
+        // no file was named, so `--rotate v4.flac` matched neither branch and fell through to a
+        // full staging run — transcoding every mix, minting a *new* password and printing a whole
+        // new entry, which is the exact pair of things --rotate exists not to do. A flag this
+        // command declares must never be one it quietly ignores; that is what Input refusing an
+        // undeclared flag buys, and reading one and dropping it gives back.
+        //
+        // Waveforms is asked first because it reads the operands as slugs rather than as files —
+        // the only mode that does.
         if ($input->has(StageDemoOption::Waveforms)) {
-            return $this->waveforms($paths, $output);
+            return $rotating
+                ? $this->refuse($output, '--waveforms and --rotate are separate jobs — one analyses '
+                    . 'audio that is already staged and the other replaces a password; run them one '
+                    . 'at a time')
+                : $this->waveforms($paths, $output);
         }
 
-        // --rotate on its own is the one form that takes no files: it changes one line of an entry
-        // that already exists, and restaging to do that would rewrite every file and lose whatever
-        // description was written by hand since.
-        if ($paths === [] && $input->has(StageDemoOption::Rotate)) {
-            return $this->rotate($output);
+        // --rotate takes no files: it changes one line of an entry that already exists, and
+        // restaging to do that would rewrite every file and lose whatever description was written
+        // by hand since.
+        if ($rotating) {
+            return $paths === []
+                ? $this->rotate($output)
+                : $this->refuse($output, sprintf(
+                    '--rotate takes no files, and %d %s named — it replaces one line of an entry '
+                    . 'that already exists, where staging would rewrite every mix and mint a '
+                    . 'password the entry you are holding does not match. Run it on its own',
+                    count($paths),
+                    count($paths) === 1 ? 'was' : 'were',
+                ));
         }
 
         if ($paths === []) {
@@ -313,6 +333,27 @@ final readonly class StageDemo implements Command
         ));
 
         return true;
+    }
+
+    /**
+     * Refuses a combination of flags this command has no single meaning for.
+     *
+     * A usage error rather than a warning-and-carry-on, because every mode here writes something a
+     * run cannot take back — audio into `data/demos/`, or a password that only exists on the
+     * screen it was printed to. Guessing which of two modes was meant would be guessing about
+     * that, so it says what is wrong and does nothing. The usage line goes out under it, since a
+     * person who typed two modes at once is a person reading the usage line next.
+     *
+     * @param Output $output
+     * @param string $why    What is wrong, without the trailing full stop.
+     * @return ExitCode Always {@link ExitCode::Usage} — nothing was written and nothing was minted.
+     */
+    private function refuse(Output $output, string $why): ExitCode
+    {
+        $output->error(sprintf("\n  %s.\n\n", $why));
+        $output->error(Runner::usage($this));
+
+        return ExitCode::Usage;
     }
 
     /**

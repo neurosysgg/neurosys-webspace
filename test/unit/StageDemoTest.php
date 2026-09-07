@@ -427,6 +427,49 @@ final class StageDemoTest extends TestCase
     }
 
     /**
+     * **A declared flag must never be a silently ignored one.**
+     *
+     * `--rotate` used to be reachable only when no file was named, so `--rotate v4.flac` matched
+     * neither branch and fell through to a full staging run: every mix transcoded again, a *new*
+     * password minted, and a whole new entry printed — the exact pair of things `--rotate` exists
+     * not to do, arriving because a flag was read and dropped. Refusing outright is the only safe
+     * answer, since guessing which of the two modes was meant is guessing about a password that
+     * has already been sent to somebody.
+     *
+     * @return void
+     */
+    public function testRotateWithFilesIsRefusedRatherThanQuietlyRestaging(): void
+    {
+        $file = $this->fixtures->file('stage-demo-fixture v3.flac');
+        $file->write('not really audio');
+
+        [$status, $out, $error] = self::invoke(['--rotate', $file->path]);
+
+        self::assertSame(ExitCode::Usage, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString('--rotate takes no files', $error);
+
+        // The two things a fall-through would have produced, neither of which may appear.
+        self::assertStringNotContainsString('send these', $error);
+        self::assertStringNotContainsString('password:', $error);
+    }
+
+    /**
+     * The other half of the same rule: two modes at once is not one of them silently winning.
+     *
+     * @return void
+     */
+    public function testWaveformsAndRotateTogetherAreRefused(): void
+    {
+        [$status, $out, $error] = self::invoke(['--waveforms', '--rotate']);
+
+        self::assertSame(ExitCode::Usage, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString('separate jobs', $error);
+        self::assertStringNotContainsString('send these', $error);
+    }
+
+    /**
      * **The password goes to stderr, with the report.** The entry goes to stdout so `> entry.php`
      * works; a plaintext following it into that file would be the one place this whole arrangement
      * writes one down.
