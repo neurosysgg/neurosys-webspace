@@ -53,6 +53,10 @@ use RecursiveIteratorIterator;
 #[CoversClass(PermissionsPolicyFeature::class)]
 #[CoversClass(SecurityHeader::class)]
 #[CoversClass(StrictTransportSecurity::class)]
+// Declared because this file is the only thing that exercises the realm check, and a test class
+// that names any #[CoversClass] records coverage for *only* those classes — so without this line
+// the guard reads as 0% while eight data rows drive it. The same trap UpdateFile fell into.
+#[CoversClass(BasicChallenge::class)]
 final class SecurityPolicyTest extends TestCase
 {
     // ───────────────────────── StrictTransportSecurity ─────────────────────────
@@ -448,6 +452,72 @@ final class SecurityPolicyTest extends TestCase
             'geolocation=()',
             PermissionsPolicy::deny(PermissionsPolicyFeature::Geolocation),
         ];
+    }
+
+    /**
+     * A realm may hold `qdtext` and nothing else.
+     *
+     * This was the one header value carrying something other than a fixed vocabulary that did not
+     * check it, and the gap mattered because {@link \NeuroSYS\Service\Auth::demoRealm()} builds a
+     * realm out of a **URL segment**: a `"` in a demo's slug closed the quoted-string early and
+     * left the rest as
+     * trailing rubbish in a `WWW-Authenticate` header. Never header injection — `header()` refuses
+     * CR and LF — and never reachable on the live host, where the proxy percent-encodes the byte
+     * first. Both of which are reasons it was hard to notice rather than reasons it was fine.
+     *
+     * @return iterable
+     */
+    public static function badRealmProvider(): iterable
+    {
+        yield 'a closing quote'  => ['neuro.SYS demo: a"b'];
+        yield 'a backslash'      => ['neuro.SYS demo: a\\b'];
+        yield 'an added param'   => ['x",charset="UTF-8'];
+        yield 'a newline'        => ["neuro.SYS\n"];
+        yield 'a carriage return' => ["neuro.SYS\r"];
+        yield 'a NUL'            => ["neuro.SYS\0"];
+
+        // Legal in the grammar and refused anyway: an empty realm keys every credential on the
+        // origin together, which is the exact failure per-demo realms exist to prevent.
+        yield 'empty'            => [''];
+
+        // obs-text is permitted by RFC 9110 and left out on RFC 7617's advice, so a realm is
+        // US-ASCII. Nothing here builds one that is not.
+        yield 'non-ASCII'        => ['neuro.SYS ü'];
+    }
+
+    /**
+     * @param string $realm
+     * @return void
+     */
+    #[DataProvider('badRealmProvider')]
+    public function testABasicRealmRefusesAnythingButQdtext(string $realm): void
+    {
+        $this->expectException(SecurityPolicyException::class);
+        $this->expectExceptionMessageIsOrContains('qdtext');
+
+        new BasicChallenge($realm);
+    }
+
+    /**
+     * The characters a realm is actually made of, so the refusal above is not simply strict.
+     *
+     * A space and a tab are `qdtext`, and so is every printable ASCII character but the two a
+     * quoted-string cannot carry — which is what lets the site's own realms through unchanged.
+     *
+     * @return void
+     */
+    public function testABasicRealmAcceptsTheRestOfQdtext(): void
+    {
+        self::assertSame(
+            'Basic realm="neuro.SYS demo: wna-bootleg"',
+            new BasicChallenge('neuro.SYS demo: wna-bootleg')->render(),
+        );
+
+        // Every qdtext byte at once: HTAB, SP, `!`, and the two printable ranges around `"` and `\`.
+        $qdtext = "\t !#\$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^_`"
+            . 'abcdefghijklmnopqrstuvwxyz{|}~';
+
+        self::assertSame('Basic realm="' . $qdtext . '"', new BasicChallenge($qdtext)->render());
     }
 
     /**

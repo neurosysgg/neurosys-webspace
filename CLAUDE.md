@@ -53,8 +53,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.75% of
-lines** (2066/2092); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.77% of
+lines** (2084/2110); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -77,7 +77,14 @@ close. It also made the twenty-six *true* rather than asserted — the count had
 twenty-seven since `/update` landed, the extra a private `TarArchive` constructor guarding a
 stateless reader against instances, which is ceremony no other static class here carries and which
 `new` would find harmless, so it was deleted the way an unreachable branch is rather than covered by
-a reflection call that would prove nothing. The twenty-six are a property of what is *deliberately*
+a reflection call that would prove nothing. **So is the reflected-realm pass**, which added three
+guards — `BasicChallenge`'s `qdtext` check and `UpdateApplier::check()`'s two refusals of a regular
+file named as, or in place of, a directory — and closed all three; `Request::unparsedPath()` is a
+statement rather than a branch. That pass is also where **the `#[CoversClass]` trap fired a second
+time**, and it is worth knowing it fires for an *existing* file too, not only a new class:
+`SecurityPolicyTest` names ten classes, `BasicChallenge` was not among them, and eight data rows
+drove the new guard while it read as 0%. The count went 26 → 31 → 26 in one sitting, and the middle
+number is the only reason anybody looked. The twenty-six are a property of what is *deliberately*
 untested, not a budget that grows with the code.
 
 **The `/update` work is the one that did not manage it in the same pass, and that is recorded rather
@@ -234,6 +241,16 @@ middle of building a request. The space is part of the token, deliberately: `Bas
 user name and an empty password rather than a refusal; that is older than the class and pinned by a
 test named for it, and it costs nothing because an empty password matches no bcrypt digest.
 
+**The realm inside that token is checked too, and it was the last header value that checked
+nothing.** `BasicChallenge` now refuses anything but RFC 9110's `qdtext` — no `"`, no `\`, never
+empty — which matters because one of its three callers builds a realm out of a **URL segment**:
+`Auth::demoRealm()` names each demo's realm after its own slug, since that is what stops a browser
+volunteering one demo's saved password at another demo's prompt. See `Request::path()` below for
+how a hostile slug got there and for the two-layer fix, and note the ordering that follows from it
+— the check reports a realm built wrong *in this repository*, and `rawurlencode()` in
+`demoRealm()` is what keeps a request from reaching it, because a throw would answer a malformed
+target with a 500 where the 401 belongs.
+
 **Nine of the ten routes are read-only, and the tenth writes.** The method question is asked of the
 matched route rather than globally: `Route` carries a `MethodPolicy`, which is `ReadOnly` for nine
 routes — anything but GET/HEAD is a 405 whose `Allow` comes from `Allow::readOnly()`, filtering the
@@ -272,9 +289,39 @@ knowing it does two different things. It used to be `parse_url()`, which signals
 gate. It is `Uri\Rfc3986\Uri::parse()` now, which returns **null** on a target it cannot read —
 the thing `??` was looking for all along — so the trap is gone rather than guarded against, and
 `///` comes back as the root because that parser can actually read it. A target that genuinely will
-not parse comes back **verbatim**, so it matches no route and 404s — answering it with the home page
-would be the quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning null rather than
-guessing GET.
+not parse comes back as **its own path** — everything up to the first `?` or `#` — rather than as
+the home page, which would be the quieter wrong. Same instinct as `HttpMethod::tryFrom()` returning
+null rather than guessing GET.
+
+**That fallback used to be the whole target, and the sentence justifying it was false.** It read
+"so it matches no route and 404s", and `Route::matches()` compiles `{slug}` into `([^/]+)`, which
+matches anything at all — so every placeholder route matched, and whatever followed the `?` arrived
+*inside a captured value*. `/demos/x"y?a=1` reached `DemoController` with a slug of `x"y?a=1`, and a
+demo's slug is what names its `WWW-Authenticate` realm, so a query string and a raw quote reached a
+response header on the one route built to give nothing away. Two things are worth keeping from it:
+
+- **The claim was checkable in one call and was never checked.** It was a statement about `Route`,
+  written in a file that does not import `Route`. `RoutingTest` now pins it from the other side —
+  that a malformed target *does* match a placeholder route — which is the row nobody wrote, and
+  `RequestTest` pins the cut.
+- **`BasicChallenge` validates its realm now**, because a value with a grammar is checked by the
+  class that owns it: RFC 9110's `qdtext`, so no `"` and no `\`, and never empty. It was the one
+  `HeaderValue` carrying something other than a fixed vocabulary that checked nothing, next to a
+  `Location` that refuses a non-`https` URL and a `CspHost` that refuses anything but a bare
+  origin. It throws, which reports a realm built wrong *here*; what a **visitor** sends is dealt
+  with one layer out, by `Auth::demoRealm()` `rawurlencode`ing the slug — the treatment
+  `SitePath::to()` already gives the same value, a no-op for every real slug, and what keeps a
+  hostile target a 401 rather than the 500 a throw would make of it. Same two-layer arrangement as
+  `Profile::$url`.
+
+Note what was **never** wrong, because it bounds how bad this was: `header()` refuses a value
+containing CR or LF, so no second header was ever reachable, and the same input is escaped
+correctly one route over — the 404 renders it through `Element::render()` as
+`find "/a\&quot;b&lt;script&gt;"`. Note also what was doing the work in production, because it is
+the part not to lean on: Strato's proxy percent-encodes a non-`pchar` byte before PHP sees the
+target, so the live host answered a well-formed realm while a bare Apache 2.4 — *the version the
+live host runs* — did not. That is exactly the standing `Request::authorization()` already refuses
+to accept about the header both gates depend on.
 
 **The `$_SERVER` keys a request is built from are `ServerVariable` cases**, because every reader of
 that superglobal here ends in a default — `?? 'GET'`, `?? '/'`, `?? ''` — which is exactly what

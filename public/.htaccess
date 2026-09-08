@@ -62,9 +62,14 @@ DirectoryIndex index.php
 # Cache lifetimes, in two tiers, split by whether the URL names its own content.
 #
 # tools/build-assets.mjs stamps every built asset with a hash of what is in it, so the site asks for
-# /assets/js/main.js?v=49d36f3e — a URL that cannot come to mean something else. Those can be kept
+# /assets/js/v-49d36f3e/main.js — a URL that cannot come to mean something else. Those can be kept
 # for a year and never revalidated, which is what `immutable` says: do not even ask on a reload.
 # The version is set by the rule further down, after RewriteEngine is on.
+#
+# Note the shape: a path *segment*, not a `?v=` query. A query was written first and worked in a
+# browser, and it cost the front end's 100% coverage gate — V8 attributes a module reached through a
+# stamped specifier to a URL carrying the query, which --test-coverage-include does not match. See
+# the RewriteRule's own comment, and CLAUDE.md's "Cache versioning".
 #
 # Everything else keeps a calendar TTL, because the bare URL genuinely can change meaning under a
 # cache. That is the dangerous pairing: a stale main.js against a freshly deployed document is the
@@ -74,9 +79,16 @@ DirectoryIndex index.php
 # a hand-typed or bookmarked URL would), and thirty days for images and fonts, which are vendored
 # and hand-placed rather than built, and where staleness is cosmetic rather than breaking.
 #
-# `env=!VERSIONED` rather than trusting the order these appear in: a Header inside <FilesMatch> is
-# merged after one outside it, so the short TTL would otherwise overwrite the long one. Making the
-# two conditions mutually exclusive means neither depends on where it sits in the file.
+# **The three blocks below are ordered, and the order is what makes them work.** Two <FilesMatch>
+# sections matching one file merge in document order and `Header set` replaces, so the immutable
+# tier is last and wins for the files it matches. The reasoning is on that block; read it before
+# moving anything, because a reordering here is silent — a year-long `immutable` on an unversioned
+# URL, or an hour on the versioned assets, and nothing in either test suite can see a real header.
+#
+# This paragraph used to describe an `env=!VERSIONED` condition on the short tier instead, and say
+# that "neither depends on where it sits in the file". That approach was tried, rejected for the
+# reason the block below gives, and the sentence outlived it — so for a while this file opened by
+# telling a reader the opposite of what it does, in the one place where being wrong is expensive.
 <IfModule mod_headers.c>
     <FilesMatch "\.(css|js)$">
         Header set Cache-Control "public, max-age=3600"

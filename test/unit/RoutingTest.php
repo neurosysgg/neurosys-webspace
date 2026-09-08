@@ -280,4 +280,28 @@ final class RoutingTest extends TestCase
             self::assertFalse($route->matches($path), "$path unexpectedly matched a route");
         }
     }
+
+    /**
+     * A placeholder matches anything at all, malformed included — which is the fact
+     * {@link \NeuroSYS\Http\Request::normalisePath()} spent a paragraph assuming the opposite of.
+     *
+     * That docblock argued its verbatim fallback was safe because "no route pattern matches a
+     * malformed target, so handing it through unchanged 404s the way every other unknown path
+     * does". `{slug}` compiles to `([^/]+)`, so a raw `"` matches like any other byte and the demo
+     * route claimed it — and since the fallback was the whole target rather than its path, a query
+     * string arrived inside the captured slug. That slug names a demo's `WWW-Authenticate` realm.
+     *
+     * Pinned here rather than only over there because it is a fact about **this** class: the claim
+     * was written in a file that does not import `Route`, and checking it was one `matches()` call.
+     * The row is the check nobody made.
+     *
+     * @return void
+     */
+    public function testAMalformedTargetStillMatchesAPlaceholderRoute(): void
+    {
+        $demo = new Route(SitePath::Demo, static fn(string $slug): HomeController => new HomeController());
+
+        self::assertSame(['a"b'], $demo->matches('/demos/a"b'));
+        self::assertSame(['x?a=1'], $demo->matches('/demos/x?a=1'));
+    }
 }

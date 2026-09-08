@@ -126,10 +126,13 @@ final class ResponseTest extends TestCase
      */
     private function cacheHeadersOf(ViewResponse $response, Request $request): array
     {
-        $markup = $this->render($response, $request);
+        // The validator is hashed by send() and handed down, so this hashes it the same way rather
+        // than passing the markup: cacheHeaders() takes the ETag it is to publish, which is what
+        // makes it the same value the 304 compares against.
+        $etag = ETag::forBody($this->render($response, $request));
 
         /** @var Collection<Header> $headers */
-        $headers = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup);
+        $headers = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $etag);
 
         return $headers->map(static fn(Header $h): string => $h->line())->toValues();
     }

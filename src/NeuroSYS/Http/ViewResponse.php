@@ -71,11 +71,17 @@ readonly class ViewResponse implements Response
             : Layout::wrap($this->view);
 
         $markup = $body->render();
-        $cache  = $this->cacheHeaders($markup);
+
+        // Hashed once and passed down, rather than built here and built again inside
+        // cacheHeaders(): the validator sent and the validator compared have to be the same value,
+        // and two calls to a pure function are a way of saying so that costs a second hash of the
+        // whole page on every request.
+        $etag  = ETag::forBody($markup);
+        $cache = $this->cacheHeaders($etag);
 
         // A validator the browser already holds means the copy it already holds is current. 304 and
         // nothing else — no Content-Type, because there is no content to describe.
-        if (!$cache->isEmpty() && ETag::forBody($markup)->matches($request->ifNoneMatch())) {
+        if (!$cache->isEmpty() && $etag->matches($request->ifNoneMatch())) {
             http_response_code(HttpStatusCode::NotModified->value);
             self::sendAll($cache);
 
@@ -134,10 +140,11 @@ readonly class ViewResponse implements Response
      * {@link \NeuroSYS\Service\Auth} exits with never becomes a `Response` at all, and the 405 and
      * 503 are {@link PlainTextResponse}.
      *
-     * @param string $markup
+     * @param ETag $etag The validator for this body, hashed by the caller — which is also what the
+     *                   caller compares against `If-None-Match`, so the two cannot be a hash apart.
      * @return Collection<Header>
      */
-    private function cacheHeaders(string $markup): Collection
+    private function cacheHeaders(ETag $etag): Collection
     {
         $said = $this->headers->first(
             static fn(Header $header): bool => $header->name === ResponseHeader::CacheControl,
@@ -149,7 +156,7 @@ readonly class ViewResponse implements Response
 
         return new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::revalidate()),
-            new Header(ResponseHeader::ETag, ETag::forBody($markup)),
+            new Header(ResponseHeader::ETag, $etag),
             new Header(
                 ResponseHeader::Vary,
                 Vary::on(RequestHeader::RequestedWith, ...$this->view->varyOn()),

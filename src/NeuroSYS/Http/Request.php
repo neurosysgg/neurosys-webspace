@@ -146,12 +146,15 @@ readonly class Request
      * also reads one this could not: `///` is the root written wastefully and now comes back as
      * the root, instead of failing and falling through.
      *
-     * **The fallback is the target verbatim, not `/`.** A target this could not read is not a
-     * request for the home page, and answering one with the home page is the quiet kind of wrong:
-     * no route pattern matches a malformed target, so handing it through unchanged 404s the way
-     * every other unknown path does. Same instinct as `HttpMethod::tryFrom()` returning null rather
-     * than guessing GET. An *absent* `REQUEST_URI` is the different case and is still the root —
-     * that default is applied by the caller, before this ever sees it.
+     * **The fallback is the target, not `/`.** A target this could not read is not a request for
+     * the home page, and answering one with the home page is the quiet kind of wrong. Same instinct
+     * as `HttpMethod::tryFrom()` returning null rather than guessing GET. An *absent* `REQUEST_URI`
+     * is the different case and is still the root — that default is applied by the caller, before
+     * this ever sees it.
+     *
+     * It is the target's **path** rather than the whole of it, and this paragraph used to argue the
+     * opposite on a premise that was simply false — see {@link self::unparsedPath()}, where the
+     * correction is written down.
      *
      * Raw, not decoded: a route matches the target as it was sent, the way `parse_url()` gave it.
      *
@@ -161,7 +164,36 @@ readonly class Request
     private static function normalisePath(string $uri): string
     {
         // `?:` so a target of only slashes comes back as the root rather than as an empty string.
-        return rtrim(Uri::parse($uri)?->getRawPath() ?? $uri, '/') ?: '/';
+        return rtrim(Uri::parse($uri)?->getRawPath() ?? self::unparsedPath($uri), '/') ?: '/';
+    }
+
+    /**
+     * The path of a request target {@link Uri::parse()} could not read.
+     *
+     * Everything up to the first `?` or `#`, because that is where a path ends in a target however
+     * malformed the rest of it turns out to be. It is what {@link Uri::getRawPath()} would have
+     * answered had the parse succeeded, which is the whole job of a fallback.
+     *
+     * **This used to be the whole target, and the reason given for that was wrong rather than
+     * merely coarse.** {@link self::normalisePath()} argued that no route pattern matches a
+     * malformed target, so passing one through unchanged would 404 like any other unknown path.
+     * It does not: {@link \NeuroSYS\Support\Route::matches()} compiles `{slug}` into `([^/]+)`,
+     * which matches anything at all, so **every placeholder route matched** and whatever followed
+     * the `?` arrived inside a captured value. `/demos/x"y?a=1` reached
+     * {@link \NeuroSYS\Controller\DemoController} with a slug of `x"y?a=1` — and a demo's slug is
+     * what names its realm, so a query string reached a response header. See
+     * {@link \NeuroSYS\Service\Auth::demoRealm()} and {@link BasicChallenge}, which is where the
+     * other half of that is closed.
+     *
+     * The lesson is the narrow one: the claim was about {@link \NeuroSYS\Support\Route}, it was
+     * written in a file that does not import it, and checking it was one `matches()` call.
+     *
+     * @param string $uri
+     * @return string
+     */
+    private static function unparsedPath(string $uri): string
+    {
+        return substr($uri, 0, strcspn($uri, '?#'));
     }
 
     /**

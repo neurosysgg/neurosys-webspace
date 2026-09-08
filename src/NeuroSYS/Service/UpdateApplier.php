@@ -130,7 +130,7 @@ final readonly class UpdateApplier
         foreach ($entries as $entry) {
             // check() answers with the root rather than discarding it, which is what lets every
             // step below have one without asking a question that can be null. See UpdateFile.
-            $root = $this->check($entry->name);
+            $root = $this->check($entry);
 
             if (!$entry->isDirectory) {
                 $files = $files->with($entry->name, new UpdateFile($root, $entry->name, $entry->contents));
@@ -143,21 +143,42 @@ final readonly class UpdateApplier
     /**
      * Refuses a member name this site will not write, saying which rule it broke.
      *
-     * @param string $name
+     * **It takes the entry rather than the name, because two of the rules are about the pair.** A
+     * name is only half of what a member is, and a regular file may not be named as a directory or
+     * in place of one — see the two refusals below that ask `isDirectory`. Both are shapes no `tar`
+     * produces and neither could be reached without the private key; they are refused here because
+     * the alternative is a destination computed from them, and the one thing this class promises is
+     * that a member either passes every rule or writes nothing.
+     *
+     * @param TarEntry $entry
      * @return UpdateRoot The root it falls under. Returned rather than discarded so that no later
      *                    step has to ask again — the second asking is where a null appears that
      *                    this method has already made impossible.
      *
      * @throws UpdateException
      */
-    private function check(string $name): UpdateRoot
+    private function check(TarEntry $entry): UpdateRoot
     {
-        $name = rtrim($name, '/');
+        $name = rtrim($entry->name, '/');
 
         if ($name === '' || strlen($name) > self::MAX_NAME) {
             throw new UpdateException(sprintf(
                 'the archive holds a member whose name is empty or over %d bytes',
                 self::MAX_NAME,
+            ));
+        }
+
+        // A regular file whose name ends in a slash is malformed tar, and refusing it is what keeps
+        // the name this validates and the name UpdateFile carries the same string: the rtrim above
+        // would otherwise check `public/x` while the write went to `public/x/`, which File::write()
+        // cannot rename onto — reported as a failure rather than as the refusal it is.
+        //
+        // Asked *after* the emptiness check, deliberately: a name of `/` is both slash-terminated
+        // and nothing at all, and "there is no name here" is the more useful of the two sentences.
+        if (!$entry->isDirectory && str_ends_with($entry->name, '/')) {
+            throw new UpdateException(sprintf(
+                "the archive holds '%s' as a regular file, but that name is written as a directory",
+                $entry->name,
             ));
         }
 
@@ -187,6 +208,21 @@ final readonly class UpdateApplier
                     ->with(...UpdateRoot::cases())
                     ->map(static fn(UpdateRoot $root): string => $root->value)
                     ->join(', '),
+            ));
+        }
+
+        // A tree root matches its own name as well as anything under it, because an archive carries
+        // a directory entry for `public/` before the files in it — see UpdateRoot::of(). That is
+        // right for a directory member and wrong for a regular file: `Deployment::destination()`
+        // strips the prefix and one separator, so a *file* called `public` resolves to `substr()`
+        // of nothing and names the webroot directory itself. Nothing would be overwritten — the
+        // rename fails on a directory — but it would be reported as a write that failed rather than
+        // as a payload that was never legal.
+        if (!$entry->isDirectory && $root->isTree() && $name === $root->value) {
+            throw new UpdateException(sprintf(
+                "the archive holds '%s' as a regular file, but that name is a tree this push writes "
+                . 'into rather than a file it writes',
+                $name,
             ));
         }
 

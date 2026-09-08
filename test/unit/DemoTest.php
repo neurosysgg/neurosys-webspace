@@ -14,6 +14,7 @@ use NeuroSYS\Http\AcceptRanges;
 use NeuroSYS\Http\ByteRange;
 use NeuroSYS\Http\ContentLength;
 use NeuroSYS\Http\ContentRange;
+use NeuroSYS\Http\ETag;
 use NeuroSYS\Http\FileResponse;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
@@ -462,15 +463,54 @@ final class DemoTest extends TestCase
      */
     public function testEachDemoChallengesInItsOwnRealm(): void
     {
-        $realm = static fn(string $slug): string => new ReflectionProperty(
-            \NeuroSYS\Http\BasicChallenge::class,
-            'realm',
-        )->getValue(
+        self::assertSame('neuro.SYS demo: alien-house', self::demoRealmOf('alien-house'));
+        self::assertNotSame(self::demoRealmOf('alien-house'), self::demoRealmOf('wna-bootleg'));
+    }
+
+    /**
+     * A slug is encoded on the way into the realm, because a slug is what a visitor writes.
+     *
+     * An unknown demo is challenged exactly like a known one — that is the whole point of
+     * {@link Auth::requireDemoAuth()} taking a nullable `Demo` — so **any** `/demos/…` target
+     * reaches this, including one carrying bytes no route was meant to claim. `Request::path()`
+     * hands a target the URI parser refused straight through, and `{slug}` matches anything, so
+     * `a"b` used to arrive here and be concatenated into a quoted-string.
+     *
+     * {@link \NeuroSYS\Http\BasicChallenge} refuses that now, which is right for a realm written
+     * wrong in this repository and would be wrong here: it would turn a hostile target into a 500
+     * where a 401 belongs. So the slug is `rawurlencode`d and there is nothing left to refuse —
+     * the same treatment {@link \NeuroSYS\Support\SitePath::to()} gives the same value on the way
+     * out, and a no-op for every slug `tools/stage-demo.php` can mint, which is what keeps a saved
+     * credential keyed to the realm it was saved under.
+     *
+     * @return void
+     */
+    public function testAHostileSlugIsEncodedRatherThanRefused(): void
+    {
+        self::assertSame('neuro.SYS demo: a%22b', self::demoRealmOf('a"b'));
+        self::assertSame('neuro.SYS demo: x%22y%3Fa%3D1', self::demoRealmOf('x"y?a=1'));
+
+        // A real slug is untouched, so this costs nothing where it matters.
+        self::assertSame('neuro.SYS demo: wna-bootleg', self::demoRealmOf('wna-bootleg'));
+
+        // And the challenge still renders, which is the property the encoding exists to keep.
+        self::assertSame(
+            'Basic realm="neuro.SYS demo: a%22b"',
+            new ReflectionMethod(Auth::class, 'demoRealm')->invoke(null, 'a"b')->render(),
+        );
+    }
+
+    /**
+     * The realm one demo's challenge names, read off the private property that holds it.
+     *
+     * @param string $slug
+     * @return string
+     */
+    private static function demoRealmOf(string $slug): string
+    {
+        return new ReflectionProperty(\NeuroSYS\Http\BasicChallenge::class, 'realm')->getValue(
             new ReflectionMethod(Auth::class, 'demoRealm')->invoke(null, $slug),
         );
-
-        self::assertSame('neuro.SYS demo: alien-house', $realm('alien-house'));
-        self::assertNotSame($realm('alien-house'), $realm('wna-bootleg'));
     }
 
     // ───────────────────────────── ByteRange ─────────────────────────────
@@ -753,7 +793,8 @@ final class DemoTest extends TestCase
         $markup = (string) ob_get_clean();
 
         /** @var Collection<Header> $cache */
-        $cache = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $markup);
+        $cache = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')
+            ->invoke($response, ETag::forBody($markup));
 
         self::assertTrue($cache->isEmpty());
     }

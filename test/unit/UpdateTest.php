@@ -379,6 +379,42 @@ final class UpdateTest extends TestCase
         yield 'a fifo'            => ['public/evil.php', TarMemberType::Fifo->value, 'a fifo'];
         yield 'a long-name record' => ['././@LongLink', TarMemberType::LongName->value, 'a GNU long-name record'];
         yield 'a pax header'      => ['pax_global_header', TarMemberType::PaxGlobal->value, 'a pax global header'];
+
+        // Two shapes where the *name* is fine and the pair of name-and-kind is not. Neither is
+        // something `tar` produces and neither is reachable without the private key — they are
+        // refused because the alternative is a destination computed from them.
+        //
+        // A tree root matches its own name as well as anything under it, which is right for the
+        // directory entry `tar` writes for `public/` and wrong for a regular file called `public`:
+        // Deployment::destination() strips the prefix and one separator, so that resolves to the
+        // webroot directory itself. Nothing would be overwritten — rename() refuses a directory —
+        // but it would have been reported as a write that failed rather than a payload never legal.
+        yield 'a tree root as a file' => ['public', $file, 'a tree this push writes into'];
+        yield 'the other tree root'   => ['src', $file, 'a tree this push writes into'];
+
+        // And a regular file whose name is written as a directory, which is what keeps the name
+        // check() validates and the name UpdateFile carries the same string.
+        yield 'a file named as a dir' => ['public/x/', $file, 'written as a directory'];
+    }
+
+    /**
+     * The single-file root is *not* caught by the rule above, which is the whole reason that rule
+     * asks {@link \NeuroSYS\Model\Update\UpdateRoot::isTree()}.
+     *
+     * `autoload.php` is a member whose name is exactly its root, and it is the one legitimate case
+     * of that — a push that could not carry it would be a push that cannot replace the autoloader.
+     *
+     * @return void
+     */
+    public function testTheSingleFileRootIsStillWritableUnderItsOwnName(): void
+    {
+        $report = $this->applier()->apply(
+            (string) gzencode(self::member('autoload.php', '<?php // x')
+                . str_repeat("\0", self::BLOCK * 2)),
+            self::manifest(),
+        );
+
+        self::assertTrue($report->isComplete(), $report->render());
     }
 
     /**

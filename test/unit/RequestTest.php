@@ -72,12 +72,24 @@ final class RequestTest extends TestCase
         // three slashes — and they died in fromGlobals(), ahead of the read-only gate.
         //
         // Note the two different answers. `///` is the root written wastefully, and comes back as
-        // the root. The second is a target we could not read, and comes back verbatim so that it
-        // matches no route and 404s — answering it with the home page would be a quieter wrong.
+        // the root. The second is a target we could not read, and comes back as itself rather than
+        // as the home page, which would be the quieter wrong.
         yield 'only slashes'              => ['///', '/'];
         yield 'unparseable authority'     => ['//host:notaport/x', '//host:notaport/x'];
         yield 'unparseable, trailing slash' => ['//host:notaport/x/', '//host:notaport/x'];
         yield 'empty'                     => ['', '/'];
+
+        // A target the parser refuses is still cut at the `?` or the `#`, and these are the rows
+        // that were missing when it was not. The fallback used to be the *whole* target, on the
+        // reasoning that a malformed one matches no route — and Route compiles `{slug}` to
+        // `([^/]+)`, which matches anything, so `/demos/x"y?a=1` reached DemoController with a slug
+        // of `x"y?a=1` and a query string ended up inside a WWW-Authenticate realm. See
+        // testAMalformedTargetStillMatchesAPlaceholderRoute() in RoutingTest, which is the fact this
+        // file had no row for, and Request::unparsedPath().
+        yield 'unparseable, query cut'    => ['//host:notaport/x?a=1', '//host:notaport/x'];
+        yield 'unparseable, fragment cut' => ['//host:notaport/x#top', '//host:notaport/x'];
+        yield 'raw quote, query cut'      => ['/demos/x"y?a=1&b=2', '/demos/x"y'];
+        yield 'query only'                => ['/?a=1', '/'];
     }
 
     /**
