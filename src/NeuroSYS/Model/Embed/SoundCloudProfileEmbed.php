@@ -139,8 +139,9 @@ final readonly class SoundCloudProfileEmbed
             );
         }
         // Collection::with() rejects the wrong item; only its element type is left to check, which
-        // is the one thing a PHP generic cannot say. Same guard as SoundCloudEmbed::verify().
-        if ($this->options->type !== SoundCloudOption::class) {
+        // is the one thing a PHP generic cannot say. Same guard as SoundCloudEmbed::verify(),
+        // and behind it Release::verify(), where the is_a() is argued for.
+        if (!is_a($this->options->type, SoundCloudOption::class, true)) {
             throw new ReleaseVerificationException(
                 'SoundCloudProfileEmbed::options must be a Collection of \SoundCloudOption.'
             );

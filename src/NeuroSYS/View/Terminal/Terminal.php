@@ -44,8 +44,9 @@ final readonly class Terminal
         public bool            $narrow = false,
     ) {
         // Collection::with() rejects the wrong item; only its element type is left to check, which
-        // is the one thing a PHP generic cannot say. Same guard as Release::verify().
-        if ($this->fields->type !== TerminalField::class) {
+        // is the one thing a PHP generic cannot say. Same guard as Release::verify(), which is
+        // also where the reason it asks is_a() rather than !== is written down.
+        if (!is_a($this->fields->type, TerminalField::class, true)) {
             throw new ReleaseVerificationException(
                 'Terminal::fields must be a Collection of \TerminalField.'
             );

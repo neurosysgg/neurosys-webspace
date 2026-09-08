@@ -71,17 +71,37 @@ readonly class Release
     }
 
     /**
+     * Throws unless this release's two collections hold what they say they hold.
+     *
+     * {@link \NeuroSYS\Support\Collection::with()} already rejects a wrong *item*, so what is
+     * left is the **element type** — the one thing a PHP generic cannot say, since `@template T` is
+     * a docblock and erased at runtime. This is the canonical form of that guard; `Terminal`,
+     * `Demo`, `Arrangement` and both embeds carry the same one and point at this docblock for why.
+     *
+     * **It asks `is_a()` rather than `!==`, and the difference is covariance.** A
+     * `Collection<T>` for any `T` extending {@link Format} satisfies every consumer of this
+     * property — {@link self::findFormat()} calls only `Format` members — so refusing it would be
+     * invariance imposed on a structure whose immutability is exactly what makes covariance sound.
+     * The usual reason a container must demand invariance is a write path: hand out a
+     * `Collection<Format>` that is really a narrower list and somebody inserts a plain `Format`
+     * into it. There is none here. The collection is immutable, `with()` copies rather than
+     * appends, and every reader of these two properties across `src/` is a query — `map()`,
+     * `first()`, `isEmpty()`, `type` — with no `with()` among them.
+     *
+     * The third argument is what lets `is_a()` take a class-string rather than an object. A
+     * collection declared for a scalar answers `false` to it and is still refused, which is the
+     * half of the old comparison worth keeping.
      *
      * @return void
-     * @throws ReleaseVerificationException
+     * @throws ReleaseVerificationException if either collection holds something else.
      */
     private function verify(): void {
-        if ($this->formats->type !== Format::class) {
+        if (!is_a($this->formats->type, Format::class, true)) {
             throw new ReleaseVerificationException(
                 'Release::formats must be a Collection of \Format.'
             );
         }
-        if ($this->madeWith->type !== Plugin::class) {
+        if (!is_a($this->madeWith->type, Plugin::class, true)) {
             throw new ReleaseVerificationException(
                 'Release::madeWith must be a Collection of \Plugin.'
             );

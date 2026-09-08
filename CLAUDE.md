@@ -509,7 +509,22 @@ content, and without it `<h1>ill<span>.</span></h1>` would gain a space inside t
 `array` with a `foreach`-and-`instanceof` check in a constructor is the thing they replace — that
 loop existed three times, in `Release`, `Terminal` and `SoundCloudEmbed`, and it is now
 `TypedItems::guard()`'s single `TypeError`. What is left to check by hand is the *element type*, the
-one thing a PHP generic cannot say: `$this->fields->type !== TerminalField::class`.
+one thing a PHP generic cannot say: `is_a($this->fields->type, TerminalField::class, true)`, in
+seven places.
+
+**That check asks `is_a()` rather than `!==`, and the difference is covariance.** A collection of
+any subclass of `Format` is a perfectly good `Collection<Format>` for every consumer of
+`Release::$formats`, so refusing it was invariance imposed on a structure whose immutability is
+exactly what makes covariance sound. The usual reason a container must demand invariance is a write
+path — hand out a `Collection<Format>` that is really a narrower list and somebody inserts a plain
+`Format` into it — and there is none here: `with()` copies rather than appends, and every reader of
+the seven guarded properties across `src/` is a query (`map()`, `first()`, `last()`, `isEmpty()`,
+`count()`, `toValues()`, `type`) with no `with()` among them. It changes behaviour on exactly one of
+the seven today, because `Format` is the only element type they name that is not `final` — the rest
+are `final` classes or an enum, where the two spellings cannot differ. Which makes it a statement of
+what the guard means rather than a fix: it now says *at least* this type, which is what a read-only
+collection can honestly promise. The argument lives on `Release::verify()` and the other six point
+at it.
 
 **What they share is a trait, `Support/TypedItems`, and not a base class** — the codebase's only
 trait, and the reason is worth stating. The two are not substitutable and never should be: one is a

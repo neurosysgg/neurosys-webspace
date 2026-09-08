@@ -74,7 +74,10 @@ final readonly class Demo
      */
     private function verify(): void
     {
-        if ($this->tracks->type !== DemoTrack::class) {
+        // Collection::with() rejects the wrong item; only its element type is left to check, which
+        // is the one thing a PHP generic cannot say. Same guard as Release::verify(), which is
+        // also where the reason it asks is_a() rather than !== is written down.
+        if (!is_a($this->tracks->type, DemoTrack::class, true)) {
             throw new ReleaseVerificationException(
                 'Demo::$tracks must be a Collection of \DemoTrack.'
             );

@@ -264,4 +264,53 @@ final class ModelTest extends TestCase
             new HiDriveLink('abcdefghi')->url(),
         );
     }
+
+    /**
+     * A narrower collection is still a collection of formats.
+     *
+     * The guard asks `is_a()` rather than `!==`, so a `Collection` of any subclass of
+     * {@link Format} is accepted — {@link Release::verify()} carries the argument, which is that
+     * the collection's immutability is what makes covariance sound here. `Format` is the only one
+     * of the element types those guards name that is not `final`, so this is the only property on
+     * which the direction is reachable at all.
+     *
+     * @return void
+     */
+    public function testAReleaseAcceptsASubclassOfWhatItsFormatsHold(): void
+    {
+        $format = new readonly class (ReleaseFormat::FLAC) extends Format {};
+
+        $release = new Release(
+            title:       'ill.',
+            bpm:         140,
+            key:         MusicalKey::DSharpMinor,
+            genre:       Genre::Dubstep,
+            description: 'second single',
+            cover:       null,
+            formats:     new Collection($format::class)->with($format),
+        );
+
+        self::assertSame($format, $release->findFormat(ReleaseFormat::FLAC));
+    }
+
+    /**
+     * The other direction, which had no test at all: an unrelated element type is still refused.
+     *
+     * @return void
+     */
+    public function testAReleaseRefusesFormatsThatAreNotFormats(): void
+    {
+        $this->expectException(ReleaseVerificationException::class);
+        $this->expectExceptionMessage('Release::formats must be a Collection of \\Format.');
+
+        new Release(
+            title:       'ill.',
+            bpm:         140,
+            key:         MusicalKey::DSharpMinor,
+            genre:       Genre::Dubstep,
+            description: 'second single',
+            cover:       null,
+            formats:     new Collection(HiDriveLink::class),
+        );
+    }
 }

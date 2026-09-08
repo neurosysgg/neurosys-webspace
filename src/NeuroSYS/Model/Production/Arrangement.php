@@ -34,7 +34,10 @@ final readonly class Arrangement
         public Collection $sections,
         public int $ppq = 96,
     ) {
-        if ($this->sections->type !== Section::class) {
+        // Collection::with() rejects the wrong item; only its element type is left to check, which
+        // is the one thing a PHP generic cannot say. Same guard as Release::verify(), which is
+        // also where the reason it asks is_a() rather than !== is written down.
+        if (!is_a($this->sections->type, Section::class, true)) {
             throw new ReleaseVerificationException(
                 'Arrangement::sections must be a Collection of \Section.'
             );
