@@ -492,6 +492,74 @@ caller can reach is the only one that mattered.
   drift the commit's own guards were written against, closed the same way. A non-absolute
   `DOCUMENT_ROOT` is now refused before the containment check runs. `ConfigTest` pins it.
 
+## The newer surfaces, reviewed (2026-09-09)
+
+The work since the two passes above — the per-demo realm a visitor's slug names, the route claim
+`Request::path()` used to make and could not keep, and the `/update` hardenings — got a live pass of
+its own, run against a local Apache 2.4 rather than the built-in dev server, because that is the
+version the live host runs *and* the one place the realm fix was ever needed: Strato's proxy
+percent-encodes a hostile target before PHP sees it, so a bare Apache is the only environment where
+the malformed realm was reachable at all. The pass fired the demo-realm reflection (raw `"`, `\`,
+`%`, encoded and raw CR/LF, NUL and spaces in the slug), `/update` under every verb and with
+malformed and well-framed-but-unsigned bodies, the `Accept-Language` parser the bilingual pages
+added, the method, caching and download-redirect paths, and re-ran the path, method and auth fuzzing
+of the first pass against the real SAPI rather than CLI.
+
+**No exploitable issue was found, and the newer defenses held exactly as written.** The realm's
+two-layer fix held front to back: `rawurlencode()` turned every `"` into `%22` and every `\` into
+`%5C` before `BasicChallenge` was constructed, so its `qdtext` check never had to throw, and a raw
+CR, LF, space or NUL in the target was a `400` at the wire, ahead of PHP. `/update` was
+indistinguishable from a typo under GET/HEAD/POST/PUT/DELETE/PATCH/PROPFIND and an unknown verb — the
+same status, `Allow` and body an unrouted path gives — and a body with the wrong magic, a truncated
+length prefix, an over-limit segment or a valid frame carrying a random signature each came back the
+same `405`, in about a millisecond and without a `500`; the signature-before-parse ordering is what
+keeps the last of those cheap. A 10 MB unsigned `POST` was refused without exhausting memory, though
+on this rig the precondition the body-cap fix targets did not even obtain — `post_max_size` and
+`MAX_BODY` are both 8 MB, so it is only a host where the former outruns `memory_limit` that pays. The
+demo gate's constant-time refusal was confirmed with a stopwatch rather than read: a slug that names
+nothing and a known slug with the wrong password both answered `401` in 157–158 ms, a spread of about
+a millisecond, because `PasswordHash::unmatchable()` is a real cost-12 digest and pays what the real
+ones do. `Accept-Language` resolved every malformed value to the default rather than to a `500` and
+reflected none of it — the choice is one of two `Language` cases and the raw header reaches no sink.
+Security headers covered every application response including the `401`, `404`, `405` and `303`, and
+`X-Powered-By` was gone under the real SAPI, which is the one place it can be seen to go.
+
+Two observations came out of it, and neither is a code finding — the first is not the application's
+to fix and the second is a decision — so both are recorded here rather than closed in a commit.
+
+- **`TRACE` is answered by the server, not the site — low severity, and not reachable through this
+  code at all.** Apache's default `TraceEnable On` answers a `TRACE` before the request reaches
+  `index.php`, echoing the request's own headers back in a `message/http` body — and because it never
+  reaches PHP, that response carries none of the security headers a real one does. It is the same
+  "static assets never reach PHP" gap named earlier, one step worse because the echoed body is
+  attacker-shaped. It is bounded on every side that matters: a browser refuses to issue a
+  cross-origin `TRACE`, so the classic cross-site-tracing route to a stored credential is closed in
+  the client; the site sets no cookie to harvest; and the `Authorization` header both gates read is
+  not one a cross-site `TRACE` could originate. It is recorded because it is a standard hardening
+  item and because it cannot be fixed where the rest of this file's Apache config lives —
+  `TraceEnable` is a server-level directive, invalid in `.htaccess`, so the only lever this
+  repository has on shared hosting is a `RewriteRule` that refuses the method at the edge. Worth a
+  `curl -X TRACE` against the live host to learn which way Strato has it; the local rig has it on, and
+  the local rig is not Strato. (An overlong target is the server's to answer too, and does: past
+  roughly 4 KB Apache cannot map the path to a file and returns `AH00127`/`403`, and past its
+  request-line limit a `414` — both route-independent, and neither reaching a real slug.)
+- **The SoundCloud `secret-token` is public in a release page — by design, and noted because the
+  name argues otherwise.** A private or scheduled track embeds with a `secret-token`, and the release
+  page that plays it is public, so the token is rendered into public HTML where anyone can read it.
+  That is correct: the token is a per-track capability to *play an unlisted track*, not a credential
+  to the account, and a public page whose whole purpose is to play the track is exactly where it
+  belongs. It is written down because "secret" reads like something the page ought to be hiding and
+  it is not — a track given one here is as playable as a public one to anyone who loads the page,
+  which is the intended reach and worth confirming against the intent for each release.
+
+One surface was reviewed rather than exercised, and the gap is named rather than papered over.
+`FileResponse` and `ByteRange` — the demo-audio byte-range path — sit behind a demo's password, so
+the `Range`-header fuzzing that would belong here (suffix ranges, a `0-0` probe, a backwards
+`500-100`, offsets past the end, the `416` boundary) was read for correctness rather than fired at a
+running server: the 256 KB chunked stream never holds a whole file in memory, and the
+`min(chunk, remaining)` read cannot overshoot a range's end. It is the one newer parser this pass
+could not reach without a credential.
+
 ## What is deliberately not here
 
 - **No web-application firewall, no rate limiting layer.** This is a static site on shared hosting;
