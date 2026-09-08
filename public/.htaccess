@@ -11,10 +11,24 @@ DirectoryIndex index.php
     SetHandler default-handler
 </FilesMatch>
 
-# Compress what compresses. Measured on the live host 2026-09-05: Strato sends no Content-Encoding
-# at all, so main.js arrived as 1,589 bytes of plain text, byte-identical to the file on disk. The
-# whole module graph is ~50 KB raw and ~24 KB gzipped, and the stylesheet another 13 KB — so this
-# block is worth more than any build-side change we can make, and costs nothing to ship.
+# Compress what compresses.
+#
+# Read the two dates together, because they disagree and that is the point. On 2026-09-05 the live
+# host sent no Content-Encoding at all and main.js arrived as 1,589 bytes of plain text,
+# byte-identical to the file on disk. On 2026-09-06, with nothing in this repository changed
+# between the two readings, the same request came back gzipped. A shared host can gain or lose a
+# module without telling anybody and the failure is silent in both directions, so this block is
+# written to be worth having whenever it happens to be in effect, and is re-checked after a deploy
+# rather than assumed. The curl for that is at the end of this comment.
+#
+# Worth roughly 81% of every document and 6 KB of the JS bundle — see docs/performance.md.
+#
+# Two things this does not reach, both measured locally on 2026-09-08 and neither fixable here:
+#
+#   - Non-2xx responses are not compressed. The 404 comes back at its full ~6.9 KB under the same
+#     Content-Type the 200s compress under, and Apache's own error documents behave identically —
+#     the error path does not carry the filter chain AddOutputFilterByType installs.
+#   - Nothing already compressed. See the deliberate omissions below.
 #
 # Listed by the type the server actually sends, not the type we assume: .js comes back as
 # `text/javascript` here, so `application/javascript` alone would silently match nothing.

@@ -9,29 +9,47 @@
  *
  *     public/                       ← readable, mapped, committed, tested
  *           ↓ npm run build:prod
- *     build/dist/public/            ← minified, no maps; what deploy.sh rsyncs to the webroot
+ *     build/dist/public/            ← one bundled module, minified, no maps; what deploy.sh rsyncs
  *     build/dist/src/NeuroSYS/AssetManifest.php
  *
- * Two things change, and both are only worth doing here:
+ * Three things change, and all three are only worth doing here:
  *
- *   1. **The maps go.** 79,354 bytes across 42 files, three times the JS they describe, and
+ *   1. **The maps go.** 79,354 bytes across the tree, three times the JS they describe, and
  *      `tsconfig`'s `inlineSources` puts the whole commented TypeScript inside each one. Static
  *      assets are served straight by Apache and reach neither auth gate (docs/security.md), so on
  *      the live host those are public files. The source is on GitHub, which is a reason not to
  *      worry about it rather than a reason to serve a second copy from Strato.
- *   2. **The JS is minified.** Measured over the 42 separate responses the browser actually makes,
- *      which is the number that matters here because nothing is bundled: 11,807 gzipped bytes
- *      before, 9,555 after — 2,252 saved, 19.1%. `tsconfig` used to argue this was worth ~260
- *      bytes; that is roughly what you measure on a *concatenated* stream, where gzip's window
- *      spans the whole graph and does the work identifier mangling would have done. Per file the
- *      window is one small module and it does not.
+ *   2. **The graph is bundled into one module**, which is the change that pays for the rest.
+ *      Forty-nine files gzip to 12,798 bytes as forty-nine responses and to 5,801 as one — 6,997
+ *      saved, 54.7%, because gzip's window then spans the whole graph instead of restarting at
+ *      every small module. It also turns forty-nine requests into one and empties the preload list,
+ *      which takes another ~400 bytes off *every document* — see Layout::modulePreloads().
+ *   3. **The JS is minified.** Worth much less than it used to be and still worth doing: the
+ *      compression above already does most of the work identifier mangling would have done, which
+ *      is exactly what `tsconfig`'s old ~260-byte figure was measuring on a concatenated stream.
+ *
+ * **Why the debug tree does not get any of this.** public/ is imported by test/js/ by path, pinned
+ * by `npm run coverage`'s 100% gate, and diffed byte-for-byte against a fresh `tsc`. All three want
+ * output a person can read. Bundling it would cost every one of them; bundling here costs nothing,
+ * because the tests reach the elements through one `import main.js` and the DOM — so re-running
+ * them with NEUROSYS_JS_DIR set still executes exactly the bytes the server sends.
  *
  * **`keep_classnames` is load-bearing, not a default left alone.** `NestedElement.tagOf()` falls
  * back to `constructor.name` when `customElements.getName` is missing, and that is the text of the
  * error a misnested tag throws — the whole reason those classes are not empty. Mangling class names
- * would turn `<terminal-key> must be inside <terminal-field>` into `must be inside <e>`. It is also
- * why terser rather than esbuild: esbuild implements the same guarantee by injecting a `__name`
- * helper into every file, which on 42 small modules costs 1,868 of the 2,252 bytes minifying won.
+ * would turn `<terminal-key> must be inside <terminal-field>` into `must be inside <e>`.
+ *
+ * **It takes both tools to keep, and terser's option alone is not enough.** Bundling rewrites some
+ * `class X extends Y {}` declarations into `var X = class extends Y {}`, whose name is inferred
+ * from the binding rather than declared — and `keep_classnames` only protects a declared one. So
+ * terser mangles the binding and the error becomes `<terminal-key> must be inside <P>`. esbuild's
+ * `keepNames` emits an explicit name assignment that survives it. That option is the reason this
+ * file used to say "terser rather than esbuild", because it injects a `__name` helper and on 42
+ * separate modules that cost 1,868 of the 2,252 bytes minifying won. In one bundle the helper is
+ * emitted once: 256 gzipped bytes. The objection was real and bundling is what answered it.
+ *
+ * The suite catches this rather than the reasoning being trusted — it is what caught it the first
+ * time. test/basic_test.sh re-runs every client test against these bytes.
  *
  * `mangle.properties` stays off for the same kind of reason one step further out: `connectedCallback`,
  * `observedAttributes` and `attributeChangedCallback` are contracts with the browser rather than
@@ -46,8 +64,9 @@
  * a failed build leaves no partial one to be deployed by mistake.
  */
 
+import { build as esbuild } from 'esbuild';
 import { minify } from 'terser';
-import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync }
+import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync }
   from 'node:fs';
 import { join, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -102,14 +121,36 @@ if (sources.length === 0) {
   fail(`${label(JS)} holds no modules. Run \`npm run build\` — there is nothing here to ship.`);
 }
 
-let before = 0;
-let after  = 0;
+// One pass over the graph from the entry, concatenating it into a single ES module. esbuild is a
+// bundler here and nothing else: no minify, no target lowering beyond what tsc already emitted.
+// That division is the whole reason it can be used at all — see `keep_classnames` at the top.
+const graph = await esbuild({
+  entryPoints: [join(JS, 'main.js')],
+  bundle:      true,
+  format:      'esm',
+  target:      'es2022',
+  write:       false,
 
-for (const source of sources) {
-  const target = join(DIST_JS, relative(JS, source));
-  const code   = readFileSync(source, 'utf8');
+  // Load-bearing, and terser's keep_classnames is not enough on its own — see the note at the top.
+  // Bundling rewrites some `class X extends Y {}` declarations into `var X = class extends Y {}`,
+  // whose name is inferred from the binding; terser then mangles that binding to `P` and
+  // NestedElement.tagOf() starts reporting `<terminal-key> must be inside <P>`. keepNames emits an
+  // explicit name assignment that survives any mangling. Measured at 256 gzipped bytes.
+  keepNames: true,
 
-  const result = await minify(code, {
+  // Nothing here is fetched from a CDN and nothing is a bare specifier — build-assets.mjs fails the
+  // build over either — so every import resolves on disk. A `platform` would only start inventing
+  // node or browser resolution rules for a graph that needs neither.
+  logLevel: 'silent',
+});
+
+const bundledCode = Buffer.from(graph.outputFiles[0].contents).toString('utf8');
+
+const before = sources.reduce((sum, file) => sum + Buffer.byteLength(readFileSync(file, 'utf8')), 0);
+let   after  = 0;
+
+{
+  const result = await minify(bundledCode, {
     ecma: 2022,
 
     // Without this terser parses the file as a script, where a top-level `import` is a syntax
@@ -130,13 +171,20 @@ for (const source of sources) {
   });
 
   if (result.code === undefined) {
-    fail(`${label(source)} did not minify: ${result.error ?? 'terser returned no code'}`);
+    fail(`the bundle did not minify: ${result.error ?? 'terser returned no code'}`);
   }
 
-  before += Buffer.byteLength(code);
-  after  += Buffer.byteLength(result.code);
+  after = Buffer.byteLength(result.code);
 
-  writeFileSync(target, result.code, 'utf8');
+  // The copy above put all forty-nine readable modules and their maps here. Every one of them is
+  // now dead — the bundle contains them, and nothing imports them — so the directory is replaced
+  // rather than written into. Left behind they would ship as unreferenced files under a manifest
+  // that names none of them: three times the payload, with the maps that were deleted for a reason
+  // among them, and no symptom in a browser at all.
+  rmSync(DIST_JS, { recursive: true, force: true });
+  mkdirSync(DIST_JS, { recursive: true });
+
+  writeFileSync(join(DIST_JS, 'main.js'), result.code, 'utf8');
 }
 
 // ── everything was actually minified ────────────────────────────────────────────────────────────
@@ -148,22 +196,33 @@ for (const source of sources) {
 //
 // All 42 change under terser today, so "none identical" is a real property rather than a hopeful
 // one. It is the cheapest statement that distinguishes a minified tree from a copied one.
-const untouched = sources
-  .filter((file) => readFileSync(file, 'utf8') === readFileSync(join(DIST_JS, relative(JS, file)), 'utf8'))
-  .map((file) => relative(JS, file));
+const shippedJs  = filesEnding(DIST_JS, '.js');
+const shippedMaps = filesEnding(DIST_PUB, '.map');
 
-if (untouched.length > 0) {
-  fail(`${untouched.length} shipped module(s) are byte-identical to the readable tree, so the\n`
-     + '              copy is what would deploy rather than the minified output:\n'
-     + untouched.map((path) => `              ${path}`).join('\n'));
+if (shippedJs.length !== 1) {
+  fail(`the shipped tree holds ${shippedJs.length} modules where it should hold one bundle:\n`
+     + shippedJs.map((file) => `              ${label(file)}`).join('\n'));
 }
 
-// ── the maps ────────────────────────────────────────────────────────────────────────────────────
+if (shippedMaps.length > 0) {
+  fail(`${shippedMaps.length} source map(s) survived into the shipped tree:\n`
+     + shippedMaps.map((file) => `              ${label(file)}`).join('\n'));
+}
 
-const maps = filesEnding(DIST_JS, '.map');
+const bundle = readFileSync(shippedJs[0], 'utf8');
 
-for (const map of maps) {
-  unlinkSync(map);
+// The sharpest of the three, and the reason this block exists at all. A surviving relative import
+// means esbuild resolved nothing and this file is main.js by itself — while every module it asks
+// for was just deleted with the rest of the copy. The page then 404s its way down the graph one
+// wave at a time, and nothing says so until it is live.
+if (/(?:^|\n)\s*(?:import|export)\b[^\n]*?['"]\.[^'"\n]*['"]/.test(bundle)) {
+  fail(`${label(shippedJs[0])} still names a relative import, so it was never bundled.\n`
+     + '              Everything it imports was removed along with the rest of the copy.');
+}
+
+if (after >= before) {
+  fail(`the bundle is ${after} bytes against ${before} for the readable tree, and should be far\n`
+     + '              smaller. Either the bundling or the minification did not happen.');
 }
 
 // Belt over braces on `format.comments`, because the failure it guards is invisible from here: a
@@ -180,15 +239,22 @@ if (stragglers.length > 0) {
 
 // ── the manifest ────────────────────────────────────────────────────────────────────────────────
 
-// The same URLs as the committed manifest under a different stamp, which is exactly right: the
-// bytes at those URLs are different bytes, and a stamp is a claim about content.
+// The same stylesheet and entry URLs as the committed manifest under a different stamp — the bytes
+// at those URLs are different bytes, and a stamp is a claim about content. What differs beyond the
+// stamp is MODULES, which is empty here: the graph ships as one file, so there is no wave-at-a-time
+// discovery for a preload hint to flatten. The committed manifest still lists all forty-six,
+// because the debug tree still ships forty-nine modules and is still discovered that way.
+//
+// The graph is walked in the readable tree and the bytes are read from the bundle. That is the same
+// split --graph-dir was added for, taken one step further: the shape of the graph is a property of
+// the sources, and after bundling there is no shipped tree left with a shape to read.
 const MANIFEST = join(DIST, 'src/NeuroSYS/AssetManifest.php');
 
 try {
   execFileSync(process.execPath, [
     join(ROOT, 'tools/build-assets.mjs'),
     '--graph-dir', JS,
-    '--js-dir', DIST_JS,
+    '--bundle', join(DIST_JS, 'main.js'),
     '--css', join(DIST_PUB, 'assets/css/style.css'),
     '--out', MANIFEST,
   ], { stdio: ['ignore', 'ignore', 'inherit'] });
@@ -198,5 +264,5 @@ try {
 
 const percent = (100 * (1 - after / before)).toFixed(1);
 
-console.log(`build-prod: ${sources.length} modules ${before} → ${after} bytes (${percent}% off), `
-          + `${maps.length} maps dropped → ${label(DIST)}`);
+console.log(`build-prod: ${sources.length} modules bundled into one, ${before} → ${after} bytes `
+          + `(${percent}% off), ${sources.length} maps dropped → ${label(DIST)}`);

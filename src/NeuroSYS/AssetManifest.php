@@ -32,7 +32,14 @@ final class AssetManifest
     /** The entry point — the only `<script>` the site loads — versioned. */
     public const string SCRIPT = '/assets/js/v-5bad205e/main.js';
 
-    /** @var list<string> Every module the entry reaches, versioned, sorted, the entry excluded. */
+    /**
+     * @var list<string> Every module the entry reaches, versioned, sorted, the entry excluded.
+     *
+     * **Empty when the graph shipped as one bundle**, which is the feature switching itself off
+     * rather than a manifest that failed to generate. A preload hint flattens the wave-at-a-time
+     * walk an ES module tree is discovered by; one file has no walk left to flatten.
+     * {@link Layout::modulePreloads()} maps over this, so empty emits no links at all.
+     */
     public const array MODULES = [
         '/assets/js/v-5bad205e/Config.js',
         '/assets/js/v-5bad205e/Navigation.js',

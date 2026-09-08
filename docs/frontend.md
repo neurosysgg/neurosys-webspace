@@ -5,8 +5,10 @@ what to do when you need to add one. The server side has its own doc
 ([architecture.md](architecture.md)); the facts both sides state have a third
 ([contracts.md](contracts.md)).
 
-No framework, no bundler, no runtime dependency. TypeScript compiles to browser-native ES modules;
-the stylesheet is concatenated from its parts. Both outputs are committed.
+No framework and no runtime dependency. TypeScript compiles to browser-native ES modules; the
+stylesheet is concatenated from its parts. Both outputs are committed, and both are what a person
+develops against — the tree in `public/` is forty-nine separate modules and no bundler has touched
+it. One runs over the copy that deploys, which is a different tree; see *Debug and prod* below.
 
 ---
 
@@ -43,16 +45,20 @@ The CSS check needs only `node`, so it runs on a bare clone. The TypeScript chec
 ### Debug and prod
 
 `public/` is the debug tree and is not what ships. `npm run build:prod` derives `build/dist/` from
-it — every module minified, all 42 source maps deleted, and a manifest of its own — and that is what
-`deploy.sh` uploads. `public/` stays readable because three things read it by path: `test/js/`
-imports the modules, the coverage gate is pinned to `public/assets/js/**`, and the drift check above
-is a byte-for-byte diff.
+it — the whole graph bundled into one module by esbuild, minified by terser, every source map
+deleted, and a manifest of its own — and that is what `deploy.sh` uploads. `public/` stays readable
+and unbundled because three things read it by path: `test/js/` imports the modules, the coverage
+gate is pinned to `public/assets/js/**`, and the drift check above is a byte-for-byte diff.
 
-Worth 2,252 gzipped bytes over the 42 responses the browser makes, and 79,354 bytes of commented
-TypeScript no longer sitting on a public URL. The verify script builds the tree, asserts it ships no
-map, diffs the two manifests with the stamp normalised away, and re-runs the whole client-side suite
-against the minified bytes via `NEUROSYS_JS_DIR`. See CLAUDE.md's *Debug and prod builds* for the
-reasoning, `tools/build-prod.mjs` for the terser settings and why `keep_classnames` is not optional.
+Worth 6,997 gzipped bytes and 48 of the 49 requests, another ~385 gzipped bytes off every document
+once the preload list empties, and 79,354 bytes of commented TypeScript no longer sitting on a
+public URL — see [performance.md](performance.md) for the measurements. The verify script builds the
+tree, asserts it ships no map, checks the prod manifest points where the committed one does and
+preloads nothing, and re-runs the whole client-side suite against the shipped bytes via
+`NEUROSYS_JS_DIR`. That last one still works across a bundle because `test/js/dom.mjs` reaches the
+elements through one `import main.js` and the DOM, never by module path. See CLAUDE.md's *Debug and
+prod builds* for the reasoning, and `tools/build-prod.mjs` for why it takes both esbuild's
+`keepNames` and terser's `keep_classnames` to keep an error message readable.
 
 ### Why the sources sit outside `public/`
 
@@ -434,5 +440,6 @@ See [testing.md](testing.md) for the full picture, including the PHP suites.
 - [architecture.md](architecture.md) — the PHP side
 - [contracts.md](contracts.md) — the PHP↔TypeScript seam and what guards it
 - [testing.md](testing.md) — both suites and the invariants
+- [performance.md](performance.md) — the measurements behind the build decisions here
 - [branding.md](branding.md) — why brand assets are vendored, and the consent reasoning behind the gate
 - `CLAUDE.md` — the long-form rationale

@@ -116,5 +116,7 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
   a release entry from its prepared folder, what the folder knows, what it cannot, what the preflight
   checks before upload, and the SoundCloud client that fills in the last three ids
 - [testing.md](testing.md) — the two test suites and the invariants they protect
+- [performance.md](performance.md) — what a request costs and where it goes: cold against warm, the
+  phase breakdown, compression, and the payload the front end actually ships
 - [branding.md](branding.md) — vendored brand assets and profile links
 - [security.md](security.md) — the security posture, hardenings, and assessment findings

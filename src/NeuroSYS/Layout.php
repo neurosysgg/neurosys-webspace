@@ -78,14 +78,23 @@ class Layout
     }
 
     /**
-     * One `<link rel="modulepreload">` per module the entry point reaches.
+     * One `<link rel="modulepreload">` per module the entry point reaches — and none at all when
+     * the entry point is a bundle.
      *
      * An ES module graph is discovered a wave at a time — the browser learns it needs
-     * `model/CssClass.js` only after parsing four files that led to it — so this graph costs five
-     * sequential round trips before the last module begins downloading. Declared here, the preload
-     * scanner sees all forty-one at once and that becomes one. It is the only one of the three
-     * front-end costs that is latency rather than bytes, which is why compressing and stripping
-     * comments do not touch it.
+     * `model/CssClass.js` only after parsing four files that led to it — so the debug tree's graph
+     * costs five sequential round trips before the last module begins downloading. Declared here,
+     * the preload scanner sees all forty-six at once and that becomes one. It is the only one of
+     * the three front-end costs that is latency rather than bytes, which is why compressing and
+     * stripping comments do not touch it.
+     *
+     * **What ships has no waterfall left to flatten.** `tools/build-prod.mjs` bundles the graph into
+     * one module, so {@link AssetManifest}'s `MODULES` is empty there and this returns nothing — the
+     * browser is told to fetch one file, and it has that instruction already from the `<script src>`.
+     * The committed manifest still lists all forty-six, because the debug tree still ships forty-nine
+     * modules and `npm run dev` still serves them that way. So this is live on the tree a person
+     * develops against and inert on the tree a visitor loads, which is the right way round: the hint
+     * buys back a cost that bundling removes outright.
      *
      * After the stylesheet, deliberately: that one blocks rendering and these do not.
      *
@@ -98,10 +107,10 @@ class Layout
      * script, so this cannot quietly describe a graph that has moved on. Each href carries the same
      * build-stamp path segment the module's own specifier resolves to — they come from the same
      * stamp in the same pass, which is the point of one tool owning both. A hint that resolved to a
-     * different URL from the specifier
-     * worse than nothing.
+     * different URL from the specifier would have the browser fetch the file twice, which is worse
+     * than nothing.
      *
-     * @return list<Element> The preload links, in the generated order.
+     * @return list<Element> The preload links, in the generated order; empty for a bundled tree.
      */
     #[BareArray(
         'spread into containing(), which is a variadic PHP already guards. A collection does not '

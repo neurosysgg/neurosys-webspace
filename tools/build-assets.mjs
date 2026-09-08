@@ -53,8 +53,10 @@
  *   node tools/build-assets.mjs                       # stamps public/, writes the manifest
  *   node tools/build-assets.mjs --js-dir <dir> \      # against a scratch tree, for the drift check
  *                              --css <file> --out <path>
- *   node tools/build-assets.mjs --graph-dir <dir> \   # walk one tree, hash another — the prod build
+ *   node tools/build-assets.mjs --graph-dir <dir> \   # walk one tree, hash another
  *                              --js-dir <dir> --css <file> --out <path>
+ *   node tools/build-assets.mjs --graph-dir <dir> \   # walk the graph, hash one bundle — the prod
+ *                              --bundle <file> --css <file> --out <path>      # build
  *
  * No dependencies. Exits non-zero with the reason on stderr; it never writes a partial manifest.
  */
@@ -65,7 +67,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 
 import { ROOT, cli } from './build-cli.mjs';
 
-const { fail, label, path } = cli('build-assets', ['js-dir', 'graph-dir', 'css', 'out']);
+const { fail, label, path } = cli('build-assets', ['js-dir', 'graph-dir', 'css', 'out', 'bundle']);
 
 /** The URL prefixes public/assets/{js,css}/ are served under. */
 const JS_BASE  = '/assets/js';
@@ -102,6 +104,22 @@ const CSS_FILE = path('css', join(ROOT, 'public/assets/css/style.css'));
 const MANIFEST = path('out', join(ROOT, 'src/NeuroSYS/AssetManifest.php'));
 const ENTRY    = join(GRAPH_DIR, 'main.js');
 
+/**
+ * The one file the whole graph was bundled into, or `''` when nothing was bundled.
+ *
+ * Its presence is the mode switch, which is why it names the bundle rather than being a boolean:
+ * every flag in tools/build-cli.mjs takes a path, deliberately, and a single caller is a poor
+ * reason to teach that helper a second kind of argument. `path()` hands the fallback back
+ * unresolved, so `''` is a value no real path collides with.
+ *
+ * What changes under it is narrow, and worth stating because everything else is the same tool
+ * doing the same job. The graph is still walked — it is what proves the entry reaches every module
+ * and what catches a cycle — and the stamp is still one hash over what ships. Only two things
+ * move: the bytes hashed are the bundle's rather than forty-seven files', and MODULES is empty,
+ * because a bundle has no waterfall for a preload hint to flatten.
+ */
+const BUNDLE = path('bundle', '');
+
 /** Eight hex characters of SHA-256 — 32 bits over forty-two files, so a collision is not a risk. */
 function digest(content) {
   return createHash('sha256').update(content).digest('hex').slice(0, 8);
@@ -127,6 +145,16 @@ function shipped(file) {
   } catch {
     return fail(`${label(file)} is in the module graph, but ${label(at)} does not exist.\n`
               + '              The tree being hashed is missing a module the tree being walked has.');
+  }
+}
+
+/** The bundle's bytes — what the browser receives when the whole graph ships as one file. */
+function bundled() {
+  try {
+    return readFileSync(BUNDLE, 'utf8');
+  } catch {
+    return fail(`${label(BUNDLE)} was named with --bundle, and does not exist.\n`
+              + '              That flag says the graph ships as one file; this is the file.');
   }
 }
 
@@ -220,23 +248,34 @@ walk(ENTRY, 'the build');
  * `php -S` the verify script runs. That pair is a mirror, and pinned like the others.
  */
 const stamp = digest(
-  [...graph.keys()]
-    .sort()
-    .map((file) => `${jsUrl(file)}\u0000${shipped(file)}`)
+  (BUNDLE === ''
+    ? [...graph.keys()].sort().map((file) => `${jsUrl(file)}\u0000${shipped(file)}`)
+    : [`${JS_BASE}/main.js\u0000${bundled()}`])
     .concat(`${CSS_BASE}\u0000${readFileSync(CSS_FILE, 'utf8')}`)
     .join('\u0000'),
 );
 
 // main.js is the <script src> itself; hinting the browser to preload the file it is already
 // fetching is noise, so the list is everything the entry reaches and not the entry.
-const modules = [...graph.keys()]
-  .filter((file) => file !== ENTRY)
-  .map((file) => versioned(jsUrl(file)))
-  .sort();
+//
+// A bundle has nothing to list, and that is the feature switching itself off rather than a build
+// that found nothing. The waterfall a preload hint exists to flatten is the graph being discovered
+// a wave at a time; once it is one file there is no graph left to discover. Layout::modulePreloads()
+// spreads this into containing(), so empty emits no links at all.
+const modules = BUNDLE === ''
+  ? [...graph.keys()]
+      .filter((file) => file !== ENTRY)
+      .map((file) => versioned(jsUrl(file)))
+      .sort()
+  : [];
 
-if (modules.length === 0) {
-  fail('main.js reaches no other module. That is either a broken build or a bundler appearing,\n'
-     + '              and either way this file should not be generated from it.');
+// Only meaningful when the modules ship as modules. An entry that reaches nothing is a broken
+// build — this graph is forty-odd files deep — so the guard stays exactly as strict as it was for
+// the tree it was written about. Under --bundle the empty list is the expected answer, and the
+// flag is how that is asked for deliberately rather than arrived at by accident.
+if (BUNDLE === '' && modules.length === 0) {
+  fail('main.js reaches no other module. That is a broken build: the graph is forty-odd files\n'
+     + '              deep. If the tree really is one file now, say so with --bundle.');
 }
 
 // ── the stylesheet ──────────────────────────────────────────────────────────────────────────────
@@ -287,14 +326,22 @@ final class AssetManifest
     /** The entry point — the only \`<script>\` the site loads — versioned. */
     public const string SCRIPT = '${versioned(jsUrl(ENTRY))}';
 
-    /** @var list<string> Every module the entry reaches, versioned, sorted, the entry excluded. */
-    public const array MODULES = [
-${modules.map((module) => `        '${module}',`).join('\n')}
-    ];
+    /**
+     * @var list<string> Every module the entry reaches, versioned, sorted, the entry excluded.
+     *
+     * **Empty when the graph shipped as one bundle**, which is the feature switching itself off
+     * rather than a manifest that failed to generate. A preload hint flattens the wave-at-a-time
+     * walk an ES module tree is discovered by; one file has no walk left to flatten.
+     * {@link Layout::modulePreloads()} maps over this, so empty emits no links at all.
+     */
+    public const array MODULES = [${modules.length === 0 ? '' : `\n${
+      modules.map((module) => `        '${module}',`).join('\n')}\n    `}];
 }
 `;
 
 mkdirSync(dirname(MANIFEST), { recursive: true });
 writeFileSync(MANIFEST, php, 'utf8');
 
-console.log(`build-assets: ${graph.size} modules at ${VERSION_PREFIX}${stamp}, ${modules.length} preloaded → ${label(MANIFEST)}`);
+console.log(BUNDLE === ''
+  ? `build-assets: ${graph.size} modules at ${VERSION_PREFIX}${stamp}, ${modules.length} preloaded → ${label(MANIFEST)}`
+  : `build-assets: ${graph.size} modules bundled into one at ${VERSION_PREFIX}${stamp}, none preloaded → ${label(MANIFEST)}`);

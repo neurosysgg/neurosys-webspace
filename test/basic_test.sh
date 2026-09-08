@@ -495,22 +495,26 @@ if [[ -x "$TSC" ]]; then
 
     # ── the prod tree ───────────────────────────────────────────────────────────────────────────
     #
-    # public/ is the debug tree: readable, mapped, committed, and everything above this line is
-    # about keeping it in step with assets/ts/. build/dist/ is what actually ships — the same tree
-    # minified, with the maps dropped, built by tools/build-prod.mjs and rsynced by deploy.sh.
+    # public/ is the debug tree: readable, mapped, committed, forty-nine separate modules, and
+    # everything above this line is about keeping it in step with assets/ts/. build/dist/ is what
+    # actually ships — that same graph bundled into one module and minified, with the maps dropped,
+    # built by tools/build-prod.mjs and rsynced by deploy.sh.
     #
     # Nothing above can see it, and neither can PHPUnit. Three failure modes live here and every one
     # of them is invisible in a browser until it is live:
     #
-    #   - a surviving `//# sourceMappingURL` is a 404 per module the moment DevTools opens
-    #   - a module minification dropped is a missing preload hint and a broken import
+    #   - a surviving `//# sourceMappingURL` is a 404 the moment DevTools opens
+    #   - a tree that copied instead of bundling ships forty-nine files under a manifest naming one
     #   - a bad mangle is an element that registers and then does nothing
     #
     # The last is the one worth the most, and it is checked by re-running the whole client suite
-    # against the minified bytes: test/js/dom.mjs takes the tree from NEUROSYS_JS_DIR, so the
-    # nesting guards, TerminalWindow's subtree, both embeds and Navigation all execute what the
-    # server will send. Nothing else about the tests changes, and the coverage gate is untouched
-    # because it takes the default.
+    # against the shipped bytes: test/js/dom.mjs takes the tree from NEUROSYS_JS_DIR, so the nesting
+    # guards, TerminalWindow's subtree, both embeds and Navigation all execute what the server will
+    # send. That still works across the bundling change, and it is worth knowing why rather than
+    # being lucky: dom.mjs loads the whole vocabulary through one `import ${JS}/main.js` and every
+    # element test then goes through the DOM, so not one of them names a module path. A bundle is
+    # simply what that single import resolves to now. Nothing else about the tests changes, and the
+    # coverage gate is untouched because it takes the default.
     #
     # This runs build-prod.mjs directly rather than `npm run build:prod`, because the block above
     # has already proven public/ current and rebuilding it here would just be slower.
@@ -531,18 +535,49 @@ if [[ -x "$TSC" ]]; then
             pass "the client-side tests pass against the minified output"
         else
             fail "the minified output fails the client-side tests — a mangle broke something"
-            echo "       reproduce: NEUROSYS_JS_DIR=build/dist/public/assets/js npm test"
+            # Absolute deliberately: dom.mjs interpolates this into an import specifier, and a
+            # relative one resolves as a *package* name — "Cannot find package 'build'".
+            echo "       reproduce: NEUROSYS_JS_DIR=\$PWD/build/dist/public/assets/js npm test"
         fi
 
-        # Same URLs, different stamp. The stamp differing is the point — those are different bytes
-        # at those URLs — so it is normalised away and what is left is the module list, which
-        # minification must not have touched.
-        if diff -q <(sed -E 's/v-[0-9a-f]{8}/v-STAMP/g' "$REPO/src/NeuroSYS/AssetManifest.php") \
-                   <(sed -E 's/v-[0-9a-f]{8}/v-STAMP/g' "$REPO/build/dist/src/NeuroSYS/AssetManifest.php") \
-                   >/dev/null 2>&1; then
-            pass "the prod manifest names the same modules as the committed one"
+        # The two manifests deliberately differ now, so diffing them would assert away the thing
+        # this build exists to do: the prod tree ships one bundle, so its MODULES is empty where the
+        # committed one lists all forty-six. What still has to hold is narrower, and is three
+        # separate facts rather than one file comparison.
+        DIST_MANIFEST="$REPO/build/dist/src/NeuroSYS/AssetManifest.php"
+        SRC_MANIFEST="$REPO/src/NeuroSYS/AssetManifest.php"
+
+        # A string constant with the build stamp normalised away — those are different bytes at the
+        # same path, which is the whole reason the two trees have separate stamps.
+        manifest_url() {
+            sed -nE "s/^ *public const string $2 = '([^']*)';.*/\1/p" "$1" \
+                | sed -E 's#/v-[0-9a-f]{8}/#/v-STAMP/#'
+        }
+
+        if [[ "$(manifest_url "$SRC_MANIFEST" SCRIPT)" == "$(manifest_url "$DIST_MANIFEST" SCRIPT)" \
+           && "$(manifest_url "$SRC_MANIFEST" STYLESHEET)" == "$(manifest_url "$DIST_MANIFEST" STYLESHEET)" ]]; then
+            pass "the prod manifest points at the same entry and stylesheet as the committed one"
         else
-            fail "the prod manifest names different modules — minification added or dropped one"
+            fail "the prod manifest names a different entry or stylesheet path than the committed one"
+        fi
+
+        # Empty is the bundled shape. A list here means build-prod.mjs copied the tree instead of
+        # bundling it, and the page would then preload forty-six modules that are no longer served.
+        if grep -q 'public const array MODULES = \[\];' "$DIST_MANIFEST"; then
+            pass "the prod manifest preloads nothing, as a bundled tree should"
+        else
+            fail "the prod manifest still lists preloads — the prod tree did not bundle"
+        fi
+
+        # The manifest is generated from the tree, so the only way this fails is the URL base being
+        # wrong — which is exactly how it has failed before, and is invisible until it is live.
+        script_url=$(sed -nE "s/^ *public const string SCRIPT = '([^']*)';.*/\1/p" "$DIST_MANIFEST")
+        script_file="$REPO/build/dist/public$(sed -E 's#/(assets/js)/v-[0-9a-f]{8}/#/\1/#' <<< "$script_url")"
+
+        if [[ -f "$script_file" ]]; then
+            pass "the prod manifest's entry URL has bytes behind it"
+        else
+            fail "the prod manifest names $script_url, and $script_file does not exist"
         fi
     else
         fail "the prod tree does not build (run: npm run build:prod)"

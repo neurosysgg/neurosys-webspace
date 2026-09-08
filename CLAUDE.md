@@ -360,7 +360,7 @@ tree removes outright — there is no closing tag to get wrong, because there is
 `attr()` accepts any `BackedEnum` and unwraps it, so `rel`, `target` and `type` are `LinkRel`,
 `LinkTarget` and `ScriptType` cases rather than strings — the same move `RequestedWith` and
 `ContentTypeOptions` already made beside the headers they fill. It earns its place on the same
-grounds the names did: misspell `modulepreload` and forty-one preload hints stop preloading in
+grounds the names did: misspell `modulepreload` and forty-six preload hints stop preloading in
 silence, misspell `noopener` and a security boundary on every outbound link is quietly not there,
 and drop `module` from the script tag and `import` becomes a syntax error. `rel` is a token list, so
 `LinkRel::tokens(…)` builds it variadically the way `HttpMethod::allowed()` builds the `Allow`
@@ -887,29 +887,40 @@ want output a person can read, which is why the version is a path segment and no
 specifier — see [Cache versioning](#cache-versioning) for what that already bought.
 
 `npm run build:prod` derives the **prod** tree from it. `tools/build-prod.mjs` copies `public/`
-wholesale, minifies every module with terser, deletes all 42 source maps, and writes a manifest of
-its own:
+wholesale, bundles the whole module graph into one file with esbuild, minifies that with terser,
+drops every source map, and writes a manifest of its own:
 
 ```
 build/dist/public/                        ← byte-for-byte what lands in the webroot
-build/dist/src/NeuroSYS/AssetManifest.php ← the same URLs under a different stamp
+build/dist/src/NeuroSYS/AssetManifest.php ← the same two URLs under a different stamp, and no
+                                            preloads: one file has no graph left to hint at
 ```
 
-Two things change, and both are only worth doing at the edge:
+Three things change, and all three are only worth doing at the edge:
 
-- **The maps go.** 79,354 bytes across 42 files, three times the JS they describe, and `inlineSources`
-  puts the whole commented TypeScript inside each one. Static assets are served straight by Apache
-  and reach neither auth gate, so those were public files. The source is on GitHub — a reason not to
-  worry about it, not a reason to serve a second copy from Strato.
-- **The JS is minified.** 11,807 gzipped bytes → 9,555, over the 42 separate responses the browser
-  actually makes. `tsconfig` used to argue this was worth ~260 bytes; that is what you measure on a
-  *concatenated* stream, where gzip's window spans the whole graph and does the work mangling would
-  have done. Per file the window is one small module and it does not. On disk: 484K → 292K.
+- **The maps go.** 79,354 bytes, three times the JS they describe, and `inlineSources` puts the
+  whole commented TypeScript inside each one. Static assets are served straight by Apache and reach
+  neither auth gate, so those were public files. The source is on GitHub — a reason not to worry
+  about it, not a reason to serve a second copy from Strato.
+- **The graph is bundled**, which is the change that pays for the rest. 12,798 gzipped bytes across
+  49 responses → **5,801 in one**: 6,997 saved, 54.7%, and 48 fewer requests. It also empties the
+  preload list, taking another ~385 gzipped bytes off *every document*. On disk: 484K → 16K.
+- **The JS is minified.** Worth much less than it was and still worth doing. The old figure was
+  2,252 gzipped bytes measured *per file*; most of that is now won by the compression above, which
+  is the same distinction `tsconfig`'s superseded ~260-byte figure was drawing from the other side.
 
-**`keep_classnames` is load-bearing.** `NestedElement.tagOf()` falls back to `constructor.name`, and
-that is the text of the error a misnested tag throws — the whole reason those classes are not empty.
-It is also why terser rather than esbuild: esbuild keeps the same guarantee by injecting a `__name`
-helper into *every file*, which on 42 small modules costs 1,868 of the 2,252 bytes minifying won.
+**`keep_classnames` is load-bearing, and on its own it is no longer enough.**
+`NestedElement.tagOf()` falls back to `constructor.name`, and that is the text of the error a
+misnested tag throws — the whole reason those classes are not empty. Bundling rewrites some
+`class X extends Y {}` declarations into `var X = class extends Y {}`, whose name is *inferred from
+the binding* rather than declared, and `keep_classnames` protects only a declared one — so terser
+mangles the binding and `<terminal-key> must be inside <terminal-field>` becomes `must be inside
+<P>`. **That is not hypothetical: it is what the first bundled build actually did, and the verify
+script's re-run against the shipped bytes is what caught it.** esbuild's `keepNames` emits an
+explicit name assignment that survives any mangling, and it is exactly the option this file used to
+give as the reason for *terser rather than esbuild* — a `__name` helper in every one of 42 modules,
+costing 1,868 of the 2,252 bytes minifying won. In one bundle the helper is emitted once: **256
+gzipped bytes**. The objection was real, and bundling is what answered it.
 `mangle.properties` stays off one step further out, because `connectedCallback` and
 `observedAttributes` are contracts with the browser rather than with us.
 
@@ -917,15 +928,24 @@ helper into *every file*, which on 42 small modules costs 1,868 of the 2,252 byt
 about content, and those are different bytes at the same URLs. `deploy.sh` uploads `src/` from the
 working tree and then overlays the prod manifest over the one file that differs.
 
-**Four checks, because every failure here is invisible in a browser until it is live.** The verify
-script builds the prod tree, asserts it ships no map and names none, diffs the two manifests with
-the stamp normalised away — so a module minification dropped fails there — and then re-runs the
-**whole client-side suite against the minified bytes**. That last one is the one worth the most:
-`test/js/dom.mjs` takes its tree from `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s
-subtree, both embeds and `Navigation` all execute what the server will send. `npm test` and
+**Six checks, because every failure here is invisible in a browser until it is live.** The verify
+script builds the prod tree; asserts it ships no map and names none; asserts the prod manifest
+points at the same entry and stylesheet as the committed one, that it preloads nothing, and that the
+URL it names has bytes behind it; and then re-runs the **whole client-side suite against the shipped
+bytes**. The manifests are no longer diffed against each other — they now differ on purpose, since
+one lists 46 preloads and the other lists none, so a diff would assert away the thing the build
+exists to do.
+
+That last check is the one worth the most, and it has earned it: `test/js/dom.mjs` takes its tree
+from `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s subtree, both embeds and
+`Navigation` all execute what the server will send — and **it is what caught the mangled class name
+the first bundled build shipped**, which nothing else here could have seen. `npm test` and
 `npm run coverage` take the default and are exactly what they were.
 
-`build-prod.mjs` also refuses a tree where any module is byte-identical to its readable original —
+`build-prod.mjs` also refuses a shipped tree holding anything but the one bundle, and refuses a
+bundle that still names a relative import — which would mean esbuild resolved nothing and every
+module the entry asks for was deleted with the rest of the copy. The check it replaced refused a
+tree where any module was byte-identical to its readable original —
 the copy is what would deploy, under a stamp saying otherwise, and a page that is quietly bigger
 than it claims has no other symptom.
 
@@ -946,8 +966,9 @@ comments leave the number exactly where it was.
 
 `tools/build-assets.mjs` walks the compiled graph and generates `src/NeuroSYS/AssetManifest.php`;
 `Layout::modulePreloads()` renders one `<link rel="modulepreload">` per entry, after the stylesheet
-because that one blocks rendering and these do not. The preload scanner then sees all 41 at once and
-the five waves become one. Cost is 402 gzipped bytes per page.
+because that one blocks rendering and these do not. The preload scanner then sees all 46 at once and
+the five waves become one. Cost is ~385 gzipped bytes per page — which the prod tree no longer pays,
+having no waves left to flatten.
 
 `modulepreload` rather than `preload as="script"`: it fetches, parses, compiles *and* inserts into
 the module map, so the module is instantiated by the time `main.js` asks. The list is every module
@@ -982,8 +1003,9 @@ costs neither, because a relative specifier resolves against the URL it was load
 `/assets/js/v-a1b2c3d4/model/Tag.js` with **no file rewritten at all**. The compiled JS stays
 byte-identical to tsc's output, which is what keeps the drift check a straight diff.
 
-The price is one stamp per build rather than one per file, so any change busts all 42 modules. At
-~12KB gzipped that is not worth a second thought, and it buys back a stated invariant.
+The price is one stamp per build rather than one per file, so any change busts the whole tree — all
+49 modules in the debug tree, and the single bundle in the one that ships. At ~6KB gzipped that is
+not worth a second thought, and it buys back a stated invariant.
 
 **`.htaccess` and `dev-router.php` are a mirror** — one rule, two languages — so the verify script
 pins that they strip the same pattern, and that *both* `php -S` invocations in it load the router.
@@ -995,18 +1017,32 @@ was not, since only one of the two had been given the router.
 consult a build artefact costs more than a calendar TTL on files that change about never. The line
 is: assets the build generates get a content hash, assets a person drops in keep a date.
 
-**Why not bundle instead.** One file would fix the waterfall *and* recover ~5.7KB of per-file gzip
-framing. It would also mean the element tests could no longer import individual modules, and
-`assets/ts/`'s 100% coverage gate is measured against them — so it would cost the property that the
-tests run against the same files the browser loads. Not worth it for 5.7KB.
+**The prod tree does bundle, and none of the above applies to it.** This section describes the
+debug tree, which is still 49 modules discovered five waves deep and still wants every one of those
+hints. What ships is one file — see [Debug and prod builds](#debug-and-prod-builds) — so it has no
+waterfall, and `AssetManifest::MODULES` is empty there.
 
-That argument is weaker than it was, and worth re-reading rather than repeating: now that prod is a
-[separate tree](#debug-and-prod-builds), a bundler could run there and leave the debug tree — the
-one the tests and the gate read — alone. What it would still cost is the property that the shipped
-files *are* the tested files, which is what re-running the suite against the minified bytes
-currently keeps. **Minification is the same trade taken the other way**, and it is taken at the edge
-for the same reason: 2,252 gzipped bytes, measured per-file rather than over a concatenated stream,
-where the old ~260-byte figure came from.
+**This paragraph used to argue the other way, and the argument was wrong rather than merely
+outdated** — which is worth recording, because it was wrong in a checkable way for a long time. It
+said bundling "would mean the element tests could no longer import individual modules", and that
+the property it would cost is "that the shipped files *are* the tested files". Neither was true of
+this suite as written: `test/js/dom.mjs` loads the whole vocabulary through a single
+`await import(${JS}/main.js)` and every element test then works through the DOM, so **not one of
+them names a module path**. The three files that do import modules directly — `enum-parity`,
+`navigation`, `vocabulary` — are hardcoded to `../../public/assets/js/…`, the debug tree, and are
+unaffected by what prod ships. So `NEUROSYS_JS_DIR` pointed at a bundle still runs the whole suite
+against the exact bytes the server sends; the property survives, it is just one file now.
+
+The lesson is narrower than "measure things". The claim was about *the tests*, it was written in
+the file the tests live under, and checking it was ten minutes of reading. A cost stated once and
+then cited tends to stop being re-derived — so the price was carried for as long as it took someone
+to ask, and it was **6,997 gzipped bytes, 54.7% of the JS, plus 48 requests and ~385 bytes of every
+document**. See `docs/performance.md`.
+
+What is genuinely given up is smaller and is stated where it bites: `docs/performance.md` records
+that the debug tree must stay unbundled, because `test/js/` imports it by path, the coverage gate is
+pinned to those paths, and the drift check is a byte-for-byte diff. Bundling *that* tree would cost
+all three. Bundling the tree nobody reads costs none of them.
 
 Source maps sit next to the JS with the TypeScript embedded (`inlineSources`), so DevTools shows
 `Navigation.ts` without `assets/ts/` having to be served. That is why `public/.htaccess` lists `map` — Strato
@@ -1816,5 +1852,6 @@ The live host serves **HTTP/2** (no HTTP/3 — no `Alt-Svc`), Apache 2.4.68.
 
 See `docs/deployment.md` for first-time FTP setup, `docs/releases.md` for the full release checklist,
 `docs/demos.md` for putting unreleased work behind a per-demo password,
-`docs/branding.md` for brand assets and profile links, `docs/testing.md` for the two test suites, and
-`docs/security.md` for the security posture and the assessment findings.
+`docs/branding.md` for brand assets and profile links, `docs/testing.md` for the two test suites,
+`docs/performance.md` for what a request costs and where the bytes go, and `docs/security.md` for
+the security posture and the assessment findings.

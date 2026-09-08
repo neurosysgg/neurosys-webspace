@@ -99,8 +99,10 @@ readonly class ViewResponse implements Response
      * is that there is no window at all in which a visitor holds a stale document, and that matters
      * here more than it would elsewhere:
      *
-     * - A document embeds every versioned asset URL — the stylesheet, the entry script and all
-     *   forty-one preloads, straight out of {@link \NeuroSYS\AssetManifest}. A stale document
+     * - A document embeds every versioned asset URL — the stylesheet, the entry script and whatever
+     *   preloads there are, straight out of {@link \NeuroSYS\AssetManifest}. That is two URLs on the
+     *   bundled tree that ships and forty-eight on the debug tree, and the argument is the same
+     *   either way: it takes one. A stale document
      *   therefore names *last build's* URLs, and `public/.htaccess` marked those `immutable` for a
      *   year, so the browser would serve the old JS out of its own cache against the new HTML.
      *   That is the mirror drift the parity tests exist to catch, arriving by the one route no test
