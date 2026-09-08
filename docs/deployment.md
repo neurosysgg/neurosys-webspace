@@ -89,7 +89,129 @@ Two things to confirm, in this order, because the second is hard to undo:
 If either is in doubt, ship `StrictTransportSecurity::ONE_DAY` first — one constructor argument in
 `SecurityHeaders::strictTransportSecurity()` — confirm, then put it back to the default year.
 
-## Regular deploy
+## Regular deploy — the signed push
+
+`php tools/push-update.php` deploys `public/`, `src/` and `autoload.php` in **one HTTPS request**.
+It exists because the mount is slow in the way that matters: a single `stat` over it costs 480 ms,
+walking `src/` costs 3.7 s, and `deploy.sh`'s `rsync -c` reads all 269 files on both sides. The
+payload is 209 KB.
+
+```bash
+npm run build:prod
+php tools/push-update.php --dry-run
+php tools/push-update.php
+```
+
+`--dry-run` sends a real signed payload and has the server validate every member, report exactly
+what it would write and delete, and **write nothing** — it does not even advance the replay serial,
+so the same payload can then be sent for real. Use it whenever you are unsure; it costs one request.
+
+`--no-mirror` leaves alone whatever the payload does not mention. The default is to mirror, matching
+`deploy.sh`'s `--delete` on these two trees, and mirroring is the only way stale files ever leave the
+server.
+
+`--url` points somewhere else and `--key` names a different private key. Both default sensibly:
+`https://neurosys.gg/update` and `~/.config/neurosys/update.key`.
+
+### First-time setup: the keypair
+
+Generate it once. The **private half never enters this repository** — it lives beside the SoundCloud
+refresh token, for the same reason.
+
+```bash
+mkdir -p ~/.config/neurosys && openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update.key
+```
+
+```bash
+chmod 600 ~/.config/neurosys/update.key && openssl pkey -in ~/.config/neurosys/update.key -pubout -out data/update.pub
+```
+
+Then upload `data/update.pub` **by hand**, once, next to `admin.php` on the server. `deploy.sh`
+excludes it — there is no repo copy to sync and syncing a local test key over the live one would
+lock you out of the endpoint.
+
+**Its absence is the off switch.** No key on the server, no endpoint: `/update` answers exactly like
+an address that does not exist, for everyone, forever. That is the opposite polarity to
+`data/site_auth.php`, whose absence stands its gate *down* — worth reading twice, because the two
+files look alike.
+
+### When a push is refused
+
+A refusal before the signature verifies is a **404** (or a 405 for a write method), because that is
+what the endpoint answers to anyone it will not verify. It says nothing about why, deliberately, so
+check these in order:
+
+1. **The key.** Does `data/update.pub` on the server match your private half?
+   `openssl pkey -in ~/.config/neurosys/update.key -pubout` and compare.
+2. **The clock.** The signed serial must be within five minutes of the server's.
+3. **A replay.** The same payload cannot be applied twice; rebuild it (any rebuild mints a new
+   serial).
+
+A refusal *after* the signature verifies is a **422** with a full sentence saying which member of
+the archive was wrong — by then you have proved you hold the key, so there is nothing left to hide.
+
+### Reading the report
+
+```
+applied
+written 3  unchanged 185  deleted 1  failed 0
+```
+
+**`written` is what actually changed**, not what the payload carried. A push sends all 188 files
+every time and writes only the ones whose bytes differ, which is `rsync -c`'s rule and is here for a
+sharper reason than saving four filesystem operations — see below. So a push after a one-file edit
+should say `written 1`, and a push that says `written 188` means something rebuilt the whole tree.
+
+`unchanged` is counted rather than listed: nothing happened to those files, and 185 lines of them
+would bury the three that did change. `deleted` and `failed` are always named in full.
+
+**A non-empty `failed` makes the response a 500** even though everything else applied, which is
+deliberate — a partial push is not a successful one.
+
+#### The `.nfsXXXXXXXX` files, if you ever see one
+
+Strato serves off **NFS**. Any atomic write — `File::write()`, and `rsync` too — creates a temp file
+and renames it onto the target; when the target is a file some process still has open, the NFS
+client renames the *old* inode aside as `.nfsXXXXXXXX` instead of unlinking it, so the open handle
+stays valid. `public/index.php` is exactly that file: the request doing the pushing is executing out
+of it.
+
+The stray then reads as a surplus path to the mirror in the same request and cannot be deleted,
+because the handle keeping it alive belongs to the process trying to delete it. It shows up as:
+
+```
+! public/.nfs00000000bd2dac2512228f60 — could not be removed
+```
+
+This is why a push leaves an unchanged file strictly alone. **It was never the endpoint's bug** —
+`deploy.sh` strands the same inode every time it rsyncs `index.php`; the endpoint is just the first
+thing here that mirrors, and so the first thing that ever looked. If you find one, it is harmless
+(Apache answers 500 for it, having no `SetHandler` for the extension, so it is not served) and it
+clears itself when the worker holding it recycles.
+
+To remove one now, do it **over the mount** rather than through the endpoint. The delete has to come
+from a different NFS client than the one holding the handle, and the web process is that client, so
+a push will never manage it. `deploy.sh` already knows where the mount is — it is gitignored,
+because the host and account name are not this repository's to publish:
+
+```bash
+source <(grep -E '^(SFTP_USER|SFTP_MOUNT)=' deploy.sh) && rm -v "$SFTP_MOUNT/cgi-bin/neurosys/".nfs*
+```
+
+### What it does not do
+
+It never touches `data/`. That tree is 8.6 MB of demo audio, it is rsynced deliberately *without*
+`--delete` because `demos.php` and `demos/` are gitignored, and reproducing that asymmetry inside a
+mirroring updater is where a mistake would take unreleased tracks off the server. `data` is not one
+of the three roots a payload may name, so a push cannot reach it even if one tried.
+
+**`deploy.sh` remains, and remains the recovery path.** A push that breaks `src/` breaks the endpoint
+that would fix it; the way back is the mount. Every previous tree is in git, so recovery is
+`git checkout <ref> -- src public && ./deploy.sh`.
+
+## Full deploy
+
+
 
 `./deploy.sh` is the current path — it rsyncs `build/dist/public/`, `src/`, `autoload.php` and
 `data/` over the mounted SFTP in one go, so `data/releases.php` no longer needs a separate manual

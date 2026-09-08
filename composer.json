@@ -1,11 +1,18 @@
 {
     "require": {
         "php": ">=8.5",
-        "ext-uri": "*"
+        "ext-uri": "*",
+        "ext-openssl": "*",
+        "ext-curl": "*"
     },
     "autoload": {
         "psr-4": {
             "NeuroSYS\\": "src/NeuroSYS/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "NeuroSYS\\Test\\Unit\\": "test/unit/"
         }
     },
     "require-dev": {

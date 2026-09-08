@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use NeuroSYS\Exception\UpdateException;
+use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 
@@ -101,6 +103,20 @@ final class Config
     // ───────────────────────────── paths ─────────────────────────────
 
     /**
+     * The directory the deployment sits in: `src/`, `data/`, `autoload.php` and the webroot.
+     *
+     * The repository root locally, `cgi-bin/` on Strato. It is the one derivation everything else
+     * here hangs off, so a path that resolves somewhere unexpected is wrong in one place rather
+     * than in several.
+     *
+     * @return Directory
+     */
+    public static function above(): Directory
+    {
+        return new Directory(dirname(__DIR__, 2));
+    }
+
+    /**
      * The `data/` directory, which lives outside the webroot.
      *
      * One derivation of that path instead of seven. It is where the credentials live, so a
@@ -112,7 +128,90 @@ final class Config
      */
     public static function data(): Directory
     {
-        return new Directory(dirname(__DIR__, 2) . '/data');
+        return self::above()->directory('data');
+    }
+
+    /**
+     * The webroot, whatever the server calls it.
+     *
+     * **The one path here that is not derived, because it cannot be.** The directory is `public/`
+     * in the repository and `neurosys/` on the live host, and nothing under `src/` can know that.
+     * `DOCUMENT_ROOT` does, so this asks it — for the directory's *name* and nothing else, hanging
+     * that name off {@link self::above()} like every other path on this class.
+     *
+     * **Taking only the basename is the whole of the care here, and it was measured into being.**
+     * On the live host `DOCUMENT_ROOT` reads
+     * `/home/strato/http/premium/rid/…/htdocs/cgi-bin/neurosys` while `__DIR__` for a file in that
+     * very directory reads `/mnt/web505/…/htdocs/cgi-bin/neurosys` — two mounts of one export, and
+     * the elided segments are the hosting account's own number, which is also what its SFTP
+     * hostname is built from and so is not this repository's to write down. They are the same
+     * directory reached two ways; as strings they are not equal and never will be. Use
+     * `DOCUMENT_ROOT` whole and this path stops comparing equal to
+     * {@link \NeuroSYS\Service\UpdateApplier}'s walk of it, which is a mirror that deletes
+     * everything it just wrote.
+     *
+     * Server-set, never client-controlled — it is not an HTTP header and no request can name it.
+     *
+     * **An absent one throws rather than falling back**, and the rejected fallback is worth naming
+     * because it looks reasonable and is catastrophic: returning {@link self::above()} would make
+     * the webroot the deployment directory itself, and the mirror in
+     * {@link \NeuroSYS\Service\UpdateApplier} would then walk `src/`, `data/`, `vendor/` and
+     * `node_modules/`, find none of them in the payload, and delete the site. There is no safe
+     * guess for this value; the only safe answer is to stop. CLI is where it is absent, which is
+     * PHPUnit and the tools — none of which has any business resolving a webroot.
+     *
+     * @return Directory
+     *
+     * @throws UpdateException if `DOCUMENT_ROOT` is not set.
+     */
+    public static function webroot(): Directory
+    {
+        $root = ServerVariable::DocumentRoot->string() ?? '';
+
+        if ($root === '') {
+            throw new UpdateException(
+                'DOCUMENT_ROOT is not set, so the webroot cannot be resolved. This is reachable '
+                . 'only off a real request; there is no default, because every candidate default '
+                . 'is a directory something would then be willing to delete.',
+            );
+        }
+
+        // The basename is only safe to graft onto above() once the two are known to be the same
+        // tree, and that is checked rather than assumed. Without this, a DOCUMENT_ROOT pointing
+        // anywhere else whose last segment happened to be `public` would resolve to *this*
+        // repository's public/ — which is not a hypothetical: it is what a test did, and the mirror
+        // then deleted the tree it resolved to. realpath() on both sides is what collapses the two
+        // spellings the live host reports for one directory.
+        $parent = realpath(dirname($root));
+        $above  = realpath(self::above()->path);
+
+        if ($parent === false || $above === false || $parent !== $above) {
+            throw new UpdateException(sprintf(
+                "DOCUMENT_ROOT is '%s', which is not a directory inside this deployment (%s). "
+                . 'Refusing rather than guessing: the guess would name a real directory somewhere '
+                . 'else, and a mirror would empty it.',
+                $root,
+                self::above()->path,
+            ));
+        }
+
+        return self::above()->directory(basename($root));
+    }
+
+    /**
+     * The highest update serial this deployment has accepted.
+     *
+     * **Kept above the webroot rather than in `data/`, and that placement is load-bearing.** The
+     * two trees an update mirrors are wiped and rewritten, so it cannot live in either; `data/` is
+     * rsynced from the working tree without `--delete`, so a copy there would be pushed up from
+     * whichever machine deployed last and could hand an attacker a replay window by moving the
+     * number backwards. `cgi-bin/` is rsynced as a whole by nothing at all.
+     *
+     * @return File
+     */
+    public static function updateSerial(): File
+    {
+        return self::above()->file('.update-serial');
     }
 
     /**

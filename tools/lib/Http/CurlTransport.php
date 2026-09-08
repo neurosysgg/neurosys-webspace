@@ -104,7 +104,7 @@ final readonly class CurlTransport implements Transport
             CURLOPT_LOW_SPEED_TIME  => self::STALL_TIMEOUT,
         ];
 
-        if ($request->fields->isEmpty()) {
+        if (!$request->hasBody()) {
             return $options;
         }
 

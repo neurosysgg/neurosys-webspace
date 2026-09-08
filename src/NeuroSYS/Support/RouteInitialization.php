@@ -14,6 +14,7 @@ use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
+use NeuroSYS\Controller\UpdateController;
 
 /** Builds and returns the application route table. */
 class RouteInitialization
@@ -43,18 +44,28 @@ class RouteInitialization
             ->addRoute(SitePath::Stats, fn() => new StatsController())
             ->addRoute(SitePath::Imprint, fn() => new ImprintController())
             ->addRoute(SitePath::Privacy, fn() => new PrivacyController())
+            // The only route the router forms no opinion about. Every method reaches the
+            // controller, including one this site does not recognise, because any refusal the
+            // router made here would differ from the one it makes for an address that does not
+            // exist — and being indistinguishable from that is the whole design. See MethodPolicy.
+            ->addRoute(SitePath::Update, fn() => new UpdateController(), MethodPolicy::Delegated)
             ->collection;
     }
 
     /**
      * @param SitePath $pattern
      * @param Closure $factory
+     * @param MethodPolicy $methods The default is what nine of the ten routes want, and none of
+     *                              them states it.
      * @return $this
      */
-    private function addRoute(SitePath $pattern, Closure $factory): static
-    {
+    private function addRoute(
+        SitePath $pattern,
+        Closure $factory,
+        MethodPolicy $methods = MethodPolicy::ReadOnly,
+    ): static {
         // Collection::with() copies rather than appends, so the result has to be kept.
-        $this->collection = $this->collection->with(new Route($pattern, $factory));
+        $this->collection = $this->collection->with(new Route($pattern, $factory, $methods));
         return $this;
     }
 }

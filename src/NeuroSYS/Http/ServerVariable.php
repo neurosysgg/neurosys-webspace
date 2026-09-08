@@ -85,6 +85,21 @@ enum ServerVariable: string
     case Referer = 'HTTP_REFERER';
 
     /**
+     * The webroot's absolute path, and the only fact here that no derivation can reach.
+     *
+     * {@link \NeuroSYS\Config::webroot()} needs the webroot's directory *name* — `public/` in the
+     * repository, `neurosys/` on the live host — and nothing under `src/` can know which. Only the
+     * server does, which is exactly the membership rule this enum states: a case belongs when the
+     * `HTTP_` derivation cannot reach the name. It is not an HTTP header and no request can set it.
+     *
+     * Read for its basename alone. The whole string is *not* interchangeable with a path built from
+     * `__DIR__`: on Strato this reads under `/home/strato/http/premium/…` while `__DIR__` for a file
+     * in the same directory reads under `/mnt/web505/…`. See that method, which is where the
+     * consequence of mixing them is written down.
+     */
+    case DocumentRoot = 'DOCUMENT_ROOT';
+
+    /**
      * This variable's value, or null if it did not arrive.
      *
      * Null for a key that is absent *and* for one holding something other than a string, which is

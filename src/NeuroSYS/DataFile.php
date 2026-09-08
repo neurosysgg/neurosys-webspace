@@ -79,6 +79,25 @@ enum DataFile: string
     case DownloadLog = 'logs/downloads.log';
 
     /**
+     * The ECDSA public key `/update` verifies a push against — the public half, and only ever that.
+     *
+     * **Its absence is the off switch, which is {@link self::SiteAuth}'s arrangement with the
+     * polarity reversed.** No key file, no endpoint: {@link Service\UpdateGate} refuses every
+     * request and {@link Controller\UpdateController} answers exactly as the site answers for a
+     * path no route claims. So a fresh clone, and every machine that has not deliberately been given
+     * a key, is in the safe state rather than the open one — the opposite of the site gate, where
+     * absence stands the gate *down*. Worth reading twice, because the two files look alike and mean
+     * opposite things.
+     *
+     * Untracked and excluded from `deploy.sh`, like {@link self::Admin}'s live hashes: each
+     * deployment holds its own key, which is what binds a payload to a deployment without any field
+     * in the manifest naming one. Uploaded by hand, once. The private half never touches this
+     * repository at all — it lives at `~/.config/neurosys/update.key`, outside it entirely, the way
+     * the SoundCloud refresh token does.
+     */
+    case UpdateKey = 'update.pub';
+
+    /**
      * Whether the repository carries this file, and so whether every clone has it.
      *
      * The five that are tracked have to be present for the site to be the site; the other three
@@ -94,7 +113,8 @@ enum DataFile: string
         return match ($this) {
             self::Releases, self::Profiles, self::Admin,
             self::PrivacyGerman, self::PrivacyEnglish => true,
-            self::Demos, self::SiteAuth, self::DownloadLog            => false,
+            self::Demos, self::SiteAuth, self::DownloadLog,
+            self::UpdateKey                           => false,
         };
     }
 }

@@ -105,15 +105,23 @@ file is gitignored precisely so the repo copy cannot switch it on.
 
 [`Router::dispatch()`](../src/NeuroSYS/Router.php) does two things, in order:
 
-1. **The read-only gate.** `$request->isReadOnly()` or a 405 with an `Allow` header built from
-   `HttpMethod::allowed()` — derived by filtering the cases, so the header cannot advertise
-   something the gate does not do.
-2. **The match.** Each [`Route`](../src/NeuroSYS/Support/Route.php) is a pattern and a factory
-   closure. `{param}` compiles to `([^/]+)`, captures are passed positionally to the factory, and an
-   unmatched path falls through to `NotFoundController`.
+1. **The match.** Each [`Route`](../src/NeuroSYS/Support/Route.php) is a pattern, a factory closure
+   and a [`MethodPolicy`](../src/NeuroSYS/Support/MethodPolicy.php). `{param}` compiles to
+   `([^/]+)`, and captures are passed positionally to the factory.
+2. **The method gate**, asked of the matched route rather than globally. Nine routes are
+   `ReadOnly` and answer anything but `GET`/`HEAD` with a 405 whose `Allow` comes from
+   `Allow::readOnly()` — derived by filtering the cases, so the header cannot advertise something
+   the gate does not do. `/update` is `Delegated`: the router forms no opinion and its controller
+   answers every method itself, because any opinion the router formed would tell an unsigned caller
+   the address is real.
+
+An unmatched path falls through to
+[`UnroutedController`](../src/NeuroSYS/Controller/UnroutedController.php), which gives the 404 for a
+read verb and the 405 for a write one — and is the same object `UpdateController` delegates to, so
+that `/update` and an address that does not exist cannot answer differently.
 
 The route table is built in
-[`RouteInitialization::routes()`](../src/NeuroSYS/Support/RouteInitialization.php) — seven entries,
+[`RouteInitialization::routes()`](../src/NeuroSYS/Support/RouteInitialization.php) — ten entries,
 in match order.
 
 ### ⑤ The controller, the view, the response

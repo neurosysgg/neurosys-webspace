@@ -34,12 +34,26 @@ use ReflectionMethod;
  * no door and no variadic behind it — and once it is a collection it belongs here, on the same
  * terms as everything else that answers with one.
  *
- * `Auth::accepts()` and `Auth::admits()` are the two members that are not builders, and they are
- * the ones where dropping the result is not merely useless but unsafe: each is a gate's entire
- * decision, and the three `require*` methods are only the challenge wrapped around them. They are
- * two rather than one because the credential comes from two different places — a `data/` file for
- * the site and admin gates, a {@link \NeuroSYS\Support\PasswordHash} on the demo itself for the
- * third.
+ * `Auth::accepts()`, `Auth::admits()` and `Route::accepts()` are the three members that are not
+ * builders, and they are the ones where dropping the result is not merely useless but unsafe: each
+ * is a gate's entire decision. The two on `Auth` are two rather than one because the credential
+ * comes from two different places — a `data/` file for the site and admin gates, a
+ * {@link \NeuroSYS\Support\PasswordHash} on the demo itself for the third — and the three
+ * `require*` methods are only the challenge wrapped around them.
+ *
+ * `UpdateGate::accepts()` is a fourth of that kind and the strictest: it is the whole of the
+ * decision that lets a request overwrite `src/` and the webroot. `UpdateGate::accept()` beside it
+ * is not a decision but a *record* — dropping its result leaves the accepted serial unwritten, so
+ * the payload just applied can be replayed. `UpdateApplier::apply()` and the six on `UpdateReport`
+ * are the ordinary kind: copy-returning builders and the rendered result, where a dropped call
+ * writes nothing into the only account of the run that exists.
+ *
+ * The one on `Route` is the *method* gate rather than a credential gate, and it is here because it
+ * used to be a global `if` in {@link \NeuroSYS\Router} that nothing could drop. Now that each route
+ * answers for itself, a discarded `accepts()` is a POST reaching a controller that only reads —
+ * which is precisely what that `if` was put there to stop. `Route::methods()` beside it carries no
+ * attribute: it hands back what it was given, like {@link \NeuroSYS\Http\Request::path()}, and
+ * dropping it decides nothing.
  *
  * The deliberate discards are all in the tests — proving that a builder did not mutate what it was
  * called on, or that a bad argument threw — and each is spelled `(void)`, which says out loud what
@@ -76,9 +90,19 @@ final class NoDiscardTest extends TestCase
         self::assertSame(
             [
                 'NeuroSYS\Http\Security\ContentSecurityPolicy::allow',
+                'NeuroSYS\Model\Update\UpdateReport::dryRun',
+                'NeuroSYS\Model\Update\UpdateReport::failed',
+                'NeuroSYS\Model\Update\UpdateReport::isComplete',
+                'NeuroSYS\Model\Update\UpdateReport::kept',
+                'NeuroSYS\Model\Update\UpdateReport::removed',
+                'NeuroSYS\Model\Update\UpdateReport::render',
+                'NeuroSYS\Model\Update\UpdateReport::wrote',
                 'NeuroSYS\Model\WaveformBand::bands',
                 'NeuroSYS\Service\Auth::accepts',
                 'NeuroSYS\Service\Auth::admits',
+                'NeuroSYS\Service\UpdateApplier::apply',
+                'NeuroSYS\Service\UpdateGate::accept',
+                'NeuroSYS\Service\UpdateGate::accepts',
                 'NeuroSYS\Support\Collection::first',
                 'NeuroSYS\Support\Collection::isEmpty',
                 'NeuroSYS\Support\Collection::join',
@@ -90,6 +114,7 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Support\Collection::toValues',
                 'NeuroSYS\Support\Collection::where',
                 'NeuroSYS\Support\Collection::with',
+                'NeuroSYS\Support\Route::accepts',
                 'NeuroSYS\Support\SearchableCollection::first',
                 'NeuroSYS\Support\SearchableCollection::isEmpty',
                 'NeuroSYS\Support\SearchableCollection::join',

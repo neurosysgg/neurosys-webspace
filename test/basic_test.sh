@@ -322,6 +322,36 @@ else
     fail "src/ phones out: $(echo "$phoning" | tr '\n' ' ')"
 fi
 
+# Signature verification happens in exactly one class, for the reason curl does under tools/lib/:
+# options set once cannot disagree between call sites, and here the option that matters is the
+# comparison itself. openssl_verify() returns 1, 0 or -1, and only 1 is a pass — a call site that
+# wrote `if (openssl_verify(...))` would accept the error case as success and let an unsigned
+# payload overwrite src/. PublicKey asks `=== 1` in one place so no second place can ask it wrongly.
+verifying=$(grep -rl "openssl_" "$REPO/src" 2>/dev/null | grep -v "/Support/PublicKey.php$" || true)
+if [[ -z "$verifying" ]]; then
+    pass "openssl is called in one place under src/"
+else
+    fail "openssl called outside Support/PublicKey.php: $(echo "$verifying" | tr '\n' ' ')"
+fi
+
+# The site signs nothing. It holds the public half of the update key and can only ever check a
+# signature; the private half never enters this repository at all. A signing call under src/ would
+# mean a key had, or was about to.
+signing=$(grep -rlE "openssl_(sign|pkey_get_private|pkey_new)" "$REPO/src" 2>/dev/null || true)
+if [[ -z "$signing" ]]; then
+    pass "nothing under src/ signs anything"
+else
+    fail "src/ signs or mints keys: $(echo "$signing" | tr '\n' ' ')"
+fi
+
+# The update key is per-deployment and its absence is the off switch, so a repository carrying one
+# would both publish a deployment's key and switch the endpoint on for every clone.
+if git -C "$REPO" ls-files --error-unmatch data/update.pub >/dev/null 2>&1; then
+    fail "data/update.pub is tracked — it is per-deployment and must stay gitignored"
+else
+    pass "data/update.pub is not in the repository"
+fi
+
 # File::write() narrows the temporary file before it fills it, and the order is the whole
 # guarantee rather than a detail of how it is written. file_put_contents() creates at the umask
 # default — 0644 under the usual 022 — so a chmod placed *after* the write leaves the contents
@@ -1088,6 +1118,48 @@ check_spa_fragment "AJAX /         returns fragment only" "$BASE/"
 check_spa_fragment "AJAX /releases returns fragment only" "$BASE/releases"
 check_spa_fragment "AJAX /releases/ill returns fragment only" "$BASE/releases/ill"
 
+
+
+echo ""
+echo "=== The update endpoint ==="
+# /update is the one route that writes, and its whole design is that an unsigned caller cannot tell
+# it from an address that does not exist. That is a claim about real responses — status, headers and
+# body — so only this suite can check it. Compared against a path that genuinely is not there rather
+# than against a remembered expectation, because what must hold is that the two agree.
+for method in GET HEAD POST PUT DELETE; do
+    update=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/update")
+    absent=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/no-such-page")
+
+    if [[ "$update" == "$absent" ]]; then
+        pass "$method /update answers like an address that is not there ($update)"
+    else
+        fail "$method /update → $update but /no-such-page → $absent, so the endpoint announces itself"
+    fi
+done
+
+# The Allow header is the subtler half. The route accepts POST, so a 405 naming its own methods
+# would read `GET, HEAD, POST` — and that POST is exactly the fact being hidden.
+update_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/update" | grep -i '^allow:' | tr -d '\r')
+absent_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/no-such-page" | grep -i '^allow:' | tr -d '\r')
+if [[ "$update_allow" == "$absent_allow" && "$update_allow" == *"GET, HEAD"* && "$update_allow" != *"POST"* ]]; then
+    pass "  and its 405 never names POST"
+else
+    fail "  /update sent '$update_allow' where /no-such-page sent '$absent_allow'"
+fi
+
+# A body that is not a signed payload changes nothing about that answer.
+unsigned=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST --data-binary 'not a payload' "$BASE/update")
+if [[ "$unsigned" == "$absent" ]]; then
+    pass "  an unsigned POST body is refused the same way"
+else
+    fail "  an unsigned POST body → $unsigned, where an absent path → $absent"
+fi
+
+if [[ -f "$REPO/data/update.pub" ]]; then
+    pass "  a key is installed, so this deployment can accept a push"
+else
+    echo "  SKIP the endpoint is switched off here — no data/update.pub, which is the safe default"
+fi
 
 echo ""
 if [[ $FAIL -eq 0 ]]; then

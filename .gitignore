@@ -48,3 +48,15 @@ data/demos/
 # Generated on demand by `npm run build:prod`, never committed: what is committed is the readable
 # public/ the tests and the drift check read.
 /build/
+
+# The update endpoint's public key, and the serial it has last accepted.
+#
+# The key is per-deployment — that is what binds a signed payload to one server without any field
+# in the manifest naming one — and its *absence* is the off switch: no key, no endpoint. So a
+# clone starts closed rather than open, which is the opposite polarity to data/site_auth.php above
+# and worth reading twice. deploy.sh excludes it too; upload it by hand, once.
+#
+# The private half is never here at all. It lives at ~/.config/neurosys/update.key, outside the
+# repository entirely, the way the SoundCloud refresh token does.
+data/update.pub
+/.update-serial

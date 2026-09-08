@@ -6,29 +6,39 @@ document also came out of. It describes what the code does and, more usefully, *
 worth writing down when it is a decision rather than an oversight, and most of the security here is
 absences.
 
-The short version: **the shape of the site is its first defense.** It is read-only, static, has no
-database, sets no cookie, starts no session, has no `<form>`, accepts no upload, persists nothing a
-request sends, and has no runtime dependencies. Whole classes of vulnerability are not mitigated
-here — they are structurally absent. What remains is enforced at type boundaries and at the single
-place markup is rendered, so the failure mode of a mistake is a build error or a thrown exception,
-not a silently shipped hole.
+The short version: **the shape of the site is its first defense.** It is static, has no database,
+sets no cookie, starts no session, has no `<form>`, and has no runtime dependencies. Whole classes
+of vulnerability are not mitigated here — they are structurally absent. What remains is enforced at
+type boundaries and at the single place markup is rendered, so the failure mode of a mistake is a
+build error or a thrown exception, not a silently shipped hole.
+
+**One sentence used to be longer.** This document said the site was read-only, accepted no upload
+and persisted nothing a request sends. That is no longer true: `/update` accepts a POST carrying a
+gzipped tarball and writes it into `src/` and the webroot. It is the deploy path, replacing minutes
+of `rsync -c` over an SFTP mount where a single `stat` costs 480 ms, and it is described in full
+under [The update endpoint](#the-update-endpoint) below. Everything else in this document still
+holds, and the claims that changed are corrected where they appear rather than quietly reworded.
 
 ## The attack surface
 
 Everything an attacker can reach:
 
-- **Nine routes**, all `GET`/`HEAD`: `/`, `/releases`, `/releases/{slug}`,
+- **Ten routes.** Nine are `GET`/`HEAD`: `/`, `/releases`, `/releases/{slug}`,
   `/releases/{slug}/{format}`, `/demos/{slug}` and `/demos/{slug}/{label}` (each behind that demo's
   own HTTP Basic password), `/admin/stats` (behind HTTP Basic), `/imprint`, `/privacy`.
   There is deliberately no `/demos` index — see [demos.md](demos.md).
+- **The tenth is `/update`**, which accepts a `POST` and answers every method exactly as an address
+  that does not exist, unless the request carries an ECDSA signature this deployment's public key
+  verifies. It is unreachable without the private key and invisible without it.
 - **Static assets** under `/assets/`, served by the web server, never by PHP. The one exception is a
   demo's audio, which PHP serves itself precisely so that it is *not* static — see below.
 - Everything else answers `404` or `405`.
 
-Everything an attacker controls: the **request target** (the path), the **method**, and a few
+Everything an attacker controls: the **request target** (the path), the **method**, a few
 **request headers** the app reads — `Authorization`, `X-Requested-With`, and (only when download
-logging is on, which it is not) `Referer`. Nothing a request carries is written anywhere; there is
-no state-changing verb the site honours.
+logging is on, which it is not) `Referer` — and, on `/update` alone, a **request body**. That body
+is read at one call site, and every byte of it is discarded unless a signature over its manifest
+verifies first.
 
 What is *not* in the surface, and the bug class each absence removes:
 
@@ -36,9 +46,9 @@ What is *not* in the surface, and the bug class each absence removes:
 |---|---|
 | No database, no SQL | SQL injection |
 | No cookie, no session | session fixation/hijack; the ambient credential CSRF rides |
-| No `<form>`, no state-changing route | CSRF target; mass-assignment |
-| No file upload, no user content | stored XSS; upload/path abuse |
-| No path built from a request | traversal — a demo's audio is addressed by a declared label, never by a file name |
+| No `<form>`, no ambient credential | CSRF target; mass-assignment |
+| No user-facing upload, no user content | stored XSS |
+| No path built from a request | traversal — a demo's audio is addressed by a declared label, and an update's members are matched against an allowlist of three roots |
 | No `unserialize()` of request data | object injection |
 | No shell-out, no `eval`, no dynamic include of request data | command injection; LFI/RFI |
 | No third-party script, no CDN | supply-chain script injection |
@@ -151,14 +161,23 @@ only half the switch; `header_remove()` is the half we have. It is invisible und
 built-in dev server — `header()`/`header_remove()` are no-ops there — and only observable under a
 real SAPI, where the header is confirmed gone.
 
-### 3 + 4. The read-only method gate
+### 3 + 4. The method gate
 
-`Router::dispatch()` answers anything but `GET`/`HEAD` with a `405`, *before* it looks at the route.
-The `Allow` header is built from `HttpMethod::allowed()`, which filters the cases by `isReadOnly()`,
-so the header cannot advertise a verb the gate does not honour — a hand-written `Allow: GET, HEAD`
-could drift; this cannot. An unrecognised method (`REQUEST_METHOD` is whatever the client sent)
-parses to `null` rather than a guessed `GET`, and `null` is not read-only — so a `PROPFIND` or a typo
-is refused, not silently treated as a read.
+`Router::dispatch()` matches the path first and then asks that route whether it answers the method,
+refusing with a `405` before any controller is built. The `Allow` header is `Allow::readOnly()`,
+derived by filtering `HttpMethod::cases()` on `isReadOnly()`, so it cannot advertise a verb the gate
+does not honour — a hand-written `Allow: GET, HEAD` could drift; this cannot. An unrecognised method
+(`REQUEST_METHOD` is whatever the client sent) parses to `null` rather than a guessed `GET`, and
+`null` is not read-only — so a `PROPFIND` or a typo is refused, not silently treated as a read.
+
+**The question moved onto the route when `/update` arrived**, and it is a `MethodPolicy` rather than
+a set of methods. That is not a stylistic choice. A route carrying its own set would make the `405`
+name it, so `PUT /update` would answer `Allow: GET, HEAD, POST` — and that `POST` is precisely the
+fact the endpoint exists to hide. An unrecognised verb was worse: `null` is in no set, so the
+refusal would have named the whole set. So there are two policies, not ten sets: nine routes are
+`ReadOnly` and refuse exactly as the old global gate did, and `/update` is `Delegated`, which means
+the router forms **no opinion at all** and the controller answers every method itself. The only
+`Allow` the router ever sends is still `GET, HEAD`.
 
 ### 2 (again). Parsing the request defensively
 
@@ -184,6 +203,9 @@ a trailing newline, so `\z` is what actually means "the end of the string". Plac
 decorated path onto a gated route.
 
 ### 3 (again). Authentication
+
+Four gates. Three are HTTP Basic; the fourth is a signature and is described in
+[The update endpoint](#the-update-endpoint).
 
 Three gates, all HTTP Basic. Two of them — the pre-launch site gate and the admin gate — ask the same
 question of the same shape of credentials file, so they ask it in one place: `Auth::accepts()`. The
@@ -292,6 +314,115 @@ and no personal data is ever placed in a URL or query string. Turning logging on
 privacy-policy decision before a code one — `data/privacy.html` makes no download-tracking claim, so
 it would have to be amended first.
 
+## The update endpoint
+
+`/update` is the one route that writes. It exists because deploying meant `rsync -c` over a GVFS
+SFTP mount where a single `stat` costs **480 ms** and walking `src/` alone costs **3.7 s**, across
+269 files, for a payload that is **209 KB gzipped**. It replaces minutes with one request.
+
+It is also the one place this document's other claims had to be re-argued rather than restated, so
+the argument is here in full.
+
+### It answers as though it is not there
+
+An unsigned request gets **exactly** what the site gives for an address that does not exist: the
+rendered `404` for a read method, the `text/plain` `405` with `Allow: GET, HEAD` for anything else,
+and the same for a verb the site does not recognise. Not a `401`, which would prompt; not a `403`,
+which would confirm; not a `405` naming `POST`, which would confirm more precisely.
+
+That is a property of the structure rather than of two implementations kept in step: both responses
+come from `UnroutedController`, the very object `Router` delegates to when no route matches at all.
+`UpdateController` hands it anything it will not verify. The verify script checks the claim over
+real HTTP, per method, against `/no-such-page` — because the claim is about status codes, headers
+and bodies, and only a real server has those.
+
+### The credential is a key the server cannot use
+
+`data/update.pub` holds an **ECDSA P-256 public key**. The private half lives at
+`~/.config/neurosys/update.key`, outside the repository entirely, and is the same arrangement the
+SoundCloud refresh token has: no `.gitignore` entry and no rsync flag is what stands between it and
+a webroot, because it was never in reach of either.
+
+The server therefore holds nothing replayable. A full compromise of the account yields the public
+half and no ability to push anything. That asymmetry is the reason this gate is a signature rather
+than a tenth bcrypt digest — the other three gates protect pages, and this one protects the code
+that serves them.
+
+**Its absence is the off switch, with the opposite polarity to `data/site_auth.php`.** No key file,
+no endpoint, for everyone, forever. So a fresh clone and every machine that has not deliberately
+been given a key are closed rather than open — worth reading twice, because the two files look
+alike and mean opposite things.
+
+`PublicKey` is the only `openssl_*` call site under `src/`, which the verify script pins the way it
+pins `curl_` to one file under `tools/lib/`. It asks `=== 1`, because `openssl_verify()` returns
+`1`, `0` **or `-1`**, and a call site written `if (openssl_verify(...))` would read the error case
+as a pass. A second check asserts that nothing under `src/` names a signing or key-minting call at
+all, so a private key arriving on the server would have nothing to use it.
+
+### What a signature covers, and why replay is closed
+
+The body is one framed stream — magic, a manifest, a signature over the manifest, then the gzipped
+tar. The signature covers the manifest; the manifest covers the archive by SHA-256. One signature
+over a few hundred bytes therefore protects a payload of any size, and the archive is never trusted
+before it is hashed.
+
+The manifest carries a `serial` doing double duty: it must be within **±300 s** of the server's
+clock *and* strictly greater than the highest serial already accepted, which is recorded at
+`cgi-bin/.update-serial` — above the webroot, in neither mirrored tree, and in no rsynced one. The
+monotonic half alone would accept a payload signed long ago and never sent; the skew half alone
+would leave a five-minute replay window. A **dry run deliberately does not advance the serial**, so
+a captured dry run replays to nothing and a real push of the same payload is still possible.
+
+### What a verified payload may write
+
+Three roots, and `data` is conspicuously not among them: `public/`, `src/`, and the single file
+`autoload.php`. That one rule is what keeps `data/admin.php`, `data/site_auth.php`, `data/demos.php`
+and 8.6 MB of unreleased audio out of reach of any push, however well signed — there is no
+destination to compute for them rather than a destination computed and then rejected.
+
+Every member of the archive is checked **before anything is written**, so a payload with one bad
+name writes nothing at all:
+
+- the tar reader is hand-rolled rather than `PharData`, because `PharData::extractTo()` decides for
+  itself what a member name means and what a link points at, and those are exactly the decisions
+  that must not be delegated when the names came off the network;
+- only a **regular file or a directory** survives. A symlink, a hardlink, a device node, a fifo, a
+  GNU long-name record and a pax header are each refused **by name** — not skipped, refused, since an
+  archive containing one is not an archive this site produced;
+- a name must match `[A-Za-z0-9._-]` segments separated by `/`, with no leading slash, no backslash,
+  no empty segment and no `.` or `..`. There is **no `..` handling and no `realpath()` fallback**: a
+  name that would need either is refused outright, which is why nothing downstream carries a
+  traversal guard;
+- the ustar header checksum is verified, because a signature says the bytes are ours and the
+  checksum says they are a tar — and in a format that is nothing but offsets, bad framing means every
+  name after it is read out of the middle of somebody's file.
+
+Each file then lands through `File::write()`, which writes beside the target and renames over it, so
+every file appears atomically and within one filesystem. The mirror that removes what a payload
+omits is an **enumerated delete**: the tree is walked, diffed, and each surplus path is checked by
+the same rules an added path passes before `File::delete()` is called on it, one named file at a
+time. `Directory::remove()` is never used for it — that method deletes the files a directory holds,
+which is right for tearing down a fixture and catastrophic here.
+
+### Where the roots resolve, and the mistake that is written down
+
+`Deployment` maps a root to a directory; `UpdateRoot` is only the vocabulary. That separation exists
+because it was originally one class, and the join was a real fault: deciding whether a name was
+*under* `public/` meant resolving where `public/` **is**, which reaches `DOCUMENT_ROOT`.
+
+`Config::webroot()` takes only the **basename** of `DOCUMENT_ROOT` and hangs it off the derivation
+every other path here uses, because on the live host the two spellings of one directory are
+genuinely different strings — `/home/strato/…/cgi-bin/neurosys` against `/mnt/web505/…/cgi-bin/neurosys`
+— and a path built from the wrong one compares equal to nothing. But a basename grafted onto a
+different tree names a real directory somewhere else, and during development a test that pointed
+`DOCUMENT_ROOT` at a sandbox got this repository's `public/` back and the mirror emptied it.
+
+Two changes came out of that, and both are guards rather than notes. `Config::webroot()` now
+**refuses** a `DOCUMENT_ROOT` that is not a directory inside the deployment, comparing `realpath()`
+on both sides, and refuses rather than guessing because every candidate guess is a directory
+something would then be willing to delete. And `UpdateApplier` takes its `Deployment` as a
+constructor argument, so a test is not merely unlikely to reach the live tree — it cannot.
+
 ## The assessment (2026-09)
 
 This document was written alongside a security assessment of the site — a deliberate attempt to break
@@ -325,8 +456,14 @@ test providers gained a trailing-newline case so it cannot regress.
 
 - **No web-application firewall, no rate limiting layer.** This is a static site on shared hosting;
   the perimeter is the host's.
-- **No CSRF tokens, no `SameSite` cookies.** There is no ambient credential and no state-changing
-  request for them to protect.
+- **No CSRF tokens, no `SameSite` cookies.** The argument used to rest on three independent legs
+  and now rests on two, which is worth stating rather than leaving as an unchanged sentence. The leg
+  that went is "the only state-changing verb is refused by the 405 gate": `/update` honours a `POST`.
+  What remains is that the site **sets no cookie and starts no session**, so there is no ambient
+  credential for a cross-site request to ride, and that there is **no `<form>`** anywhere. Either
+  alone is sufficient, and a cross-site `POST` to `/update` cannot forge a signature in any case. The
+  CSP still carries `form-action 'self'`, which on a site with no forms is belt over braces and stays
+  because the day a form appears is not the day anyone will remember to add it.
 - **No cookie or consent banner** for the site itself — it sets no cookie. The one consent gate is on
   the SoundCloud embed, which contacts no third party until the visitor clicks: the served HTML
   contains no SoundCloud address at all for a browser to preconnect or prefetch, and the notice is

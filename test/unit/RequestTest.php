@@ -319,6 +319,11 @@ final class RequestTest extends TestCase
      * {@link ServerVariable::Referer} is the one worth looking at twice — one `r`, because HTTP
      * lost it in 1996 and never got it back, while the property it fills spells it correctly.
      *
+     * {@link ServerVariable::DocumentRoot} is the one that is not a request header at all, which is
+     * exactly why it earns a case: no `HTTP_` derivation reaches it, and it carries the one fact
+     * about this deployment that {@link \NeuroSYS\Config} cannot derive — what the webroot
+     * directory is called.
+     *
      * @return void
      */
     public function testTheServerVariablesAreNamedAsTheEnvironmentSpellsThem(): void
@@ -331,6 +336,7 @@ final class RequestTest extends TestCase
             'HTTP_AUTHORIZATION',
             'REDIRECT_HTTP_AUTHORIZATION',
             'HTTP_REFERER',
+            'DOCUMENT_ROOT',
         ], array_column(ServerVariable::cases(), 'value'));
     }
 

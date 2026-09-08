@@ -6,6 +6,8 @@ namespace NeuroSYS\Support;
 
 use Closure;
 use NeuroSYS\Controller\Controller;
+use NeuroSYS\Http\HttpMethod;
+use NoDiscard;
 
 /**
  * A registered route — a {@link SitePath} paired with a factory that produces a Controller.
@@ -28,11 +30,27 @@ readonly class Route
     /**
      * @param SitePath $pattern
      * @param Closure $factory
+     * @param MethodPolicy $methods Who decides which methods this route answers on. Nine routes
+     *                              take the default and say nothing; see that enum for the one
+     *                              that does not, and why it cannot carry a method set instead.
      */
     public function __construct(
-        private SitePath $pattern,
-        private Closure  $factory,
+        private SitePath     $pattern,
+        private Closure      $factory,
+        private MethodPolicy $methods = MethodPolicy::ReadOnly,
     ) {}
+
+    /**
+     * Whether this route answers on $method.
+     *
+     * @param HttpMethod|null $method
+     * @return bool
+     */
+    #[NoDiscard('this is the method gate\'s decision; dropping it lets the request through')]
+    public function accepts(?HttpMethod $method): bool
+    {
+        return $this->methods->accepts($method);
+    }
 
     /**
      * Tests whether this route matches $path.

@@ -211,6 +211,34 @@ readonly class Request
     public function ifNoneMatch(): string   { return $this->ifNoneMatch; }
 
     /**
+     * The raw request body, or `''` where there is none.
+     *
+     * **Read here rather than in {@link self::fromGlobals()}, and that placement is the whole of
+     * the care.** Nine of the ten routes are reads that carry no body; parsing one into every
+     * `Request` would make all of them pay for the one that does, and would quietly turn a class
+     * that describes a request into one that has consumed it. So this is a method, not a property,
+     * and `Request` stays `readonly` with nothing to memoise — `php://input` is re-readable for
+     * anything that is not a multipart form, and nothing here posts a form.
+     *
+     * **It has exactly one caller**, {@link \NeuroSYS\Controller\UpdateController}, and that is
+     * worth stating because `docs/security.md` used to be able to say the site had no way to obtain
+     * a body at all. It no longer can. What replaces that guarantee is narrower and still worth
+     * having: the body is read at one call site, past a route that accepts POST and nothing else
+     * does, and every byte of it is refused unless {@link \NeuroSYS\Support\PublicKey} says it was
+     * signed by a key this deployment holds.
+     *
+     * The `@` is the same suppression {@link \NeuroSYS\Support\File::read()} justifies: headers are
+     * already out by the time anything here runs, so a warning would print into the response rather
+     * than into a log — and on the live host there is no log to print to.
+     *
+     * @return string
+     */
+    public function body(): string
+    {
+        return (string) @file_get_contents('php://input');
+    }
+
+    /**
      * The bytes this request asked for out of a file $size long, or null where it asked for all of
      * them.
      *

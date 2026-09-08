@@ -192,18 +192,27 @@ middle of building a request. The space is part of the token, deliberately: `Bas
 user name and an empty password rather than a refusal; that is older than the class and pinned by a
 test named for it, and it costs nothing because an empty password matches no bcrypt digest.
 
-The site is read-only: `Router::dispatch()` answers anything but GET/HEAD with a 405. The `Allow`
-header is built from `HttpMethod::allowed()`, which filters the cases by `isReadOnly()` — so the
-header cannot claim something the gate does not do, which a hand-written `'Allow: GET, HEAD'` could.
-An unrecognised method is `null` rather than a guess, and null is not read-only.
+**Nine of the ten routes are read-only, and the tenth writes.** The method question is asked of the
+matched route rather than globally: `Route` carries a `MethodPolicy`, which is `ReadOnly` for nine
+routes — anything but GET/HEAD is a 405 whose `Allow` comes from `Allow::readOnly()`, filtering the
+cases by `isReadOnly()` so the header cannot claim something the gate does not do — and `Delegated`
+for `SitePath::Update`, where the router forms **no** opinion and the controller answers every
+method itself. An unrecognised method is `null` rather than a guess, and null is not read-only.
 
-**There is no CSRF surface here, and that is a property rather than an oversight.** It rests on
-three independent facts, any one of which would be enough on its own: the site sets **no cookie**
-and starts **no session**, so there is no ambient credential for a cross-site request to ride;
-there is **no `<form>` anywhere**, and the only state-changing verb is refused by the 405 gate
-above; and the one authenticated route is HTTP Basic, where the browser sends credentials because
-of the realm rather than because of the origin. So no token, no `SameSite` attribute and no
-double-submit anything — there is nothing for them to protect. The CSP still carries
+The policy is two cases rather than a set of methods per route, and that is the whole point: a route
+naming its own set would make `PUT /update` answer `Allow: GET, HEAD, POST`, and that POST is
+exactly the fact `/update` exists to hide. So the only `Allow` the router ever sends is still
+`GET, HEAD`. See [The update route](#the-update-route).
+
+**There is no CSRF surface here, and that is a property rather than an oversight — but it now rests
+on two legs rather than three, which is worth stating rather than leaving as an unchanged
+paragraph.** The leg that went is "the only state-changing verb is refused by the 405 gate":
+`/update` honours a POST. What remains, and either alone is sufficient: the site sets **no cookie**
+and starts **no session**, so there is no ambient credential for a cross-site request to ride; and
+there is **no `<form>` anywhere**, while the one Basic-authenticated route is one the browser sends
+credentials to because of the realm rather than because of the origin. A cross-site POST to
+`/update` cannot forge an ECDSA signature in any case. So still no token, no `SameSite` attribute
+and no double-submit anything — there is nothing for them to protect. The CSP still carries
 `form-action 'self'`, which on a site with no forms is belt over braces, and stays because the
 day a form appears is not the day anyone will remember to add it.
 
@@ -363,7 +372,7 @@ tree removes outright — there is no closing tag to get wrong, because there is
 grounds the names did: misspell `modulepreload` and forty-six preload hints stop preloading in
 silence, misspell `noopener` and a security boundary on every outbound link is quietly not there,
 and drop `module` from the script tag and `import` becomes a syntax error. `rel` is a token list, so
-`LinkRel::tokens(…)` builds it variadically the way `HttpMethod::allowed()` builds the `Allow`
+`LinkRel::tokens(…)` builds it variadically the way `Allow::readOnly()` builds the `Allow`
 header. `preload` is `MediaPreload` and `<meta name>` is `MetaName` on the same grounds — the second
 is the whole vocabulary of an attribute used nowhere else on the site, and it fails the way the rest
 of this list does, which is not at all: a `<meta>` whose name nothing recognises is laid out as
@@ -1513,11 +1522,112 @@ is the stronger credential, so the site gate could stand down for `/demos/`) rat
 ),
 ```
 
+## The update route
+
+`/update` is the one route that writes, and the only reason it exists is a measurement: deploying
+means `rsync -c` over a GVFS SFTP mount where a single `stat` costs **480 ms**, walking `src/`
+alone costs **3.7 s**, and `-c` reads every one of 269 files on both sides. The same two trees are
+**209 KB gzipped**. So a deploy is minutes of round trips for a payload that fits in one request.
+
+```bash
+npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
+npm run build:prod && php tools/push-update.php             # public/ + src/ + autoload.php
+```
+
+**It does not replace `deploy.sh` and must not be made to.** That script still owns `data/` — 8.6 MB
+of demo audio, rsynced deliberately *without* `--delete` — and it is the recovery path: a push that
+breaks `src/` breaks the endpoint that would fix it. Nine decisions are worth knowing before
+touching any of it, and `docs/security.md` carries the argument in full.
+
+- **It answers as though it is not there.** An unsigned request gets exactly what the site gives for
+  an address that does not exist — the rendered 404 for a read method, the `text/plain` 405 with
+  `Allow: GET, HEAD` for anything else, and the same for a verb the site does not recognise. Not a
+  401, which prompts; not a 403, which confirms; not a 405 naming POST, which confirms precisely.
+  That is structural rather than kept in step by a test: both come from `UnroutedController`, the
+  very object `Router` delegates to when nothing matches, and `UpdateController` hands it anything
+  it will not verify.
+- **The router forms no opinion about its methods**, which is what `MethodPolicy::Delegated` means.
+  A route carrying its own method set would make the 405 name it — `Allow: GET, HEAD, POST` — and
+  that POST is the fact being hidden. An unrecognised verb was worse: `Request::method()` is null
+  for one, null is in no set, and the refusal would have named the whole set. Two policies, not ten
+  sets.
+- **The credential is a key the server cannot use.** `data/update.pub` is an ECDSA P-256 public
+  half; the private half lives at `~/.config/neurosys/update.key`, outside the repository entirely,
+  the same arrangement the SoundCloud refresh token has. A full compromise of the account yields no
+  ability to push. **The key file's absence is the off switch**, which is `site_auth.php`'s
+  arrangement with the polarity reversed — no key, no endpoint, so a fresh clone is closed rather
+  than open. Worth reading twice; the two files look alike and mean opposite things.
+- **ECDSA P-256 was chosen by measurement, not taste.** `ext/sodium` is absent on this machine, and
+  Ed25519 does not work through PHP's openssl binding at all — it fails with
+  `Provider routines::invalid digest`, because the binding drives the digest-based API and Ed25519
+  is one-shot. P-256 was then verified end to end on the live host before a line was written.
+  `PublicKey` is the only `openssl_*` call site under `src/`, pinned the way `curl_` is pinned to one
+  file under `tools/lib/`, and it asks `=== 1` because `openssl_verify()` returns 1, 0 **or -1**.
+- **The wire format is a framed body, not headers.** Magic, a manifest, a signature over the
+  manifest, then the gzipped tar — the `Waveform` idiom, with a version digit. Headers were the
+  obvious alternative and were turned down twice over: `RequestHeader` is mirrored in TypeScript and
+  compared case-for-case, so header-carried metadata would put cases into the browser's bundle that
+  no browser reads; and a header is the part of a request most likely to be rewritten by something
+  between here and the client, where this passes a proxy and an Apache rewrite.
+- **Replay is closed by a serial doing double duty.** Within ±300 s of the server's clock *and*
+  strictly greater than the highest already accepted, recorded at `cgi-bin/.update-serial` — above
+  the webroot, in neither mirrored tree, in no rsynced one. A **dry run does not advance it**, so a
+  captured dry run replays to nothing and the same payload can still be sent for real.
+- **`data` is not a root.** Three roots and no more: `public/`, `src/`, `autoload.php`. That single
+  rule is what keeps the credentials and every unreleased track out of reach of any push, however
+  well signed — there is no destination to compute rather than one computed and then rejected.
+- **The tar reader is hand-rolled, and the refusals are the point.** Not `PharData`, which decides
+  for itself what a member name means and what a link points at — the decisions that must not be
+  delegated when the names came off the network. Only a regular file or a directory survives; a
+  symlink, hardlink, device node, fifo, GNU long-name record and pax header are each refused **by
+  name**. A name must be plain `[A-Za-z0-9._-]` segments: there is **no `..` handling and no
+  `realpath()` fallback**, so a name that would need either is refused rather than resolved, which is
+  why nothing downstream carries a traversal guard. Everything is checked before anything is
+  written, so one bad member writes nothing at all.
+- **The mirror is an enumerated delete, never a recursive one.** The tree is walked, diffed against
+  the payload, and each surplus path is validated by the rules an added path passes before
+  `File::delete()` takes it, one named file at a time. `Directory::remove()` is deliberately *not*
+  used for it — that method deletes the files a directory holds, which is right for a fixture and
+  catastrophic here.
+- **A push writes what changed, not what it carries**, and that is `rsync -c`'s rule arrived at the
+  hard way rather than borrowed. Strato serves off **NFS**, and `File::write()` renames its temp
+  file *onto* the target — so rewriting an identical `public/index.php` while the request is
+  executing out of it makes the NFS client **silly-rename** the open inode aside as `.nfsXXXXXXXX`
+  instead of unlinking it. The mirror then meets that stray as a surplus path *in the same request*
+  and cannot remove it, because the handle keeping it alive is this very process. One push, one
+  undeletable file in the webroot, one spurious failure, a 500 on a push that actually worked.
+  `UpdateApplier::isCurrent()` is the fix: a file whose bytes are already there is left strictly
+  alone — not rewritten, not touched, not chmodded — and the report counts it as `unchanged` rather
+  than listing it, since nothing happened to it. Permissions are deliberately not reconciled, which
+  is the trade `rsync` without `-p` makes for the same reason.
+
+  **The interesting half is that this was never the endpoint's bug.** `deploy.sh` strands the same
+  inode every time it rsyncs `index.php` — rsync writes beside and renames exactly as `File::write()`
+  does — and the first stray found in the webroot was dated to the rsync that had run twenty minutes
+  earlier, not to any push. The endpoint is simply the first thing here that *mirrors*, and so the
+  first thing that ever looked. A push that reports `failed` now means something, which is the whole
+  point of not letting it cry wolf once per deploy.
+
+**One mistake in this feature is written down rather than merely fixed, because it reads as
+reasonable and is not.** `UpdateRoot` originally answered both "is this name under a root" and
+"where does that root live", and the second question reaches `DOCUMENT_ROOT`. `Config::webroot()`
+takes only the **basename** of that variable — it has to, because the live host reports one
+directory under two different absolute paths (`/home/strato/…/cgi-bin/neurosys` against
+`/mnt/web505/…/cgi-bin/neurosys`) and a path built from the wrong one compares equal to nothing. But
+a basename grafted onto a different tree names a real directory somewhere else, and a test pointing
+`DOCUMENT_ROOT` at a sandbox got *this repository's* `public/` back. The mirror emptied it, and
+`src/` with it. Two guards came out of that: `Config::webroot()` now refuses a `DOCUMENT_ROOT` that
+is not inside the deployment, comparing `realpath()` on both sides rather than guessing — every
+candidate guess is a directory something would then be willing to delete — and `UpdateApplier` takes
+its `Deployment` as a constructor argument, so a test cannot reach the live tree rather than being
+unlikely to.
+
 ## The tooling
 
-`tools/` holds five commands and two things that are not. `stage-release`, `stage-demo`,
-`release-track`, `extract-midi` and `merge-coverage` implement `NeuroSYS\Tool\Cli\Command` — a name,
-a usage line, the `Option`s it accepts, and a `run()` returning an `ExitCode`. `dev-router.php` and
+`tools/` holds six commands and two things that are not. `stage-release`, `stage-demo`,
+`release-track`, `extract-midi`, `push-update` and `merge-coverage` implement
+`NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a `run()`
+returning an `ExitCode`. `dev-router.php` and
 `coverage-prepend.php` implement nothing, because PHP loads them itself: one is handed to `php -S`
 and one is an `auto_prepend_file`, so neither has an argv or an exit code for an interface to
 attach to. Each says so in its docblock.
@@ -1526,7 +1636,7 @@ attach to. Each says so in its docblock.
 tools/
 ├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/
 ├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
-├── extract-midi.php      ├── stage-demo.php
+├── extract-midi.php      ├── stage-demo.php       ├── push-update.php
 └── lib/
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
     ├── Command/          ← the five commands, their option enums, and FolderReport — the report
@@ -1549,6 +1659,9 @@ tools/
     │                       PHP source from a string: Expression, Value, Call, Argument, Entry
     ├── Release/          ← ReleaseFolder, Preflight, EntryWriter, ProjectFile, ReleasesFile
     │                       + the enums they read
+    ├── Update/           ← the push side of /update: TarWriter + PackedFile, PayloadBuilder.
+    │                       The reader lives under src/ because the server needs it; the writer
+    │                       lives here because the server must not have it
     └── SoundCloud/       ← the upload client: Client, Credentials/CredentialVariable/Authorization/
                             AccessToken/OAuthCredential/TokenStore, TrackUpload/TrackField/
                             TrackSharing, UploadedTrack
@@ -1755,8 +1868,14 @@ the tool.
 
 `public/` maps to Strato's `htdocs/` (web-exposed). `data/` lives **outside** the webroot — it's uploaded separately and never via the standard deployment mapping.
 
-- Regular deploy: `./deploy.sh` (rsync over the mounted SFTP). It runs `npm run build:prod` first,
-  so the tree it uploads is always current — see [Debug and prod builds](#debug-and-prod-builds).
+- Regular deploy: **`php tools/push-update.php`**, one signed HTTPS request carrying `public/`,
+  `src/` and `autoload.php` — 209 KB against minutes of SFTP round trips. Run `npm run build:prod`
+  first; it ships `build/dist/`, the same tree `deploy.sh` does. See
+  [The update route](#the-update-route), and `--dry-run` before anything you are unsure of.
+- Full deploy, and the recovery path: `./deploy.sh` (rsync over the mounted SFTP). It runs
+  `npm run build:prod` first, so the tree it uploads is always current — see
+  [Debug and prod builds](#debug-and-prod-builds). It is what still ships `data/`, and it is what
+  fixes a push that broke `src/` — which is why it stays.
 - **PHPStorm's right-click `public/` → Deployment → Upload to Strato uploads the debug tree**, maps
   and all, under a manifest stamped for different bytes. It still *works* — the version segment is
   stripped rather than resolved, so nothing 404s — but it undoes both halves of the prod build
@@ -1780,6 +1899,17 @@ the tool.
   audio route both 401 like a slug that never existed, and the MP3s stay on the mount until somebody
   removes them by hand. See `docs/demos.md`.
 - `data/admin.php` holds bcrypt credentials for `/admin/stats`; generate with `php -r "echo password_hash('pw', PASSWORD_BCRYPT);"`
+- **`data/update.pub` is the third excluded file**, and unlike the other two there is no repo copy at
+  all — it is gitignored, per-deployment, and its absence switches `/update` off. Generate the pair
+  once and upload only the public half by hand:
+
+  ```bash
+  openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update.key
+  ```
+
+  ```bash
+  chmod 600 ~/.config/neurosys/update.key && openssl pkey -in ~/.config/neurosys/update.key -pubout -out data/update.pub
+  ```
 
 Footer profile links come from `data/profiles.php` — an empty URL hides that link. Brand icons are **vendored** under
 `public/assets/img/brand/`, never hot-linked from a platform CDN; see `docs/branding.md` for why and for each platform's

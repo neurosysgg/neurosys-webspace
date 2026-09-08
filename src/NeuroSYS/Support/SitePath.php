@@ -56,6 +56,21 @@ enum SitePath: string
     case Privacy = '/privacy';
 
     /**
+     * The signed deploy endpoint — the one address here that is not a page and the one that writes.
+     *
+     * **It is a case for the same reason every other address is**, even though no view links to it:
+     * this enum is what the router matches against, so an address that lived as a literal would be
+     * a route the table did not have. That it is unreachable from the site is a property of there
+     * being no `<a>` to it, not of it being spelled differently.
+     *
+     * Answering on it is another matter. {@link \NeuroSYS\Controller\UpdateController} replies
+     * exactly as the site replies for a path no route claims, unless the request carries a
+     * signature `data/update.pub` verifies — and that file is absent by default, so on a fresh
+     * clone this address is a 404 and nothing else. See {@link \NeuroSYS\DataFile::UpdateKey}.
+     */
+    case Update = '/update';
+
+    /**
      * This path with its placeholders filled, in declaration order.
      *
      * `SitePath::Release->to($slug)` is `/releases/ill`; `SitePath::Home->to()` is `/`.

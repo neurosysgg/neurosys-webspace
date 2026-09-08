@@ -24,6 +24,15 @@
     <!-- Composer dev dependencies are not ours to lint. -->
     <exclude-pattern>vendor/*</exclude-pattern>
 
+    <!-- The one file whose method names are not ours to choose. test/unit/PhpInputStream.php is a
+         stream wrapper, and PHP's streams API dispatches on exactly these names — `stream_open`,
+         `stream_read` and the rest are the interface, in the same way `connectedCallback` is a
+         contract with the browser rather than with us. Renaming them to camelCase would leave a
+         class PHP never calls. -->
+    <rule ref="PSR1.Methods.CamelCapsMethodName">
+        <exclude-pattern>test/unit/PhpInputStream.php</exclude-pattern>
+    </rule>
+
     <rule ref="PSR12">
         <!-- allows `private array  $segments` column-alignment across constructor params -->
         <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpacingAfterHint"/>
