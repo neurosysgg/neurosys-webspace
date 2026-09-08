@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Model\Release;
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\CardAttribute;
@@ -18,6 +19,12 @@ use NeuroSYS\View\Html\Tag;
 /**
  * The ReleasesView class. Renders the full list of releases.
  */
+#[BareString(
+    'releases',
+    'the page word, written as the heading and again as the title. Its twin is the footer link in '
+    . 'Layout, which is copy in another place rather than the same fact twice — the address they '
+    . 'share is SitePath::Releases, and that is the half that has to be one thing.',
+)]
 class ReleasesView extends View
 {
     /**

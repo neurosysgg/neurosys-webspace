@@ -8,6 +8,7 @@ use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Profile;
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\File;
 
@@ -22,6 +23,10 @@ class ProfileRepository
 {
     private readonly File $dataFile;
     /** @var array<string, string>|null */
+    #[BareArray(
+        'what require of a hand-authored data/profiles.php hands back, memoised as it arrived. '
+        . 'The door; all() is the adapter, and the collection of Profiles is what crosses it.',
+    )]
     private ?array $links = null;
 
     /**

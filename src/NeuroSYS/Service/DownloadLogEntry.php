@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use JsonSerializable;
+use NeuroSYS\Support\BareArray;
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\JsonDeserializable;
 use stdClass;
 use Stringable;
@@ -15,6 +17,11 @@ use Stringable;
  * Implements {@link JsonSerializable} + {@link JsonDeserializable} for symmetric JSON codec,
  * and {@link Stringable} so instances can be written directly to a file or echoed.
  */
+#[BareString(
+    'time',
+    'a JSON key in the download log, not the caption ReleaseView writes beside a production '
+    . 'time. This one is a wire format, written here and read back by fromJson() alone.',
+)]
 readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable, Stringable
 {
     /**
@@ -51,6 +58,10 @@ readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable,
     }
 
     /** @return array{time: string, slug: string, format: string, referrer: string} */
+    #[BareArray(
+        'JsonSerializable::jsonSerialize() is the interface, and its shape is not ours to choose. '
+        . 'This is the far door of the same wall File::lines() is the near one of.',
+    )]
     public function jsonSerialize(): array
     {
         return [

@@ -6,6 +6,7 @@ namespace NeuroSYS\Http\Security;
 
 use NeuroSYS\Exception\SecurityPolicyException;
 use NeuroSYS\Http\HeaderValue;
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\SearchableCollection;
 use NoDiscard;
 
@@ -83,6 +84,11 @@ final readonly class ContentSecurityPolicy implements HeaderValue
      *
      * @return list<string>
      */
+    #[BareArray(
+        'a door, and the one CLAUDE.md names when it explains why unique() was never written: this '
+        . 'is its only call site outside Dsp/, and a member added for one caller is a member '
+        . 'nobody else will find. Nothing crosses back in.',
+    )]
     public function hosts(): array
     {
         $hosts = [];

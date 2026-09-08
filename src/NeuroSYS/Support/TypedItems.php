@@ -106,6 +106,10 @@ use TypeError;
  *
  * @template T
  */
+#[BareString('int', 'a scalar type name, spelled the way get_debug_type() spells it. A collection is declared by '
+    . 'a class-string and PHP has no case for int; the vocabulary is the engine\'s rather than '
+    . 'ours, and TypedItems::SCALARS is where it is written down.')]
+#[BareString('string', 'a scalar type name; see the one on int above')]
 trait TypedItems
 {
     /**
@@ -113,6 +117,11 @@ trait TypedItems
      *
      * @var array<array-key, T>
      */
+    #[BareArray(
+        'the store the collection is. Holding a collection here is the definition eating itself, '
+        . 'and it is the one array under src/ whose type argument is checked at every write '
+        . 'instead of being declared.',
+    )]
     private array $items = [];
 
     /**
@@ -125,6 +134,11 @@ trait TypedItems
      *
      * @var list<callable(iterable<array-key, mixed>): Generator<array-key, mixed>>
      */
+    #[BareArray(
+        'a list of closures, and a collection is declared by a class-string: callable is not one. '
+        . 'It is also read on the hot path — the fast path is a === [] against it — where a '
+        . 'collection would cost a construction per with().',
+    )]
     private array $steps = [];
 
     /**
@@ -436,6 +450,7 @@ trait TypedItems
      * @return array<array-key, T>
      */
     #[NoDiscard('toArray() answers with a new array; dropping it ran the whole pending chain for nothing')]
+    #[BareArray('the door itself, named for what it hands over')]
     public function toArray(): array
     {
         return $this->steps === [] ? $this->items : iterator_to_array($this->stream());
@@ -452,6 +467,7 @@ trait TypedItems
      * @return list<T>
      */
     #[NoDiscard('toValues() answers with a new list; dropping it ran the whole pending chain for nothing')]
+    #[BareArray('the door itself, named for what it hands over')]
     public function toValues(): array
     {
         return $this->steps === []
@@ -469,6 +485,7 @@ trait TypedItems
      * @return list<array-key>
      */
     #[NoDiscard('toKeys() answers with a new list; dropping it ran the whole pending chain for nothing')]
+    #[BareArray('the door itself, named for what it hands over')]
     public function toKeys(): array
     {
         return array_keys($this->toArray());

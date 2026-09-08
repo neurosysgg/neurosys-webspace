@@ -10,6 +10,8 @@ use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Support\BareArray;
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\ArrangementAttribute;
@@ -31,6 +33,19 @@ use NeuroSYS\View\Terminal\TerminalTone;
 /**
  * The ReleaseView class. Renders the detail page for a single release.
  */
+#[BareString(
+    'artist',
+    'a caption in the release terminal, the same word the demo page captions its own row with. '
+    . 'Copy rather than a name: nothing looks either of them up, and the row they label is built '
+    . 'from different facts on each page.',
+)]
+#[BareString('status', 'a caption; see the one on artist above')]
+#[BareString(
+    'time',
+    'a caption, and its twin is a JSON key: DownloadLogEntry writes a timestamp under "time" '
+    . 'and this writes the hours a track took beside the word. Two vocabularies that happen to '
+    . 'agree on four letters.',
+)]
 class ReleaseView extends View
 {
     /**
@@ -134,6 +149,10 @@ class ReleaseView extends View
      *
      * @return list<TerminalField>
      */
+    #[BareArray(
+        'spread into Collection::with(), which guards each item as it arrives — the collection is '
+        . 'built one line later, from exactly this.',
+    )]
     private function terminalFields(): array
     {
         $release   = $this->release;

@@ -72,6 +72,12 @@ final readonly class File
      *
      * @return list<string>
      */
+    #[BareArray(
+        'file() is the door and this is the doorway itself, the way glob() is behind '
+        . 'Directory::files(). The difference is what comes through: a File is a type this '
+        . 'codebase owns and a line of text is not, so there is nothing for a collection to say '
+        . 'that a plain list of strings does not.',
+    )]
     public function lines(): array
     {
         $lines = @file($this->path, FILE_IGNORE_NEW_LINES);

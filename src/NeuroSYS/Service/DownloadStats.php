@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
+use NeuroSYS\Support\BareArray;
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\SearchableCollection;
 
 /**
@@ -19,6 +21,12 @@ use NeuroSYS\Support\SearchableCollection;
  * different sentences, deliberately — an empty stats page that cannot tell you which of the two it
  * is reads as a bug. That distinction used to be a fourth constructor argument on the view.
  */
+#[BareString(
+    'int',
+    'the declared type of the collection this builds, spelled as TypedItems::SCALARS spells it. '
+    . 'A collection is declared by a class-string and there is no case for a scalar, so the name '
+    . 'is written out here the way it is at every other such call site.',
+)]
 final readonly class DownloadStats
 {
     /**
@@ -89,6 +97,11 @@ final readonly class DownloadStats
      * @param array<array-key, int> $counts
      * @return SearchableCollection<int>
      */
+    #[BareArray(
+        'the tally accumulator, written to in a loop where with() would copy. It is an argument '
+        . 'rather than a boundary: this method is the adapter that turns it into the collection '
+        . 'the caller gets.',
+    )]
     private static function counts(array $counts): SearchableCollection
     {
         $collection = new SearchableCollection('int');

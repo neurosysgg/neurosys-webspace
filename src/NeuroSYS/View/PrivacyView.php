@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Http\RequestHeader;
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -71,6 +72,7 @@ class PrivacyView extends View
     /**
      * @return list<RequestHeader>
      */
+    #[BareArray('overrides View::varyOn(); see the reason there')]
     public function varyOn(): array
     {
         return [RequestHeader::AcceptLanguage];

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 
 /**
@@ -24,6 +25,11 @@ use NeuroSYS\Support\Collection;
  * the way down and was never at risk of being anything else. What quoting buys is that the line
  * *reads* as the shell transcript it is dressed as, including when what it is quoting is hostile.
  */
+#[BareString(
+    'string',
+    'the declared type of the collection this builds; see DownloadStats, which writes int for '
+    . 'the same reason',
+)]
 final readonly class TerminalCommand
 {
     /** @var Collection<string> The arguments, in order. */

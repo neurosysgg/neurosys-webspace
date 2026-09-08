@@ -53,8 +53,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.40% of
-lines** (1609/1635); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.42% of
+lines** (1622/1648); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -65,8 +65,11 @@ of its own (`SectionPosition`'s range guard, and `first()`'s answer when a *pend
 which is a different loop from the fast path's `array_find`) and closed both in the same pass, which
 is what that pattern is for. **So is the attribute-value work**, which added three — `SitePath`'s
 arity guard both ways, and the `Accept-Language` parameter that is not a weight — and closed all
-three in the same pass. The twenty-six are a property of what is *deliberately* untested, not a
-budget that grows with the code.
+three in the same pass. **So is the guideline work**: `BareArray` and `BareString` are fifteen
+lines of guard between them and `GuidelineTest` carries `#[CoversClass]` for exactly those two,
+because it constructs both — which is the honest difference between it and `NoDiscardTest`, the
+other test that reads the codebase rather than running it. The twenty-six are a property of what is
+*deliberately* untested, not a budget that grows with the code.
 
 **A gate's decision and its 401 are separate.** `Auth::accepts()` is public and returns a bool, the
 same way `SecurityHeaders::headers()` is public next to `send()`, and for the same reason: a method
@@ -130,6 +133,8 @@ src/NeuroSYS/
 │                     scalars)
 │                     + the TypedItems trait they share, File + Directory, Route + SitePath,
 │                     RouteInitialization, JsonDeserializable, Charset, UrlScheme, PasswordHash
+│                     + BareArray/BareString, the two attributes that excuse an exception to the
+│                     rules the other names here exist to keep
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
 │   │                 Doctype + Tag/HtmlTag, the attribute-name enums (WaveformAttribute among
@@ -707,6 +712,92 @@ callback's return declaration already carries one.
   is a separate `Buffer` type, not a hole in this one.
 - **`zip()` / `unique()`** would each have served one call site in `Dsp/` and one in `hosts()` —
   both excluded above, both doors.
+
+## The two guidelines, and what argues against them
+
+Everything above is an argument against two shapes. A **bare array** announces nothing about what
+it holds, which is what `Collection` is for; a **bare string** is a name with no vocabulary, which
+is what the fifty-odd enums are for. Both arguments were made one class at a time and neither had
+anything watching it — so the only thing between this codebase and a slow drift back to
+arrays-and-strings was whoever wrote the next method.
+
+`test/unit/GuidelineTest.php` is that thing. It reads the code the way PHP does: **reflection for
+what is declared, the tokenizer for what is written**. Nothing is grepped for and nothing is
+listed by hand except the two exception sets, which are pinned in both directions the way
+`NoDiscardTest`'s set is.
+
+An exception is an attribute with a sentence in it — `#[BareArray('why')]` on a method or property,
+`#[BareString('literal', 'why')]` on a class — and the reason is mandatory in the attribute's own
+constructor as well as in the test, for the reason `HiDriveLink` checks a share id at its
+constructor: the test reports a fault against a list, the constructor reports it against the line
+that is wrong. A bare `#[BareArray]` would say the array is deliberate, which the reader already
+suspected; what is worth saying is **which door it is**.
+
+**The array rule is every `array` in a declared type.** A variadic is not one and never will be:
+`deny(PermissionsPolicyFeature ...$features)` is a check PHP makes for free, and a `Collection`
+parameter there would replace it with one we make ourselves — the distinction this file already
+draws between what a class *takes* and what it *stores*. Thirty-five declarations carry an excuse
+and they come in four kinds: a **door** (`preg_match`'s `$matches`, `file()`'s lines, `require`'s
+data file, `jsonSerialize()`'s contract, `toArray()` itself), a **variadic's argument** (`varyOn()`,
+`accented()`, `nodes()`, `modulePreloads()`, `terminalFields()`, each spread into a call), a
+**tuple** (`entry()`, `credentials()` — two types in a fixed order, the one shape a homogeneous
+collection cannot hold), and an **accumulator** (`$qualities`, `counts()` — written to in a loop
+where `with()` would copy).
+
+**The string rule is not "no literals".** A tagline, a heading and an exception message are all
+text and none of them is a name; demanding an argument for each would produce four hundred
+arguments and bury the four that matter. It catches the two shapes where a literal genuinely is a
+vocabulary written out:
+
+- **A word an enum in reach already spells.** Reach is "the file names the enum anywhere at all" —
+  if it writes `HttpMethod`, it could have written `HttpMethod::Get`. This is the clause that found
+  the one live drift: `Request::fromGlobals()` defaulted to a `'GET'` the enum had spelled all
+  along.
+- **A word written in two classes.** One occurrence is a value; the same one in another file is a
+  fact with two spellings and nothing keeping them in step. Two *files* rather than two lines,
+  deliberately — a literal repeated inside one class is on one screen and has `const` waiting for
+  it, where every failure this file is careful about is two halves in two files, neither knowing
+  about the other.
+
+Enum declarations are exempt outright, since that is where a vocabulary is meant to live; so is
+anything with no letter or digit in it, because `'/'`, `', '` and `"\n"` are structure and a name
+for them would read worse than they do; and so are an attribute's own arguments, which are prose
+about the code the way a docblock is — the two attributes were caught by their own rule sharing
+half a sentence before that was true.
+
+Seventeen literals carry an excuse and **every one of them is a coincidence rather than a
+shortcut**, which is the point of listing them: each is a word that looks like a name and is not.
+Captions (`artist`, `status`, `releases`, `error` — two pages agreeing on a caption, where the
+thing that does have to be one fact is the `SitePath` under the link), another grammar (`%d:%02d`
+is a printf format, `#^https://…#i` is a regex), or somebody else's vocabulary (`int` and `string`
+are `get_debug_type()`'s spellings in a class-string's place; `time` is a JSON key on one side of
+its pair and a caption on the other).
+
+**One entry is a real duplication kept on purpose and is worth re-reading rather than assuming.**
+`Location::URL_PATTERN` and `Profile::URL_PATTERN` are the same regex in two files. They check two
+different kinds of address — a header the site emits, and data it reads — and throw different
+exceptions for it, so sharing one constant would mean a change made for a redirect silently
+changing what a profile URL may be. That is the argument; it is written on `Location`, and it is
+the one exception here that a later reader might reasonably overturn.
+
+**Three smaller guidelines ride along**, all at zero and all there as regressions rather than as
+work: `declare(strict_types=1)` on every file (without it a `string` parameter starts coercing an
+`int`, in one file, silently), a declared type on every parameter, return and property, and a
+backing value on every enum — that last one because the TypeScript mirrors compare *values*, so a
+pure case is a parity test with nothing to compare.
+
+**What is deliberately not checked.** `mixed` appears twelve times under `src/`, always as a
+collection's element type, and it is there because PHP has no generics rather than because anybody
+chose it — a third attribute for a set that cannot change would be ceremony. `tools/lib/` is not
+walked either: it is not deployed, it is outside the coverage source, and the doors it is made of
+(`unpack`, `preg_match`, `file`) are most of what it does.
+
+**What the test changed on its first run**, besides the `'GET'`: `SecurityHeaders::all()` returns a
+`Collection<Header>` rather than a list, which is what the three `Response` classes already took
+and is the right way round for the five headers that cover the 401 as well as the 200; and
+`WaveformBand::bands()` does the same, having been the one group under `src/` with no door and no
+variadic behind it. Both then wanted `#[\NoDiscard]`, so `NoDiscardTest` grew an entry — which is
+two of these tests agreeing rather than either being wrong.
 
 ## How the router works
 

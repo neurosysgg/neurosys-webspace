@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Production;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Support\BareString;
 
 /**
  * The Section class. One named part of a release's arrangement.
@@ -14,6 +15,7 @@ use NeuroSYS\Exception\ReleaseVerificationException;
  * seconds are derived from the tempo, and deriving them here would bake one release's tempo into a
  * value object that has no business knowing it.
  */
+#[BareString('%d:%02d', 'a printf format; see DemoTrack, which renders the same shape from different arithmetic')]
 final readonly class Section
 {
     /**

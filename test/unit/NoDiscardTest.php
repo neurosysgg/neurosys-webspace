@@ -28,6 +28,12 @@ use ReflectionMethod;
  * attribute nobody remembered to add is a guarantee that silently is not there, and the page looks
  * right either way. Adding a copy-returning builder means adding it here too.
  *
+ * `WaveformBand::bands()` is the odd one out among the pure members: it neither copies nor
+ * queries, it *is* three cases. It answers with a {@link \NeuroSYS\Support\Collection} because
+ * {@link GuidelineTest} found it was the one group under `src/` that had stayed a bare array with
+ * no door and no variadic behind it — and once it is a collection it belongs here, on the same
+ * terms as everything else that answers with one.
+ *
  * `Auth::accepts()` and `Auth::admits()` are the two members that are not builders, and they are
  * the ones where dropping the result is not merely useless but unsafe: each is a gate's entire
  * decision, and the three `require*` methods are only the challenge wrapped around them. They are
@@ -70,6 +76,7 @@ final class NoDiscardTest extends TestCase
         self::assertSame(
             [
                 'NeuroSYS\Http\Security\ContentSecurityPolicy::allow',
+                'NeuroSYS\Model\WaveformBand::bands',
                 'NeuroSYS\Service\Auth::accepts',
                 'NeuroSYS\Service\Auth::admits',
                 'NeuroSYS\Support\Collection::first',

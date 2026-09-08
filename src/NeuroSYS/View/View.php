@@ -6,6 +6,7 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Config;
 use NeuroSYS\Http\RequestHeader;
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -73,6 +74,11 @@ abstract class View
      *
      * @return list<RequestHeader>
      */
+    #[BareArray(
+        'spread into Vary::on(), a variadic PHP already guards. A collection here would replace a '
+        . 'check the language makes for free with one we make ourselves, and add a toValues() at '
+        . 'the one call site.',
+    )]
     public function varyOn(): array
     {
         return [];
@@ -102,6 +108,10 @@ abstract class View
      * @param string $text
      * @return list<Node|string>
      */
+    #[BareArray(
+        'spread into containing(), a variadic PHP already guards — and the union it holds is one '
+        . 'a collection could not declare anyway.',
+    )]
     protected static function accented(string $text): array
     {
         if (preg_match('/[!.?]\z/', $text, $matches) !== 1) {

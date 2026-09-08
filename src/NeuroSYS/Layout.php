@@ -6,6 +6,8 @@ namespace NeuroSYS;
 
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
+use NeuroSYS\Support\BareArray;
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\Support\UrlScheme;
@@ -28,6 +30,11 @@ use NeuroSYS\View\Wordmark;
 /**
  * The Layout class. Renders the site shell — HTML document, header, footer, and scripts.
  */
+#[BareString(
+    'releases',
+    'the footer link\'s copy. Its twin is the heading on the page it points at, and the address '
+    . 'between them is SitePath::Releases — which is the half that has to be one fact, and is.',
+)]
 class Layout
 {
     /**
@@ -96,6 +103,10 @@ class Layout
      *
      * @return list<Element> The preload links, in the generated order.
      */
+    #[BareArray(
+        'spread into containing(), which is a variadic PHP already guards. A collection does not '
+        . 'replace a variadic; here it would only add a toValues() at the one call site.',
+    )]
     private static function modulePreloads(): array
     {
         return array_map(

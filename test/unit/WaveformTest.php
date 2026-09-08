@@ -168,7 +168,7 @@ final class WaveformTest extends TestCase
         self::assertSame(4, WaveformBand::stride());
         self::assertSame(
             [WaveformBand::Low, WaveformBand::Mid, WaveformBand::High],
-            WaveformBand::bands(),
+            WaveformBand::bands()->toValues(),
         );
         self::assertSame(0, WaveformBand::Level->value, 'the height is the first byte of a column');
     }

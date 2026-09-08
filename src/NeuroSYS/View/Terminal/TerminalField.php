@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Terminal;
 
 use JsonSerializable;
+use NeuroSYS\Support\BareArray;
 
 /**
  * The TerminalField class. One key/value row of terminal output.
@@ -39,6 +40,7 @@ final readonly class TerminalField implements JsonSerializable
      *
      * @return array<string, string>
      */
+    #[BareArray('JsonSerializable::jsonSerialize() is the interface; its shape is not ours to choose')]
     public function jsonSerialize(): array
     {
         return [

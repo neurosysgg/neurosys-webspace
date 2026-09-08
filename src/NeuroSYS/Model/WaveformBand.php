@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model;
 
+use NeuroSYS\Support\Collection;
+use NoDiscard;
+
 /**
  * The WaveformBand enum. What each of a {@link Waveform} column's four bytes means.
  *
@@ -49,10 +52,11 @@ enum WaveformBand: int
      *
      * {@link self::Level} is measured differently and is not one of them — see the class docblock.
      *
-     * @return list<self>
+     * @return Collection<self>
      */
-    public static function bands(): array
+    #[NoDiscard('bands() answers with a new collection and changes nothing')]
+    public static function bands(): Collection
     {
-        return [self::Low, self::Mid, self::High];
+        return new Collection(self::class)->with(self::Low, self::Mid, self::High);
     }
 }

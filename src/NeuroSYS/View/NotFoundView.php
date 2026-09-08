@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\View\Html\CssClass;
@@ -19,6 +20,12 @@ use NeuroSYS\View\Terminal\TerminalTone;
 /**
  * The NotFoundView class. Renders the 404 error page.
  */
+#[BareString(
+    'error',
+    'the caption of the row, which TerminalTone::Error spells by coincidence — the tone is passed '
+    . 'beside it in the same call. Two words about different things: one names the accent, this '
+    . 'one is what the reader sees.',
+)]
 class NotFoundView extends View
 {
     /**

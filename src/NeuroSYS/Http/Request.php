@@ -48,7 +48,9 @@ readonly class Request
     {
         // tryFrom, not from: REQUEST_METHOD is whatever the client sent, and an unrecognised one
         // has to be refused rather than throw. Null is not read-only, which is the safe default.
-        $method   = HttpMethod::tryFrom(strtoupper(ServerVariable::RequestMethod->string() ?? 'GET'));
+        $method   = HttpMethod::tryFrom(strtoupper(
+            ServerVariable::RequestMethod->string() ?? HttpMethod::Get->value,
+        ));
         $path     = self::normalisePath(ServerVariable::RequestUri->string() ?? '/');
 
         $ajax = RequestedWith::XmlHttpRequest->matches(self::header(RequestHeader::RequestedWith));

@@ -40,6 +40,11 @@ readonly class Route
      * @param string $path
      * @return array<int,string>|false Positional capture values on match, false otherwise.
      */
+    #[BareArray(
+        "preg_match's \$matches, by reference and shaped by the engine. This is the door, and "
+        . 'the false beside it is why it cannot be a collection anyway: no-match and matched-'
+        . 'nothing are different answers here.',
+    )]
     public function matches(string $path): array|false
     {
         // \z rather than $: `$` also matches immediately before a trailing newline, so `$` would
@@ -60,6 +65,10 @@ readonly class Route
      * @param array $params
      * @return Controller
      */
+    #[BareArray(
+        'the far side of matches(): the captures go straight into the factory as a variadic, and '
+        . 'what PHP checks them against is the controller constructor behind it.',
+    )]
     public function createController(array $params): Controller
     {
         return ($this->factory)(...$params);

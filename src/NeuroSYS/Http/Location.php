@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Exception\SecurityPolicyException;
+use NeuroSYS\Support\BareString;
 
 /**
  * The Location class. Where a redirect points.
@@ -20,6 +21,13 @@ use NeuroSYS\Exception\SecurityPolicyException;
  * that one governs a URL the browser is asked to *render*, this one a URL it is told to *follow*.
  * A `Location` was the one address the site emits that nothing had ever looked at.
  */
+#[BareString(
+    '#^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
+    'the same pattern as Profile::URL_PATTERN and deliberately a second copy of it. The two are '
+    . 'checks on two different kinds of address — a header this site emits, and data it reads — '
+    . 'and they throw different exceptions for that reason. Sharing one constant would mean a '
+    . 'change made for a redirect silently changed what a profile URL may be.',
+)]
 final readonly class Location implements HeaderValue
 {
     /**

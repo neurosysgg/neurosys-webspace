@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\BareArray;
+
 /**
  * The AuthScheme enum. The authentication scheme both gates speak.
  *
@@ -60,6 +62,10 @@ enum AuthScheme: string
      * @param string $authorization A raw `Authorization` header value.
      * @return array{string, string} The user name and the password, in that order.
      */
+    #[BareArray(
+        'a tuple, not a group: a user name and a password are two roles rather than two items, and '
+        . 'the destructuring at the call site is what says which is which.',
+    )]
     public function credentials(string $authorization): array
     {
         if (!$this->carries($authorization)) {

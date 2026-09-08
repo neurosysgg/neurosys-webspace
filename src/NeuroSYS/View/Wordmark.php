@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Config;
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -25,6 +26,7 @@ use NeuroSYS\View\Html\Node;
 final class Wordmark
 {
     /** @return list<Node|string> */
+    #[BareArray('spread into containing(), a variadic PHP already guards')]
     public static function nodes(): array
     {
         [$before, $after] = explode('.', Config::NAME, 2);

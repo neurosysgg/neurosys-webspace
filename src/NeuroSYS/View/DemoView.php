@@ -8,6 +8,7 @@ use NeuroSYS\Config;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
+use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
@@ -46,6 +47,12 @@ use NeuroSYS\View\Terminal\TerminalTone;
  * The page names no file. Every `src` is `/demos/<slug>/<label>`, and the label is matched against
  * what the demo declares — see {@link \NeuroSYS\Controller\DemoAudioController}.
  */
+#[BareString(
+    'artist',
+    'a caption in the demo terminal. Its twin is the release page\'s, and captions are copy: two '
+    . 'pages naming the same row is two designs agreeing, and either is free to stop.',
+)]
+#[BareString('status', 'a caption; see the one on artist above')]
 class DemoView extends View
 {
     /**

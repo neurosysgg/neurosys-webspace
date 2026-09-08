@@ -6,6 +6,7 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Config;
 use NeuroSYS\Http\RequestHeader;
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\UrlScheme;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
@@ -72,6 +73,7 @@ class ImprintView extends View
     /**
      * @return list<RequestHeader>
      */
+    #[BareArray('overrides View::varyOn(); see the reason there')]
     public function varyOn(): array
     {
         return [RequestHeader::AcceptLanguage];

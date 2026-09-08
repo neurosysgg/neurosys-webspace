@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\Language;
 
 /**
@@ -37,11 +38,17 @@ final readonly class AcceptedLanguages
      *
      * @var array<string, float>
      */
+    #[BareArray(
+        'accumulated in a loop and then sorted. from() updates a key it has already seen with '
+        . 'max(), and arsort() puts the best first; with() copies and no collection sorts. Same '
+        . 'case as DownloadStats\'s tally.',
+    )]
     private array $qualities;
 
     /**
      * @param array<string, float> $qualities
      */
+    #[BareArray('takes what from() accumulated, for the reason stated on the property')]
     private function __construct(array $qualities)
     {
         $this->qualities = $qualities;
@@ -138,6 +145,10 @@ final readonly class AcceptedLanguages
      * @param string $entry
      * @return array{?string, float}
      */
+    #[BareArray(
+        'a tuple, not a group: a subtag and a weight, two types in a fixed order, which is the one '
+        . 'shape a homogeneous collection cannot hold.',
+    )]
     private static function entry(string $entry): array
     {
         $parts   = explode(';', $entry);

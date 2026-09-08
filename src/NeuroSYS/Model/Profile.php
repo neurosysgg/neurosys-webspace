@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Support\BareString;
 
 /**
  * The Profile class. One external profile — a platform, and where ours lives on it.
@@ -21,6 +22,10 @@ use NeuroSYS\Exception\ReleaseVerificationException;
  * page happens to draw the footer. Checking here reports it when `data/profiles.php` loads, naming
  * the value, which is where the mistake actually is.
  */
+#[BareString(
+    '#^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
+    'the other half of the pair; see Location, where the argument for keeping them apart is made',
+)]
 final readonly class Profile
 {
     /**

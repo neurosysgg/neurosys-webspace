@@ -145,6 +145,23 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   it in both directions — plus `Auth::accepts()`, the one that is not a builder and the one where a
   dropped result is a gate that never ran. The deliberate discards are the tests that prove a
   builder did *not* mutate its receiver, and each is spelled `(void)`.
+- **A bare array and a bare string need an argument, not a habit.** `GuidelineTest` reads `src/`
+  with reflection and the tokenizer and refuses two shapes: an `array` in a declared type, and a
+  string literal that a vocabulary already spells — either because an enum the file names has a case
+  for it, or because another class writes the same word. An exception is `#[BareArray('why')]` or
+  `#[BareString('literal', 'why')]`, the reason is mandatory in the attribute's own constructor, and
+  the two sets are pinned in **both** directions: an unexcused violation fails, and so does an excuse
+  for something that is no longer one — an attribute left behind after the array became a collection
+  is a sentence about code that is not there, and it reads as true because it used to be. A variadic
+  is not a bare array and never will be; punctuation is not a name; and an attribute's own arguments
+  are prose, not code. See CLAUDE.md for the four kinds of array and three kinds of literal that are
+  on the lists, and for the one entry — a regex in two files — that is a real duplication kept on
+  purpose.
+- **Nothing under `src/` slips its type.** Riding along in the same file, all three at zero:
+  `declare(strict_types=1)` in every file, a declared type on every parameter, return and property,
+  and a backing value on every enum. Cheap to ask, and each is invisible when it goes — a missing
+  `strict_types` turns one file's types into suggestions, and a pure enum case is a TypeScript
+  parity test with nothing to compare against.
 - **An unknown demo is indistinguishable from a wrong password.** A `404` for a slug that names
   nothing and a `401` for one that names something is a catalogue of unreleased tracks, readable one
   guess at a time. The verify script asserts both answer `401`; `DemoTest` asserts the reason it is
@@ -383,7 +400,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.40% of lines** (1609/1635), 98.1% of methods.
+clover XML and a browsable HTML report. Currently **98.42% of lines** (1622/1648), 98.1% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Support\BareString;
 
 /**
  * The DemoTrack class. One mix of a demo — the file behind it, and the name it is reached by.
@@ -20,6 +21,12 @@ use NeuroSYS\Exception\ReleaseVerificationException;
  * — which is exactly why they are checked *there*, when the file loads, and not at the point a
  * visitor asks for one. Same arrangement as {@link Link\HiDriveLink}'s share id.
  */
+#[BareString(
+    '%d:%02d',
+    'a printf format, which is punctuation with two holes in it rather than a name. What the two '
+    . 'call sites share is the shape m:ss and nothing else: this one has seconds already, and '
+    . 'Section::timestamp() has to derive them from a tick and a bpm first.',
+)]
 final readonly class DemoTrack
 {
     /**
