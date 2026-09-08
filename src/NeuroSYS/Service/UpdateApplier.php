@@ -6,6 +6,7 @@ namespace NeuroSYS\Service;
 
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Model\Update\Deployment;
+use NeuroSYS\Model\Update\UpdateFile;
 use NeuroSYS\Model\Update\UpdateManifest;
 use NeuroSYS\Model\Update\UpdateReport;
 use NeuroSYS\Model\Update\UpdateRoot;
@@ -118,34 +119,38 @@ final readonly class UpdateApplier
      * contents: a name written twice would be reported twice, and the report is the only record.
      *
      * @param Collection<TarEntry> $entries
-     * @return Collection<TarEntry>
+     * @return Collection<UpdateFile>
      *
      * @throws UpdateException
      */
     private function validated(Collection $entries): Collection
     {
-        $files = new SearchableCollection(TarEntry::class);
+        $files = new SearchableCollection(UpdateFile::class);
 
         foreach ($entries as $entry) {
-            $this->check($entry->name);
+            // check() answers with the root rather than discarding it, which is what lets every
+            // step below have one without asking a question that can be null. See UpdateFile.
+            $root = $this->check($entry->name);
 
             if (!$entry->isDirectory) {
-                $files = $files->with($entry->name, $entry);
+                $files = $files->with($entry->name, new UpdateFile($root, $entry->name, $entry->contents));
             }
         }
 
-        return new Collection(TarEntry::class)->with(...$files->toValues());
+        return new Collection(UpdateFile::class)->with(...$files->toValues());
     }
 
     /**
      * Refuses a member name this site will not write, saying which rule it broke.
      *
      * @param string $name
-     * @return void
+     * @return UpdateRoot The root it falls under. Returned rather than discarded so that no later
+     *                    step has to ask again — the second asking is where a null appears that
+     *                    this method has already made impossible.
      *
      * @throws UpdateException
      */
-    private function check(string $name): void
+    private function check(string $name): UpdateRoot
     {
         $name = rtrim($name, '/');
 
@@ -172,7 +177,9 @@ final readonly class UpdateApplier
             }
         }
 
-        if (UpdateRoot::of($name) === null) {
+        $root = UpdateRoot::of($name);
+
+        if ($root === null) {
             throw new UpdateException(sprintf(
                 "the archive holds '%s', which is under none of the roots a push may write (%s)",
                 $name,
@@ -182,12 +189,14 @@ final readonly class UpdateApplier
                     ->join(', '),
             ));
         }
+
+        return $root;
     }
 
     /**
      * What a run would have done, without doing it.
      *
-     * @param Collection<TarEntry> $files
+     * @param Collection<UpdateFile> $files
      * @param UpdateManifest $manifest
      * @param Deployment $deployment
      * @return UpdateReport
@@ -206,8 +215,10 @@ final readonly class UpdateApplier
             return $report;
         }
 
-        foreach ($this->surplus($files, $deployment) as $name) {
-            $report = $report->removed($name);
+        foreach (UpdateRoot::cases() as $root) {
+            foreach ($this->surplusIn($root, $files, $deployment) as $name) {
+                $report = $report->removed($name);
+            }
         }
 
         return $report;
@@ -216,7 +227,7 @@ final readonly class UpdateApplier
     /**
      * Writes every file, reporting each.
      *
-     * @param Collection<TarEntry> $files
+     * @param Collection<UpdateFile> $files
      * @param Deployment $deployment
      * @return UpdateReport
      */
@@ -225,17 +236,12 @@ final readonly class UpdateApplier
         $report = new UpdateReport();
 
         foreach ($files as $file) {
-            $root = UpdateRoot::of($file->name);
-            if ($root === null) {
-                continue;
-            }
-
             if ($this->isCurrent($file, $deployment)) {
                 $report = $report->kept($file->name);
                 continue;
             }
 
-            $destination = $deployment->destination($root, $file->name);
+            $destination = $deployment->destination($file->root, $file->name);
 
             // File::write() fails on a path whose directory is missing, and fails deliberately, so
             // the caller asks. That is the arrangement Support\File states in the negative.
@@ -268,37 +274,35 @@ final readonly class UpdateApplier
      * same bytes, not touched, not chmodded. Permissions are not reconciled, deliberately: matching
      * content means a previous push wrote it, and `rsync` without `-p` makes exactly this trade.
      *
-     * @param TarEntry $file
+     * @param UpdateFile $file
      * @param Deployment $deployment
      * @return bool
      */
-    private function isCurrent(TarEntry $file, Deployment $deployment): bool
+    private function isCurrent(UpdateFile $file, Deployment $deployment): bool
     {
-        $root = UpdateRoot::of($file->name);
-
-        return $root !== null
-            && $deployment->destination($root, $file->name)->read() === $file->contents;
+        return $deployment->destination($file->root, $file->name)->read() === $file->contents;
     }
 
     /**
      * Deletes what is on disk and not in the payload, then sweeps the directories that emptied.
      *
-     * @param Collection<TarEntry> $files
+     * @param Collection<UpdateFile> $files
      * @param UpdateReport $report
      * @param Deployment $deployment
      * @return UpdateReport
      */
     private function mirror(Collection $files, UpdateReport $report, Deployment $deployment): UpdateReport
     {
-        foreach ($this->surplus($files, $deployment) as $name) {
-            $root = UpdateRoot::of($name);
-            if ($root === null) {
-                continue;
+        // The root loop is here rather than inside surplus() for the reason UpdateFile exists on
+        // the writing side: these names are *built* from a root a line earlier, so asking which
+        // root they are under is a question with an answer already in hand — and asking it anyway
+        // produced a null branch that could not happen and would have skipped a delete in silence.
+        foreach (UpdateRoot::cases() as $root) {
+            foreach ($this->surplusIn($root, $files, $deployment) as $name) {
+                $report = $deployment->destination($root, $name)->delete()
+                    ? $report->removed($name)
+                    : $report->failed($name, 'could not be removed');
             }
-
-            $report = $deployment->destination($root, $name)->delete()
-                ? $report->removed($name)
-                : $report->failed($name, 'could not be removed');
         }
 
         $this->sweep($deployment);
@@ -307,9 +311,10 @@ final readonly class UpdateApplier
     }
 
     /**
-     * The payload names that exist on disk and not in the payload.
+     * The names under $root that exist on disk and are not in the payload.
      *
-     * @param Collection<TarEntry> $files
+     * @param UpdateRoot $root
+     * @param Collection<UpdateFile> $files
      * @param Deployment $deployment
      * @return list<string>
      */
@@ -318,32 +323,30 @@ final readonly class UpdateApplier
         . 'built by a loop and read by one, never crossing a boundary. A collection here would be '
         . 'a copy per file for a shape that never leaves these two methods.',
     )]
-    private function surplus(Collection $files, Deployment $deployment): array
+    private function surplusIn(UpdateRoot $root, Collection $files, Deployment $deployment): array
     {
+        $directory = $deployment->directory($root);
+
+        // A single-file root has nothing that can go stale: it is replaced or it is left alone.
+        if ($directory === null || !$directory->exists()) {
+            return [];
+        }
+
         $packed = [];
         foreach ($files as $file) {
             $packed[$file->name] = true;
         }
 
         $surplus = [];
-        foreach (UpdateRoot::cases() as $root) {
-            $directory = $deployment->directory($root);
+        foreach ($this->walk($directory) as $path) {
+            $name = $deployment->nameOf($root, $path);
 
-            // A single-file root has nothing that can go stale: it is replaced or it is left alone.
-            if ($directory === null || !$directory->exists()) {
-                continue;
-            }
-
-            foreach ($this->walk($directory) as $path) {
-                $name = $deployment->nameOf($root, $path);
-
-                // The pattern is asked again on the way out, not because the payload could have put
-                // this name here — it could not, these are files already on disk — but because a
-                // name this site would refuse to *write* is one it must refuse to *delete*. That
-                // symmetry is what keeps the mirror from being a second, weaker path to unlink().
-                if (!isset($packed[$name]) && preg_match(self::SAFE_NAME, $name) === 1) {
-                    $surplus[] = $name;
-                }
+            // The pattern is asked again on the way out, not because the payload could have put
+            // this name here — it could not, these are files already on disk — but because a name
+            // this site would refuse to *write* is one it must refuse to *delete*. That symmetry
+            // is what keeps the mirror from being a second, weaker path to unlink().
+            if (!isset($packed[$name]) && preg_match(self::SAFE_NAME, $name) === 1) {
+                $surplus[] = $name;
             }
         }
 

@@ -400,7 +400,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.42% of lines** (1622/1648), 98.1% of methods.
+clover XML and a browsable HTML report. Currently **98.70% of lines** (2060/2087), 98.1% of methods.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
@@ -417,7 +417,7 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Fourteen lines, in five groups, none of which a test can reach as the repository stands:
+Sixteen lines, in five groups, none of which a test can reach as the repository stands:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
@@ -432,10 +432,13 @@ Fourteen lines, in five groups, none of which a test can reach as the repository
 - **`Auth::requireSiteAuth()`'s challenge (1 line)** is only reachable when `data/site_auth.php`
   exists, and it is gitignored precisely so the repository copy cannot switch pre-launch auth on.
   The admin gate's identical branch *is* covered, over HTTP, by the verify script.
-- **`File::write()`'s chmod branch (2 lines)** fires when a file this process just created cannot
-  have its mode set. `chmod()` on a file you own fails only under conditions a test would have to be
-  root to arrange, and the branch exists so a credential is never left readable — the rename branch
-  beside it *is* covered, by writing at a name a directory already holds.
+- **`File::write()`'s two abandon-the-temp-file branches (4 lines)** fire when a file this process
+  just created cannot have its mode set, or cannot be filled. `chmod()` on a file you own fails only
+  under conditions a test would have to be root to arrange; `file_put_contents()` on a path `touch()`
+  just succeeded at fails on a full or read-only filesystem. Both exist so a half-written file is
+  never left behind under the temp name — and the first also so a credential is never left readable.
+  The **rename** branch beside them *is* covered, by writing at a name a directory already holds,
+  which is also what the update applier's "could not be written" report is asserted through.
 - **`FileResponse::stream()`'s short-read break (1 line)** fires when `fread()` returns nothing on a
   handle that is not at EOF — a file truncated between the `size()` that set the `Content-Length` and
   the read that fills it. Same kind of branch as the chmod one above: it exists so a truncated file

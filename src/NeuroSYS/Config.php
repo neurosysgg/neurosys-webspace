@@ -166,7 +166,11 @@ final class Config
      */
     public static function webroot(): Directory
     {
-        $root = ServerVariable::DocumentRoot->string() ?? '';
+        // Trimmed, because a value of only whitespace is not a path and must not be treated as
+        // one. Untrimmed it slipped past the guard below rather than this one: dirname('   ') is
+        // '.', whose realpath is the working directory, which under the test runner *is* the
+        // deployment — so a webroot named three spaces was resolved and accepted.
+        $root = trim(ServerVariable::DocumentRoot->string() ?? '');
 
         if ($root === '') {
             throw new UpdateException(
@@ -195,7 +199,21 @@ final class Config
             ));
         }
 
-        return self::above()->directory(basename($root));
+        $webroot = self::above()->directory(basename(rtrim($root, '/')));
+
+        // The parent being right is not the same claim as the directory being there, and the
+        // difference is not cosmetic: `/…/deployment/nonexistent` passes the check above, because
+        // its *parent* is the deployment. Left unasked, that name becomes a webroot a push would
+        // then create and write 11 files into, beside the real one, with nothing serving them.
+        if (!$webroot->exists()) {
+            throw new UpdateException(sprintf(
+                "DOCUMENT_ROOT is '%s', which names no directory. Refusing rather than creating "
+                . 'one: a webroot that has to be made up is not a webroot.',
+                $root,
+            ));
+        }
+
+        return $webroot;
     }
 
     /**

@@ -12,6 +12,7 @@ use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Model\Update\Deployment;
+use NeuroSYS\Model\Update\UpdateFile;
 use NeuroSYS\Model\Update\UpdateManifest;
 use NeuroSYS\Model\Update\UpdatePayload;
 use NeuroSYS\Model\Update\UpdateReport;
@@ -52,6 +53,7 @@ use ReflectionProperty;
 #[CoversClass(UnroutedController::class)]
 #[CoversClass(UpdateGate::class)]
 #[CoversClass(UpdateApplier::class)]
+#[CoversClass(UpdateFile::class)]
 #[CoversClass(UpdateManifest::class)]
 #[CoversClass(UpdatePayload::class)]
 #[CoversClass(UpdateReport::class)]
@@ -718,6 +720,397 @@ final class UpdateTest extends TestCase
         );
     }
 
+    // ───────────────────────────── the last refusals ─────────────────────────────
+
+    /**
+     * A payload that stops inside a length field is refused rather than read past.
+     *
+     * The two segments are length-prefixed and read in sequence, so the bound has to be checked
+     * before the prefix is unpacked as well as before the segment is taken. `unpack()` on a short
+     * string does not fail usefully — it warns and hands back something — which is why the guard is
+     * an explicit comparison rather than a check of its result.
+     *
+     * @param int $keep
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('truncatedPayloadProvider')]
+    public function testAPayloadTruncatedInsideALengthIsRefused(int $keep, string $expected): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage($expected);
+
+        UpdatePayload::parse(substr($this->push($this->archive(['public/a.txt' => 'x'])), 0, $keep));
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function truncatedPayloadProvider(): iterable
+    {
+        // Magic, then nothing — the manifest's own length field is not there.
+        yield 'before the manifest length'   => [4, 'ends before its manifest length'];
+        yield 'inside the manifest length'   => [6, 'ends before its manifest length'];
+    }
+
+    /**
+     * A header whose stored checksum does not match its bytes is refused, and says why.
+     *
+     * The checksum is the only thing saying a 512-byte block *is* a header rather than the middle
+     * of somebody's file. Without it a corrupt archive is not an error but an archive that appears
+     * to hold different members, which is the difference between refusing bytes and writing the
+     * wrong ones.
+     *
+     * @return void
+     */
+    public function testAHeaderThatDoesNotMatchItsChecksumIsRefused(): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('does not match its own checksum');
+
+        // The name is changed after the checksum was computed over the original, so the block is
+        // well formed in every other way — which is the case worth refusing.
+        $member = self::member('public/a.txt', 'x');
+
+        TarArchive::parse(substr_replace($member, 'X', 0, 1) . str_repeat("\0", self::BLOCK * 2));
+    }
+
+    /**
+     * A member name that is empty or longer than ustar allows is refused before anything is written.
+     *
+     * @param string $name
+     * @param string $prefix
+     * @return void
+     */
+    #[DataProvider('unwritableNameProvider')]
+    public function testAMemberNameThatIsEmptyOrTooLongIsRefused(string $name, string $prefix): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('empty or over 255 bytes');
+
+        // Built by hand rather than through archive(): a name this shape is one TarWriter would
+        // never produce, which is exactly why the reader has to have an opinion about it. The
+        // discard is deliberate and says so — apply() carries #[NoDiscard] because its report is
+        // the endpoint's whole response, and what is being demonstrated here is that it throws.
+        (void) $this->applier()->apply(
+            (string) gzencode(
+                self::member($name, 'x', prefix: $prefix) . str_repeat("\0", self::BLOCK * 2),
+            ),
+            self::manifest(),
+        );
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function unwritableNameProvider(): iterable
+    {
+        // A name of only slashes rtrims to nothing, which is the shape a directory member takes
+        // when everything before the slash has already been stripped.
+        yield 'empty'      => ['', ''];
+        yield 'only slash' => ['/', ''];
+
+        // 155 + '/' + 100 is 256, one past the bound — and it takes both ustar name fields to say
+        // it, which is why the reader joining them is worth a test of its own.
+        yield 'too long'   => [str_repeat('a', 100), str_repeat('p', 155)];
+    }
+
+    /**
+     * A dry run says what the mirror would remove, and removes none of it.
+     *
+     * The mirror is the half of a push that deletes, so predicting it is the half of `--dry-run`
+     * worth having. A run that reported only what it would write would be silent about the one
+     * operation that cannot be undone.
+     *
+     * @return void
+     */
+    public function testADryRunReportsWhatTheMirrorWouldRemove(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->directory('assets')->create());
+        self::assertTrue($webroot->file('assets/stale.js')->write('stale'));
+
+        $report = $this->applier()->apply(
+            $this->archive(['public/keep.txt' => 'new']),
+            self::manifest(apply: false, mirror: true),
+        );
+
+        self::assertStringContainsString('dry run', $report->render());
+        self::assertStringContainsString('- public/assets/stale.js', $report->render());
+        self::assertStringContainsString('deleted 1', $report->render());
+        self::assertTrue($webroot->file('assets/stale.js')->exists(), 'a dry run deleted a file');
+        self::assertFalse($webroot->file('keep.txt')->exists(), 'a dry run wrote a file');
+    }
+
+    /**
+     * A surplus file that cannot be removed is named rather than passed over.
+     *
+     * Mirroring is the operation with no second chance — the point of naming a failure here is that
+     * the file is still on the server, still being served, and the report is the only place that
+     * will ever say so.
+     *
+     * @return void
+     */
+    public function testASurplusFileThatCannotBeRemovedIsNamed(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->directory('locked')->create());
+        self::assertTrue($webroot->file('locked/stale.js')->write('stale'));
+
+        // unlink() needs write permission on the *directory*, not on the file.
+        self::assertTrue(chmod($webroot->directory('locked')->path, 0o555));
+
+        try {
+            $report = $this->applier()->apply(
+                $this->archive(['public/keep.txt' => 'new']),
+                self::manifest(mirror: true),
+            );
+
+            self::assertFalse($report->isComplete());
+            self::assertStringContainsString('! public/locked/stale.js', $report->render());
+            self::assertStringContainsString('could not be removed', $report->render());
+        } finally {
+            chmod($webroot->directory('locked')->path, 0o755);
+        }
+    }
+
+    // ───────────────────────────── the deployment ─────────────────────────────
+
+    /**
+     * The deployment a real request runs in comes from `Config`, and nowhere else.
+     *
+     * Asserted here rather than left to production because {@link Deployment::current()} is the one
+     * constructor a test must never reach by accident — it is what resolves the *live* tree, and
+     * the reason every applier in this file is handed a sandbox instead.
+     *
+     * @return void
+     */
+    public function testTheCurrentDeploymentIsResolvedFromConfig(): void
+    {
+        $previous = $_SERVER['DOCUMENT_ROOT'] ?? null;
+        $_SERVER['DOCUMENT_ROOT'] = NEUROSYS_ROOT . '/public';
+
+        try {
+            $deployment = Deployment::current();
+
+            self::assertSame(
+                NEUROSYS_ROOT . '/public',
+                $deployment->directory(UpdateRoot::Public)?->path,
+            );
+            self::assertSame(
+                NEUROSYS_ROOT . '/src',
+                $deployment->directory(UpdateRoot::Source)?->path,
+            );
+        } finally {
+            if ($previous === null) {
+                unset($_SERVER['DOCUMENT_ROOT']);
+            } else {
+                $_SERVER['DOCUMENT_ROOT'] = $previous;
+            }
+        }
+    }
+
+    /**
+     * The one root that is a file rather than a tree maps both ways without a directory.
+     *
+     * `autoload.php` has no tree under it, so it has nothing that can go stale and
+     * {@link Deployment::directory()} answers null for it. Both halves of the name mapping have to
+     * cope with that null, and they are written next to each other so the two cannot drift — which
+     * is the whole reason `nameOf()` lives beside `destination()` rather than in the mirror.
+     *
+     * @return void
+     */
+    public function testTheAutoloadRootIsASingleFileInBothDirections(): void
+    {
+        $deployment = new Deployment(
+            new Directory($this->sandbox),
+            new Directory($this->sandbox . '/public'),
+        );
+
+        self::assertNull($deployment->directory(UpdateRoot::Autoload));
+
+        self::assertSame(
+            $this->sandbox . '/autoload.php',
+            $deployment->destination(UpdateRoot::Autoload, 'autoload.php')->path,
+        );
+
+        self::assertSame(
+            'autoload.php',
+            $deployment->nameOf(UpdateRoot::Autoload, $this->sandbox . '/autoload.php'),
+        );
+    }
+
+    // ───────────────────────────── the controller, past the gate ─────────────────────────────
+
+    /**
+     * A push that verifies is applied, reported, and answered 200.
+     *
+     * Everything above this point tests the gate refusing; this is the other half, and it is the
+     * half no local rig had exercised before the endpoint went live. The report *is* the response
+     * body — `display_errors` is off on the live host and `error_log` is empty, so anything this
+     * does not say is written down nowhere at all.
+     *
+     * @return void
+     */
+    public function testAVerifiedPushIsAppliedAndReported(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->create());
+
+        $response = $this->respond($this->push($this->archive(['public/new.txt' => 'hello'])));
+
+        self::assertSame(HttpStatusCode::Ok, self::statusOf($response));
+        self::assertStringContainsString('applied', self::bodyOf($response));
+        self::assertStringContainsString('written 1', self::bodyOf($response));
+        self::assertStringContainsString('+ public/new.txt', self::bodyOf($response));
+        self::assertSame('hello', $webroot->file('new.txt')->read());
+    }
+
+    /**
+     * A verified push advances the serial, so the very same bytes cannot be sent twice.
+     *
+     * @return void
+     */
+    public function testAVerifiedPushAdvancesTheSerial(): void
+    {
+        self::assertTrue(new Directory($this->sandbox . '/public')->create());
+
+        $body = $this->push($this->archive(['public/new.txt' => 'hello']));
+
+        self::assertSame(HttpStatusCode::Ok, self::statusOf($this->respond($body)));
+        self::assertNotNull($this->serialFile->read());
+
+        // The identical bytes again: the gate now refuses, so the controller never runs and the
+        // caller gets the answer an address that does not exist gives.
+        $replay = $this->respond($body);
+        self::assertSame(HttpStatusCode::MethodNotAllowed, self::statusOf($replay));
+        self::assertSame(UnroutedController::REFUSAL, self::bodyOf($replay));
+    }
+
+    /**
+     * A dry run leaves the serial alone, so the same payload can then be sent for real.
+     *
+     * This is the property that makes `--dry-run` worth having rather than merely safe: a captured
+     * dry run replays to nothing, *and* the operator does not have to rebuild to send it properly.
+     *
+     * @return void
+     */
+    public function testADryRunThroughTheControllerLeavesTheSerialAlone(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->create());
+
+        $body     = $this->push($this->archive(['public/new.txt' => 'hello']), apply: false);
+        $response = $this->respond($body);
+
+        self::assertSame(HttpStatusCode::Ok, self::statusOf($response));
+        self::assertStringContainsString('dry run', self::bodyOf($response));
+        self::assertFalse($webroot->file('new.txt')->exists(), 'a dry run wrote to disk');
+        self::assertNull($this->serialFile->read(), 'a dry run advanced the serial');
+
+        // And now the same bytes for real.
+        self::assertSame(HttpStatusCode::Ok, self::statusOf($this->respond($body)));
+    }
+
+    /**
+     * An archive that verifies but will not expand is a 422 with a sentence, not the decoy.
+     *
+     * The signature is over the *manifest*, and the manifest vouches for the archive by digest —
+     * so bytes that are not gzip at all can still be perfectly signed. Past that point the caller
+     * has proved it holds the private key, and there is nothing left to hide from it: the decoy
+     * would only be a worse error message.
+     *
+     * @return void
+     */
+    public function testAnArchiveThatWillNotExpandIsAnswered422(): void
+    {
+        $response = $this->respond($this->push('this is not gzip at all'));
+
+        self::assertSame(HttpStatusCode::UnprocessableContent, self::statusOf($response));
+        self::assertStringContainsString('refused:', self::bodyOf($response));
+        self::assertStringContainsString('not gzip', self::bodyOf($response));
+        self::assertNull($this->serialFile->read(), 'a refused payload advanced the serial');
+    }
+
+    /**
+     * A push that could not write everything is a 500, and names what it could not write.
+     *
+     * The failure is manufactured the way it would actually happen — something is already in the
+     * way — rather than by mocking a write. `public/blocked` is a regular file here, so the member
+     * `public/blocked/deep.txt` needs a directory that cannot be made.
+     *
+     * @return void
+     */
+    public function testAPushThatCouldNotWriteEverythingIsAnswered500(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->create());
+        self::assertTrue($webroot->file('blocked')->write('in the way'));
+
+        $response = $this->respond($this->push($this->archive([
+            'public/fine.txt'         => 'written',
+            'public/blocked/deep.txt' => 'cannot be',
+        ])));
+
+        self::assertSame(HttpStatusCode::InternalServerError, self::statusOf($response));
+        self::assertStringContainsString('! public/blocked/deep.txt', self::bodyOf($response));
+        self::assertStringContainsString('directory could not be created', self::bodyOf($response));
+
+        // The rest still landed. A partial push is reported as one rather than rolled back: there
+        // is nothing to roll back to, and the report names exactly what is missing.
+        self::assertSame('written', $webroot->file('fine.txt')->read());
+    }
+
+    /**
+     * A member that cannot be written over is named, and the push is a 500.
+     *
+     * @return void
+     */
+    public function testAMemberThatCannotBeWrittenIsNamed(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->create());
+
+        // A directory where the payload wants a file: File::write() renames its temp file onto the
+        // target, and a rename over a non-empty directory cannot succeed.
+        self::assertTrue($webroot->directory('occupied.txt')->create());
+        self::assertTrue($webroot->file('occupied.txt/inside')->write('x'));
+
+        $response = $this->respond($this->push($this->archive(['public/occupied.txt' => 'nope'])));
+
+        self::assertSame(HttpStatusCode::InternalServerError, self::statusOf($response));
+        self::assertStringContainsString('! public/occupied.txt', self::bodyOf($response));
+        self::assertStringContainsString('could not be written', self::bodyOf($response));
+    }
+
+    /**
+     * A serial that could not be recorded is reported, because replay protection is then off.
+     *
+     * The quietest possible failure on this endpoint: everything applied, the response is cheerful,
+     * and the next identical payload is accepted again because nothing remembered this one. So the
+     * write is checked and its failure is a reported failure like any other — which also makes the
+     * response a 500, and a 500 on a push that wrote everything is exactly the alarm wanted here.
+     *
+     * @return void
+     */
+    public function testASerialThatCannotBeRecordedIsReported(): void
+    {
+        self::assertTrue(new Directory($this->sandbox . '/public')->create());
+
+        // File::write() fails on a path whose directory is missing, and does so deliberately.
+        $unwritable = new File($this->sandbox . '/no-such-directory/.update-serial');
+
+        $response = $this->respond(
+            $this->push($this->archive(['public/new.txt' => 'hello'])),
+            serial: $unwritable,
+        );
+
+        self::assertSame(HttpStatusCode::InternalServerError, self::statusOf($response));
+        self::assertStringContainsString('! the update serial', self::bodyOf($response));
+        self::assertStringContainsString('can be replayed', self::bodyOf($response));
+        self::assertStringContainsString('+ public/new.txt', self::bodyOf($response), 'the push itself failed');
+    }
+
     // ───────────────────────────── helpers ─────────────────────────────
 
     /**
@@ -756,6 +1149,8 @@ final class UpdateTest extends TestCase
      * @param int|null $serial
      * @param string|null $digest
      * @param int|null $size
+     * @param bool $apply
+     * @param bool $mirror
      * @return string
      */
     private function push(
@@ -765,13 +1160,15 @@ final class UpdateTest extends TestCase
         ?int $serial = null,
         ?string $digest = null,
         ?int $size = null,
+        bool $apply = true,
+        bool $mirror = false,
     ): string {
         $manifest = json_encode([
             'serial' => $serial ?? time(),
             'digest' => $digest ?? hash('sha256', $archive),
             'size'   => $size ?? strlen($archive),
-            'apply'  => true,
-            'mirror' => false,
+            'apply'  => $apply,
+            'mirror' => $mirror,
         ], JSON_THROW_ON_ERROR);
 
         $signature = null;
@@ -828,6 +1225,10 @@ final class UpdateTest extends TestCase
      * @param string $contents
      * @param string $type
      * @param int|null $sizeOverride A size the member does not actually carry, for truncation.
+     * @param string $prefix The second of ustar's two name fields, and the only way a member name
+     *                        exceeds the 100-byte `name` field at all — so also the only way to
+     *                        reach the reader's own 255-byte bound, since prefix + '/' + name tops
+     *                        out at 256.
      * @return string
      */
     private static function member(
@@ -835,6 +1236,7 @@ final class UpdateTest extends TestCase
         string $contents,
         string $type = '0',
         ?int $sizeOverride = null,
+        string $prefix = '',
     ): string {
         $size   = $sizeOverride ?? ($type === '0' ? strlen($contents) : 0);
         $header = pack(
@@ -854,7 +1256,7 @@ final class UpdateTest extends TestCase
             '',
             "0000000\0",
             "0000000\0",
-            '',
+            $prefix,
             '',
         );
 
@@ -904,12 +1306,48 @@ final class UpdateTest extends TestCase
     }
 
     /**
+     * The whole endpoint, end to end: a real request carrying $body, a real gate over the
+     * sandbox's key and serial, and an applier that can reach nothing but the sandbox.
+     *
+     * @param string $body
+     * @param UpdateApplier|null $applier
+     * @param File|null $serial
+     * @return PlainTextResponse
+     */
+    private function respond(
+        string $body,
+        ?UpdateApplier $applier = null,
+        ?File $serial = null,
+    ): PlainTextResponse {
+        $controller = new UpdateController(
+            new UpdateGate($this->keyFile, $serial ?? $this->serialFile),
+            $applier ?? $this->applier(),
+        );
+
+        $request  = self::request('POST', SitePath::Update->value);
+        $response = PhpInputStream::around($body, static fn(): object => $controller->handle($request));
+
+        self::assertInstanceOf(PlainTextResponse::class, $response);
+
+        return $response;
+    }
+
+    /**
      * @param object $response
      * @return HttpStatusCode
      */
     private static function statusOf(object $response): HttpStatusCode
     {
         return new ReflectionProperty($response, 'status')->getValue($response);
+    }
+
+    /**
+     * @param object $response
+     * @return string
+     */
+    private static function bodyOf(object $response): string
+    {
+        return new ReflectionProperty($response, 'body')->getValue($response);
     }
 
     /**

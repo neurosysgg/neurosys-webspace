@@ -137,7 +137,7 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Service\ProfileRepository::$links',
                 'NeuroSYS\Service\UpdateApplier::directories()',
                 'NeuroSYS\Service\UpdateApplier::entries()',
-                'NeuroSYS\Service\UpdateApplier::surplus()',
+                'NeuroSYS\Service\UpdateApplier::surplusIn()',
                 'NeuroSYS\Service\UpdateApplier::walk()',
                 'NeuroSYS\Service\UpdateGate::accepts()',
                 'NeuroSYS\Support\Collection::$items',

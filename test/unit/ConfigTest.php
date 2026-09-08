@@ -6,6 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
 use NeuroSYS\DataFile;
+use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\Security\CspHost;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -197,5 +198,177 @@ final class ConfigTest extends TestCase
         yield 'stylesheet'  => [Config::STYLESHEET];
         yield 'script'      => [Config::SCRIPT];
         yield 'placeholder' => [Config::COVER_PLACEHOLDER];
+    }
+
+    // ───────────────────────────── the webroot ─────────────────────────────
+
+    /**
+     * The webroot is the one path here that cannot be derived, so it is asked for — and refused
+     * rather than guessed.
+     *
+     * **This is the method that once emptied this repository**, so what each case asserts is worth
+     * saying plainly. The directory is called `public/` here and `neurosys/` on the live host, and
+     * nothing under `src/` can know that; `DOCUMENT_ROOT` does. Taking it whole does not work
+     * either — the live host reports one directory under two different absolute paths, and a
+     * mirror compares paths. So only the *basename* is taken, and the basename is only meaningful
+     * once the two are known to be the same tree.
+     *
+     * @return void
+     */
+    public function testTheWebrootIsResolvedFromDocumentRoot(): void
+    {
+        self::assertSame(
+            NEUROSYS_ROOT . '/public',
+            self::withDocumentRoot(NEUROSYS_ROOT . '/public', static fn(): string => Config::webroot()->path),
+        );
+    }
+
+    /**
+     * A trailing slash is the shape a server is as likely to report as not.
+     *
+     * @return void
+     */
+    public function testTheWebrootIgnoresATrailingSlash(): void
+    {
+        self::assertSame(
+            NEUROSYS_ROOT . '/public',
+            self::withDocumentRoot(NEUROSYS_ROOT . '/public/', static fn(): string => Config::webroot()->path),
+        );
+    }
+
+    /**
+     * Absent, it stops. There is no default and there must not be one.
+     *
+     * @param string $root
+     * @return void
+     */
+    #[DataProvider('absentDocumentRootProvider')]
+    public function testAnAbsentDocumentRootIsRefusedRatherThanDefaulted(string $root): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('DOCUMENT_ROOT is not set');
+
+        self::withDocumentRoot($root, static fn(): string => Config::webroot()->path);
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function absentDocumentRootProvider(): iterable
+    {
+        yield 'empty'      => [''];
+        yield 'whitespace' => ['   '];
+    }
+
+    /**
+     * A `DOCUMENT_ROOT` outside the deployment is refused, and this is the guard that matters most.
+     *
+     * A basename grafted onto a different tree names a real directory somewhere else. That is not
+     * hypothetical: a test pointing `DOCUMENT_ROOT` at a sandbox whose last segment was `public`
+     * got *this repository's* `public/` back, and the update mirror emptied it. `realpath()` on
+     * both sides is what collapses the two spellings the live host reports for one directory, and
+     * comparing them is what turns a plausible guess into a refusal.
+     *
+     * @param string $suffix
+     * @return void
+     */
+    #[DataProvider('foreignDocumentRootProvider')]
+    public function testADocumentRootOutsideTheDeploymentIsRefused(string $suffix): void
+    {
+        $sandbox = sys_get_temp_dir() . '/neurosys-webroot-' . bin2hex(random_bytes(6));
+        self::assertTrue(mkdir($sandbox . $suffix, 0o755, true));
+
+        try {
+            $this->expectException(UpdateException::class);
+            $this->expectExceptionMessage('not a directory inside this deployment');
+
+            self::withDocumentRoot($sandbox . $suffix, static fn(): string => Config::webroot()->path);
+        } finally {
+            @rmdir($sandbox . $suffix);
+            @rmdir(dirname($sandbox . $suffix));
+            @rmdir($sandbox);
+        }
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function foreignDocumentRootProvider(): iterable
+    {
+        // The first is the exact shape that did the damage: a directory called `public`, somewhere
+        // else entirely. The second is a name this deployment has no directory for at all.
+        yield 'named public elsewhere' => ['/public'];
+        yield 'named anything else'    => ['/htdocs'];
+    }
+
+    /**
+     * A path that does not exist cannot be shown to be inside the deployment, so it is not.
+     *
+     * @return void
+     */
+    public function testADocumentRootThatDoesNotExistIsRefused(): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('not a directory inside this deployment');
+
+        self::withDocumentRoot(
+            NEUROSYS_ROOT . '/no-such-directory/public',
+            static fn(): string => Config::webroot()->path,
+        );
+    }
+
+    /**
+     * A name whose *parent* is the deployment but which is not there is refused too.
+     *
+     * The containment check above is satisfied by this — its parent really is the deployment — so
+     * without a second question it resolves to a `Directory` that does not exist, and the first
+     * push would create it and write the whole webroot into it beside the real one, served by
+     * nothing. The two checks ask different things and both are needed.
+     *
+     * @return void
+     */
+    public function testADocumentRootNamingNoDirectoryIsRefused(): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('names no directory');
+
+        self::withDocumentRoot(
+            NEUROSYS_ROOT . '/not-a-real-webroot',
+            static fn(): string => Config::webroot()->path,
+        );
+    }
+
+    /**
+     * The replay serial sits above the webroot, in neither tree a push mirrors and in no rsync.
+     *
+     * @return void
+     */
+    public function testTheUpdateSerialSitsAboveTheWebroot(): void
+    {
+        self::assertSame(NEUROSYS_ROOT . '/.update-serial', Config::updateSerial()->path);
+        self::assertSame(NEUROSYS_ROOT, Config::above()->path);
+    }
+
+    /**
+     * Runs $body with `DOCUMENT_ROOT` set to $root, and puts the superglobal back either way.
+     *
+     * @param string $root
+     * @param callable(): string $body
+     * @return string
+     */
+    private static function withDocumentRoot(string $root, callable $body): string
+    {
+        $previous = $_SERVER['DOCUMENT_ROOT'] ?? null;
+        $_SERVER['DOCUMENT_ROOT'] = $root;
+
+        try {
+            return $body();
+        } finally {
+            if ($previous === null) {
+                unset($_SERVER['DOCUMENT_ROOT']);
+            } else {
+                $_SERVER['DOCUMENT_ROOT'] = $previous;
+            }
+        }
     }
 }
