@@ -452,6 +452,46 @@ request) and was bounded downstream (PHP's `header()` refuses a value containing
 says is worth closing. All end-anchors in the source are `\z` now, and each of the three bad-input
 test providers gained a trailing-newline case so it cannot regress.
 
+## The update endpoint, reviewed (2026-09-08)
+
+The two commits that added `/update` got their own pass, since it is the one route that writes. No
+way to write, delete, or traverse outside the three roots was found without the signing key: the
+signature-before-parse ordering held, the hand-rolled tar's refusals held, the name allowlist and
+the enumerated mirror held, and replay stayed closed by the serial doing double duty. Three
+hardenings came out of it, and the order of their severity is the finding — the one an unsigned
+caller can reach is the only one that mattered.
+
+- **The request body was read whole before its own size cap — low severity, and the one that is
+  request-reachable.** `UpdateGate` bounds a push to `MAX_BODY` (8 MB), but `Request::body()` was a
+  bare `file_get_contents('php://input')`, which reads to `post_max_size` — a php.ini value nobody
+  in this repository owns — before the cap could reject it. Reading the body is the one step that
+  *must* precede the signature check, because the signature is over the body, so any `POST /update`
+  reached it regardless of the key. On a host where `post_max_size` outruns `memory_limit` that is a
+  memory-exhaustion `500`, which is both a denial-of-service knob and — since an unrouted path never
+  reads its body — the one response that would tell `/update` apart from a typo, undoing the
+  invisibility the rest of the endpoint is built for. The read is now capped inside
+  `File::read($limit)`, which `Request::body()` is given `MAX_BODY + 1`, so an over-limit body is
+  refused having pulled 8 MB into memory rather than up to `post_max_size`, and the bound the class
+  states is the bound it applies. `SupportTest` and `RequestTest` pin the cap; the severity is
+  host-dependent, moderate only where `post_max_size` is the larger of the two.
+- **The mirror's directory walk followed symlinks — informational.** `UpdateApplier::walk()` and its
+  sweep decided a directory with `is_dir()`, which follows a symlink, so a symlinked directory under
+  a root would have been enumerated and its target deleted *through*, a file at a time. It is not
+  reachable through the endpoint — `TarArchive` refuses a symlink member, and neither the repository
+  nor `deploy.sh` places one under `public/` or `src/`, so a link there is the mark of a compromise
+  that already holds the filesystem — but the one code path here that deletes must not be a second,
+  weaker way outside the roots. Both now ask `!is_link()` before descending: a stray link is a leaf,
+  and unlinking it removes the link and not what it points at. `UpdateTest` plants a symlink a
+  payload cannot carry and asserts the target survives the mirror.
+- **`Config::webroot()` could resolve a relative `DOCUMENT_ROOT` against the working directory —
+  informational.** The containment guard the same commit added compares `realpath(dirname($root))`
+  against the deployment, and for a bare relative name `dirname()` is `.`, whose realpath is the
+  process's working directory — which under the test runner is the deployment itself, so a relative
+  value borrowed a blessing meant for an absolute one. `DOCUMENT_ROOT` is server-set and always
+  absolute on the live host, so this was never request-reachable; it is the same test-versus-production
+  drift the commit's own guards were written against, closed the same way. A non-absolute
+  `DOCUMENT_ROOT` is now refused before the containment check runs. `ConfigTest` pins it.
+
 ## What is deliberately not here
 
 - **No web-application firewall, no rate limiting layer.** This is a static site on shared hosting;

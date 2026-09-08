@@ -1037,6 +1037,31 @@ final class SupportTest extends TestCase
     }
 
     /**
+     * A read stops at the byte limit it is given.
+     *
+     * This is what lets a caller reading an untrusted stream — the one being
+     * {@link \NeuroSYS\Http\Request::body()} over `php://input` — bound how much it pulls into memory
+     * rather than inheriting `post_max_size`. Null, the default every other caller uses, reads the
+     * file whole; a limit past the end is the same, since there is no more to read.
+     *
+     * @return void
+     */
+    public function testAReadStopsAtItsLimit(): void
+    {
+        $directory = Directory::temporary('neurosys-support-');
+        $file      = $directory->file('body.bin');
+
+        try {
+            self::assertTrue($file->write('0123456789'));
+            self::assertSame('0123', $file->read(4), 'the read ran past its limit');
+            self::assertSame('0123456789', $file->read(100), 'a limit past the end is the whole file');
+            self::assertSame('0123456789', $file->read(), 'null reads the file whole');
+        } finally {
+            $directory->remove();
+        }
+    }
+
+    /**
      * Deleting a file that was never there is a success: the postcondition is what is asked for.
      *
      * @return void

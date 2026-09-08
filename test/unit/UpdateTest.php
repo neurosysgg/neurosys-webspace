@@ -652,6 +652,49 @@ final class UpdateTest extends TestCase
     }
 
     /**
+     * The mirror never deletes *through* a symlink.
+     *
+     * A push cannot introduce one — {@link TarArchive} refuses the member type — so a symlink under
+     * a root was placed by something outside this endpoint. Were the walk to follow it, a link to a
+     * tree outside the roots would have that tree read as surplus and unlinked a file at a time. The
+     * walk treats a link as a leaf instead: the link is what is weighed against the payload, and the
+     * target it points at is never entered, listed, or removed. This is the one mirror hazard a test
+     * can only reach by planting on disk what an archive is forbidden to carry.
+     *
+     * @return void
+     */
+    public function testTheMirrorDoesNotDeleteThroughASymlink(): void
+    {
+        $webroot = new Directory($this->sandbox . '/public');
+        self::assertTrue($webroot->create());
+
+        // A directory outside every root, holding a file a push must never be able to reach.
+        $outside = new Directory($this->sandbox . '/outside');
+        self::assertTrue($outside->create());
+        self::assertTrue($outside->file('secret.txt')->write('untouchable'));
+
+        // …reached from inside the webroot only through a symlink someone would have had to plant.
+        $link = $this->sandbox . '/public/link';
+        self::assertTrue(symlink($outside->path, $link), 'this platform cannot make a symlink');
+
+        try {
+            $report = $this->applier()->apply(
+                $this->archive(['public/keep.txt' => 'new']),
+                self::manifest(mirror: true),
+            );
+
+            self::assertTrue(
+                $outside->file('secret.txt')->exists(),
+                'the mirror followed the symlink and deleted a file outside the roots',
+            );
+            self::assertSame('untouchable', $outside->file('secret.txt')->read());
+            self::assertSame('new', $webroot->file('keep.txt')->read(), 'the payload file was disturbed');
+        } finally {
+            @unlink($link);
+        }
+    }
+
+    /**
      * A dry run reports the same plan and writes none of it.
      *
      * @return void

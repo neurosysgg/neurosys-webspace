@@ -58,11 +58,20 @@ final readonly class File
      * collapsed them — `is_file($f) ? file_get_contents($f) ?: '' : ''` is that collapse written
      * out, minus the warning.
      *
+     * **`$limit` bounds the read itself, because a bound applied after it is not a bound.**
+     * {@link \NeuroSYS\Http\Request::body()} reads `php://input` through here, and left unbounded a
+     * `file_get_contents()` pulls up to `post_max_size` — a php.ini value nobody in this repository
+     * controls — into one string before the caller can weigh it. Given a limit, only that many
+     * bytes are ever read, so the ceiling is the one the caller states rather than the one the SAPI
+     * inherited. Null reads the file whole, which is every other caller: their paths come from
+     * {@link \NeuroSYS\Config} and are as long as they are.
+     *
+     * @param int|null $limit The most bytes to read, or null for the whole file.
      * @return string|null
      */
-    public function read(): ?string
+    public function read(?int $limit = null): ?string
     {
-        $contents = @file_get_contents($this->path);
+        $contents = @file_get_contents($this->path, false, null, 0, $limit);
 
         return $contents === false ? null : $contents;
     }

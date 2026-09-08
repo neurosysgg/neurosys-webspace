@@ -339,6 +339,24 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * A relative `DOCUMENT_ROOT` is refused rather than resolved against the working directory.
+     *
+     * The containment check reasons about `dirname($root)`, which for a bare name is `.` — whose
+     * realpath is the cwd, and under this very runner the cwd *is* the deployment. So without the
+     * absolute check a relative value would pass containment and graft its basename onto the
+     * deployment, the one confusion an absolute path cannot cause. A real server never reports one.
+     *
+     * @return void
+     */
+    public function testARelativeDocumentRootIsRefused(): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('not an absolute path');
+
+        self::withDocumentRoot('public', static fn(): string => Config::webroot()->path);
+    }
+
+    /**
      * The replay serial sits above the webroot, in neither tree a push mirrors and in no rsync.
      *
      * @return void

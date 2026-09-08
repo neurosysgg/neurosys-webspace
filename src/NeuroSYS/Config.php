@@ -180,6 +180,19 @@ final class Config
             );
         }
 
+        // Absolute, because the containment check below reasons about dirname($root): for a bare
+        // relative name that is '.', whose realpath is the working directory — which under a test
+        // runner is the deployment, so a relative value would borrow the blessing meant for the
+        // real one. A real server always reports an absolute DOCUMENT_ROOT; anything else is
+        // refused rather than resolved against wherever the process happened to be started.
+        if (!str_starts_with($root, '/')) {
+            throw new UpdateException(sprintf(
+                "DOCUMENT_ROOT is '%s', which is not an absolute path. Refusing rather than "
+                . 'resolving it against the working directory, which is not where a webroot is.',
+                $root,
+            ));
+        }
+
         // The basename is only safe to graft onto above() once the two are known to be the same
         // tree, and that is checked rather than assumed. Without this, a DOCUMENT_ROOT pointing
         // anywhere else whose last segment happened to be `public` would resolve to *this*

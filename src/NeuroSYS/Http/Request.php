@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\File;
 use Uri\Rfc3986\Uri;
 
 /**
@@ -227,15 +228,20 @@ readonly class Request
      * does, and every byte of it is refused unless {@link \NeuroSYS\Support\PublicKey} says it was
      * signed by a key this deployment holds.
      *
-     * The `@` is the same suppression {@link \NeuroSYS\Support\File::read()} justifies: headers are
-     * already out by the time anything here runs, so a warning would print into the response rather
-     * than into a log — and on the live host there is no log to print to.
+     * **It is read through {@link \NeuroSYS\Support\File::read()}, bounded by `$limit`.** That is
+     * where the `@` this used to justify inline now lives, and where the bound is applied *to the
+     * read* rather than after it: an unbounded `file_get_contents('php://input')` pulls up to
+     * `post_max_size` into memory before any caller can reject it, so the one caller,
+     * {@link \NeuroSYS\Service\UpdateGate}, passes the largest body it will consider plus a byte and
+     * reads no further. `php://input` is a stream `File` reads like any other path — under CLI it is
+     * STDIN, which is empty, which is why this is a method and not a property.
      *
+     * @param int|null $limit The most bytes to read, or null for all of them.
      * @return string
      */
-    public function body(): string
+    public function body(?int $limit = null): string
     {
-        return (string) @file_get_contents('php://input');
+        return (string) new File('php://input')->read($limit);
     }
 
     /**

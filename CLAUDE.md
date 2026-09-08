@@ -53,8 +53,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.70% of
-lines** (2060/2087); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.75% of
+lines** (2066/2092); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -68,8 +68,17 @@ arity guard both ways, and the `Accept-Language` parameter that is not a weight 
 three in the same pass. **So is the guideline work**: `BareArray` and `BareString` are fifteen
 lines of guard between them and `GuidelineTest` carries `#[CoversClass]` for exactly those two,
 because it constructs both — which is the honest difference between it and `NoDiscardTest`, the
-other test that reads the codebase rather than running it. The twenty-six are a property of what is
-*deliberately* untested, not a budget that grows with the code.
+other test that reads the codebase rather than running it. **So is the security pass over
+`/update`**: it added three guards — `Config::webroot()`'s absolute-`DOCUMENT_ROOT` refusal and the
+`is_link` check the mirror's `walk()` and `sweep()` now make before descending — and closed all
+three in the same commit, the last by a symlink a test plants because an archive is forbidden to
+carry one; bounding `File::read()` to the caller's cap, that pass's main fix, added no branch to
+close. It also made the twenty-six *true* rather than asserted — the count had quietly been
+twenty-seven since `/update` landed, the extra a private `TarArchive` constructor guarding a
+stateless reader against instances, which is ceremony no other static class here carries and which
+`new` would find harmless, so it was deleted the way an unreachable branch is rather than covered by
+a reflection call that would prove nothing. The twenty-six are a property of what is *deliberately*
+untested, not a budget that grows with the code.
 
 **The `/update` work is the one that did not manage it in the same pass, and that is recorded rather
 than tidied away.** It landed 436 lines with 57 of its own uncovered, and this paragraph stood for

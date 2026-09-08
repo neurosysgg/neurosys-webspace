@@ -40,9 +40,6 @@ final readonly class TarArchive
     private const int CHECKSUM_OFFSET = 148;
     private const int CHECKSUM_LENGTH = 8;
 
-    /** No instances: this is a reader with no state between calls. */
-    private function __construct() {}
-
     /**
      * Parses $bytes — an uncompressed ustar archive — into its members, in archive order.
      *

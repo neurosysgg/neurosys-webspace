@@ -43,9 +43,11 @@ final readonly class UpdateGate
      * The most a push may weigh.
      *
      * The real payload is about 210 KB, so this is thirty times what it takes and a fortieth of
-     * what the live host's `post_max_size` would permit. It is here because the body is read into
-     * memory whole and then expanded; a bound the application states itself is worth more than one
-     * inherited from a php.ini nobody in this repository controls.
+     * what the live host's `post_max_size` would permit. It is the length {@link Request::body()} is
+     * told to read *to* — one byte over, so anything larger arrives as larger rather than silently
+     * truncated to the limit — because an unbounded `file_get_contents('php://input')` pulls up to
+     * that `post_max_size` into memory before this class sees a byte. A bound the application states
+     * and reads to is worth more than one inherited from a php.ini nobody in this repository owns.
      */
     private const int MAX_BODY = 8_388_608;
 
@@ -92,7 +94,10 @@ final readonly class UpdateGate
             return null;
         }
 
-        $body = $request->body();
+        // Read to one past the cap rather than the whole stream: the check below can then reject an
+        // over-limit body, but only MAX_BODY + 1 bytes were ever pulled into memory to reach it,
+        // which is the point of stating the bound here instead of inheriting post_max_size.
+        $body = $request->body(self::MAX_BODY + 1);
         if ($body === '' || strlen($body) > self::MAX_BODY) {
             return null;
         }

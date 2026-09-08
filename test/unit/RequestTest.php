@@ -244,6 +244,26 @@ final class RequestTest extends TestCase
         self::assertSame('', $request->authPassword());
     }
 
+    /**
+     * The body is read from `php://input`, and the read is bounded by the limit it is given.
+     *
+     * No more than that many bytes are ever pulled in, which is what keeps
+     * {@link \NeuroSYS\Service\UpdateGate} from inheriting `post_max_size` as its true ingress cap.
+     * Null reads whatever is there, and asking twice is allowed — the stream is re-readable, which
+     * is why {@link Request::body()} is a method rather than a memoised property.
+     *
+     * @return void
+     */
+    public function testTheBodyIsReadFromPhpInputBoundedByTheLimit(): void
+    {
+        $request = $this->request(['REQUEST_URI' => '/']);
+
+        PhpInputStream::around('0123456789', function () use ($request): void {
+            self::assertSame('0123456789', $request->body(), 'null did not read the whole body');
+            self::assertSame('0123', $request->body(4), 'the read ran past its limit');
+        });
+    }
+
     // ───────────────────── the header that asks for a fragment ─────────────────────
 
     /**

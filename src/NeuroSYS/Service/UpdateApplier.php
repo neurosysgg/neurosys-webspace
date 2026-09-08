@@ -376,7 +376,12 @@ final readonly class UpdateApplier
         $paths = [];
 
         foreach ($this->entries($directory) as $path) {
-            if (is_dir($path)) {
+            // A symlink is never descended into, even one pointing at a directory. A push cannot
+            // write one — TarArchive refuses the member type — so any that is here was placed by
+            // something outside this endpoint, and following it would let the mirror read, and then
+            // delete *through*, a tree outside the roots. Treated as a leaf, the link itself is what
+            // is weighed against the payload, and unlink() removes the link rather than its target.
+            if (is_dir($path) && !is_link($path)) {
                 $paths = array_merge($paths, $this->walk(new Directory($path)));
                 continue;
             }
@@ -435,7 +440,9 @@ final readonly class UpdateApplier
         $paths = [];
 
         foreach ($this->entries($directory) as $path) {
-            if (is_dir($path)) {
+            // Not through a symlink, for the reason walk() gives: sweep() would otherwise rmdir its
+            // way into a directory outside the roots.
+            if (is_dir($path) && !is_link($path)) {
                 $paths[] = $path;
                 $paths   = array_merge($paths, $this->directories(new Directory($path)));
             }
