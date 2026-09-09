@@ -12,6 +12,7 @@ use NeuroSYS\Model\Update\UpdateReport;
 use NeuroSYS\Model\Update\UpdateRoot;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
@@ -86,7 +87,7 @@ final readonly class UpdateApplier
     #[NoDiscard('the report is the endpoint\'s entire response; dropping it sends an empty 200')]
     public function apply(string $archive, UpdateManifest $manifest): UpdateReport
     {
-        $tar = @gzdecode($archive);
+        $tar = Diagnostics::muted(static fn(): string|false => gzdecode($archive));
         if ($tar === false) {
             throw new UpdateException('the update archive is not gzip, or is corrupt');
         }
@@ -459,7 +460,7 @@ final readonly class UpdateApplier
             );
 
             foreach ($directories as $path) {
-                @rmdir($path);
+                Diagnostics::muted(static fn(): bool => rmdir($path));
             }
         }
     }

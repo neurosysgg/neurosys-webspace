@@ -8,10 +8,10 @@ use ArrayIterator;
 use Countable;
 use Generator;
 use IteratorAggregate;
+use NeuroSYS\Exception\CollectionException;
 use NoDiscard;
 use Throwable;
 use Traversable;
-use TypeError;
 
 /**
  * The Collection class. A type-safe generic collection, held as a list.
@@ -47,7 +47,7 @@ class Collection implements Countable, IteratorAggregate
      *
      * @param T ...$items
      * @return static
-     * @throws TypeError if any item is not an instance of the declared type. The copy is
+     * @throws CollectionException if any item is not an instance of the declared type. The copy is
      *                     discarded with the exception, so a rejected batch cannot half-apply.
      * @throws Throwable whatever a pending step throws, since running them comes first.
      */

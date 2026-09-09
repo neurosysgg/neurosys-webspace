@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Html;
 
 use BackedEnum;
+use NeuroSYS\Exception\ElementException;
 use NeuroSYS\Exception\MarkupException;
+use NeuroSYS\Support\BareCall;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\UrlScheme;
@@ -199,13 +201,21 @@ final readonly class Element implements Node
      *
      * @param Node|string ...$children
      * @return self
-     * @throws MarkupException if the element is void; `<img>` cannot contain anything.
+     * @throws ElementException if the element is void; `<img>` cannot contain anything.
      */
     #[NoDiscard('containing() returns a copy holding the children; the element it was called on is unchanged')]
+    #[BareCall(
+        'array_map',
+        'maps the variadic PHP has already guarded, straight into with() — so a Collection here '
+        . 'would be constructed only to be spread back out on the same line. This is also the '
+        . 'hottest path on the site: every element of every page is built through it, and '
+        . "CLAUDE.md's note that renderChildren() is the one place to spend a foreach is about "
+        . 'these two lines.',
+    )]
     public function containing(Node|string ...$children): self
     {
         if ($this->tag->isVoid() && $children !== []) {
-            throw new MarkupException(sprintf(
+            throw new ElementException(sprintf(
                 '<%s> is a void element and cannot contain anything.',
                 $this->tag->tagName(),
             ));
@@ -257,7 +267,7 @@ final readonly class Element implements Node
      *
      * @param int $depth
      * @return string
-     * @throws MarkupException if a URL attribute names a scheme {@link self::URL_SCHEMES} does not
+     * @throws ElementException if a URL attribute names a scheme {@link self::URL_SCHEMES} does not
      *                         allow. Loud on purpose, and at the boundary on purpose: a link the
      *                         site refuses to draw is a missing link, which somebody notices, and a
      *                         `javascript:` href that renders is one nobody does.
@@ -282,7 +292,7 @@ final readonly class Element implements Node
     /**
      *
      * @return string
-     * @throws MarkupException if a URL attribute carries a scheme that is not allowed.
+     * @throws ElementException if a URL attribute carries a scheme that is not allowed.
      */
     private function renderAttributes(): string
     {
@@ -313,15 +323,21 @@ final readonly class Element implements Node
      * @param string $name
      * @param string $value
      * @return void
-     * @throws MarkupException if $value names a scheme {@link self::URL_SCHEMES} does not allow.
+     * @throws ElementException if $value names a scheme {@link self::URL_SCHEMES} does not allow.
      */
+    #[BareCall(
+        'array_map',
+        'maps a class constant for the reason Layout::modulePreloads() does, and does it on the '
+        . 'throwing branch — the schemes are being listed into a refusal, so this is work done '
+        . 'only on the path where the site is already wrong.',
+    )]
     private function verifyUrl(string $name, string $value): void
     {
         if (self::isAllowedUrl($value)) {
             return;
         }
 
-        throw new MarkupException(sprintf(
+        throw new ElementException(sprintf(
             '<%s %s="%s"> is not a URL this site may emit. Allowed: a site-relative path, or %s.',
             $this->tag->tagName(),
             $name,

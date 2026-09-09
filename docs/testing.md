@@ -145,7 +145,8 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   it in both directions — plus `Auth::accepts()`, the one that is not a builder and the one where a
   dropped result is a gate that never ran. The deliberate discards are the tests that prove a
   builder did *not* mutate its receiver, and each is spelled `(void)`.
-- **A bare array and a bare string need an argument, not a habit.** `GuidelineTest` reads `src/`
+- **A bare array, a bare string and a bare `array_*` call need an argument, not a habit.**
+  `GuidelineTest` reads `src/`
   with reflection and the tokenizer and refuses two shapes: an `array` in a declared type, and a
   string literal that a vocabulary already spells — either because an enum the file names has a case
   for it, or because another class writes the same word. An exception is `#[BareArray('why')]` or
@@ -156,7 +157,28 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   is not a bare array and never will be; punctuation is not a name; and an attribute's own arguments
   are prose, not code. See CLAUDE.md for the four kinds of array and three kinds of literal that are
   on the lists, and for the one entry — a regex in two files — that is a real duplication kept on
-  purpose.
+  purpose. The third rule is table-driven: only the array functions a collection has a member for
+  are asked about, so the table is both the rule and the answer to "which member should I have
+  used", and writing a member is what adds a row.
+- **The `@` operator does not appear.** All twenty-one sites are
+  `Support\Diagnostics::muted(…)`, which installs an error handler for one closure and takes it down
+  in a `finally`. This is the one rule with no excuse mechanism and the one that walks `tools/lib/`
+  as well: `@` silences every diagnostic in the expression at any severity, including one nobody
+  anticipated, and it cannot answer "did *this* call warn" because `error_get_last()` is
+  process-global. `SupportTest` covers both members; the rule itself is a tokenizer walk in
+  `GuidelineTest` that names the file and line.
+- **Every exception is one of ours, declared, and caught by name.** Four questions in one place:
+  a `throw new` names a class in `NeuroSYS\Exception`; a method that throws declares it; a `catch`
+  names a concrete class rather than `Throwable` or `Exception`; and a `catch` that binds a variable
+  and then throws hands that variable on, or the trace stops at the wrap and the real failure is
+  gone. `CollectionException extends TypeError` and `GuidelineException extends
+  InvalidArgumentException`, so the suite's existing `expectException` calls were unaffected by the
+  rule arriving — which is the point of extending an SPL class rather than replacing it.
+- **Nothing reaches a visitor as a PHP fatal.** `public/index.php` installs a
+  `set_exception_handler` before anything else can need one: it logs the fault with its class, its
+  provenance (`SiteException` or not), its file and its line, then sends a 500 with a body of
+  exactly `500` — no message, no class, no trace. Only the verify script can see it, since
+  `header()` is a no-op under CLI.
 - **Nothing under `src/` slips its type.** Riding along in the same file, all three at zero:
   `declare(strict_types=1)` in every file, a declared type on every parameter, return and property,
   and a backing value on every enum. Cheap to ask, and each is invisible when it goes — a missing
@@ -407,7 +429,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 97.84% of lines, and what is left is named below
+composer coverage   # PHP  — 98.83% of lines, and what is left is named below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -430,7 +452,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.75% of lines** (2066/2092), 98.3% of methods.
+clover XML and a browsable HTML report. Currently **98.83% of lines** (2204/2230).
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
@@ -447,7 +469,8 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Sixteen lines, in five groups, none of which a test can reach as the repository stands:
+Twenty-six lines, in eight groups. Ten are deliberate and the rest are a gap rather than a decision
+— see CLAUDE.md's coverage paragraph, which is the copy kept in step with the clover output:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
@@ -494,6 +517,12 @@ they are listed here to be closed rather than justified:
 
 The rest of this document's claim — that every uncovered line is deliberate — held when it was
 written and does not now. Three small tests in `ResponseTest` would restore it.
+
+**The figures above had drifted and were corrected in the three-guidelines pass**, which is worth a
+sentence because it is this document's own subject. Two of them disagreed with CLAUDE.md *and with
+each other* — 97.84% in the code block, 98.75% and "sixteen lines" further down — while the clover
+XML said neither. Nobody had written anything false; each number had been true when it was typed,
+and a figure quoted in three places is a figure that only stays right by accident.
 
 ### The development tooling
 

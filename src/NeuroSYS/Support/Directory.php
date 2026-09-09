@@ -123,7 +123,9 @@ final readonly class Directory
      */
     public function create(int $mode = 0o755): bool
     {
-        return $this->exists() || @mkdir($this->path, $mode, true) || $this->exists();
+        return $this->exists()
+            || Diagnostics::muted(fn(): bool => mkdir($this->path, $mode, true))
+            || $this->exists();
     }
 
     /**
@@ -146,6 +148,6 @@ final readonly class Directory
             }
         }
 
-        return @rmdir($this->path);
+        return Diagnostics::muted(fn(): bool => rmdir($this->path));
     }
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Support;
 
 use Attribute;
-use InvalidArgumentException;
+use NeuroSYS\Exception\GuidelineException;
 
 /**
  * The BareString attribute. Excuses one string literal from the rule that a name is an enum case,
@@ -38,19 +38,19 @@ final readonly class BareString
      * @param string $literal The literal as it is written, decoded — `"\n"` is one character here.
      * @param string $reason  Why this one stays a literal. Never empty.
      *
-     * @throws InvalidArgumentException if either half is empty.
+     * @throws GuidelineException if either half is empty.
      */
     public function __construct(public string $literal, public string $reason)
     {
         if ($literal === '') {
-            throw new InvalidArgumentException(
+            throw new GuidelineException(
                 '#[BareString] needs the literal it excuses. The empty string carries no letter, '
                 . 'so it is never a name and never needs one.',
             );
         }
 
         if ($reason === '') {
-            throw new InvalidArgumentException(
+            throw new GuidelineException(
                 '#[BareString] needs a reason: what the word is, if it is not the name the '
                 . 'vocabulary beside it already has. A literal nobody argued for is the habit.',
             );

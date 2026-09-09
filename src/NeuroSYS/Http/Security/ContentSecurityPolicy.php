@@ -85,21 +85,27 @@ final readonly class ContentSecurityPolicy implements HeaderValue
      * @return list<string>
      */
     #[BareArray(
-        'a door, and the one CLAUDE.md names when it explains why unique() was never written: this '
-        . 'is its only call site outside Dsp/, and a member added for one caller is a member '
-        . 'nobody else will find. Nothing crosses back in.',
+        'a door, and one only the tests walk through: this exists so a suite can assert which '
+        . 'origins a policy names, and both do it against a plain list. The reason here used to be '
+        . 'that unique() had never been written, on the grounds that this was its only caller — '
+        . 'which stopped being true when Demo::verify() became the second, so it was written and '
+        . 'the array_values(array_unique(…)) under this sentence went with it.',
     )]
     public function hosts(): array
     {
-        $hosts = [];
+        $hosts = new CspSourceList();
 
         foreach ($this->directives as $sources) {
-            foreach ($sources->where(static fn(CspSource $s): bool => $s instanceof CspHost) as $host) {
-                /** @var CspHost $host */
-                $hosts[] = $host->origin;
-            }
+            $hosts = $hosts->with(...$sources->where(
+                static fn(CspSource $source): bool => $source instanceof CspHost,
+            )->toValues());
         }
 
-        return array_values(array_unique($hosts));
+        // CspHost::source() is its origin, which is what makes this a map() rather than a loop
+        // reaching past the interface for a property only one implementation has.
+        return $hosts
+            ->map(static fn(CspSource $source): string => $source->source())
+            ->unique()
+            ->toValues();
     }
 }

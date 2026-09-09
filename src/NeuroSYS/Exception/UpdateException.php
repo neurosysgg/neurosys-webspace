@@ -22,6 +22,6 @@ use RuntimeException;
  * with the site's ordinary "no such path"; everything thrown past it is reported in full, because
  * by then the caller has proved it holds the private key.
  */
-class UpdateException extends RuntimeException
+class UpdateException extends RuntimeException implements SiteException
 {
 }

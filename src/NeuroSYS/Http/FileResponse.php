@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\Support\File;
 
 /**
@@ -143,12 +144,12 @@ readonly class FileResponse implements Response
      */
     private function stream(int $offset, int $length): void
     {
-        // Suppressed, and for the reason File::read() is: a caller has already asked `exists()`,
-        // which is `is_file()` and says nothing about whether the file can be *read*. An unreadable
-        // one makes fopen() warn, and by the time this runs the headers have gone out — so the
-        // warning would be printed into the audio, which is the same trap that once put an
-        // E_WARNING ahead of a page's doctype. Failing to open is answered with no body at all.
-        $handle = @fopen($this->file->path, 'rb');
+        // Muted, and for the reason File::read() is: a caller has already asked `exists()`, which
+        // is `is_file()` and says nothing about whether the file can be *read*. An unreadable one
+        // makes fopen() warn, and by the time this runs the headers have gone out — so the warning
+        // would be printed into the audio, which is the same trap that once put an E_WARNING ahead
+        // of a page's doctype. Failing to open is answered with no body at all.
+        $handle = Diagnostics::muted(fn(): mixed => fopen($this->file->path, 'rb'));
 
         if ($handle === false) {
             return;

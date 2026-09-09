@@ -7,6 +7,7 @@ namespace NeuroSYS;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Support\BareArray;
+use NeuroSYS\Support\BareCall;
 use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\SitePath;
@@ -115,6 +116,13 @@ class Layout
     #[BareArray(
         'spread into containing(), which is a variadic PHP already guards. A collection does not '
         . 'replace a variadic; here it would only add a toValues() at the one call site.',
+    )]
+    #[BareCall(
+        'array_map',
+        'maps a class constant, and a class constant cannot hold a Collection — `new` is not a '
+        . 'constant expression, so AssetManifest::MODULES is an array wherever it is read and '
+        . 'building one here would mean copying it first. The result is spread into containing(), '
+        . 'which is the variadic the #[BareArray] above already argues for.',
     )]
     private static function modulePreloads(): array
     {

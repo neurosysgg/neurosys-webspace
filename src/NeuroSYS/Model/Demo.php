@@ -92,14 +92,14 @@ final readonly class Demo
             ));
         }
 
-        $labels = $this->tracks->map(static fn(DemoTrack $track): string => $track->label)->toValues();
+        $labels = $this->tracks->map(static fn(DemoTrack $track): string => $track->label);
 
-        if (count(array_unique($labels)) !== count($labels)) {
+        if ($labels->unique()->count() !== $labels->count()) {
             throw new ReleaseVerificationException(sprintf(
                 "Demo '%s' repeats a track label (%s). A label is the URL a mix is reached at, so "
                 . 'two of them means one version is unreachable.',
                 $this->title,
-                implode(', ', $labels),
+                $labels->join(', '),
             ));
         }
     }

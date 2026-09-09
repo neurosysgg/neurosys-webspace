@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace NeuroSYS\Support;
 
 use Generator;
+use NeuroSYS\Exception\CollectionException;
 use NoDiscard;
 use ReflectionFunction;
 use ReflectionNamedType;
-use TypeError;
 
 /**
  * The TypedItems trait. The store and the pipeline {@link Collection} and
@@ -161,7 +161,7 @@ trait TypedItems
      * makes on a share id.** {@link self::guard()} asks `instanceof`, which answers `false` for a
      * string naming no class rather than complaining about it — so before this check existed,
      * `new Collection('Reelase')` was not an error but a collection that silently rejected
-     * everything ever offered to it, reporting the typo as a `TypeError` about the *item*. Naming
+     * everything ever offered to it, reporting the typo as a `CollectionException` about the *item*. Naming
      * the fault where it is written is worth one `class_exists()`.
      *
      * `interface_exists()` is asked separately because `class_exists()` answers `false` for an
@@ -176,7 +176,7 @@ trait TypedItems
      * @param class-string<T>|'string'|'int'|'float'|'bool' $type What this collection holds: a
      *                        fully-qualified class, interface or enum name, or one of
      *                        {@link self::SCALARS}.
-     * @throws TypeError if $type names neither.
+     * @throws CollectionException if $type names neither.
      */
     public function __construct(public readonly string $type)
     {
@@ -185,7 +185,7 @@ trait TypedItems
             && !class_exists($type)
             && !interface_exists($type)
         ) {
-            throw new TypeError(sprintf(
+            throw new CollectionException(sprintf(
                 "%s cannot hold '%s': it names no class, interface or enum, and is not one of %s.",
                 static::class,
                 $type,
@@ -259,6 +259,62 @@ trait TypedItems
     }
 
     /**
+     * A copy holding the first of each item and none of its repeats.
+     *
+     * Records the step and returns; nothing is compared until something materialises. Answers
+     * `static` for {@link self::where()}'s reason — dropping repeats does not change what is held,
+     * so a subclass survives it — and ends in {@link self::sequenced()} for {@link self::where()}'s
+     * *other* reason: this is the second step that can put holes in a list.
+     *
+     * **It compares by strict identity, which is not what `array_unique()` does**, and the
+     * difference is worth knowing before reaching for it. `array_unique()` compares the items as
+     * *strings* by default, so it calls `1` and `'1'` and `1.0` the same item; this calls them
+     * three items, because `===` does. The one place that shows is a collection declared `float`,
+     * which accepts an `int` — the one widening the language itself makes — where `1` and `1.0` are
+     * both kept. Matching `array_unique()` instead would mean inventing an equality this codebase
+     * does not otherwise have.
+     *
+     * **An object is compared by identity and not by value**, for the same reason and a stronger
+     * one: a value object here declares no equality, so the only honest question about two of them
+     * is whether they are the same object. A caller wanting value equality maps to the value first,
+     * which is what both callers do — {@link \NeuroSYS\Model\Demo::verify()} reduces its tracks to
+     * their labels and {@link \NeuroSYS\Http\Security\ContentSecurityPolicy::hosts()} reduces its
+     * sources to their origins, and each asks this afterwards.
+     *
+     * @return static
+     */
+    #[NoDiscard('unique() returns a copy with the repeats dropped; the one it was called on keeps them')]
+    public function unique(): static
+    {
+        $copy        = clone $this;
+        $copy->steps = [
+            ...$this->steps,
+            static function (iterable $stream): Generator {
+                $seen = [];
+
+                foreach ($stream as $key => $item) {
+                    // The type is part of the mark, so `1` and `'1'` do not collide the way they
+                    // would as bare array keys — and a float cannot be an array key at all without
+                    // being truncated first, which would call 1.5 and 1.9 the same number.
+                    $mark = is_object($item)
+                        ? spl_object_id($item)
+                        : get_debug_type($item) . "\0" . var_export($item, true);
+
+                    if (isset($seen[$mark])) {
+                        continue;
+                    }
+
+                    $seen[$mark] = true;
+
+                    yield $key => $item;
+                }
+            },
+            $this->sequenced(...),
+        ];
+
+        return $copy;
+    }
+    /**
      * A collection of every item put through $callback.
      *
      * Records the transformation and returns; $callback is not called until something materialises.
@@ -296,7 +352,7 @@ trait TypedItems
      * @param callable(T, array-key): TOut $callback Takes the item, then its key. Must declare a
      *                        plain return type; that type is what the new collection holds.
      * @return self<TOut>
-     * @throws TypeError if $callback declares no return type, or one this cannot name.
+     * @throws CollectionException if $callback declares no return type, or one this cannot name.
      */
     #[NoDiscard('map() answers with a new collection and changes nothing, so a dropped result does nothing')]
     public function map(callable $callback): self
@@ -328,13 +384,13 @@ trait TypedItems
      *
      * @param string $glue
      * @return string
-     * @throws TypeError if this collection does not hold strings.
+     * @throws CollectionException if this collection does not hold strings.
      */
     #[NoDiscard('join() answers with a string and changes nothing, so a call whose result goes nowhere does nothing')]
     public function join(string $glue): string
     {
         if ($this->type !== 'string') {
-            throw new TypeError(sprintf(
+            throw new CollectionException(sprintf(
                 "%s holds %s, which cannot be joined: map() it to a string first.",
                 static::class,
                 $this->type,
@@ -572,21 +628,21 @@ trait TypedItems
      *
      * @param callable $callback
      * @return string
-     * @throws TypeError if $callback declares no usable return type.
+     * @throws CollectionException if $callback declares no usable return type.
      */
     private static function mappedType(callable $callback): string
     {
         $declared = new ReflectionFunction($callback(...))->getReturnType();
 
         if (!$declared instanceof ReflectionNamedType) {
-            throw new TypeError(sprintf(
+            throw new CollectionException(sprintf(
                 "map()'s callback must declare a plain return type: %s.",
                 $declared === null ? 'this one declares none' : "'{$declared}' is a union or intersection",
             ));
         }
 
         if ($declared->allowsNull()) {
-            throw new TypeError(sprintf(
+            throw new CollectionException(sprintf(
                 "map()'s callback must declare a return type that is not nullable; '%s' is. A "
                 . 'collection cannot hold null.',
                 $declared,
@@ -620,7 +676,7 @@ trait TypedItems
      *
      * @param T $item
      * @return void
-     * @throws TypeError if it is not.
+     * @throws CollectionException if it is not.
      */
     private function guard(mixed $item): void
     {
@@ -634,7 +690,7 @@ trait TypedItems
             return;
         }
 
-        throw new TypeError(sprintf(
+        throw new CollectionException(sprintf(
             '%s expects %s, got %s',
             static::class,
             $this->type,

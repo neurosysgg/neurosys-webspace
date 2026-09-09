@@ -14,6 +14,7 @@ use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
@@ -22,6 +23,7 @@ use NeuroSYS\View\Html\Node;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
+use RuntimeException;
 use stdClass;
 use TypeError;
 
@@ -29,6 +31,7 @@ use TypeError;
 #[CoversClass(SearchableCollection::class)]
 #[CoversTrait(TypedItems::class)]
 #[CoversClass(File::class)]
+#[CoversClass(Diagnostics::class)]
 #[CoversClass(Directory::class)]
 final class SupportTest extends TestCase
 {
@@ -652,7 +655,121 @@ final class SupportTest extends TestCase
         (void) new Collection('int')->with(1, 2)->join(', ');
     }
 
+    /**
+     * @return void
+     */
+    public function testUniqueKeepsTheFirstOfEachAndDropsTheRest(): void
+    {
+        self::assertSame(
+            ['a', 'b', 'c'],
+            new Collection('string')->with('a', 'b', 'a', 'c', 'b', 'a')->unique()->toValues(),
+        );
+    }
+
+    /**
+     * A list is renumbered afterwards and a map keeps its keys, exactly as after a `where()` — this
+     * is the second step that can put holes in a list, and the only other one.
+     *
+     * @return void
+     */
+    public function testUniqueRenumbersAListAndKeepsAMapsKeys(): void
+    {
+        self::assertSame(
+            [0 => 'a', 1 => 'b'],
+            new Collection('string')->with('a', 'a', 'b')->unique()->toArray(),
+        );
+
+        $map = new SearchableCollection('string')
+            ->with('x', 'a')
+            ->with('y', 'b')
+            ->with('z', 'a');
+
+        self::assertSame(['x' => 'a', 'y' => 'b'], $map->unique()->toArray());
+    }
+
+    /**
+     * The difference from `array_unique()`, which is the thing to know before reaching for either.
+     *
+     * `array_unique()` compares its items as strings, so it calls `1` and `1.0` one item. This
+     * compares them the way `===` does, so it calls them two — and a collection declared `float`
+     * is the one place both can be present, since an `int` is the single widening the language
+     * itself makes.
+     *
+     * @return void
+     */
+    public function testUniqueComparesByIdentityRatherThanAsStrings(): void
+    {
+        $numbers = new Collection('float')->with(1, 1.0, 1.5, 1.5)->unique()->toValues();
+
+        self::assertSame([1, 1.0, 1.5], $numbers);
+        self::assertCount(3, $numbers, 'array_unique() would have called 1 and 1.0 the same number');
+    }
+
+    /**
+     * An object is the same item only when it is the same object.
+     *
+     * Two value objects with identical fields are two items, because a value object here declares
+     * no equality and inventing one inside a collection would be this class deciding what its
+     * elements mean. A caller wanting value equality maps to the value first, which is what both
+     * callers under `src/` do.
+     *
+     * @return void
+     */
+    public function testUniqueComparesObjectsByIdentity(): void
+    {
+        $one   = self::numbered(1);
+        $other = self::numbered(1);
+
+        self::assertNotSame($one, $other, 'two distinct objects, or this asserts nothing');
+
+        self::assertCount(2, new Collection(stdClass::class)->with($one, $other, $one)->unique()->toValues());
+    }
+
+    /**
+     * @return void
+     */
+    public function testUniqueReturnsACopyAndKeepsASubclass(): void
+    {
+        $letters = new Collection('string')->with('a', 'a');
+
+        (void) $letters->unique();
+
+        self::assertCount(2, $letters->toValues(), 'unique() must not touch what it was called on');
+        self::assertInstanceOf(CspSourceList::class, new CspSourceList()->unique());
+    }
     // ─────────────────────────── One pass, fused ───────────────────────────
+
+    /**
+     * `unique()` is lazy and fuses with the steps around it, like every other transforming step.
+     *
+     * The trace is what says so: a staged implementation would run every `w` before the first `u`,
+     * and an eager `unique()` would compare all six before `map()` saw one. Note `u2` and `u4`
+     * appearing without an `m` behind them — those are the repeats, dropped mid-pass.
+     *
+     * @return void
+     */
+    public function testUniqueRunsFusedWithTheStepsAroundIt(): void
+    {
+        $trace = [];
+
+        $chain = new Collection('int')
+            ->with(1, 2, 2, 3, 2, 3)
+            ->where(static function (int $n) use (&$trace): bool {
+                $trace[] = "w$n";
+
+                return true;
+            })
+            ->unique()
+            ->map(static function (int $n) use (&$trace): string {
+                $trace[] = "m$n";
+
+                return "n$n";
+            });
+
+        self::assertSame([], $trace, 'unique() must compare nothing until something asks');
+        self::assertSame(['n1', 'n2', 'n3'], $chain->toValues());
+        self::assertSame(['w1', 'm1', 'w2', 'm2', 'w2', 'w3', 'm3', 'w2', 'w3'], $trace);
+    }
 
     /**
      * The property the whole pipeline exists for, and the one an eager implementation passes every
@@ -1285,5 +1402,101 @@ final class SupportTest extends TestCase
     public function testAFileKnowsWhichDirectoryItIsIn(): void
     {
         self::assertSame('/x/web', new File('/x/web/cover.jpg')->directory()->path);
+    }
+
+    // ───────────────────────────── Diagnostics ─────────────────────────────
+
+    /**
+     * What `@` did, said out loud: the operation's answer, and no output.
+     *
+     * `beStrictAboutOutputDuringTests` is what makes the second half an assertion rather than a
+     * hope — a warning that reached the page would reach this test's output buffer too.
+     *
+     * @return void
+     */
+    public function testMutedAnswersWhatTheOperationAnsweredAndPrintsNothing(): void
+    {
+        $directory = Directory::temporary('neurosys-diagnostics-');
+        $missing    = $directory->file('there-is-no-such-file')->path;
+
+        try {
+            self::expectOutputString('');
+            self::assertFalse(Diagnostics::muted(static fn(): string|false => file_get_contents($missing)));
+        } finally {
+            $directory->remove();
+        }
+    }
+
+    /**
+     * The half `@` has no version of: which diagnostic, for this call.
+     *
+     * @return void
+     */
+    public function testWatchedKeepsWhatTheOperationComplainedAbout(): void
+    {
+        $directory = Directory::temporary('neurosys-diagnostics-');
+        $missing    = $directory->file('there-is-no-such-file')->path;
+
+        try {
+            $watched = Diagnostics::watched(static fn(): string|false => file_get_contents($missing));
+
+            self::assertFalse($watched->result);
+            self::assertCount(1, $watched->reported->toValues());
+            self::assertStringContainsString('there-is-no-such-file', $watched->reported->join(' / '));
+        } finally {
+            $directory->remove();
+        }
+    }
+
+    /**
+     * Nothing reported is an empty collection, not a null and not an absent one.
+     *
+     * @return void
+     */
+    public function testWatchedReportsNothingWhenNothingWentWrong(): void
+    {
+        $watched = Diagnostics::watched(static fn(): int => 41 + 1);
+
+        self::assertSame(42, $watched->result);
+        self::assertTrue($watched->reported->isEmpty());
+    }
+
+    /**
+     * The handler is restored on the way out however the operation ends.
+     *
+     * The `finally` is the whole reason both members are shaped the way they are: a handler left
+     * installed would go on swallowing warnings for the rest of the request, which is `@`'s failure
+     * mode made permanent rather than fixed.
+     *
+     * @return void
+     */
+    public function testTheHandlerIsRestoredEvenWhenTheOperationThrows(): void
+    {
+        $installed = static function (): ?callable {
+            $current = set_error_handler(static fn(): bool => true);
+            restore_error_handler();
+
+            return $current;
+        };
+
+        $before = $installed();
+
+        try {
+            Diagnostics::muted(static fn(): never => throw new RuntimeException('while muted'));
+            self::fail('the operation was supposed to throw');
+        } catch (RuntimeException $thrown) {
+            self::assertSame('while muted', $thrown->getMessage(), 'the throw must pass straight through');
+        }
+
+        self::assertSame($before, $installed(), 'muted() left its handler installed');
+
+        try {
+            Diagnostics::watched(static fn(): never => throw new RuntimeException('while watched'));
+            self::fail('the operation was supposed to throw');
+        } catch (RuntimeException) {
+            // The point is the assertion below, not this one.
+        }
+
+        self::assertSame($before, $installed(), 'watched() left its handler installed');
     }
 }

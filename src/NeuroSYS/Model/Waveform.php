@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 
@@ -106,10 +107,10 @@ final readonly class Waveform
             ));
         }
 
-        return new self(self::MAGIC . implode('', array_map(
-            static fn(WaveformColumn $column): string => $column->bytes(),
-            $columns,
-        )));
+        return new self(self::MAGIC . new Collection(WaveformColumn::class)
+            ->with(...$columns)
+            ->map(static fn(WaveformColumn $column): string => $column->bytes())
+            ->join(''));
     }
 
     /**

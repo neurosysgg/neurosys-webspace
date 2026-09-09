@@ -7,6 +7,7 @@ namespace NeuroSYS\Test\Unit;
 use FilesystemIterator;
 use InvalidArgumentException;
 use NeuroSYS\Support\BareArray;
+use NeuroSYS\Support\BareCall;
 use NeuroSYS\Support\BareString;
 use PhpToken;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -51,8 +52,10 @@ use ReflectionUnionType;
  * **What is deliberately not checked.** `mixed` appears twelve times under `src/`, always as a
  * collection's element type, and it is there because PHP has no generics rather than because
  * anybody chose it; a third attribute for a set that cannot change would be ceremony.
- * `tools/lib/` is not walked either — it is not deployed, it is outside the coverage source, and
- * the doors it is made of (`unpack`, `preg_match`, `file`) are most of what it does.
+ * `tools/lib/` is out of the *declaration* rules for the same kind of reason — it is not deployed,
+ * it is outside the coverage source, and the doors it is made of (`unpack`, `preg_match`, `file`)
+ * are most of what it does. {@link self::testNothingSuppressesADiagnosticWithAnAtSign()} is the one
+ * rule that does walk it, and says on itself why a suppression is not a door.
  *
  * It covers the two attributes and nothing else, which is not the `#[CoversNothing]`
  * {@link NoDiscardTest} carries and is the honest difference between them: that test only ever
@@ -60,6 +63,7 @@ use ReflectionUnionType;
  * proves each refuses a hole. Everything else here executes no line of `src/` at all.
  */
 #[CoversClass(BareArray::class)]
+#[CoversClass(BareCall::class)]
 #[CoversClass(BareString::class)]
 final class GuidelineTest extends TestCase
 {
@@ -71,6 +75,41 @@ final class GuidelineTest extends TestCase
      * derives its expectation from the thing it is testing asserts nothing.
      */
     private const array SCALAR_TYPES = ['string', 'int', 'float', 'bool'];
+
+    /**
+     * The array functions a {@link \NeuroSYS\Support\Collection} answers, and the member that
+     * answers each.
+     *
+     * This table *is* the rule. A function on it is one the collections can do, so a call to it
+     * under `src/` needs either the member or a `#[BareCall]`; a function not on it — `array_slice`,
+     * `array_shift`, `array_merge`, `array_any`, `array_key_last` — is outside the rule entirely,
+     * because demanding an excuse for a call with no replacement asks for an apology rather than an
+     * argument. Writing a member is what adds a row, and adding a row is what makes every existing
+     * call to that function fail until somebody looks at it.
+     *
+     * Named here rather than read off the collections by reflection, for the reason
+     * {@link self::SCALAR_TYPES} is: a test that derives its expectation from the thing it tests
+     * asserts nothing. The pairing is also not mechanical — `array_find` is `first()` and
+     * `array_filter` is `where()`, and no amount of reflection would guess either.
+     */
+    private const array COLLECTION_MEMBERS = [
+        'array_filter' => 'where()',
+        'array_find'   => 'first()',
+        'array_keys'   => 'toKeys()',
+        'array_map'    => 'map()',
+        'array_unique' => 'unique()',
+        'array_values' => 'toValues()',
+    ];
+
+    /**
+     * The three files the call rule does not read.
+     *
+     * Exempt outright, the way an enum declaration is exempt from the string rule and for the same
+     * reason: this is where the thing lives. `Collection`, `SearchableCollection` and `TypedItems`
+     * *are* the members in the table above, and the array functions are what they are made of —
+     * `toValues()` is `array_values()`, and asking it to call itself is not a rule, it is a loop.
+     */
+    private const array COLLECTION_FILES = ['Collection.php', 'SearchableCollection.php', 'TypedItems.php'];
 
     /** Cache for {@link self::sourceTree()}: PHPUnit builds a fresh instance per test method. */
     private static ?array $tree = null;
@@ -240,6 +279,7 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Model\Update\UpdateReport string',
                 'NeuroSYS\Service\DownloadLogEntry time',
                 'NeuroSYS\Service\DownloadStats int',
+                'NeuroSYS\Support\Diagnostics string',
                 'NeuroSYS\Support\TypedItems int',
                 'NeuroSYS\Support\TypedItems string',
                 'NeuroSYS\View\DemoView artist',
@@ -256,6 +296,56 @@ final class GuidelineTest extends TestCase
     }
 
     /**
+     * Every call to an array function a collection already answers carries an excuse.
+     *
+     * The tokenizer for the call and reflection for the method it sits in, which is the smallest
+     * thing an attribute can hang on — a line number is not something `#[BareCall]` could name. A
+     * call inside a closure counts as the enclosing method's, which is what you want: the closure
+     * is written there.
+     *
+     * See {@link self::COLLECTION_MEMBERS} for what is asked about and what deliberately is not.
+     *
+     * @return void
+     */
+    public function testEveryBareCallIsExcused(): void
+    {
+        self::assertSame(
+            [],
+            self::bareCalls()['unexcused'],
+            'an array function a Collection has a member for, with no #[BareCall] saying otherwise',
+        );
+    }
+
+    /**
+     * These, and only these, stay calls.
+     *
+     * Two kinds, and both are about what is on the other side of the call rather than about the
+     * call:
+     *
+     * - **A class constant.** `Layout::modulePreloads()` and `Element::verifyUrl()` map over one,
+     *   and a class constant *cannot* hold a `Collection` — `new` is not a constant expression, so
+     *   `AssetManifest::MODULES` and `Element::URL_SCHEMES` are arrays wherever they are read.
+     *   These two are permanent until PHP says otherwise.
+     * - **A door, or a variadic straight through one.** `File::lines()` is `file()`'s doorway, and
+     *   `Element::containing()` maps the variadic PHP has already guarded directly into `with()` —
+     *   a collection there would be built only to be spread back out on the same line, on the
+     *   hottest path this site has.
+     *
+     * @return void
+     */
+    public function testExactlyTheseCallsStayBare(): void
+    {
+        self::assertSame(
+            [
+                'NeuroSYS\Layout::modulePreloads array_map',
+                'NeuroSYS\Support\File::lines array_values',
+                'NeuroSYS\View\Html\Element::containing array_map',
+                'NeuroSYS\View\Html\Element::verifyUrl array_map',
+            ],
+            array_keys(self::bareCalls()['excused']),
+        );
+    }
+    /**
      * No excuse outlives the thing it excused.
      *
      * This is the direction that keeps the two lists above honest rather than merely long. A
@@ -269,6 +359,7 @@ final class GuidelineTest extends TestCase
     {
         self::assertSame([], self::bareArrays()['stale'], '#[BareArray] on something that is not one');
         self::assertSame([], self::bareStrings()['stale'], '#[BareString] naming a literal that is gone');
+        self::assertSame([], self::bareCalls()['stale'], '#[BareCall] for a call that is not made');
     }
 
     /**
@@ -287,6 +378,8 @@ final class GuidelineTest extends TestCase
             'an array excused without a reason'   => static fn(): object => new BareArray(''),
             'a literal excused without a reason'  => static fn(): object => new BareString('x', ''),
             'a reason attached to no literal'     => static fn(): object => new BareString('', 'why'),
+            'a call excused without a reason'    => static fn(): object => new BareCall('array_map', ''),
+            'an excuse for no such function'     => static fn(): object => new BareCall('array_nope', 'why'),
         ];
 
         foreach ($holes as $what => $construct) {
@@ -299,6 +392,126 @@ final class GuidelineTest extends TestCase
         }
     }
 
+    /**
+     * Nothing suppresses a diagnostic with an `@`.
+     *
+     * The one rule here with no excuse mechanism at all, because the replacement is strictly better
+     * rather than merely tidier and there was nothing left to argue for.
+     * {@link \NeuroSYS\Support\Diagnostics} is what the twenty-one sites became.
+     *
+     * `@` cannot say which diagnostics it meant: it silences every one raised anywhere in the
+     * expression, at any severity, from any call nested inside it — so a `@file_get_contents()`
+     * written for a missing file also swallows an `E_DEPRECATED` that arrives with a PHP upgrade,
+     * and nothing says so. And it cannot answer for one call, because `error_get_last()` is
+     * process-global and sticky, which is why `MarkupParser` had to hand-roll a handler to refuse a
+     * policy document on a parse error.
+     *
+     * **This is the one rule that walks `tools/lib/` as well**, and the reason is the same one that
+     * keeps that tree out of the other four: what is excluded there are the *doors* — `unpack`,
+     * `preg_match`, `file` — and a suppression is not a door. `PayloadBuilder` signs a push with the
+     * only private key this repository ever touches, which is not a place to leave a character that
+     * hides whatever it happens to be in front of.
+     *
+     * The token is `@` on its own; `#[` is `T_ATTRIBUTE` and a docblock's `@param` is one
+     * `T_DOC_COMMENT`, so neither is reachable from here. `test/` is deliberately outside: a
+     * fixture's teardown unlinks paths it does not care about, which is the one place the blunt
+     * instrument is the right one.
+     *
+     * @return void
+     */
+    public function testNothingSuppressesADiagnosticWithAnAtSign(): void
+    {
+        $suppressed = [];
+
+        foreach (self::phpFiles() as $path) {
+            foreach (PhpToken::tokenize(file_get_contents($path)) as $token) {
+                if ($token->text === '@' && $token->id !== T_ATTRIBUTE) {
+                    $suppressed[] = substr($path, strlen(NEUROSYS_ROOT) + 1) . ':' . $token->line;
+                }
+            }
+        }
+
+        self::assertSame(
+            [],
+            $suppressed,
+            '@ hides every diagnostic in the expression; Diagnostics::muted() names which it hides',
+        );
+    }
+    /**
+     * Every exception thrown under `src/` is one of ours.
+     *
+     * The rule with the shortest argument. An exception is a name for a condition, and a bare
+     * `RuntimeException` names the condition "something", which is the same complaint the enums and
+     * the collections answer one layer down. `NeuroSYS\Exception` is where the vocabulary lives, and
+     * a throw that reaches outside it is a condition nobody has bothered to say the name of.
+     *
+     * **The two that look like exceptions to it are not.** {@link
+     * \NeuroSYS\Exception\CollectionException} extends `TypeError` and {@link
+     * \NeuroSYS\Exception\GuidelineException} extends `InvalidArgumentException` — so what a caller
+     * catches is unchanged and every `expectException` in this suite still matches. What changed is
+     * only that the throw says which layer raised it. Extending an SPL class is how you keep a
+     * promise; throwing one is how you avoid making one.
+     *
+     * @return void
+     */
+    public function testEveryExceptionThrownUnderSrcIsOneOfOurs(): void
+    {
+        self::assertSame(
+            [],
+            self::throwsUnderSrc()['foreign'],
+            'a throw naming an exception outside NeuroSYS\Exception, which names no condition',
+        );
+    }
+
+    /**
+     * Every method that throws says so.
+     *
+     * At zero when it was written, like the three below, and here for the same reason: it is
+     * invisible when it goes. An undeclared `@throws` is not a wrong answer, it is a caller who was
+     * never asked the question — and the callers here are views, whose whole job is to be composed
+     * into something else.
+     *
+     * Only a *direct* throw is asked about. A method that propagates one from a callee is free to
+     * declare it or not, which is a judgement — {@link \NeuroSYS\View\Html\Element::containingHtml()}
+     * declares the base of two, deliberately — and a test that made that judgement mechanically
+     * would be wrong more often than the people are.
+     *
+     * @return void
+     */
+    public function testEveryThrowUnderSrcIsDeclared(): void
+    {
+        self::assertSame(
+            [],
+            self::throwsUnderSrc()['undeclared'],
+            'a method that throws with no @throws saying so',
+        );
+    }
+
+    /**
+     * Every `catch` names what it means to handle, and every wrap keeps what it caught.
+     *
+     * Two halves of one habit, both at zero.
+     *
+     * **A catch names a concrete class.** `catch (Throwable)` and `catch (Exception)` are the
+     * `mixed` of error handling: they catch the condition you thought of and every one you did not,
+     * and the second kind is then indistinguishable from the first. Note that `Exception` would not
+     * even be the wide net it looks like here — {@link \NeuroSYS\Exception\CollectionException}
+     * extends `Error`, which is why {@link \NeuroSYS\Exception\SiteException} exists.
+     *
+     * **A wrap keeps its cause.** A `catch` that binds a variable and then throws must hand that
+     * variable to the new exception, or the stack trace stops at the wrap and the actual failure —
+     * which line of JSON, which byte — is gone. Both wrap sites under `src/` do it; this is what
+     * stops a third from not.
+     *
+     * @return void
+     */
+    public function testEveryCatchNamesWhatItHandlesAndEveryWrapKeepsItsCause(): void
+    {
+        $catches = self::catchesUnderSrc();
+
+        self::assertSame([], $catches['broad'], 'a catch naming Throwable or Exception rather than a condition');
+        self::assertSame([], $catches['unwrapped'], 'a catch that throws without passing on what it caught');
+    }
     /**
      * Every file under `src/` declares strict types.
      *
@@ -444,6 +657,270 @@ final class GuidelineTest extends TestCase
     }
 
     /**
+     * Every `throw new` under `src/`, judged twice: is it ours, and did the method say so.
+     *
+     * The name is resolved the way PHP resolves it — against the file's `use` block, then against
+     * its own namespace — because `throw new UpdateException` and `throw new RuntimeException` are
+     * the same shape in the token stream and only the imports tell them apart.
+     *
+     * @return array{foreign: list<string>, undeclared: list<string>}
+     */
+    private static function throwsUnderSrc(): array
+    {
+        $foreign     = [];
+        $undeclared  = [];
+
+        foreach (self::sourceTree() as $path => $class) {
+            $tokens  = PhpToken::tokenize(file_get_contents($path));
+            $imports = self::imports($tokens);
+            $methods = [];
+
+            foreach (new ReflectionClass($class)->getMethods() as $method) {
+                if ($method->getDeclaringClass()->getName() === $class && $method->isUserDefined()) {
+                    $methods[$method->getName()] = [
+                        $method->getStartLine(),
+                        $method->getEndLine(),
+                        $method->getDocComment() ?: '',
+                    ];
+                }
+            }
+
+            $namespace = substr($class, 0, (int) strrpos($class, '\\'));
+
+            foreach (self::thrown($tokens) as [$name, $line]) {
+                $resolved = $imports[$name] ?? ltrim($namespace . '\\' . $name, '\\');
+
+                if (!str_starts_with($resolved, 'NeuroSYS\\Exception\\')) {
+                    $foreign[] = $class . ':' . $line . ' throws ' . $resolved;
+                }
+
+                foreach ($methods as $method => [$from, $to, $doc]) {
+                    if ($line < $from || $line > $to) {
+                        continue;
+                    }
+
+                    if (!str_contains($doc, '@throws ' . $name)) {
+                        $undeclared[] = $class . '::' . $method . '() throws ' . $name . ' and declares it nowhere';
+                    }
+
+                    break;
+                }
+            }
+        }
+
+        sort($foreign);
+        sort($undeclared);
+
+        return ['foreign' => $foreign, 'undeclared' => array_values(array_unique($undeclared))];
+    }
+
+    /**
+     * Every `catch` under `src/`, judged twice: is it specific, and does a wrap keep its cause.
+     *
+     * A non-capturing `catch (X)` cannot wrap anything, so it is only asked the first question.
+     * A capturing one is asked both, and "keeps its cause" means the caught variable appears inside
+     * the argument list of whatever the block throws — which is where `previous` is, however it is
+     * spelled.
+     *
+     * @return array{broad: list<string>, unwrapped: list<string>}
+     */
+    private static function catchesUnderSrc(): array
+    {
+        $broad     = [];
+        $unwrapped = [];
+
+        foreach (self::sourceTree() as $path => $class) {
+            $tokens = PhpToken::tokenize(file_get_contents($path));
+            $count  = count($tokens);
+
+            for ($i = 0; $i < $count; $i++) {
+                if ($tokens[$i]->id !== T_CATCH) {
+                    continue;
+                }
+
+                $types    = [];
+                $variable = null;
+
+                for ($j = $i; $j < $count && $tokens[$j]->text !== '{'; $j++) {
+                    if ($tokens[$j]->id === T_STRING) {
+                        $types[] = $tokens[$j]->text;
+                    } elseif ($tokens[$j]->id === T_VARIABLE) {
+                        $variable = $tokens[$j]->text;
+                    }
+                }
+
+                foreach ($types as $type) {
+                    if ($type === 'Throwable' || $type === 'Exception') {
+                        $broad[] = $class . ':' . $tokens[$i]->line . ' catches ' . $type;
+                    }
+                }
+
+                if ($variable === null) {
+                    continue;
+                }
+
+                // Walk the block, and any `throw new` in it has to name the caught variable
+                // somewhere in its arguments.
+                for ($depth = 0, $k = $j; $k < $count; $k++) {
+                    $depth += (int) ($tokens[$k]->text === '{') - (int) ($tokens[$k]->text === '}');
+
+                    if ($depth === 0 && $k > $j) {
+                        break;
+                    }
+
+                    if ($tokens[$k]->id !== T_THROW) {
+                        continue;
+                    }
+
+                    $arguments = '';
+
+                    for ($parens = 0, $a = $k; $a < $count; $a++) {
+                        $parens += (int) ($tokens[$a]->text === '(') - (int) ($tokens[$a]->text === ')');
+                        $arguments .= $tokens[$a]->text;
+
+                        if ($parens === 0 && str_contains($arguments, '(')) {
+                            break;
+                        }
+                    }
+
+                    if (!str_contains($arguments, $variable)) {
+                        $unwrapped[] = $class . ':' . $tokens[$k]->line . ' throws without ' . $variable;
+                    }
+                }
+            }
+        }
+
+        sort($broad);
+        sort($unwrapped);
+
+        return ['broad' => $broad, 'unwrapped' => $unwrapped];
+    }
+
+    /**
+     * One file's `use` block, as `short name => fully qualified`.
+     *
+     * Group and function imports are not used anywhere under `src/`, so this reads the plain form
+     * and the aliased one and nothing else. A name this cannot find is resolved against the file's
+     * own namespace by the caller, which is what PHP does.
+     *
+     * @param list<PhpToken> $tokens
+     * @return array<string, string>
+     */
+    private static function imports(array $tokens): array
+    {
+        $imports = [];
+        $count   = count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            if ($tokens[$i]->id !== T_USE) {
+                continue;
+            }
+
+            $name  = '';
+            $alias = null;
+
+            for ($j = $i + 1; $j < $count && $tokens[$j]->text !== ';'; $j++) {
+                if ($tokens[$j]->text === '{' || $tokens[$j]->text === '(') {
+                    // A trait's `use`, or a closure's — neither is an import.
+                    continue 2;
+                }
+
+                if ($tokens[$j]->id === T_AS) {
+                    $alias = '';
+                    continue;
+                }
+
+                if ($tokens[$j]->id === T_STRING || $tokens[$j]->id === T_NAME_QUALIFIED) {
+                    if ($alias === null) {
+                        $name .= $tokens[$j]->text;
+                    } else {
+                        $alias = $tokens[$j]->text;
+                    }
+                } elseif ($tokens[$j]->text === '\\' && $alias === null) {
+                    $name .= '\\';
+                }
+            }
+
+            if ($name !== '') {
+                // strrpos() answers false for an unqualified import — `use Closure;` — and (int)
+                // false is 0, which would key it under its own name minus the first letter.
+                $separator = strrpos($name, '\\');
+                $short     = $separator === false ? $name : substr($name, $separator + 1);
+
+                $imports[$alias ?? $short] = $name;
+            }
+        }
+
+        return $imports;
+    }
+
+    /**
+     * One file's `throw new X` sites, as `[short name, line]` pairs.
+     *
+     * A rethrow (`throw $caught;`) is not one: it names no class, and what it is rethrowing was
+     * already counted where it was made.
+     *
+     * @param list<PhpToken> $tokens
+     * @return list<array{string, int}>
+     */
+    private static function thrown(array $tokens): array
+    {
+        $throws = [];
+        $count  = count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            if ($tokens[$i]->id !== T_THROW) {
+                continue;
+            }
+
+            for ($j = $i + 1; $j < $count && $tokens[$j]->is(T_WHITESPACE); $j++);
+
+            if (($tokens[$j] ?? null)?->id !== T_NEW) {
+                continue;
+            }
+
+            for ($k = $j + 1; $k < $count && $tokens[$k]->is(T_WHITESPACE); $k++);
+
+            $name = $tokens[$k] ?? null;
+
+            if ($name?->id === T_STRING || $name?->id === T_NAME_QUALIFIED || $name?->id === T_NAME_FULLY_QUALIFIED) {
+                $throws[] = [$name->text, $name->line];
+            }
+        }
+
+        return $throws;
+    }
+    /**
+     * Every PHP file the suppression rule reads, as absolute paths, sorted.
+     *
+     * Not {@link self::sourceTree()}, and the difference is the point: that one maps a path to the
+     * class the autoloader would load, so it can only see `src/`. This asks the filesystem and
+     * nothing else, which is what lets it reach `tools/lib/` — where the classes are real but the
+     * site's autoloader has never heard of them.
+     *
+     * @return list<string>
+     */
+    private static function phpFiles(): array
+    {
+        $paths = [];
+
+        foreach (['/src/NeuroSYS', '/tools/lib'] as $root) {
+            $files = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator(NEUROSYS_ROOT . $root, FilesystemIterator::SKIP_DOTS),
+            );
+
+            foreach ($files as $file) {
+                if ($file->getExtension() === 'php') {
+                    $paths[] = $file->getPathname();
+                }
+            }
+        }
+
+        sort($paths);
+
+        return $paths;
+    }
+    /**
      * True if $type is, or contains, `array`.
      *
      * A union counts: `array|false` is still an array on the branch that matters, and
@@ -541,6 +1018,124 @@ final class GuidelineTest extends TestCase
         return ['excused' => $excused, 'unexcused' => $unexcused, 'stale' => $stale];
     }
 
+    /**
+     * Every call to a {@link self::COLLECTION_MEMBERS} function under `src/`, judged against its
+     * `#[BareCall]`.
+     *
+     * Keyed `Class::method function`, which is the granularity the attribute has — reflection for
+     * where each method starts and ends, the tokenizer for where the call is, and the two met in
+     * the middle. A call inside a closure lands on the method the closure is written in, which is
+     * the answer that lets an excuse be attached to something.
+     *
+     * @return array{excused: array<string, string>, unexcused: list<string>, stale: list<string>}
+     */
+    private static function bareCalls(): array
+    {
+        $excused   = [];
+        $unexcused = [];
+        $stale     = [];
+
+        foreach (self::sourceTree() as $path => $class) {
+            if (in_array(basename($path), self::COLLECTION_FILES, true)) {
+                continue;
+            }
+
+            $methods  = [];
+            $declared = [];
+
+            foreach (new ReflectionClass($class)->getMethods() as $method) {
+                if ($method->getDeclaringClass()->getName() !== $class || !$method->isUserDefined()) {
+                    continue;
+                }
+
+                $methods[$method->getName()] = [$method->getStartLine(), $method->getEndLine()];
+
+                foreach ($method->getAttributes(BareCall::class) as $attribute) {
+                    $instance = $attribute->newInstance();
+                    $declared[$method->getName() . ' ' . $instance->function] = $instance->reason;
+                }
+            }
+
+            $called = [];
+
+            foreach (self::arrayCalls($path) as [$function, $line]) {
+                $where = '<no method>';
+
+                foreach ($methods as $name => [$from, $to]) {
+                    if ($line >= $from && $line <= $to) {
+                        $where = $name;
+                        break;
+                    }
+                }
+
+                $called[$where . ' ' . $function] = $function;
+            }
+
+            foreach ($called as $call => $function) {
+                if (isset($declared[$call])) {
+                    $excused[$class . '::' . $call] = $declared[$call];
+                    continue;
+                }
+
+                $unexcused[] = $class . '::' . $call . ' — ' . self::COLLECTION_MEMBERS[$function] . ' does this';
+            }
+
+            foreach (array_keys($declared) as $call) {
+                if (!isset($called[$call])) {
+                    $stale[] = $class . '::' . $call;
+                }
+            }
+        }
+
+        ksort($excused);
+        sort($unexcused);
+        sort($stale);
+
+        return ['excused' => $excused, 'unexcused' => $unexcused, 'stale' => $stale];
+    }
+
+    /**
+     * One file's calls to a {@link self::COLLECTION_MEMBERS} function, as `[name, line]` pairs.
+     *
+     * A name is only a call when a `(` follows it and neither `->` nor `::` nor `function` comes
+     * first — so a method that happened to be called `map` and the declaration of one are both left
+     * alone. Whitespace is stepped over on each side, since `array_map (` is the same call.
+     *
+     * @param string $path
+     * @return list<array{string, int}>
+     */
+    private static function arrayCalls(string $path): array
+    {
+        $tokens = PhpToken::tokenize(file_get_contents($path));
+        $count  = count($tokens);
+        $calls  = [];
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if ($token->id !== T_STRING || !isset(self::COLLECTION_MEMBERS[$token->text])) {
+                continue;
+            }
+
+            $before = ($tokens[$i - 1] ?? null)?->is(T_WHITESPACE) === true
+                ? $tokens[$i - 2] ?? null
+                : $tokens[$i - 1] ?? null;
+
+            if (in_array($before?->text, ['->', '?->', '::', 'function'], true)) {
+                continue;
+            }
+
+            $after = ($tokens[$i + 1] ?? null)?->is(T_WHITESPACE) === true
+                ? $tokens[$i + 2] ?? null
+                : $tokens[$i + 1] ?? null;
+
+            if ($after?->text === '(') {
+                $calls[] = [$token->text, $token->line];
+            }
+        }
+
+        return $calls;
+    }
     /**
      * Every literal under `src/` that a vocabulary already spells, judged against its
      * `#[BareString]`.

@@ -90,8 +90,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.80% of
-lines** (2153/2179); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.83% of
+lines** (2204/2230); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -126,6 +126,16 @@ them by some way — `MarkupParser` is 70 lines and every one of them is covered
 of refusals is a class where each refusal is a row in a data provider. It moved the denominator from
 2110 to 2179 and left the numerator's gap exactly where it was. The twenty-six are a property of what
 is *deliberately* untested, not a budget that grows with the code.
+
+**So is the three-guidelines work**, which moved the denominator again — 2179 to 2230 — and is worth
+reading for the one line it *nearly* added. `Diagnostics::watched()`'s handler had an early
+`return false` for a severity it does not claim, and that branch cannot be reached from a test: the
+only non-fatal severities PHP lets userland raise are all on the muted list, and returning false for
+an `E_USER_ERROR` hands it to the standard handler, which ends the process. So the choice was a line
+excused as unreachable or a shape with no unreachable line, and the second turned out to be the
+better code as well: the decision is `Diagnostics::handles()` now, named once and called by both
+members, which is what stops the two handlers ever disagreeing about what "handled" means. A branch
+a test cannot reach is usually saying something about the code rather than about the test.
 
 **The `/update` work is the one that did not manage it in the same pass, and that is recorded rather
 than tidied away.** It landed 436 lines with 57 of its own uncovered, and this paragraph stood for
@@ -252,9 +262,13 @@ src/NeuroSYS/
 │                     scalars)
 │                     + the TypedItems trait they share, File + Directory, Route + SitePath
 │                     + MethodPolicy, RouteInitialization, JsonDeserializable, Charset, UrlScheme,
-│                     PasswordHash + PublicKey, TarArchive + TarEntry/TarMemberType
-│                     + BareArray/BareString, the two attributes that excuse an exception to the
-│                     rules the other names here exist to keep
+│                     PasswordHash + PublicKey, TarArchive + TarEntry/TarMemberType, Diagnostics
+│                     (the one place a PHP warning is handled rather than printed)
+│                     + BareArray/BareString/BareCall, the three attributes that excuse an
+│                     exception to the rules the other names here exist to keep
+├── Exception/      ← the vocabulary of conditions: SiteException (the marker all of them carry),
+│                     MarkupException + Element/Parser/Terminal under it, plus Collection,
+│                     Guideline, MimeType, ReleaseVerification, Route, SecurityPolicy and Update
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, Fragment, Document,
 │   │                 MarkupParser (the same grammar read back in),
@@ -269,8 +283,18 @@ src/NeuroSYS/
 └── Router.php      ← pure URL→Controller mapper; zero data dependencies
 ```
 
-`public/index.php` is five statements: security headers → parse request → site auth check →
-`Router::dispatch()` → send.
+`public/index.php` is six statements: install the last-resort handler → security headers → parse
+request → site auth check → `Router::dispatch()` → send.
+
+**The handler is first because it is the one that has to work when nothing else did.** An uncaught
+throwable was a PHP fatal, which on a host whose `display_errors` we do not own is either a blank
+page with a 200 already on the wire or a stack trace naming absolute paths — a choice left to a
+php.ini rather than made here. It logs the fault, sends a 500 if `headers_sent()` says there is
+still a response to shape, and writes a body of exactly `500`. It depends on nothing: no `Response`,
+no `MimeType`, no view, because reaching for the markup tree would be reaching for the most likely
+thing to have just broken, and a throw inside an exception handler is a fatal with the original
+swallowed. The one type it does name is `SiteException`, and that is free — see
+[Exceptions](#exceptions).
 
 `SecurityHeaders::send()` runs before anything else, so the CSP and `Referrer-Policy` cover every
 response including the 401 `Auth` exits with and the 303 a download redirects with. Every value is a
@@ -446,6 +470,13 @@ and unreadable, so `file_get_contents()` warned, and the headers have already go
 the warning printed into the page ahead of the doctype. `File::read()` answers `null` for both
 causes, which is what every caller was collapsing them to anyway.
 
+**What silences that warning is `Diagnostics`, not `@`.** Every read and write in `File` and
+`Directory` runs through `Diagnostics::muted(…)`, which installs an error handler for the closure and
+takes it down again in a `finally`. The difference from the `@` it replaced is not tidiness: `@`
+silences every diagnostic raised anywhere in the expression at any severity, where this names the
+severities it claims and hands the rest back to PHP untouched. See
+[the five guidelines](#the-five-guidelines-and-what-argues-against-them).
+
 **And what it is handed is a `DataFile`, not a path.** That is the same argument one level up: a
 name nothing recognises resolves to a `File` like any other, `read()` answers null for it, and each
 repository turns that null into an empty collection *on purpose* — because a clone that has never
@@ -480,6 +511,56 @@ tree read it and `View/` has no other reason to know anything about HTTP. It car
 `utf-8` for the header parameter, `canonical()` for the document head and for the site's one escaping
 call — because those two readers already wrote it differently, and keeping both is what left every
 byte unchanged.
+
+## Exceptions
+
+Every condition this site can be in has a name, and all of them live in `NeuroSYS\Exception`. Eleven
+classes — one of them abstract — and one interface:
+
+| Class | Is | Raised by |
+|---|---|---|
+| `SiteException` | the marker, an interface | — |
+| `MarkupException` | abstract; the three below | — |
+| ` ├ ElementException` | an element asked to be what no element can be | `Element` |
+| ` ├ ParserException` | markup outside this site's own vocabulary | `MarkupParser` |
+| ` └ TerminalException` | rows that cannot reach the element that draws them | `Terminal` |
+| `CollectionException` | a collection asked to hold or produce the wrong type | `TypedItems` |
+| `GuidelineException` | an excuse for a guideline with a hole in it | the three attributes |
+| `MimeTypeException` | a media type that is not one | `MimeType` |
+| `ReleaseVerificationException` | a `data/` value object built from data it cannot accept | 15 classes |
+| `RouteException` | a `SitePath` given the wrong number of values | `SitePath` |
+| `SecurityPolicyException` | a policy value that is not valid on the wire | 10 classes |
+| `UpdateException` | a payload that cannot be read or cannot be trusted | 6 classes |
+
+**`SiteException` is an interface because the inheritance chain is already spent.** Eight classes
+declare it and the three under `MarkupException` inherit it; of the eight, five are a
+`LogicException`, one a `RuntimeException`, one a `TypeError` and one an `InvalidArgumentException`
+— each saying something true — so the question *did this come from us* had nowhere left to live. It matters more than it looks: `CollectionException extends TypeError` extends
+**`Error`**, a sibling of `Exception` rather than a subclass, so `catch (Exception)` — the widest net
+anybody reaches for by habit — misses one of the eleven, silently, in the class most likely to be
+thrown by a mistake made five minutes ago. Only `Throwable` catches all eleven, and `Throwable` also
+catches everything PHP raises. This interface is the difference, and the handler in
+`public/index.php` is what it is for.
+
+**Two of them extend an SPL class rather than replacing it, and that is the mechanism worth
+copying.** `CollectionException` and `GuidelineException` were a bare `TypeError` and a bare
+`InvalidArgumentException`; making them ours by *extending what they already were* means every
+`instanceof`, every `catch` and every one of the suite's existing `expectException` calls still
+matches. Nothing about what a caller can do changed — only that the throw now says which layer
+raised it. Throwing an SPL class is how you avoid making a promise; extending one is how you keep it.
+
+**`MarkupException` is abstract**, because nothing throws it. It is what its three subclasses have in
+common, and saying so in the language is what stops a fourth kind arriving as a bare
+`MarkupException` — which would read as "one of those three" and be none of them. A `catch` or an
+`@throws` naming it still means any of the three, which is why the split cost no test a change.
+
+**Two throws that look misplaced are argued rather than moved.** `Terminal` throws
+`ReleaseVerificationException` for its element-type guard — but that guard is the seventh of seven
+identical `is_a($this->x->type, …)` checks, the other six of which are in `Model/`, and splitting one
+off would put a single question in two classes. `PasswordHash` throws it for a digest that is not
+bcrypt, which is a `data/` value object failing at load — exactly what the class is documented for.
+In both cases the class *name* is the only thing that reads oddly, and a name is a cheaper thing to
+live with than a check in two places.
 
 ## Config
 
@@ -790,7 +871,7 @@ response**. A `map()` costs 1.76 µs before it maps anything — 0.65 µs of `Re
 from the callback rather than from an argument. Both figures are here so the next person weighing
 this has them rather than a guess.
 
-Three more decisions are worth knowing before adding an eleventh member:
+Three more decisions are worth knowing before adding a twelfth member:
 
 - **The callback takes the value first and the key second.** That is the order PHP's own
   `array_find`, `array_any` and `array_all` use — `Element::renderChildren()` already calls one —
@@ -814,9 +895,9 @@ Three more decisions are worth knowing before adding an eleventh member:
 `array_find()` and no `array_find_last()`, and `where(…)->last()` already answers the day something
 wants one.
 
-All ten carry `#[\NoDiscard]` and `NoDiscardTest` pins them three times each, since PHP reports a
-trait's members on both using classes *and* on the trait. Nine are pure, so a dropped result is never
-anything but a bug; `settled()` is the tenth and belongs to both halves — dropping it is the one
+All eleven carry `#[\NoDiscard]` and `NoDiscardTest` pins them three times each, since PHP reports a
+trait's members on both using classes *and* on the trait. Ten are pure, so a dropped result is never
+anything but a bug; `settled()` is the eleventh and belongs to both halves — dropping it is the one
 discard here that does work and then throws the work away, which is the mistake it exists to stop.
 
 **`all()` and `keys()` are gone**, replaced by `toArray()` / `toValues()` / `toKeys()`. `all()` said
@@ -956,28 +1037,51 @@ callback's return declaration already carries one.
   here, and it would be the first member meant to be discarded — inverting the `with()`/`add()`
   convention this file spends a paragraph on. If in-place ever becomes necessary, the honest shape
   is a separate `Buffer` type, not a hole in this one.
-- **`zip()` / `unique()`** would each have served one call site in `Dsp/` and one in `hosts()` —
-  both excluded above, both doors.
+- **`zip()`** would have served one call site in `Dsp/` and one in `hosts()` — both excluded above,
+  both doors.
 
-## The two guidelines, and what argues against them
+**`unique()` was the third of these and is now written, which is worth recording rather than
+quietly editing away.** The objection was sound and was answered rather than overruled: it had one
+caller, and a member added for one caller is a member nobody else will find. What changed is that
+`Demo::verify()` became the second — it was spelling `count(array_unique($labels)) !== count($labels)`
+over a `toValues()` — so the same argument now says write it. It is a lazy step like `where()`,
+answers `static`, and ends in `sequenced()` for `where()`'s other reason: it is the second step that
+can put holes in a list, and the only other one.
 
-Everything above is an argument against two shapes. A **bare array** announces nothing about what
+**It compares by strict identity, which `array_unique()` does not**, and that is the thing to know
+before reaching for either. `array_unique()` compares its items as strings, so it calls `1` and
+`1.0` one item; this calls them two, because `===` does. The one place both can be present is a
+collection declared `float`, which accepts an `int` — the single widening the language itself makes.
+An object is the same item only when it is the same object: a value object here declares no
+equality, and inventing one inside a collection would be the container deciding what its elements
+mean. Both callers map to a scalar first, which is what makes the question not arise.
+
+## The five guidelines, and what argues against them
+
+Everything above is an argument against five habits. A **bare array** announces nothing about what
 it holds, which is what `Collection` is for; a **bare string** is a name with no vocabulary, which
-is what the fifty-odd enums are for. Both arguments were made one class at a time and neither had
-anything watching it — so the only thing between this codebase and a slow drift back to
+is what the fifty-odd enums are for; an **`array_*` call** is a member of that collection written
+the long way; an **`@`** hides whatever it happens to be in front of; and a **bare SPL exception**
+names the condition "something". Every one of those arguments was made one class at a time and none
+of them had anything watching it — so the only thing between this codebase and a slow drift back to
 arrays-and-strings was whoever wrote the next method.
 
 `test/unit/GuidelineTest.php` is that thing. It reads the code the way PHP does: **reflection for
 what is declared, the tokenizer for what is written**. Nothing is grepped for and nothing is
-listed by hand except the two exception sets, which are pinned in both directions the way
+listed by hand except the three exception sets, which are pinned in both directions the way
 `NoDiscardTest`'s set is.
 
 An exception is an attribute with a sentence in it — `#[BareArray('why')]` on a method or property,
-`#[BareString('literal', 'why')]` on a class — and the reason is mandatory in the attribute's own
-constructor as well as in the test, for the reason `HiDriveLink` checks a share id at its
-constructor: the test reports a fault against a list, the constructor reports it against the line
-that is wrong. A bare `#[BareArray]` would say the array is deliberate, which the reader already
-suspected; what is worth saying is **which door it is**.
+`#[BareString('literal', 'why')]` on a class, `#[BareCall('array_map', 'why')]` on a method — and
+the reason is mandatory in the attribute's own constructor as well as in the test, for the reason
+`HiDriveLink` checks a share id at its constructor: the test reports a fault against a list, the
+constructor reports it against the line that is wrong. A bare `#[BareArray]` would say the array is
+deliberate, which the reader already suspected; what is worth saying is **which door it is**.
+
+**Two of the five have no excuse mechanism at all**, and that is a claim about those two rather than
+a gap. Neither `@` nor a foreign exception has a case where the replacement is worse, so there is
+nothing for an attribute to say — an escape hatch offered where none is needed is an escape hatch
+somebody eventually takes.
 
 **The array rule is every `array` in a declared type.** A variadic is not one and never will be:
 `deny(PermissionsPolicyFeature ...$features)` is a check PHP makes for free, and a `Collection`
@@ -1026,6 +1130,46 @@ exceptions for it, so sharing one constant would mean a change made for a redire
 changing what a profile URL may be. That is the argument; it is written on `Location`, and it is
 the one exception here that a later reader might reasonably overturn.
 
+**The call rule is table-driven, and the table is the rule.** `GuidelineTest` carries a map of the
+array functions a collection has a member for — `array_map`→`map()`, `array_filter`→`where()`,
+`array_values`→`toValues()`, `array_keys`→`toKeys()`, `array_find`→`first()`,
+`array_unique`→`unique()` — and asks about those and nothing else. `array_slice`, `array_shift`,
+`array_merge`, `array_any` and `array_key_last` are deliberately absent: no member answers them, and
+demanding an excuse for a call with no replacement asks for an apology rather than an argument.
+Writing a member is what adds a row, and adding a row is what makes every existing call to that
+function fail until somebody looks at it — which is how `unique()` arrived and why the four survivors
+are argued for one at a time. `Collection`, `SearchableCollection` and `TypedItems` are exempt
+outright, the way an enum declaration is exempt from the string rule: those three *are* the members,
+and the array functions are what they are made of. Four calls carry an excuse and they come in two
+kinds — a **class constant** (`Layout::modulePreloads()` and `Element::verifyUrl()`, and a class
+constant *cannot* hold a `Collection`, since `new` is not a constant expression, so those two are
+permanent) and a **door or a variadic straight through one** (`File::lines()` is `file()`'s doorway;
+`Element::containing()` maps the variadic PHP already guards directly into `with()`, on the hottest
+path this site has).
+
+**The `@` rule has no excuse list, because `@` has no case left to make.** It was twenty-one sites,
+nineteen under `src/` and two under `tools/lib/`, and every one is now
+`Diagnostics::muted(static fn(): … => …)`. Two things `@` cannot do are the whole argument: it
+cannot say *which* diagnostics it meant — it silences every one raised anywhere in the expression, at
+any severity, from any call nested inside it, so a `@file_get_contents()` written for a missing file
+also swallows an `E_DEPRECATED` that arrives with a PHP upgrade — and it cannot answer *for one
+call*, because `error_get_last()` is process-global and sticky. `Diagnostics` names the severities it
+handles and hands everything else back to PHP untouched, and `watched()` keeps the messages, which is
+what `MarkupParser` had to hand-roll a handler for. It costs **0.58 µs** a call, measured; against
+the 3.4 µs a failing `file_get_contents()` takes to fail, it does not show up. **This is the one rule
+that walks `tools/lib/` too**, and for the reason the others do not: what is excluded there are the
+doors, and a suppression is not a door — `PayloadBuilder` signs a push with the only private key this
+repository touches.
+
+**The exception rule is three questions, and `@throws` was already answering the hardest.** Every
+`throw new` under `src/` names a class in `NeuroSYS\Exception`; every method that throws directly
+declares it; every `catch` names a concrete class rather than `Throwable` or `Exception`, and one
+that binds a variable and then throws must hand that variable on. All four were at zero when the rule
+was written except the first, which was eight — five `TypeError`s in `TypedItems` and three
+`InvalidArgumentException`s in the attributes above. Both became ours *by extending what they were*:
+`CollectionException extends TypeError` and `GuidelineException extends InvalidArgumentException`, so
+every `instanceof`, every `catch` and every `expectException` in the suite still matches and the only
+thing that changed is that the throw says which layer raised it. See [Exceptions](#exceptions).
 **Three smaller guidelines ride along**, all at zero and all there as regressions rather than as
 work: `declare(strict_types=1)` on every file (without it a `string` parameter starts coercing an
 `int`, in one file, silently), a declared type on every parameter, return and property, and a

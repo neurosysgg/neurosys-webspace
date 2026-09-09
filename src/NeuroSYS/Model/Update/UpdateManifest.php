@@ -60,8 +60,11 @@ final readonly class UpdateManifest
         try {
             /** @var mixed $values */
             $values = json_decode($json, true, 8, JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            throw new UpdateException('the update manifest is not readable JSON: ' . $e->getMessage(), 0, $e);
+        } catch (JsonException $cause) {
+            throw new UpdateException(
+                'the update manifest is not readable JSON: ' . $cause->getMessage(),
+                previous: $cause,
+            );
         }
 
         if (!is_array($values)) {

@@ -71,7 +71,7 @@ final readonly class PublicKey
      */
     public static function fromPem(string $pem): self
     {
-        $key = @openssl_pkey_get_public($pem);
+        $key = Diagnostics::muted(static fn(): OpenSSLAsymmetricKey|false => openssl_pkey_get_public($pem));
         if ($key === false) {
             throw new UpdateException(
                 'the update key is not a readable PEM public key. Generate the pair with: '
@@ -105,6 +105,10 @@ final readonly class PublicKey
      */
     public function verifies(string $data, string $signature): bool
     {
-        return @openssl_verify($data, $signature, $this->key, OPENSSL_ALGO_SHA256) === self::VERIFIED;
+        // Note the closure's return type. `openssl_verify()` answers `int|false`, and one typed
+        // `int` would turn its error return into a TypeError raised from inside the suppression.
+        return Diagnostics::muted(
+            fn(): int|false => openssl_verify($data, $signature, $this->key, OPENSSL_ALGO_SHA256),
+        ) === self::VERIFIED;
     }
 }

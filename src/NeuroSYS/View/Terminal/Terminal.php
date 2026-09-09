@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Terminal;
 
 use JsonException;
-use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Exception\TerminalException;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Tag;
@@ -64,7 +64,7 @@ final readonly class Terminal
      * view that declares a terminal owe an `@throws` for a condition none of them can act on.
      *
      * @return Element
-     * @throws MarkupException if a row cannot be encoded — in practice, invalid UTF-8 in a value.
+     * @throws TerminalException if a row cannot be encoded — in practice, invalid UTF-8 in a value.
      */
     public function toElement(): Element
     {
@@ -73,15 +73,15 @@ final readonly class Terminal
                 $this->fields->toValues(),
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
             );
-        } catch (JsonException $exception) {
+        } catch (JsonException $cause) {
             // The tag through the enum rather than written out. A quoted angle bracket followed by
             // a tag name, anywhere under src/, fails the verify script's "nothing builds markup
             // from a string" check — rightly, since it cannot tell an error message from a heredoc
             // and should not have to. Naming it through Tag is the better answer anyway.
-            throw new MarkupException(
+            throw new TerminalException(
                 'A terminal row could not be encoded for ' . Tag::TerminalWindow->value
-                . ': ' . $exception->getMessage(),
-                previous: $exception,
+                . ': ' . $cause->getMessage(),
+                previous: $cause,
             );
         }
 

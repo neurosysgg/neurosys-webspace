@@ -71,7 +71,9 @@ final readonly class File
      */
     public function read(?int $limit = null): ?string
     {
-        $contents = @file_get_contents($this->path, false, null, 0, $limit);
+        $contents = Diagnostics::muted(
+            fn(): string|false => file_get_contents($this->path, false, null, 0, $limit),
+        );
 
         return $contents === false ? null : $contents;
     }
@@ -87,9 +89,15 @@ final readonly class File
         . 'codebase owns and a line of text is not, so there is nothing for a collection to say '
         . 'that a plain list of strings does not.',
     )]
+    #[BareCall(
+        'array_values',
+        'file() is the door and this is the doorway, which the #[BareArray] above already says. '
+        . 'array_values() is what makes the result a list rather than whatever keys the read left '
+        . 'behind, and there is no collection on either side of it to ask instead.',
+    )]
     public function lines(): array
     {
-        $lines = @file($this->path, FILE_IGNORE_NEW_LINES);
+        $lines = Diagnostics::muted(fn(): array|false => file($this->path, FILE_IGNORE_NEW_LINES));
 
         return $lines === false ? [] : array_values($lines);
     }
@@ -108,7 +116,9 @@ final readonly class File
      */
     public function append(string $line): bool
     {
-        $handle = @fopen($this->path, 'ab');
+        // `mixed` rather than `resource|false`: a resource is the one thing PHP hands back that
+        // cannot be written as a type declaration.
+        $handle = Diagnostics::muted(fn(): mixed => fopen($this->path, 'ab'));
 
         if ($handle === false) {
             return false;
@@ -151,24 +161,24 @@ final readonly class File
         // this writes on a real machine is a single-use refresh token, so that window is the
         // failure this argument exists to prevent. An empty file at the default mode says nothing
         // to anybody, which is why creating one first costs nothing.
-        if (@touch($temporary) === false) {
+        if (Diagnostics::muted(static fn(): bool => touch($temporary)) === false) {
             return false;
         }
 
-        if ($mode !== null && !@chmod($temporary, $mode)) {
-            @unlink($temporary);
-
-            return false;
-        }
-
-        if (@file_put_contents($temporary, $contents) === false) {
-            @unlink($temporary);
+        if ($mode !== null && !Diagnostics::muted(static fn(): bool => chmod($temporary, $mode))) {
+            Diagnostics::muted(static fn(): bool => unlink($temporary));
 
             return false;
         }
 
-        if (!@rename($temporary, $this->path)) {
-            @unlink($temporary);
+        if (Diagnostics::muted(static fn(): int|false => file_put_contents($temporary, $contents)) === false) {
+            Diagnostics::muted(static fn(): bool => unlink($temporary));
+
+            return false;
+        }
+
+        if (!Diagnostics::muted(fn(): bool => rename($temporary, $this->path))) {
+            Diagnostics::muted(static fn(): bool => unlink($temporary));
 
             return false;
         }
@@ -184,7 +194,7 @@ final readonly class File
      */
     public function delete(): bool
     {
-        return !$this->exists() || @unlink($this->path);
+        return !$this->exists() || Diagnostics::muted(fn(): bool => unlink($this->path));
     }
 
     /**
@@ -218,7 +228,7 @@ final readonly class File
      */
     public function size(): int
     {
-        return $this->exists() ? (int) @filesize($this->path) : 0;
+        return $this->exists() ? (int) Diagnostics::muted(fn(): int|false => filesize($this->path)) : 0;
     }
 
     /**

@@ -8,10 +8,10 @@ use ArrayIterator;
 use Countable;
 use Generator;
 use IteratorAggregate;
+use NeuroSYS\Exception\CollectionException;
 use NoDiscard;
 use Throwable;
 use Traversable;
-use TypeError;
 
 /**
  * The SearchableCollection class. A type-safe, string-keyed collection.
@@ -44,7 +44,7 @@ class SearchableCollection implements Countable, IteratorAggregate
      * @param string $key  The key to store the item under.
      * @param T      $item The item to store.
      * @return static
-     * @throws TypeError if $item is not an instance of the declared type.
+     * @throws CollectionException if $item is not an instance of the declared type.
      * @throws Throwable whatever a pending step throws, since running them comes first.
      */
     #[NoDiscard('with() copies rather than stores, so a call whose result goes nowhere does nothing')]

@@ -9,10 +9,11 @@ use Dom\HTMLDocument;
 use Dom\HTMLElement;
 use Dom\Node as DomNode;
 use Dom\Text as DomText;
-use NeuroSYS\Exception\MarkupException;
+use NeuroSYS\Exception\ParserException;
 use NeuroSYS\Model\Embed\EmbedAttribute;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\View\Terminal\TerminalAttribute;
 
 /**
@@ -105,7 +106,7 @@ final readonly class MarkupParser
      *
      * @param string $html Markup, hand-authored and read from a file next to the code.
      * @return Collection<Node>
-     * @throws MarkupException if the markup does not parse cleanly, or names anything outside the
+     * @throws ParserException if the markup does not parse cleanly, or names anything outside the
      *                         two vocabularies. Loud on purpose and at load time on purpose: the
      *                         data file is part of this repository, so a refusal here means
      *                         something in it is written wrong.
@@ -121,7 +122,7 @@ final readonly class MarkupParser
         if ($hoisted !== null) {
             // strtolower() because nodeName shouts an HTML element's name — `TITLE`, not `title` —
             // and localName, which would not, is an Element member where this is still a Node.
-            throw new MarkupException(sprintf(
+            throw new ParserException(sprintf(
                 '<%s> belongs in the document head, so parsing it here would silently drop it. '
                 . 'Only content elements belong in markup a view parses.',
                 strtolower($hoisted->nodeName),
@@ -157,32 +158,22 @@ final readonly class MarkupParser
      *
      * @param string $html
      * @return HTMLDocument
-     * @throws MarkupException if the parser reported anything at all.
+     * @throws ParserException if the parser reported anything at all.
      */
     private static function read(string $html): HTMLDocument
     {
-        $errors = [];
+        $parsed = Diagnostics::watched(static fn(): HTMLDocument => HTMLDocument::createFromString(
+            Doctype::Html5->render() . $html,
+        ));
 
-        set_error_handler(static function (int $severity, string $message) use (&$errors): bool {
-            $errors[] = $message;
-
-            return true;
-        });
-
-        try {
-            $document = HTMLDocument::createFromString(Doctype::Html5->render() . $html);
-        } finally {
-            restore_error_handler();
-        }
-
-        if ($errors !== []) {
-            throw new MarkupException(sprintf(
+        if (!$parsed->reported->isEmpty()) {
+            throw new ParserException(sprintf(
                 'Markup this site emits has to parse cleanly, and this did not: %s',
-                implode(' / ', $errors),
+                $parsed->reported->join(' / '),
             ));
         }
 
-        return $document;
+        return $parsed->result;
     }
 
     /**
@@ -190,7 +181,7 @@ final readonly class MarkupParser
      *
      * @param DomNode $parent
      * @return Collection<Node>
-     * @throws MarkupException if any descendant is something the tree cannot hold.
+     * @throws ParserException if any descendant is something the tree cannot hold.
      */
     private static function childrenOf(DomNode $parent): Collection
     {
@@ -216,7 +207,7 @@ final readonly class MarkupParser
      *
      * @param DomNode $node
      * @return Node
-     * @throws MarkupException if $node is neither an HTML element nor text.
+     * @throws ParserException if $node is neither an HTML element nor text.
      */
     private static function node(DomNode $node): Node
     {
@@ -225,7 +216,7 @@ final readonly class MarkupParser
         }
 
         if (!$node instanceof HTMLElement) {
-            throw new MarkupException(sprintf(
+            throw new ParserException(sprintf(
                 '%s is not something the markup tree can hold. Parsed markup is elements and text; '
                 . 'a comment, a CDATA section and an element from another namespace each have no '
                 . 'node to become.',
@@ -245,11 +236,11 @@ final readonly class MarkupParser
      *
      * @param HTMLElement $element
      * @return Element
-     * @throws MarkupException if the element or any of its attributes is outside the vocabulary.
+     * @throws ParserException if the element or any of its attributes is outside the vocabulary.
      */
     private static function element(HTMLElement $element): Element
     {
-        $tag = self::tagNamed($element->localName) ?? throw new MarkupException(sprintf(
+        $tag = self::tagNamed($element->localName) ?? throw new ParserException(sprintf(
             '<%s> is not an element this site emits. Add its case to one of: %s.',
             $element->localName,
             implode(', ', self::TAG_NAMES),
@@ -261,7 +252,7 @@ final readonly class MarkupParser
         // script means. There is no node that renders raw text, so refusing is the honest answer.
         // <style> needs no line of its own — it has no HtmlTag case, so the vocabulary has it.
         if ($tag === HtmlTag::Script) {
-            throw new MarkupException(sprintf(
+            throw new ParserException(sprintf(
                 '<%s> cannot be parsed and rendered faithfully: its content is raw text, and the '
                 . 'only escaping this tree has would change what the script means.',
                 $tag->tagName(),
@@ -272,7 +263,7 @@ final readonly class MarkupParser
 
         foreach ($element->attributes as $attribute) {
             $built = $built->attr(
-                self::attributeNamed($attribute->localName) ?? throw new MarkupException(sprintf(
+                self::attributeNamed($attribute->localName) ?? throw new ParserException(sprintf(
                     '<%s %s> is not an attribute this site emits. This is what refuses an event '
                     . 'handler. Add its case to one of: %s.',
                     $element->localName,

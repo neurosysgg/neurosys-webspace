@@ -6,6 +6,7 @@ namespace NeuroSYS\Tool\Update;
 
 use NeuroSYS\Model\Update\UpdatePayload;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Cli\UsageException;
 
@@ -86,13 +87,21 @@ final readonly class PayloadBuilder
             ));
         }
 
-        $private = @openssl_pkey_get_private($pem);
+        $private = Diagnostics::muted(static fn(): mixed => openssl_pkey_get_private($pem));
         if ($private === false) {
             throw new UsageException($key->path . ' is not a readable PEM private key');
         }
 
         $signature = null;
-        if (!@openssl_sign($manifest, $signature, $private, OPENSSL_ALGO_SHA256)) {
+
+        // A full closure with `use (&$signature)` rather than an arrow function: `openssl_sign()`
+        // writes the signature into its second argument, and `fn()` captures by value — so an
+        // arrow function would sign perfectly well and leave $signature null.
+        $signed = Diagnostics::muted(static function () use ($manifest, &$signature, $private): bool {
+            return openssl_sign($manifest, $signature, $private, OPENSSL_ALGO_SHA256);
+        });
+
+        if (!$signed) {
             throw new UsageException(
                 'could not sign the manifest. The key must be an EC P-256 key: Ed25519 does not '
                 . "work through PHP's openssl binding, which drives the digest-based API.",

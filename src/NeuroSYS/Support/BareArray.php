@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Support;
 
 use Attribute;
-use InvalidArgumentException;
+use NeuroSYS\Exception\GuidelineException;
 
 /**
  * The BareArray attribute. Excuses one declaration from the rule that a group of things is a
@@ -38,12 +38,12 @@ final readonly class BareArray
      *
      * @param string $reason Why this one stays an array. Never empty.
      *
-     * @throws InvalidArgumentException if the reason is empty.
+     * @throws GuidelineException if the reason is empty.
      */
     public function __construct(public string $reason)
     {
         if ($reason === '') {
-            throw new InvalidArgumentException(
+            throw new GuidelineException(
                 '#[BareArray] needs a reason: which door this is, or which variadic, or why the '
                 . 'group is not one. An array nobody argued for is the habit being interrupted.',
             );
