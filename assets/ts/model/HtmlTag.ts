@@ -20,7 +20,13 @@ export enum HtmlTag {
   H1       = 'h1',
   H2       = 'h2',
   H3       = 'h3',
+
+  /** h4, ul, li and em are the privacy policy's; nothing client-side creates one. */
+  H4       = 'h4',
+
   P        = 'p',
+  Ul       = 'ul',
+  Li       = 'li',
   Br       = 'br',
   A        = 'a',
   Img      = 'img',
@@ -28,6 +34,7 @@ export enum HtmlTag {
   Span     = 'span',
   Small    = 'small',
   Strong   = 'strong',
+  Em       = 'em',
   Div      = 'div',
 
   /** The demo page's player. Server-side only — it is native precisely so no client code is needed. */

@@ -4,7 +4,7 @@
    The one part named for a concept rather than a component, because the look genuinely spans
    assets/ts/elements/release/ and .../download/. HtmlTest pins that list to this file alone, so a
    second concept-named part has to be argued for in a test named for the fact — the same idiom as
-   RawHtml being the single audited hole in the markup tree.
+   the one call site allowed to parse markup this codebase did not write.
 
    Note what falls out of it: there is no elements/release.css, because every release-* tag is card
    and nothing else. <download-list> is the only download tag with a look of its own.

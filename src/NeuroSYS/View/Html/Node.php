@@ -9,9 +9,15 @@ namespace NeuroSYS\View\Html;
  *
  * The point of the interface is that {@link Element} takes children of this type and nothing else,
  * so a document is a tree of objects rather than a string built by concatenation. Everything that
- * reaches the page is one of four things: an {@link Element}, escaped {@link Text}, a
- * {@link Fragment} of those, or {@link RawHtml} — which is the single audited hole, for markup
- * authored outside PHP.
+ * reaches the page is one of three things: an {@link Element}, escaped {@link Text}, or a
+ * {@link Fragment} of those.
+ *
+ * **There used to be a fourth, and closing it is worth knowing about.** `RawHtml` emitted a trusted
+ * string verbatim — the single audited hole, for the hand-authored privacy policy — and what
+ * replaced it is {@link MarkupParser}, which reads that same document *into* these three. So markup
+ * authored outside PHP is no longer an exception to the tree; it is a thing the tree can be built
+ * from, and an element or an attribute the site does not emit is a refusal rather than a string
+ * nobody read.
  *
  * **There is a second tree in this repo, and it is deliberately not this one.** The release tooling
  * emits `data/releases.php` through an expression tree of its own, `NeuroSYS\Tool\Php\Expression`,

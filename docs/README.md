@@ -37,7 +37,7 @@ neurosys/
 │   ├── Service/         ← Auth, ReleaseRepository, ProfileRepository, DownloadLogger…
 │   ├── Support/         ← Collection<T>, SearchableCollection<T> (immutable), Route, JsonDeserializable
 │   ├── View/            ← one View class per page; each returns a tree of View\Html nodes
-│   │   ├── Html/        ← the markup tree: Node, Element, Text, RawHtml, Fragment, Document
+│   │   ├── Html/        ← the markup tree: Node, Element, Text, Fragment, Document, MarkupParser
 │   │   └── Terminal/    ← Terminal, TerminalField, TerminalTone — declared, not written out
 │   ├── Layout.php       ← full HTML shell (nav, footer, scripts)
 │   └── Router.php       ← URL → Controller mapper

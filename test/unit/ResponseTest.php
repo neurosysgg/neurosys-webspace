@@ -541,9 +541,11 @@ final class ResponseTest extends TestCase
                 |> array_filter(...)
                 |> array_values(...);
 
-        // First and last line rather than the whole document: RawHtml is emitted verbatim but the
-        // renderer indents each of its lines, so equality would fail on the whitespace instead of
-        // on what this is about — that the file was read, whole, rather than defaulted to ''.
+        // First and last line rather than the whole document: the policy is parsed and rendered
+        // back out, so a character reference comes out as the character it names and equality would
+        // fail on `&auml;` instead of on what this is about — that the file was read, whole, rather
+        // than defaulted to ''. Both of those lines happen to be plain ASCII, which is what keeps
+        // this check honest rather than lucky; a line with an entity in it would not survive.
         self::assertNotSame([], $lines);
         self::assertStringContainsString((string) array_first($lines), $html);
         self::assertStringContainsString((string) array_last($lines), $html);

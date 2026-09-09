@@ -274,9 +274,13 @@ however it was built, including one assembled from an array:
   `https://host` to a browser — the value is resolved the way a browser would and accepted only if it
   lands back on the origin it started from. Every spelling is pinned by `HtmlTest`.
 
-`RawHtml` is the single audited hole. It exists for `data/privacy.html`, a hand-authored document,
-its call sites are pinned by a test named for the fact, and it is never constructed from anything a
-request can influence.
+**There is no unaudited hole, and there used to be one.** `RawHtml` emitted `data/privacy.*.html`
+verbatim; `MarkupParser` reads those two files into the tree instead, so a hand-authored document is
+subject to every rule above rather than exempt from them — its element and attribute names have to be
+ones this site emits, its text is escaped by `Text`, and its `href`s go through the same scheme
+allowlist. That is what refuses an `onerror=`, and it is checked when the file loads rather than
+trusted. `Element::containingHtml()` is the only way in, its call sites are pinned by a test named
+for the fact, and it is never handed anything a request can influence.
 
 Two things follow from this that are worth stating plainly:
 

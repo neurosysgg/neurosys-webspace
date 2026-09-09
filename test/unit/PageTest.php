@@ -210,14 +210,20 @@ final class PageTest extends TestCase
     }
 
     /**
-     * The one view that holds {@link \NeuroSYS\View\Html\RawHtml}, and the reason that class
-     * exists: the policy is a hand-authored document, so its markup has to arrive as markup
-     * rather than as escaped text. Nothing about a request can reach this — the document is read
-     * from a file next to the code — which is what makes the verbatim pass-through safe.
+     * The one view that *parses* a document instead of assembling one, and the reason
+     * {@link \NeuroSYS\View\Html\MarkupParser} exists: the policy is hand-authored, so its markup
+     * has to arrive as markup rather than as escaped text.
+     *
+     * **What is asserted here is narrower than it used to be, and stronger.** This was a pass-through
+     * and the claim was that the bytes came out untouched; it is a parse now, so the claim is that
+     * the *markup* comes out as markup — an `<h2>` with its `id`, and a `&amp;` still an entity
+     * rather than a bare `&` or a doubled `&amp;amp;`. The second one is the round trip worth
+     * pinning: the parser decodes that entity to a single `&` and {@link \NeuroSYS\View\Html\Text}
+     * escapes it back, so agreement here is agreement between two separate pieces of code.
      *
      * @return void
      */
-    public function testThePolicyDocumentIsEmittedVerbatim(): void
+    public function testThePolicyDocumentIsEmittedAsMarkup(): void
     {
         $html = new PrivacyView('<h2 id="a">Datenschutz</h2>', '<p>text &amp; more</p>')->content()->render();
 

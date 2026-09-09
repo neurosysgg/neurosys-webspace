@@ -13,7 +13,8 @@ use NeuroSYS\Support\Charset;
  * caller can forget — it is the only way text can get in. {@link Element::containing()} wraps bare
  * strings in one automatically, which means the unsafe thing is the thing you cannot type by
  * accident: markup in a string renders as visible `&lt;b&gt;`, and getting real markup in takes
- * {@link RawHtml} and says so.
+ * {@link Element::containingHtml()}, which parses it against this site's own vocabulary rather
+ * than trusting it.
  *
  * **This is the only `htmlspecialchars()` call on the site, and `HtmlTest` pins it there.**
  * {@link Element} escapes its attribute values by rendering one of these rather than calling the

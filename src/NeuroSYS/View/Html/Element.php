@@ -194,7 +194,8 @@ final readonly class Element implements Node
      *
      * A bare string is content, not markup: it becomes a {@link Text} and is escaped. That is the
      * safe reading of the ambiguous case — markup passed as a string shows up as visible `&lt;b&gt;`
-     * rather than as markup — and getting real markup in takes {@link RawHtml}, which says so.
+     * rather than as markup — and getting real markup in takes {@link self::containingHtml()},
+     * which parses it rather than trusting it.
      *
      * @param Node|string ...$children
      * @return self
@@ -216,6 +217,39 @@ final readonly class Element implements Node
                 $children,
             ),
         ));
+    }
+
+    /**
+     * Returns a copy containing $html, parsed into nodes.
+     *
+     * The safe twin of {@link self::containing()}, and the pair is worth reading together:
+     * `containing('<b>x</b>')` puts visible `&lt;b&gt;` on the page, because a string is content;
+     * this parses the same argument into a real `<b>` — after checking that `b` is an element this
+     * site emits, that everything on it is an attribute this site emits, and that the parser had to
+     * repair nothing to read it. See {@link MarkupParser}, which is where all of that lives.
+     *
+     * **This is the whole of what replaced `RawHtml`**, and the standing instruction survived the
+     * change: never hand it anything a request can influence. The refusals mean it would not be an
+     * injection, but the vocabulary being this site's own means a visitor would otherwise get to
+     * choose which of our elements to build.
+     *
+     * The parsed nodes become children of *this* element rather than being wrapped in a
+     * {@link Fragment}, which is what keeps a document coming back out as it went in: a parse keeps
+     * the source's own whitespace as {@link Text}, and a `Text` among the children is what puts
+     * {@link self::renderChildren()} on its single-line branch, where nothing is re-indented and no
+     * whitespace is invented between inline content.
+     *
+     * @param string $html Markup, hand-authored and read from a file next to the code.
+     * @return self
+     * @throws MarkupException if the element is void, or if $html names anything outside the two
+     *                         vocabularies, or if it does not parse cleanly.
+     */
+    #[NoDiscard('containingHtml() returns a copy holding the parsed markup; the element it was called on is unchanged')]
+    public function containingHtml(string $html): self
+    {
+        // toValues() rather than a bare spread, because a spread of string keys is named arguments —
+        // the rule every spreading call site here follows. A list has none, and says so anyway.
+        return $this->containing(...MarkupParser::parse($html)->toValues());
     }
 
     /**

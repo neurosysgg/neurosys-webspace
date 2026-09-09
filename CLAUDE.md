@@ -16,13 +16,25 @@ compiles, and the stylesheet is assembled from its parts — but both outputs ar
 lands on the server is still plain files served statically. See [Front end](#front-end) and
 [The stylesheet](#the-stylesheet).
 
-**Two more extensions are named, and both belong to `/update` rather than to a page.**
-`ext/openssl` verifies the payload's signature and `ext/zlib` unpacks it — `PublicKey` and
-`UpdateApplier`'s `gzdecode()`, one call site each. Neither is bundled the way `ext/uri` is, and
-both fail the same quiet way: a fatal on a push, on the one route built to answer as though it is
-not there. So they are in `composer.json` and asked for by name in the verify script's Environment
-block, which is the *only* place the question gets asked where it matters — composer never runs on
-the server, because `vendor/` is not deployed.
+**Three more extensions are named, and only one of them belongs to a page.** `ext/dom` is that one:
+`MarkupParser` reads `data/privacy.*.html` into the markup tree with `Dom\HTMLDocument`, PHP 8.4's
+WHATWG HTML parser, so the policy is checked against this site's own vocabulary rather than emitted
+unread. Its absence is a fatal on `/privacy` and on nothing else — the one page here that is a legal
+obligation rather than a choice, and the one page a smoke test would be least likely to load.
+
+**Checked on the live host before it was relied on** (2026-09-09: Strato, PHP 8.5.9, `cgi-fcgi`,
+`Dom\HTMLDocument` present and parsing), the same way `ext/uri` was — and checked by *parsing*
+rather than by asking whether the extension is loaded, because registered and working are two
+questions. The probe went up and came down as two `/update` pushes from a detached worktree at
+`HEAD`, which is the shape worth reusing: the endpoint mirrors the whole tree, so probing from a
+dirty working tree would have shipped the change being checked *for* alongside the check.
+
+The other two belong to `/update` rather than to any page. `ext/openssl` verifies the payload's
+signature and `ext/zlib` unpacks it — `PublicKey` and `UpdateApplier`'s `gzdecode()`, one call site
+each. Neither is bundled the way `ext/uri` is, and both fail the same quiet way: a fatal on a push,
+on the one route built to answer as though it is not there. All three are in `composer.json` and
+asked for by name in the verify script's Environment block, which is the *only* place the question
+gets asked where it matters — composer never runs on the server, because `vendor/` is not deployed.
 
 **`ext/curl` is deliberately in `require-dev` and not in `require`.** The site makes no outbound
 request at all — a property the verify script asserts by grep — and the one class that does,
@@ -78,8 +90,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.77% of
-lines** (2084/2110); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.80% of
+lines** (2153/2179); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -109,8 +121,11 @@ statement rather than a branch. That pass is also where **the `#[CoversClass]` t
 time**, and it is worth knowing it fires for an *existing* file too, not only a new class:
 `SecurityPolicyTest` names ten classes, `BasicChallenge` was not among them, and eight data rows
 drove the new guard while it read as 0%. The count went 26 → 31 → 26 in one sitting, and the middle
-number is the only reason anybody looked. The twenty-six are a property of what is *deliberately*
-untested, not a budget that grows with the code.
+number is the only reason anybody looked. **So is the markup-parser work**, which is the largest of
+them by some way — `MarkupParser` is 70 lines and every one of them is covered, because a class made
+of refusals is a class where each refusal is a row in a data provider. It moved the denominator from
+2110 to 2179 and left the numerator's gap exactly where it was. The twenty-six are a property of what
+is *deliberately* untested, not a budget that grows with the code.
 
 **The `/update` work is the one that did not manage it in the same pass, and that is recorded rather
 than tidied away.** It landed 436 lines with 57 of its own uncovered, and this paragraph stood for
@@ -241,7 +256,8 @@ src/NeuroSYS/
 │                     + BareArray/BareString, the two attributes that excuse an exception to the
 │                     rules the other names here exist to keep
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
-│   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, RawHtml, Fragment, Document,
+│   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, Fragment, Document,
+│   │                 MarkupParser (the same grammar read back in),
 │   │                 Doctype + Tag/HtmlTag, the attribute-name enums (WaveformAttribute among
 │   │                 them), the attribute-value
 │   │                 enums LinkRel / LinkTarget / ScriptType / MediaPreload / MetaName /
@@ -503,7 +519,7 @@ only code that writes a `<` is `Element` and `Doctype`. A verify check enforces 
 | `Text` | a run of text, escaped on the way out |
 | `Fragment` | several nodes with no element around them |
 | `Document` | a `Doctype` and the `<html>` under it |
-| `RawHtml` | the one audited hole — see below |
+| `MarkupParser` | the reader — hand-authored markup, back into the four above |
 
 Four mistakes stop being possible, three of them previously silent: a misspelled tag renders as an
 inert inline box, a misspelled attribute is a null the client reads as nothing, an unescaped value is
@@ -568,7 +584,7 @@ thing standing in front of. Two rules:
 - **Escaping.** `Element` escapes an attribute value by rendering it as a `Text`, so
   `htmlspecialchars` is called in exactly one place on the whole site, with one set of flags stated
   rather than inherited from the runtime's defaults. `HtmlTest` pins that call site the same way it
-  pins `RawHtml`'s.
+  pins `containingHtml()`'s.
 - **Scheme.** An attribute the browser dereferences is asked what scheme it names, because escaping
   is the wrong tool for a URL and always was — `javascript:alert(1)` contains not one character
   `htmlspecialchars` touches. `AttributeName::isUrl()` says which attributes those are, case by case
@@ -595,12 +611,73 @@ thing standing in front of. Two rules:
 The renderer is the backstop and reports the fault on whatever page draws the footer; the constructor
 reports it when `data/profiles.php` loads, which is where the mistake actually is.
 
-**`RawHtml` is the single hole, and it is meant to be conspicuous.** It exists for the two halves
-of `data/privacy.*.html`, a hand-authored document rather than markup a view assembles. `HtmlTest`
-pins its call *files*, so a second view has to be argued for in a test named for the fact — the
-policy's two constructions are both in `PrivacyView`, which is why splitting it changed nothing
-there. Never construct one from anything a
-request can influence.
+**There used to be a single hole here, and closing it is the most recent thing that happened to this
+tree.** `RawHtml` emitted the two halves of `data/privacy.*.html` verbatim — a hand-authored document
+rather than markup a view assembles — checked by nothing but a docblock saying never to construct one
+from anything a request can influence, and a test pinning its call files. A convention with a test
+behind it is not a guarantee.
+
+**`MarkupParser` reads those files into the tree instead, and `Element::containingHtml()` is the
+door.** It is the safe twin of `containing()`, which is the pair worth reading together:
+`containing('<b>x</b>')` puts visible `&lt;b&gt;` on the page because a string is content, and
+`containingHtml('<b>x</b>')` parses the same argument into a real `<b>` — after checking that `b` is
+an element this site emits and that everything on it is an attribute this site emits. Because it
+builds through `attr()` and `containing()` rather than around them, escaping and the scheme check
+apply to a parsed document exactly as they do to one a view assembled; the parser itself never looks
+at a URL and does not need to.
+
+**The refusals are the point, so they are exhaustive rather than illustrative** — the same stance
+`TarArchive` takes about a member name off the network. An unknown element, an unknown attribute
+(which is what refuses an `onerror=`), a comment, a CDATA section, an element from another namespace,
+content the parser hoists into `<head>`, a `<script>` — whose content is raw text that `Text` would
+escape into meaning something else — and **any HTML5 parse error at all**. That last one is the check
+`RawHtml` could never make: `Dom\HTMLDocument` reports a stray `</div>` as a warning and then
+recovers silently, which for a hand-edited legal document means the rest of the policy disappears
+with nothing anywhere saying so. Both halves parse with zero errors, which is what makes refusing on
+any of them affordable.
+
+Four details are worth knowing before touching it:
+
+- **It needs `ext/dom`, and that is the third extension asked for by name.** Same argument as
+  `ext/uri` — bundled with PHP is not the same as built into a host's PHP — and the failure is a
+  fatal on `/privacy` alone, the one page here that is a legal obligation rather than a choice.
+- **The doctype it prepends is `Doctype::Html5`, not a literal**, which is what puts the parser in
+  no-quirks mode; without it *every* fragment reports `unexpected-token-in-initial-mode` and the
+  error trap is noise. Reusing the class that owns that string also means `MarkupParser` holds no
+  `<` literal at all, so the claim two paragraphs up — that `Element` and `Doctype` are the only two
+  files that write one — stays true rather than gaining an exception.
+- **A name is resolved with `tryFrom()`**, where the honest question is which case has this
+  `tagName()`. The two are one question only because every case of every vocabulary enum spells its
+  name as its backing value, which `HtmlTest` pins — along with the parser's two registries of enums,
+  in both directions against reflection. An enum missing from a registry does not break the parser,
+  it makes every one of that enum's names unparseable, which reads as the *markup* being wrong.
+- **The parsed nodes become children of the wrapping element rather than a `Fragment`**, and that is
+  what keeps a document coming back out as it went in. A parse keeps the source's own whitespace as
+  `Text`, and a `Text` among the children is what puts `renderChildren()` on its single-line branch —
+  where nothing is re-indented and, more to the point, no newline is invented between inline content.
+  The rendered text content is identical before and after; the *bytes* are not, because a character
+  reference comes back as the character it names and the German half loses about 2.4 KB of `&auml;`.
+
+**What it cost is written down rather than waved at**, since it is the largest single price this site
+has paid for a guarantee. Per half, with no Xdebug loaded: 0.071 ms to parse, 0.242 ms to walk into
+the tree, 0.262 ms to render it back out, against 0.004 ms for the old verbatim `str_replace`. So
+`/privacy` pays about **+1.14 ms** for both halves — affordable only because it is one route out of
+ten and the least-visited page on the site. Under Xdebug the walk is three times that and the parse
+is unchanged, which is why `docs/performance.md` records +3.4 ms for the same work: it measures in
+the environment that has it loaded. `h4`, `ul`, `li` and `em` joined `HtmlTag` for the policy, which
+uses all four.
+
+**One measured result was the opposite of the obvious one, and it is worth keeping.** Decoding
+character references made the document *smaller on disk and larger on the wire*: `/privacy` went
+from 44,404 raw bytes to 42,528, and its gzipped body went **up**, 12,399 → 13,378. `&auml;` is six
+highly repetitive bytes that gzip almost to nothing; the `ä` that replaces it is two bytes that do
+not. The compression ratio fell from 72.1% to 68.5% — still the right trade at 29 KB saved, but not
+the direction anybody would have guessed.
+
+The standing instruction survived the change and is the reason the call-site pin did too: **never
+parse anything a request can influence.** Not because it would be an injection — that is what the
+refusals are for — but because the vocabulary is this site's own, so a visitor would otherwise get to
+choose which of our elements to build.
 
 Rendering pretty-prints: an element of only elements puts each on its own line, one with any `Text`
 among them stays on one line. That rule is not cosmetic — whitespace between inline content is
@@ -1491,7 +1568,8 @@ rather than a rule saying so.
 
 `card.css` is the single part named for a concept rather than a component, because the catalogue
 entry and the download entry genuinely share a look across `release/` and `download/`. It is meant to
-be conspicuous the way `RawHtml` is: `HtmlTest` pins the list to that one file, so a second has to be
+be conspicuous the way `containingHtml()`'s one call site is: `HtmlTest` pins the list to that one
+file, so a second has to be
 argued for in a test named for the fact. What falls out of it is worth reading — there is no
 `elements/release.css`: the `release-*` tags are card, apart from `<release-arrangement>`, which is
 its own component and lives in `arrangement.css` with the section tag it wraps.

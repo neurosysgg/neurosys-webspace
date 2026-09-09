@@ -11,7 +11,7 @@ subject. [CLAUDE.md](CLAUDE.md) is the long-form argument behind each decision.
 
 | | Why |
 |---|---|
-| **PHP ≥ 8.5** with `ext-uri`, `ext-openssl`, `ext-zlib` | The pipe operator in `autoload.php`, `#[\NoDiscard]`, the URL parsers `Element` and `Request` use, and the signature and gzip that `/update` is made of. All four are declared in `composer.json` and asked for by name in the verify script. |
+| **PHP ≥ 8.5** with `ext-uri`, `ext-dom`, `ext-openssl`, `ext-zlib` | The pipe operator in `autoload.php`, `#[\NoDiscard]`, the URL parsers `Element` and `Request` use, the HTML parser `MarkupParser` reads the privacy policy with, and the signature and gzip that `/update` is made of. All five are declared in `composer.json` and asked for by name in the verify script. |
 | **Node ≥ 26.7** | The front-end build and its tests. The floor is a flag rather than a feature: `--test-coverage-include-all` arrived in 26.7.0, and without it a module nothing imports is not reported as uncovered — it is not reported at all. `.npmrc` makes `engines` a refusal rather than a warning. |
 | **Composer** | Dev tooling only — PHPUnit, phpcs, php-cs-fixer. `vendor/` is never deployed. |
 | **ffmpeg / ffprobe** | `tools/stage-demo.php` only: transcoding and durations. |

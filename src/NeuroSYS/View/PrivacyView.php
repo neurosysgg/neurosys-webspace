@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
+use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\CssClass;
@@ -11,15 +12,17 @@ use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\Language;
+use NeuroSYS\View\Html\MarkupParser;
 use NeuroSYS\View\Html\Node;
-use NeuroSYS\View\Html\RawHtml;
 
 /**
  * The PrivacyView class. Renders the privacy policy inside the page shell.
  *
- * The only view that holds {@link RawHtml}, and the reason that class exists: the policy is a
- * hand-authored document, not markup a view assembles. It is read from two files next to the code
- * and nothing about a request can reach either — see RawHtml before adding a third call site.
+ * The only view that *parses* a document rather than assembling one, and the reason
+ * {@link MarkupParser} exists: the policy is hand-authored, not markup a view builds. It is read
+ * from two files next to the code and nothing about a request can reach either — which is the
+ * standing instruction on {@link Element::containingHtml()}, and it survived that method replacing
+ * the `RawHtml` node that used to emit these two files unread.
  *
  * **Both halves are always sent; only their order changes.** The policy has been bilingual all
  * along, German first for everyone; what {@link self::$language} decides is which one a visitor
@@ -105,11 +108,14 @@ class PrivacyView extends View
      * @param Language $language
      * @param string   $html
      * @return Element
+     * @throws MarkupException if the document names an element or an attribute outside this site's
+     *                         vocabulary, or does not parse cleanly. That is a fault in
+     *                         `data/privacy.*.html`, which is part of this repository.
      */
     private static function half(Language $language, string $html): Element
     {
         return new Element(HtmlTag::Section)
             ->attr(HtmlAttribute::Lang, $language)
-            ->containing(new RawHtml($html));
+            ->containingHtml($html);
     }
 }

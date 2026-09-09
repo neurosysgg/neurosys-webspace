@@ -330,7 +330,6 @@ else under `src/`.
 | `Text` | a run of text, escaped on the way out |
 | `Fragment` | several nodes with no element around them |
 | `Document` | a `Doctype` and the `<html>` under it |
-| `RawHtml` | the one audited hole |
 
 ### Building one
 
@@ -383,12 +382,30 @@ An element whose children are all elements puts each on its own line; one with a
 stays on one line. Whitespace between inline content is content — without that rule
 `<h1>ill<span>.</span></h1>` would gain a space inside the title.
 
-### `RawHtml` is the single hole
+### There is no hole, and there used to be one
 
-It exists for `data/privacy.de.html` and `data/privacy.en.html`, a hand-authored document rather
-than markup a view assembles.
-`HtmlTest` pins its call sites, so a second one has to be argued for in a test named for the fact.
-**Never construct one from anything a request can influence.**
+`data/privacy.de.html` and `data/privacy.en.html` are a hand-authored document rather than markup a
+view assembles, and they used to go out through `RawHtml` — a node that emitted its string verbatim,
+checked by nothing but a docblock and a test pinning its call sites.
+
+`MarkupParser` reads them into the tree instead, and `Element::containingHtml()` is the door:
+
+```php
+new Element(HtmlTag::Section)
+    ->attr(HtmlAttribute::Lang, $language)
+    ->containingHtml($html);
+```
+
+Every element name has to be a `TagName` case and every attribute name an `AttributeName` case, so
+an `onclick` or a `<form>` is a `MarkupException` when the file loads. Text is escaped by `Text`
+and a URL attribute is scheme-checked by `Element::render()`, because the parser builds through
+`attr()` and `containing()` rather than around them. A comment, an SVG element, content the parser
+hoists into `<head>`, and any HTML5 parse error at all are each refused — a stray `</div>` in a
+hand-edited legal document is a refusal now rather than half a page silently swallowed.
+
+`HtmlTest` still pins the call sites, so a second one has to be argued for in a test named for the
+fact. **Never parse anything a request can influence** — not because it would be an injection, but
+because the vocabulary is this site's own.
 
 ---
 

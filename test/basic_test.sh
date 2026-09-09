@@ -186,6 +186,17 @@ else
     fail "ext/uri is missing; Element::isAllowedUrl() and Request::normalisePath() need it"
 fi
 
+# ext/dom is what MarkupParser reads the privacy policy with, and it is the same argument as ext/uri
+# above one shelf along: bundled with PHP is not the same as built into this host's PHP. The failure
+# is a fatal on /privacy alone — the one page here that is a legal obligation rather than a choice,
+# and the one page a smoke test of the site's own markup would never reach. Checked on the live host
+# before it was relied on, by parsing rather than by asking whether it is loaded; see CLAUDE.md.
+if php -r 'exit(class_exists("Dom\\HTMLDocument") ? 0 : 1);'; then
+    pass "ext/dom is present — the privacy policy can be parsed into the markup tree"
+else
+    fail "ext/dom is missing; MarkupParser::parse() needs it and /privacy would be a fatal"
+fi
+
 # ext/openssl verifies the update signature and ext/zlib unpacks the payload, so between them they
 # are the whole of what /update needs beyond core. Both are in composer.json, and composer never
 # runs on the server — vendor/ is not deployed — so this is the only place the question gets asked

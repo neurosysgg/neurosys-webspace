@@ -35,7 +35,21 @@ enum HtmlTag: string implements TagName
     case H1 = 'h1';
     case H2 = 'h2';
     case H3 = 'h3';
+
+    /**
+     * `h4`, `ul`, `li` and `em` are the privacy policy's, and they arrived with
+     * {@link MarkupParser}.
+     *
+     * They are the answer to the question above — whether a new element should be one of ours
+     * instead — and for all four it is no: they carry no behaviour, need no registration, and the
+     * browser has known them longer than we have. What is new is only that a *parsed* document may
+     * name them, where before its markup went out as one unread string.
+     */
+    case H4 = 'h4';
+
     case P  = 'p';
+    case Ul = 'ul';
+    case Li = 'li';
     case Br = 'br';
 
     case A      = 'a';
@@ -44,6 +58,7 @@ enum HtmlTag: string implements TagName
     case Span   = 'span';
     case Small  = 'small';
     case Strong = 'strong';
+    case Em     = 'em';
     case Div    = 'div';
 
     /** Created client-side only: the player's frame, and the textarea that decodes entities. */

@@ -248,9 +248,23 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   script fails on a heredoc or a `'<tag'` literal anywhere under `src/` outside `Element` and
   `Doctype` — the two files whose job is turning a tree into text. Proved by putting `<b>` in a
   view's text and watching it fail.
-- **`RawHtml` is constructed in exactly one place.** It is the one node that does not escape, so its
-  call sites are pinned rather than trusted: `HtmlTest` scans `src/` and asserts the list is
-  `['PrivacyView.php']`. A second one has to be argued for by editing that assertion.
+- **Markup this codebase did not write is parsed in exactly one place.** `RawHtml` used to emit the
+  privacy policy verbatim and its call sites were pinned because it escaped nothing;
+  `Element::containingHtml()` parses instead, and the pin survives for a different reason — it is
+  still the one door a document from outside PHP comes through, and the standing rule that nothing a
+  request can influence goes near it is only worth having if the next caller has to be argued for.
+  `HtmlTest` scans `src/` and asserts both halves: `['PrivacyView.php']` calls `containingHtml(`, and
+  `['Element.php']` calls `MarkupParser::parse(`.
+- **The real privacy policy parses.** Not a fixture — `HtmlTest` reads `data/privacy.de.html` and
+  `data/privacy.en.html` themselves, so an e-recht24 re-export that brings an element or an attribute
+  the enums do not have fails here rather than reaching a page. It also asserts the document says the
+  same thing afterwards: the bytes deliberately differ, because `&auml;` comes back as `ä`, so what
+  is compared is the text content with whitespace collapsed.
+- **Every vocabulary enum spells its name as its backing value.** `MarkupParser` resolves a name with
+  `tryFrom()` where the honest question is "which case has this `tagName()`" — a native lookup rather
+  than a scan over seventy cases per element. The two are the same question only for as long as this
+  holds, so it is pinned rather than assumed, along with the parser's two registries in both
+  directions against reflection over `src/`.
 - **Nothing under `src/` makes an outbound request.** `index.php` answers requests and never issues
   one, which is what lets the privacy policy claim no server-side call reaches a third party. The
   verify script greps `src/` for `curl_*`, `fsockopen` and `stream_socket_client`. Proved by
@@ -298,9 +312,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   naming a tag is the failure worth naming: whichever `main.css` imports later wins, silently, and
   the loser reads as a rule that simply does not apply. A part named for a component may only style
   tags whose modules live in it, so a rule cannot wander into the wrong file.
-- **`card.css` is the one part named for a concept.** The same idiom as `RawHtml`: the catalogue
-  entry and the download entry genuinely share a look across two component directories, so the
-  exception is pinned rather than trusted, and a second one has to be argued for by editing the
+- **`card.css` is the one part named for a concept.** The same idiom as the parse pin above: the
+  catalogue entry and the download entry genuinely share a look across two component directories, so
+  the exception is pinned rather than trusted, and a second one has to be argued for by editing the
   assertion. Proved by adding a stray part and watching it fail.
 - **The committed stylesheet is current with `assets/css/`.** The CSS half of the JS drift check
   below, and for the same reason — `deploy.sh` rsyncs `public/`, so a part edited without a rebuild

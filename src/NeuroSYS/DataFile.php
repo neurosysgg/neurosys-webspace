@@ -50,7 +50,8 @@ enum DataFile: string
     case SiteAuth = 'site_auth.php';
 
     /**
-     * The privacy policy in German — half of the one document {@link View\Html\RawHtml} exists for.
+     * The privacy policy in German — half of the one document {@link View\Html\MarkupParser}
+     * exists for.
      *
      * **Two files rather than one, split at the boundary that was always in it.** The policy was a
      * single `privacy.html` holding a German document and an English one end to end, which is how

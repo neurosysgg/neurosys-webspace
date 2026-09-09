@@ -6,6 +6,8 @@ namespace NeuroSYS\Test\Unit;
 
 use BackedEnum;
 use FilesystemIterator;
+use NeuroSYS\Config;
+use NeuroSYS\DataFile;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Model\Production\SectionKind;
@@ -28,12 +30,13 @@ use NeuroSYS\View\Html\HtmlTag;
 use NeuroSYS\View\Html\LinkAttribute;
 use NeuroSYS\View\Html\LinkRel;
 use NeuroSYS\View\Html\LinkTarget;
+use NeuroSYS\View\Html\MarkupParser;
 use NeuroSYS\View\Html\MediaPreload;
 use NeuroSYS\View\Html\MetaName;
 use NeuroSYS\View\Html\Node;
-use NeuroSYS\View\Html\RawHtml;
 use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\Tag;
+use NeuroSYS\View\Html\TagName;
 use NeuroSYS\View\Html\Text;
 use NeuroSYS\View\Html\ViewportContent;
 use NeuroSYS\View\Html\ViewportWidth;
@@ -44,6 +47,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionClass;
 use TypeError;
 
 /**
@@ -54,7 +58,7 @@ use TypeError;
 #[CoversClass(ViewportContent::class)]
 #[CoversClass(UrlScheme::class)]
 #[CoversClass(Text::class)]
-#[CoversClass(RawHtml::class)]
+#[CoversClass(MarkupParser::class)]
 #[CoversClass(Fragment::class)]
 #[CoversClass(Document::class)]
 #[CoversClass(Doctype::class)]
@@ -654,7 +658,8 @@ final class HtmlTest extends TestCase
      * directory is the component and not the file. So a part named for one may only style tags whose
      * modules live in it — a rule wandering into the wrong file is how a component stops being one.
      *
-     * card.css is the single exception, and is meant to be conspicuous the way RawHtml is: the
+     * card.css is the single exception, and is meant to be conspicuous the way a parsed document's
+     * one call site is: the
      * catalogue entry and the download entry genuinely share a look across two component
      * directories. Pinned here, so a second concept-named part has to be argued for in this test.
      *
@@ -737,7 +742,7 @@ final class HtmlTest extends TestCase
      * A tag is its class in kebab-case and the class is the file, so this could be derived — but
      * <soundcloud-player> is `SoundCloudPlayer`, which no casing rule produces. Scanning for the
      * file that exists sidesteps the exception rather than spelling it, and it is the same walk the
-     * RawHtml check below does.
+     * call-site audit below does.
      *
      * @param string $tag
      * @return string
@@ -1228,7 +1233,7 @@ final class HtmlTest extends TestCase
     /**
      * The whole document's escaping is one function call, and this is what keeps it that way.
      *
-     * The same audit as the RawHtml pin below, for the same reason: a guarantee spread over two
+     * The same audit as the parse pin below, for the same reason: a guarantee spread over two
      * call sites is a guarantee that can be half-changed. {@link Element} escapes its attribute
      * values by rendering a {@link Text} rather than reaching for htmlspecialchars() a second time,
      * so the site has one set of flags and one place to change them.
@@ -1240,38 +1245,297 @@ final class HtmlTest extends TestCase
         self::assertSame(['Text.php'], self::filesContaining('htmlspecialchars('));
     }
 
-    // ───────────────────────────── the audited hole ─────────────────────────────
+    // ───────────────────────────── markup read back in ─────────────────────────────
 
     /**
+     * The hole is closed, and this is the test that says so.
+     *
+     * `RawHtml` used to emit the two halves of the policy verbatim, checked by nothing but a
+     * docblock. {@link MarkupParser} reads the same two files instead, so every element and every
+     * attribute in them has to be one this site emits — which makes this the regression test that
+     * matters: it is what fails the day a re-export from e-recht24 brings a tag the enums do not
+     * have, rather than that tag reaching a page unread.
+     *
+     * The real files rather than a fixture, deliberately. A fixture would pin the parser and prove
+     * nothing about the documents actually served, which is the whole question here.
+     *
+     * @param DataFile $policy
      * @return void
      */
-    public function testRawHtmlIsNotEscaped(): void
+    #[DataProvider('policyProvider')]
+    public function testTheRealPolicyParsesIntoTheTree(DataFile $policy): void
     {
-        self::assertSame('<b>bold</b>', new RawHtml('<b>bold</b>')->render());
+        $parsed = MarkupParser::parse(self::policy($policy));
+
+        self::assertGreaterThan(100, $parsed->count());
+        self::assertNotSame('', new Element(HtmlTag::Section)->containingHtml(self::policy($policy))->render());
     }
 
     /**
-     * It still indents, so a hand-authored document sits where it was placed.
+     * A parsed document says the same thing it said before it was parsed.
+     *
+     * The bytes deliberately do *not* match: a character reference becomes the character it names,
+     * so `&auml;` goes out as `ä` and the German half loses about 2.4 KB. What must not change is
+     * what a reader sees, so this compares the text content with whitespace collapsed — which is
+     * the strongest claim that survives entity decoding, and the one worth making.
+     *
+     * @param DataFile $policy
+     * @return void
+     */
+    #[DataProvider('policyProvider')]
+    public function testAParsedDocumentSaysWhatItSaidBefore(DataFile $policy): void
+    {
+        $source   = self::policy($policy);
+        $rendered = new Element(HtmlTag::Section)->containingHtml($source)->render();
+
+        self::assertSame(self::readable($source), self::readable($rendered));
+    }
+
+    /**
+     * @return iterable<string, array{DataFile}>
+     */
+    public static function policyProvider(): iterable
+    {
+        yield DataFile::PrivacyGerman->value  => [DataFile::PrivacyGerman];
+        yield DataFile::PrivacyEnglish->value => [DataFile::PrivacyEnglish];
+    }
+
+    /**
+     * Text that arrived as markup is escaped exactly like text that arrived as a string.
+     *
+     * The point of a parse over a pass-through: `&amp;` in the source is one character by the time
+     * it is a {@link Text}, and {@link Text::render()} writes it back as an entity rather than
+     * leaving a bare `&` in the document. A `<` that the parser read as text comes back escaped for
+     * the same reason, which is the half `RawHtml` could not do at all.
      *
      * @return void
      */
-    public function testRawHtmlIndentsToWhereItWasPlaced(): void
+    public function testParsedTextIsEscapedLikeAnyOtherText(): void
     {
         self::assertSame(
-            "<section>\n  <h1>a</h1>\n  <p>b</p>\n</section>",
-            new Element(HtmlTag::Section)->containing(new RawHtml("<h1>a</h1>\n<p>b</p>"))->render(),
+            '<p>a &amp; b &lt;not a tag&gt;</p>',
+            new Element(HtmlTag::P)->containingHtml('a &amp; b &lt;not a tag&gt;')->render(),
         );
     }
 
     /**
-     * The audit. RawHtml is the one place markup goes out unchecked, so its call sites are pinned
-     * rather than trusted: a second one has to be argued for here, in a test named for the fact.
+     * A parsed element is an element, so it is scheme-checked on the way out like any other.
+     *
+     * Nothing in {@link MarkupParser} looks at a URL. It does not need to: it builds through
+     * {@link Element::attr()}, so the check {@link Element::render()} already makes covers markup
+     * that was parsed exactly as it covers markup that was written. That composition is the claim,
+     * which is why it is asserted here rather than assumed from the two halves.
      *
      * @return void
      */
-    public function testRawHtmlIsConstructedInExactlyOnePlace(): void
+    public function testAParsedUrlIsSchemeCheckedLikeAnyOther(): void
     {
-        self::assertSame(['PrivacyView.php'], self::filesContaining('new RawHtml('));
+        $this->expectException(MarkupException::class);
+
+        new Element(HtmlTag::P)->containingHtml('<a href="javascript:alert(1)">x</a>')->render();
+    }
+
+    /**
+     * The source's own whitespace survives, which is what keeps a document a document.
+     *
+     * A parse keeps the newlines and indentation between block elements as {@link Text} nodes, and
+     * a `Text` among the children is what puts {@link Element::renderChildren()} on its single-line
+     * branch — so nothing is re-indented and, more importantly, no newline is *invented* between
+     * inline content, where it would be a space the browser renders.
+     *
+     * @return void
+     */
+    public function testAParsedDocumentKeepsItsOwnWhitespace(): void
+    {
+        self::assertSame(
+            "<section><h1>a</h1>\n<p>b <em>c</em></p></section>",
+            new Element(HtmlTag::Section)->containingHtml("<h1>a</h1>\n<p>b <em>c</em></p>")->render(),
+        );
+    }
+
+    /**
+     * A custom element parses too, and it is the case that exercises the second enum in each list.
+     *
+     * `cover-art` is a {@link Tag} rather than an {@link HtmlTag}, and `fallback` is a
+     * {@link CoverArtAttribute} rather than an {@link HtmlAttribute} — so this is the row that
+     * proves the registries are walked rather than only their first entry being asked.
+     *
+     * @return void
+     */
+    public function testAParsedCustomElementResolvesThroughTheWholeRegistry(): void
+    {
+        $markup = '<cover-art src="/a.png" fallback="/b.png"></cover-art>';
+
+        self::assertSame(
+            "<section>\n  " . $markup . "\n</section>",
+            new Element(HtmlTag::Section)->containingHtml($markup)->render(),
+        );
+    }
+
+    /**
+     * Everything the parser refuses, refused for a reason it can name.
+     *
+     * The refusals are the point, so they are pinned exhaustively rather than illustratively — the
+     * same stance {@link \NeuroSYS\Support\TarArchive} takes about a member name off the network.
+     * Each row is a thing a hand-edited document could plausibly grow, and each one is a
+     * {@link MarkupException} at load time instead of markup nobody read.
+     *
+     * @param string $html
+     * @return void
+     */
+    #[DataProvider('refusedProvider')]
+    public function testTheParserRefusesWhatTheTreeCannotHold(string $html): void
+    {
+        $this->expectException(MarkupException::class);
+
+        MarkupParser::parse($html);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function refusedProvider(): iterable
+    {
+        yield 'an element outside the vocabulary'   => ['<blockquote>x</blockquote>'];
+        yield 'an attribute outside the vocabulary' => ['<p data-whatever="x">a</p>'];
+        yield 'an event handler'                    => ['<p onclick="alert(1)">a</p>'];
+        yield 'a comment'                           => ['<p>a</p><!-- and a note -->'];
+        yield 'an element from another namespace'   => ['<p>a</p><svg><circle/></svg>'];
+        yield 'content hoisted into the head'       => ['<title>x</title><p>a</p>'];
+        yield 'a closing tag that matches nothing'  => ['<p>hi</div>'];
+        yield 'a script, whose text cannot escape'  => ['<p>a</p><script>x</script>'];
+    }
+
+    /**
+     * Every vocabulary enum spells its own name as its backing value.
+     *
+     * This is not tidiness, it is what makes {@link MarkupParser} correct. The parser resolves a
+     * name with `tryFrom()` — a native O(1) lookup — where the honest question is "which case has
+     * this `tagName()`", and the two are the same question only for as long as this holds. An enum
+     * that computed its name would make the parser quietly unable to find it, so the shortcut is
+     * pinned rather than assumed.
+     *
+     * @return void
+     */
+    public function testEveryNameEnumSpellsItsNameAsItsBackingValue(): void
+    {
+        foreach (self::implementationsOf(TagName::class) as $enum) {
+            foreach ($enum::cases() as $case) {
+                self::assertSame($case->value, $case->tagName(), $enum . '::' . $case->name);
+            }
+        }
+
+        foreach (self::implementationsOf(AttributeName::class) as $enum) {
+            foreach ($enum::cases() as $case) {
+                self::assertSame($case->value, $case->attribute(), $enum . '::' . $case->name);
+            }
+        }
+    }
+
+    /**
+     * The parser's two registries name every enum there is, and no others.
+     *
+     * Pinned in both directions, the way {@link NoDiscardTest} pins its set, because the two
+     * failures are different and both are quiet. An enum missing from a registry does not break the
+     * parser — it makes every one of its names unparseable, which reads as the *markup* being
+     * wrong. An enum listed that no longer exists is a fatal on the first parse.
+     *
+     * Compared as sets rather than as sequences, because the order of a registry means nothing:
+     * a name resolves through whichever entry spells it, and no two of them spell the same name.
+     *
+     * @return void
+     */
+    public function testTheParserKnowsEveryVocabularyEnum(): void
+    {
+        $registries = new ReflectionClass(MarkupParser::class)->getConstants();
+        $tags       = $registries['TAG_NAMES'];
+        $attributes = $registries['ATTRIBUTE_NAMES'];
+
+        sort($tags);
+        sort($attributes);
+
+        self::assertSame(self::implementationsOf(TagName::class), $tags);
+        self::assertSame(self::implementationsOf(AttributeName::class), $attributes);
+    }
+
+    /**
+     * The audit, retargeted. The hole became a door, and the door is still watched.
+     *
+     * Markup this codebase did not assemble now goes through a parse rather than around one, so a
+     * second call site is no longer a way to get unescaped markup onto a page. It is still the one
+     * place a document written outside PHP enters the tree, and the standing instruction on it —
+     * never from anything a request can influence — is only worth having if somebody has to argue
+     * for the next caller. That argument belongs here.
+     *
+     * @return void
+     */
+    public function testMarkupIsParsedInExactlyOnePlace(): void
+    {
+        self::assertSame(['PrivacyView.php'], self::filesContaining('->containingHtml('));
+        self::assertSame(['Element.php'], self::filesContaining('MarkupParser::parse('));
+    }
+
+    /**
+     * The enums under `src/` implementing $interface, sorted — the same order a registry is listed
+     * in.
+     *
+     * Derived from the filesystem rather than from a list, because a list is the thing being
+     * checked.
+     *
+     * @param class-string $interface
+     * @return list<class-string>
+     */
+    private static function implementationsOf(string $interface): array
+    {
+        $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+        );
+
+        $found = [];
+
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
+            $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
+
+            if (enum_exists($class) && is_a($class, $interface, true)) {
+                $found[] = $class;
+            }
+        }
+
+        sort($found);
+
+        return $found;
+    }
+
+    /**
+     * $file's contents, which the test suite requires to be there.
+     *
+     * @param DataFile $file
+     * @return string
+     */
+    private static function policy(DataFile $file): string
+    {
+        return Config::dataFile($file)->read() ?? '';
+    }
+
+    /**
+     * $markup as a reader meets it: tags gone, entities resolved, runs of whitespace collapsed.
+     *
+     * @param string $markup
+     * @return string
+     */
+    private static function readable(string $markup): string
+    {
+        return trim((string) preg_replace(
+            '/\s+/u',
+            ' ',
+            html_entity_decode(strip_tags($markup), ENT_QUOTES | ENT_HTML5, 'UTF-8'),
+        ));
     }
 
     /**

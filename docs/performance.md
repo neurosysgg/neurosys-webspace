@@ -25,8 +25,14 @@ Time to first byte, median. **Cold** means opcache had to compile; **warm** is e
 | `/` | 10.3 ms | 2.65 ms |
 | `/releases` | 12.2 ms | 3.09 ms |
 | `/releases/ill` | 13.6 ms | 4.08 ms |
-| `/privacy` | 9.9 ms | 2.62 ms |
+| `/privacy` | 14.0 ms | 6.00 ms |
 | 404 | 9.8 ms | 2.55 ms |
+
+**The `/privacy` row is the only one re-measured on 2026-09-09**, and it moved because that page
+stopped being a pass-through: `MarkupParser` reads both halves of the policy into the markup tree
+instead of `RawHtml` emitting them verbatim. It is the largest single cost this site has taken for a
+guarantee, and the split is [below](#the-price-of-parsing-the-policy). Spot checks of the other four
+rows on the same day agreed with them inside noise.
 
 Cold is paid once per deploy — or once per edit to any file the request touches, since
 `opcache.validate_timestamps` is on. Everything else is warm.
@@ -121,6 +127,29 @@ generated rather than authored:
 That was a real cost and it is now zero on the tree that ships — see
 [the front-end payload](#the-front-end-payload) below.
 
+### The price of parsing the policy
+
+`/privacy` is the one route that builds its tree out of a *document* rather than out of code, and
+since `MarkupParser` replaced `RawHtml` that document is parsed and re-rendered on every request
+rather than passed through. Measured over `data/privacy.de.html`, per half:
+
+| | with Xdebug | without |
+|---|---|---|
+| `Dom\HTMLDocument::createFromString` | 0.078 ms | 0.071 ms |
+| the walk into `Element`/`Text` nodes | 0.832 ms | 0.242 ms |
+| `Element::render()` back to markup | 0.828 ms | 0.262 ms |
+| **one half** | **1.74 ms** | **0.58 ms** |
+| **what `/privacy` pays, both halves** | **+3.47 ms** | **+1.14 ms** |
+
+`RawHtml::render()` was 0.004 ms, so effectively all of it is new. The route figure above is the
+Xdebug column, because that is what this document measures in; **Strato has no Xdebug**, so the
+number that lands in production is the right-hand one. The parse itself barely moves between the
+two — it happens in C — and everything that does is the userland walk and render, which is the
+answer to which half to look at if this ever needs to be cheaper.
+
+Whether it is worth 1.14 ms is argued in `CLAUDE.md`, not here. What is worth recording is that it
+is confined: no other route reads a document, and the tree build for every other page is unchanged.
+
 ---
 
 ## Compression
@@ -135,7 +164,14 @@ That was a real cost and it is now zero on the tree that ships — see
 | `/releases` | 7,226 | 1,362 | 81.2% |
 | `/releases/ill` | 11,113 | 2,088 | 81.2% |
 | `/imprint` | 7,656 | 1,445 | 81.1% |
-| `/privacy` | 44,404 | 12,399 | 72.1% |
+| `/privacy` | 42,528 | 13,378 | 68.5% |
+
+**`/privacy` is smaller on disk and bigger on the wire than it was, which is the opposite of what
+anyone would guess.** Parsing decodes character references, so the 44,404 bytes `RawHtml` used to
+emit are 42,528 now — and the gzipped body went *up*, 12,399 → 13,378. `&auml;` is six bytes that
+repeat 69 times in the German half and compress almost to nothing; the `ä` that replaces it is two
+bytes that do not. Fewer bytes, less redundancy, worse ratio. Still 29 KB saved and still not a
+close call, but it is a reminder that raw size is not the thing being compressed.
 
 It costs server time, and the cost scales with the body rather than being flat:
 
@@ -143,10 +179,11 @@ It costs server time, and the cost scales with the body rather than being flat:
 |---|---|---|---|
 | `/` | 2.44 ms | 2.51 ms | +0.07 |
 | `/releases/ill` | 3.20 ms | 3.57 ms | +0.37 |
-| `/privacy` | 2.34 ms | 3.33 ms | +0.99 |
+| `/privacy` | 5.93 ms | 7.06 ms | +1.13 |
 
-The privacy policy spends a full millisecond to save 32 KB, which at 10 Mbit/s is twenty-six
-milliseconds it does not spend. Not a close call in either direction.
+The privacy policy spends over a millisecond to save 29 KB, which at 10 Mbit/s is twenty-three
+milliseconds it does not spend. Not a close call in either direction. (Both `/privacy` figures are
+from 2026-09-09 and carry the parse cost above; the other two rows are the original run.)
 
 **Non-2xx responses are not compressed, and this is Apache's behaviour rather than the site's.**
 The 404 comes back at its full 6,902 bytes with the same `Content-Type: text/html; charset=utf-8`

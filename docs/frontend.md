@@ -341,7 +341,8 @@ The build also refuses:
   the generated stylesheet.
 - `card.css` is the one part named for a concept rather than a component, because the catalogue
   entry and the download entry genuinely share a look. It is meant to be conspicuous the way
-  `RawHtml` is: the list is pinned to that one file, so a second has to be argued for.
+  `Element::containingHtml()`'s one call site is: the list is pinned to that one file, so a second
+  has to be argued for.
 
 ### Two things that deliberately did not move to a runtime
 
