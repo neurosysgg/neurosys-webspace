@@ -106,6 +106,17 @@ php tools/push-update.php --dry-run
 php tools/push-update.php
 ```
 
+Afterwards, ask the server what it is actually running — the read half of the same API, signed with
+the same key:
+
+```bash
+php tools/api.php update v1 version
+```
+
+It answers three lines: the last serial accepted, the versioned entry-script URL (which carries the
+build stamp, and is the one fact that tells a deploy that wrote from one that found every file
+already current), and the PHP version.
+
 `--dry-run` sends a real signed payload and has the server validate every member, report exactly
 what it would write and delete, and **write nothing** — it does not even advance the replay serial,
 so the same payload can then be sent for real. Use it whenever you are unsure; it costs one request.
@@ -115,7 +126,10 @@ so the same payload can then be sent for real. Use it whenever you are unsure; i
 server.
 
 `--url` points somewhere else and `--key` names a different private key. Both default sensibly:
-`https://neurosys.gg/update` and `~/.config/neurosys/update.key`.
+`https://neurosys.gg` and `~/.config/neurosys/update.key`. Note that `--url` is an **origin** now
+rather than a full endpoint — the path is derived from the action, so there is one place that knows
+what the address is and it is the same `SitePath` case the router matches with. It must be `https`;
+`Url` refuses anything else, on the one request that carries a signature.
 
 ### First-time setup: the keypair
 
@@ -134,10 +148,15 @@ Then upload `data/update.pub` **by hand**, once, next to `admin.php` on the serv
 excludes it — there is no repo copy to sync and syncing a local test key over the live one would
 lock you out of the endpoint.
 
-**Its absence is the off switch.** No key on the server, no endpoint: `/update` answers exactly like
-an address that does not exist, for everyone, forever. That is the opposite polarity to
-`data/site_auth.php`, whose absence stands its gate *down* — worth reading twice, because the two
-files look alike.
+**Its absence is the off switch.** No key on the server, no endpoint: every address under `/api`
+answers exactly like an address that does not exist, for everyone, forever. That is the opposite
+polarity to `data/site_auth.php`, whose absence stands its gate *down* — worth reading twice,
+because the two files look alike.
+
+Note the file keeps its name. `data/update.pub` and `cgi-bin/.update-serial` now cover every service
+rather than only the push; renaming either would mean a file uploaded by hand on the server and a
+replay counter starting again from zero, which is a migration to buy a tidier name. They are named
+for the service that first needed them.
 
 ### When a push is refused
 
@@ -149,10 +168,22 @@ check these in order:
    `openssl pkey -in ~/.config/neurosys/update.key -pubout` and compare.
 2. **The clock.** The signed serial must be within five minutes of the server's.
 3. **A replay.** The same payload cannot be applied twice; rebuild it (any rebuild mints a new
-   serial).
+   serial). Note that a push which *failed* has still spent its serial — the replay guard is armed
+   before the archive is touched, so bytes that produced a failure can never be sent again either.
+4. **An old server.** One that has not yet had this code pushed to it is still answering on
+   `/update` and has never heard of `/api`, so it refuses with a `405` — the same refusal a bad
+   signature gets, which is why this is on the list.
+
+   **The way out is `./deploy.sh`, and `--url` will not do it.** That flag now takes an *origin* and
+   the path is appended, so `--url https://neurosys.gg/update` asks for
+   `https://neurosys.gg/update/api/update/v1/patch`. This is the bootstrap the endpoint cannot do
+   for itself, and it is the case `deploy.sh` is kept for: **the first deploy of the commit that
+   creates `/api` has to go over the mount.** Every push after it is one request again.
 
 A refusal *after* the signature verifies is a **422** with a full sentence saying which member of
 the archive was wrong — by then you have proved you hold the key, so there is nothing left to hide.
+An address the API does not have is a **404** with a sentence too, and a verb the action does not
+answer on is a **405** naming the one it does; both are visible only to the key holder.
 
 ### Reading the report
 

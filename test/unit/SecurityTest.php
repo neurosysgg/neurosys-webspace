@@ -188,6 +188,12 @@ final class SecurityTest extends TestCase
         yield ['PUT', '/'];
         yield ['POST', '/admin/stats'];
         yield ['POST', '/no-such-page'];
+
+        // The one route that does accept a POST, unsigned. It refuses exactly as the others do
+        // rather than exactly as it would for a signature it verified — which is the whole design,
+        // and is why this row belongs beside the routes that simply do not write.
+        yield ['POST', '/api/update/v1/patch'];
+        yield ['PUT', '/api/update/v1/patch'];
     }
 
     /**

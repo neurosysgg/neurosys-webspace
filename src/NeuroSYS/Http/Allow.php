@@ -35,6 +35,27 @@ final readonly class Allow implements HeaderValue
     }
 
     /**
+     * Exactly the methods named, for a refusal that is allowed to be specific.
+     *
+     * **The router must never call this**, and the reason is the whole argument on
+     * {@link \NeuroSYS\Support\MethodPolicy}: a route naming its own set would make
+     * `PUT /api/update/v1/patch` answer `Allow: GET, HEAD, POST`, and that `POST` is precisely the
+     * fact `/api` exists to hide. {@link self::readOnly()} is what the router sends, always.
+     *
+     * Its one caller is {@link \NeuroSYS\Controller\ApiController}, past the signature check —
+     * where the caller has proved possession of the private key, so there is nothing left to hide
+     * and a 405 that does not say which method would work is merely unhelpful. That is the same
+     * inversion every other diagnostic makes at that line.
+     *
+     * @param HttpMethod ...$methods
+     * @return self
+     */
+    public static function of(HttpMethod ...$methods): self
+    {
+        return new self(new Collection(HttpMethod::class)->with(...$methods));
+    }
+
+    /**
      * Returns the header value: `GET, HEAD`.
      *
      * @return string

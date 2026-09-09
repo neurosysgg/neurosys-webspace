@@ -90,8 +90,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.83% of
-lines** (2204/2230); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.87% of
+lines** (2282/2308); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -126,6 +126,16 @@ them by some way — `MarkupParser` is 70 lines and every one of them is covered
 of refusals is a class where each refusal is a row in a data provider. It moved the denominator from
 2110 to 2179 and left the numerator's gap exactly where it was. The twenty-six are a property of what
 is *deliberately* untested, not a budget that grows with the code.
+
+**So is the API work**, which moved the denominator 2230 → 2308 and added none of its own — but it
+is worth reading for *how* it nearly did, because the `#[CoversClass]` trap fired for the third
+time and in its subtlest form yet. Neither `UpdatePatch::isWrite()` nor `Allow::of()` was untested:
+both are called on every controller test in `ApiTest`, which named neither. A test class declaring
+any `#[CoversClass]` records coverage for *only* those classes, so both read as 0% while running
+constantly, and the count said 28. The two lines are there in `ApiTest`'s attribute list now with a
+sentence saying why a file names classes that are not its subject. Twice this trap has been a new
+class nobody added; once it was an existing class a test forgot to name; this time it was a method
+whose *only* caller lives in a file that covers something else.
 
 **So is the three-guidelines work**, which moved the denominator again — 2179 to 2230 — and is worth
 reading for the one line it *nearly* added. `Diagnostics::watched()`'s handler had an early
@@ -243,6 +253,8 @@ src/NeuroSYS/
 │                     + HttpStatusCode, HttpMethod, MimeType/TopLevelType, Header/HeaderName
 │                     and the two header-name enums, AuthScheme, AcceptedLanguages,
 │                     ServerVariable
+│   ├── Api/        ← what an address under /api is made of: ApiService, ApiVersion, UpdateAction
+│   │                 behind an ApiAction interface, and the ApiHandler one action answers through
 │   └── Security/   ← ContentSecurityPolicy + CspSourceList, PermissionsPolicy + the enums they
 │                     compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
@@ -252,12 +264,16 @@ src/NeuroSYS/
 │   ├── Embed/      ← Embed interface + SoundCloudEmbed (one track) + SoundCloudProfileEmbed
 │   │                 (the whole account); each renders its element from typed params
 │   ├── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
-│   └── Update/     ← what a signed push is made of: UpdatePayload (the framed body), UpdateManifest,
+│   ├── Api/        ← what a signed call is made of: ApiCredential (the Authorization frame),
+│   │                 ApiEnvelope (method, path, digest, size, serial), VerifiedRequest
+│   └── Update/     ← what a push adds to that: UpdateManifest (apply, mirror),
 │                     UpdateRoot + Deployment (the vocabulary and the environment, split apart after
 │                     one class answering both emptied this repository), UpdateFile, UpdateReport
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
 │                     ProfileRepository, DemoRepository, WaveformRepository,
-│                     UpdateGate (the six checks) + UpdateApplier (the writing and the mirror)
+│                     ApiGate (every check a signed call passes) + UpdateApplier (the writing
+│                     and the mirror)
+│   └── Api/        ← one class per action, each an ApiHandler: UpdatePatch, UpdateVersion
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable and lazy, objects or
 │                     scalars)
 │                     + the TypedItems trait they share, File + Directory, Route + SitePath
@@ -267,8 +283,9 @@ src/NeuroSYS/
 │                     + BareArray/BareString/BareCall, the three attributes that excuse an
 │                     exception to the rules the other names here exist to keep
 ├── Exception/      ← the vocabulary of conditions: SiteException (the marker all of them carry),
-│                     MarkupException + Element/Parser/Terminal under it, plus Collection,
-│                     Guideline, MimeType, ReleaseVerification, Route, SecurityPolicy and Update
+│                     MarkupException + Element/Parser/Terminal under it, ApiException with
+│                     Update under it, plus Collection, Guideline, MimeType,
+│                     ReleaseVerification, Route and SecurityPolicy
 ├── View/           ← View abstract base + one concrete per page; each returns a Node, not a string
 │   ├── Html/       ← the markup tree: Node, Element, Attribute, Text, Fragment, Document,
 │   │                 MarkupParser (the same grammar read back in),
@@ -347,26 +364,26 @@ how a hostile slug got there and for the two-layer fix, and note the ordering th
 `demoRealm()` is what keeps a request from reaching it, because a throw would answer a malformed
 target with a 500 where the 401 belongs.
 
-**Nine of the ten routes are read-only, and the tenth writes.** The method question is asked of the
+**Nine of the ten routes are read-only, and the tenth is the whole API.** The method question is asked of the
 matched route rather than globally: `Route` carries a `MethodPolicy`, which is `ReadOnly` for nine
 routes — anything but GET/HEAD is a 405 whose `Allow` comes from `Allow::readOnly()`, filtering the
 cases by `isReadOnly()` so the header cannot claim something the gate does not do — and `Delegated`
-for `SitePath::Update`, where the router forms **no** opinion and the controller answers every
+for `SitePath::Api`, where the router forms **no** opinion and the controller answers every
 method itself. An unrecognised method is `null` rather than a guess, and null is not read-only.
 
 The policy is two cases rather than a set of methods per route, and that is the whole point: a route
-naming its own set would make `PUT /update` answer `Allow: GET, HEAD, POST`, and that POST is
-exactly the fact `/update` exists to hide. So the only `Allow` the router ever sends is still
-`GET, HEAD`. See [The update route](#the-update-route).
+naming its own set would make `PUT /api/update/v1/patch` answer `Allow: GET, HEAD, POST`, and that
+POST is exactly the fact `/api` exists to hide. So the only `Allow` the router ever sends is still
+`GET, HEAD`. See [The API](#the-api).
 
 **There is no CSRF surface here, and that is a property rather than an oversight — but it now rests
 on two legs rather than three, which is worth stating rather than leaving as an unchanged
 paragraph.** The leg that went is "the only state-changing verb is refused by the 405 gate":
-`/update` honours a POST. What remains, and either alone is sufficient: the site sets **no cookie**
+`/api/update/v1/patch` honours a POST. What remains, and either alone is sufficient: the site sets **no cookie**
 and starts **no session**, so there is no ambient credential for a cross-site request to ride; and
 there is **no `<form>` anywhere**, while the one Basic-authenticated route is one the browser sends
 credentials to because of the realm rather than because of the origin. A cross-site POST to
-`/update` cannot forge an ECDSA signature in any case. So still no token, no `SameSite` attribute
+`/api` cannot forge an ECDSA signature in any case. So still no token, no `SameSite` attribute
 and no double-submit anything — there is nothing for them to protect. The CSP still carries
 `form-action 'self'`, which on a site with no forms is belt over braces, and stays because the
 day a form appears is not the day anyone will remember to add it.
@@ -514,12 +531,14 @@ byte unchanged.
 
 ## Exceptions
 
-Every condition this site can be in has a name, and all of them live in `NeuroSYS\Exception`. Eleven
+Every condition this site can be in has a name, and all of them live in `NeuroSYS\Exception`. Twelve
 classes — one of them abstract — and one interface:
 
 | Class | Is | Raised by |
 |---|---|---|
 | `SiteException` | the marker, an interface | — |
+| `ApiException` | a signed request that cannot be read or trusted | `ApiCredential`, `ApiEnvelope` |
+| ` └ UpdateException` | a payload that cannot be read or applied | 6 classes |
 | `MarkupException` | abstract; the three below | — |
 | ` ├ ElementException` | an element asked to be what no element can be | `Element` |
 | ` ├ ParserException` | markup outside this site's own vocabulary | `MarkupParser` |
@@ -530,10 +549,9 @@ classes — one of them abstract — and one interface:
 | `ReleaseVerificationException` | a `data/` value object built from data it cannot accept | 15 classes |
 | `RouteException` | a `SitePath` given the wrong number of values | `SitePath` |
 | `SecurityPolicyException` | a policy value that is not valid on the wire | 10 classes |
-| `UpdateException` | a payload that cannot be read or cannot be trusted | 6 classes |
 
 **`SiteException` is an interface because the inheritance chain is already spent.** Eight classes
-declare it and the three under `MarkupException` inherit it; of the eight, five are a
+declare it and the four under `MarkupException` and `ApiException` inherit it; of the eight, five are a
 `LogicException`, one a `RuntimeException`, one a `TypeError` and one an `InvalidArgumentException`
 — each saying something true — so the question *did this come from us* had nowhere left to live. It matters more than it looks: `CollectionException extends TypeError` extends
 **`Error`**, a sibling of `Exception` rather than a subclass, so `catch (Exception)` — the widest net
@@ -553,6 +571,16 @@ raised it. Throwing an SPL class is how you avoid making a promise; extending on
 common, and saying so in the language is what stops a fourth kind arriving as a bare
 `MarkupException` — which would read as "one of those three" and be none of them. A `catch` or an
 `@throws` naming it still means any of the three, which is why the split cost no test a change.
+
+**`ApiException` is the same arrangement and is deliberately *not* abstract**, which is the
+difference worth reading. Both exist so one `catch` at a boundary covers a family without listing
+it — `ApiGate` names `ApiException` and gets `UpdateException` with it — but this one is thrown:
+`ApiCredential` and `ApiEnvelope` raise it about a request that is nobody's service in particular.
+`UpdateException` was a bare `RuntimeException` before there was an API around it, and
+`ApiException` is one too, so nothing a caller could do changed — only that the throw now says
+which layer raised it. Same mechanism as `CollectionException extends TypeError`: extending what a
+class already was is how you keep every `instanceof`, `catch` and `expectException` that already
+matched.
 
 **Two throws that look misplaced are argued rather than moved.** `Terminal` throws
 `ReleaseVerificationException` for its element-type guard — but that guard is the seventh of seven
@@ -1158,7 +1186,7 @@ handles and hands everything else back to PHP untouched, and `watched()` keeps t
 what `MarkupParser` had to hand-roll a handler for. It costs **0.58 µs** a call, measured; against
 the 3.4 µs a failing `file_get_contents()` takes to fail, it does not show up. **This is the one rule
 that walks `tools/lib/` too**, and for the reason the others do not: what is excluded there are the
-doors, and a suppression is not a door — `PayloadBuilder` signs a push with the only private key this
+doors, and a suppression is not a door — `PrivateKey` signs a call with the only private key this
 repository touches.
 
 **The exception rule is three questions, and `@throws` was already answering the hardest.** Every
@@ -1904,35 +1932,60 @@ is the stronger credential, so the site gate could stand down for `/demos/`) rat
 ),
 ```
 
-## The update route
+## The API
 
-`/update` is the one route that writes, and the only reason it exists is a measurement: deploying
-means `rsync -c` over a GVFS SFTP mount where a single `stat` costs **480 ms**, walking `src/`
-alone costs **3.7 s**, and `-c` reads every one of 269 files on both sides. The same two trees are
-**209 KB gzipped**. So a deploy is minutes of round trips for a payload that fits in one request.
+`/api/{service}/{version}/{action}` is the one address family that writes, and the only reason it
+exists is a measurement: deploying means `rsync -c` over a GVFS SFTP mount where a single `stat`
+costs **480 ms**, walking `src/` alone costs **3.7 s**, and `-c` reads every one of 269 files on
+both sides. The same two trees are **209 KB gzipped**. So a deploy is minutes of round trips for a
+payload that fits in one request.
 
 ```bash
 npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
 npm run build:prod && php tools/push-update.php             # public/ + src/ + autoload.php
+php tools/api.php update v1 version                         # what is actually deployed
 ```
+
+**It was `/update`, one address with one verb, and generalising it cost less than adding a second
+endpoint beside it would have.** Every property below — the silence, the method policy, the key, the
+serial — had to hold for the next owner-only tool too, and the choice was to arrange them once more
+or to arrange them once. One `SitePath` case matches the whole family, so a new service is an
+`ApiService` case and its handlers, with no route to register and nothing to remember. `/update` is
+gone rather than aliased: an endpoint whose design is to be unfindable does not want two doors.
+
+**Which leaves one bootstrap the endpoint cannot do for itself**, and it is worth knowing before
+deploying: a server still running the old code answers `/api/…` with the 405 it gives any absent
+address, and `--url` cannot reach `/update` any more because it takes an *origin* and appends the
+path. So **the first deploy of the commit that creates `/api` goes over the mount** — `./deploy.sh`,
+which is the case it is kept for. Every push after it is one request again.
 
 **It does not replace `deploy.sh` and must not be made to.** That script still owns `data/` — 8.6 MB
 of demo audio, rsynced deliberately *without* `--delete` — and it is the recovery path: a push that
-breaks `src/` breaks the endpoint that would fix it. Nine decisions are worth knowing before
+breaks `src/` breaks the endpoint that would fix it. Eleven decisions are worth knowing before
 touching any of it, and `docs/security.md` carries the argument in full.
 
-- **It answers as though it is not there.** An unsigned request gets exactly what the site gives for
-  an address that does not exist — the rendered 404 for a read method, the `text/plain` 405 with
-  `Allow: GET, HEAD` for anything else, and the same for a verb the site does not recognise. Not a
-  401, which prompts; not a 403, which confirms; not a 405 naming POST, which confirms precisely.
-  That is structural rather than kept in step by a test: both come from `UnroutedController`, the
-  very object `Router` delegates to when nothing matches, and `UpdateController` hands it anything
-  it will not verify.
+- **It answers as though it is not there — at every depth.** An unsigned request gets exactly what
+  the site gives for an address that does not exist — the rendered 404 for a read method, the
+  `text/plain` 405 with `Allow: GET, HEAD` for anything else, and the same for a verb the site does
+  not recognise. Not a 401, which prompts; not a 403, which confirms; not a 405 naming POST, which
+  confirms precisely. That is structural rather than kept in step by a test: both come from
+  `UnroutedController`, the very object `Router` delegates to when nothing matches, and
+  `ApiController` hands it anything it will not verify. The depths cost nothing to keep in line
+  either — `/api`, `/api/update` and `/api/update/v1` match no route at all, because the pattern is
+  four segments, so they reach the same object by the ordinary path.
+- **It verifies before it resolves.** Asking "does this service exist" first would answer an
+  unsigned caller through a different path depending on what they guessed, and two paths that agree
+  today are two paths free to stop agreeing. Verified first, a service that does not exist and a
+  signature that does not verify are the same `null` reaching the same line. Past the gate the
+  posture inverts as it always did: an unknown action is a real 404 with a sentence, and a verb that
+  is not the action's is a real 405 naming the one that is — both seen only by the key holder.
 - **The router forms no opinion about its methods**, which is what `MethodPolicy::Delegated` means.
   A route carrying its own method set would make the 405 name it — `Allow: GET, HEAD, POST` — and
   that POST is the fact being hidden. An unrecognised verb was worse: `Request::method()` is null
   for one, null is in no set, and the refusal would have named the whole set. Two policies, not ten
-  sets.
+  sets. That null now has a second job: the gate refuses it on its first line, because comparing it
+  against the signed method would be an uncaught `TypeError` — a 500 where an absent address sends a
+  405, which is the whole property gone to anybody who types `BREW`.
 - **The credential is a key the server cannot use.** `data/update.pub` is an ECDSA P-256 public
   half; the private half lives at `~/.config/neurosys/update.key`, outside the repository entirely,
   the same arrangement the SoundCloud refresh token has. A full compromise of the account yields no
@@ -1945,19 +1998,56 @@ touching any of it, and `docs/security.md` carries the argument in full.
   is one-shot. P-256 was then verified end to end on the live host before a line was written.
   `PublicKey` is the only `openssl_*` call site under `src/`, pinned the way `curl_` is pinned to one
   file under `tools/lib/`, and it asks `=== 1` because `openssl_verify()` returns 1, 0 **or -1**.
-- **The wire format is a framed body, not headers.** Magic, a manifest, a signature over the
-  manifest, then the gzipped tar — the `Waveform` idiom, with a version digit. Headers were the
-  obvious alternative and were turned down twice over: `RequestHeader` is mirrored in TypeScript and
-  compared case-for-case, so header-carried metadata would put cases into the browser's bundle that
-  no browser reads; and a header is the part of a request most likely to be rewritten by something
-  between here and the client, where this passes a proxy and an Apache rewrite.
+- **The credential rides in `Authorization`, and the body is only the payload.** `NS1 <base64>`,
+  where the base64 is a length-prefixed manifest followed by the signature over it. **This paragraph
+  used to argue the opposite**, and half of that argument was simply wrong rather than outdated: it
+  said a header would put cases into the browser's bundle, because `RequestHeader` is mirrored in
+  TypeScript and compared case-for-case — but `Authorization` is a **`ServerVariable`**, not a
+  `RequestHeader`, and has no mirror. The other half stands and is why this one header is safe to
+  use: it is the part of a request most likely to be rewritten in transit, which is exactly why
+  `public/.htaccess` puts it back with `E=HTTP_AUTHORIZATION` and `Request::authorization()` reads
+  both spellings — and why both Basic gates already prove it survives Strato.
+
+  What it buys is that **a read can be signed at all**. A GET has no body to frame a credential
+  into, and every action after the first one is a read.
+
+  The size is arithmetic rather than a guess: `LimitRequestFieldSize` is 8190, the manifest is capped
+  at 2048, and the whole line comes to at most 3099 bytes. Measured against a real P-256 pair, a
+  push's header is **367 bytes** and a read's **331**.
+- **The signature binds the request, not just the payload.** The manifest carries `method` and
+  `path` beside the digest, and the gate checks both against the request carrying it. Without them a
+  credential authenticates *some* request rather than one — which was sound while `/update` was the
+  only address there was to sign for, and stops being sound the moment there are two: a credential
+  minted for a read would replay as a write, and one minted for one action would verify at another.
+  It binds `Request::path()`'s output rather than the wire target, so a trailing slash is the same
+  path, and it is compared against that string directly and never against one rebuilt from the
+  router's captures — `SitePath::to()` `rawurlencode`s each value and is **not** the inverse of
+  `Route::matches()`.
+
+  What it does *not* bind is a host, and that is a decision: `Host` is whatever the caller sent, so
+  an `aud` field would check nothing. Cross-deployment replay is closed by key separation instead —
+  `data/update.pub` is gitignored, per-deployment and uploaded by hand, so no two deployments hold
+  the same key. If one ever does, that field is what to add.
 - **Replay is closed by a serial doing double duty.** Within ±300 s of the server's clock *and*
   strictly greater than the highest already accepted, recorded at `cgi-bin/.update-serial` — above
-  the webroot, in neither mirrored tree, in no rsynced one. A **dry run does not advance it**, so a
-  captured dry run replays to nothing and the same payload can still be sent for real.
+  the webroot, in neither mirrored tree, in no rsynced one. A **dry run does not advance it**, nor
+  does a read, so a captured one replays to nothing and the same credential can still be sent for
+  real. A read not spending one is also what lets two calls be made in the same second, since a
+  serial is `time()` and the rule is *strictly* greater.
+
+  **What changed is when a write spends it: before the action, not after.** The old order wrote the
+  whole tree and then discovered it could not record the serial, leaving a deployment that had been
+  updated and a credential that could update it again — and nothing to do but say so in the report.
+  Arming first turns that into a refusal with nothing written. It means a push that fails partway
+  has still spent its serial, which is correct: the bytes that produced it must never be accepted
+  twice, and a corrected payload is different bytes with a fresh `time()` on them anyway.
 - **`data` is not a root.** Three roots and no more: `public/`, `src/`, `autoload.php`. That single
   rule is what keeps the credentials and every unreleased track out of reach of any push, however
   well signed — there is no destination to compute rather than one computed and then rejected.
+  Note the two file names that did **not** change with the route: `data/update.pub` and
+  `cgi-bin/.update-serial` now cover every service, and renaming either would mean a file uploaded
+  by hand on the server and a counter starting again from zero. They are named for the service that
+  first needed them.
 - **The tar reader is hand-rolled, and the refusals are the point.** Not `PharData`, which decides
   for itself what a member name means and what a link points at — the decisions that must not be
   delegated when the names came off the network. Only a regular file or a directory survives; a
@@ -2006,8 +2096,8 @@ unlikely to.
 
 ## The tooling
 
-`tools/` holds six commands and two things that are not. `stage-release`, `stage-demo`,
-`release-track`, `extract-midi`, `push-update` and `merge-coverage` implement
+`tools/` holds seven commands and two things that are not. `stage-release`, `stage-demo`,
+`release-track`, `extract-midi`, `push-update`, `api` and `merge-coverage` implement
 `NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a `run()`
 returning an `ExitCode`. `dev-router.php` and
 `coverage-prepend.php` implement nothing, because PHP loads them itself: one is handed to `php -S`
@@ -2020,6 +2110,9 @@ tools/
 ├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
 ├── extract-midi.php      ├── stage-demo.php       ├── push-update.php
 └── lib/
+    ├── Api/              ← the calling side: PrivateKey (the only signer in this repository),
+    │                       SignedCredential, SignedRequest — one signed call, built out of the
+    │                       site's own SitePath, AuthScheme and ApiAction rather than a copy
     ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
     ├── Command/          ← the five commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share
@@ -2041,7 +2134,7 @@ tools/
     │                       PHP source from a string: Expression, Value, Call, Argument, Entry
     ├── Release/          ← ReleaseFolder, Preflight, EntryWriter, ProjectFile, ReleasesFile
     │                       + the enums they read
-    ├── Update/           ← the push side of /update: TarWriter + PackedFile, PayloadBuilder.
+    ├── Update/           ← the push side: TarWriter + PackedFile.
     │                       The reader lives under src/ because the server needs it; the writer
     │                       lives here because the server must not have it
     └── SoundCloud/       ← the upload client: Client, Credentials/CredentialVariable/Authorization/
@@ -2265,8 +2358,9 @@ the tool.
 
 - Regular deploy: **`php tools/push-update.php`**, one signed HTTPS request carrying `public/`,
   `src/` and `autoload.php` — 209 KB against minutes of SFTP round trips. Run `npm run build:prod`
-  first; it ships `build/dist/`, the same tree `deploy.sh` does. See
-  [The update route](#the-update-route), and `--dry-run` before anything you are unsure of.
+  first; it ships `build/dist/`, the same tree `deploy.sh` does. See [The API](#the-api), and
+  `--dry-run` before anything you are unsure of. `php tools/api.php update v1 version` afterwards
+  says what is actually running.
 - Full deploy, and the recovery path: `./deploy.sh` (rsync over the mounted SFTP). It runs
   `npm run build:prod` first, so the tree it uploads is always current — see
   [Debug and prod builds](#debug-and-prod-builds). It is what still ships `data/`, and it is what
@@ -2295,7 +2389,7 @@ the tool.
   removes them by hand. See `docs/demos.md`.
 - `data/admin.php` holds bcrypt credentials for `/admin/stats`; generate with `php -r "echo password_hash('pw', PASSWORD_BCRYPT);"`
 - **`data/update.pub` is the third excluded file**, and unlike the other two there is no repo copy at
-  all — it is gitignored, per-deployment, and its absence switches `/update` off. Generate the pair
+  all — it is gitignored, per-deployment, and its absence switches `/api` off. Generate the pair
   once and upload only the public half by hand:
 
   ```bash

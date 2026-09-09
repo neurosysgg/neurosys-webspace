@@ -111,14 +111,14 @@ file is gitignored precisely so the repo copy cannot switch it on.
 2. **The method gate**, asked of the matched route rather than globally. Nine routes are
    `ReadOnly` and answer anything but `GET`/`HEAD` with a 405 whose `Allow` comes from
    `Allow::readOnly()` — derived by filtering the cases, so the header cannot advertise something
-   the gate does not do. `/update` is `Delegated`: the router forms no opinion and its controller
+   the gate does not do. `/api` is `Delegated`: the router forms no opinion and its controller
    answers every method itself, because any opinion the router formed would tell an unsigned caller
    the address is real.
 
 An unmatched path falls through to
 [`UnroutedController`](../src/NeuroSYS/Controller/UnroutedController.php), which gives the 404 for a
-read verb and the 405 for a write one — and is the same object `UpdateController` delegates to, so
-that `/update` and an address that does not exist cannot answer differently.
+read verb and the 405 for a write one — and is the same object `ApiController` delegates to, so
+that no address under `/api` and an address that does not exist can answer differently.
 
 The route table is built in
 [`RouteInitialization::routes()`](../src/NeuroSYS/Support/RouteInitialization.php) — ten entries,

@@ -267,6 +267,15 @@ final class RoutingTest extends TestCase
         yield ['/admin'];
         yield ['/admin/stats/extra'];
         yield ['/imprints'];
+
+        // Every depth short of `/api`'s four segments, and one past it. These match nothing at all,
+        // which is what makes `/api` and everything under it fall through to the same 404 as any
+        // other address that is not there — a property of the pattern rather than of a check
+        // anywhere. See SitePath::Api.
+        yield ['/api'];
+        yield ['/api/update'];
+        yield ['/api/update/v1'];
+        yield ['/api/update/v1/patch/extra'];
     }
 
     /**

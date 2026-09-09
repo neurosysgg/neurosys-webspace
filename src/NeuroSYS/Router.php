@@ -34,7 +34,7 @@ readonly class Router
         // The path is asked first and the method second, which is the opposite of how this was
         // written and is the reason it can be. The method question used to be global — one
         // `if (!$request->isReadOnly())` in front of the route table, because every route was a
-        // read. SitePath::Update is not, so the question moved onto Route as a MethodPolicy.
+        // read. SitePath::Api is not, so the question moved onto Route as a MethodPolicy.
         //
         // Nine of the ten routes answer exactly as the global gate did: POST to a download route
         // still 405s rather than 303'ing like a GET, with the same `Allow: GET, HEAD` as before.
@@ -48,7 +48,7 @@ readonly class Router
 
         // No route claimed the path, so there is no route's opinion to ask. UnroutedController
         // owns that answer — a 404 for a read verb, a 405 for a write one — and owns it because
-        // UpdateController has to give the identical one for a request it will not verify.
+        // ApiController has to give the identical one for a request it will not verify.
         return new UnroutedController()->handle($request);
     }
 
@@ -57,7 +57,7 @@ readonly class Router
      *
      * The `Allow` is always the read-only set, never the matched route's own. Nine routes have no
      * other set to name; the tenth has one it must not name, because `Allow: GET, HEAD, POST` on
-     * `/update` announces the endpoint that exists to be unannounceable — so it never reaches here
+     * `/api` announces the endpoint that exists to be unannounceable — so it never reaches here
      * at all, having {@link \NeuroSYS\Support\MethodPolicy::Delegated} instead.
      *
      * @return PlainTextResponse

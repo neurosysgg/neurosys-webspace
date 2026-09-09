@@ -4,98 +4,71 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Controller\UnroutedController;
-use NeuroSYS\Controller\UpdateController;
 use NeuroSYS\Exception\UpdateException;
-use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
-use NeuroSYS\Http\Request;
 use NeuroSYS\Model\Update\Deployment;
 use NeuroSYS\Model\Update\UpdateFile;
 use NeuroSYS\Model\Update\UpdateManifest;
-use NeuroSYS\Model\Update\UpdatePayload;
 use NeuroSYS\Model\Update\UpdateReport;
 use NeuroSYS\Model\Update\UpdateRoot;
-use NeuroSYS\Router;
+use NeuroSYS\Service\Api\UpdatePatch;
 use NeuroSYS\Service\UpdateApplier;
-use NeuroSYS\Service\UpdateGate;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
-use NeuroSYS\Support\MethodPolicy;
-use NeuroSYS\Support\PublicKey;
-use NeuroSYS\Support\Route;
-use NeuroSYS\Support\RouteInitialization;
-use NeuroSYS\Support\SitePath;
 use NeuroSYS\Support\TarArchive;
 use NeuroSYS\Support\TarEntry;
 use NeuroSYS\Support\TarMemberType;
-use OpenSSLAsymmetricKey;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionProperty;
 
 /**
- * The update endpoint: what it refuses, how quietly it refuses it, and what it does when it does not.
+ * The update service: what it will write, what it refuses, and what it says about either.
  *
- * The shape of this file follows the shape of the feature. {@link UpdateGate} refuses in silence, so
- * those tests assert a *response*, not a message — the whole point being that a caller cannot tell
- * one refusal from another or from a path that was never there. {@link UpdateApplier} refuses out
- * loud, so those tests assert the sentence, because past the signature the sentence is the only
- * account of the run that exists.
+ * **Everything here is past the signature**, which is the line this file was split on when
+ * `/update` became `/api/update/v1/patch`. {@link ApiTest} owns the half that refuses in silence —
+ * the credential, the envelope, the gate, and the property that an unsigned caller cannot tell any
+ * of it from a typo. What is left is the half that refuses *out loud*, so these tests assert the
+ * sentence, because past the signature the sentence is the only account of the run that exists.
  *
- * The archive fixtures are built by hand rather than by `TarWriter`, which lives under `tools/` and
- * — deliberately — cannot write a symlink, a device node or a name with `..` in it. A test that
- * could only produce well-formed archives could not test the refusals that matter.
+ * That split is why {@link UpdatePatch} appears here and {@link \NeuroSYS\Controller\ApiController}
+ * does not: the handler is the applier's answer turned into a response, and it needs no credential
+ * to be asked for one.
+ *
+ * The archive fixtures come from {@link UpdateFixture}, which builds raw ustar bytes rather than
+ * going through `TarWriter` — that writer, deliberately, cannot produce a symlink, a device node or
+ * a name with `..` in it, so a fixture built by it could only exercise the refusals that do not
+ * matter.
  */
-#[CoversClass(UpdateController::class)]
-#[CoversClass(UnroutedController::class)]
-#[CoversClass(UpdateGate::class)]
 #[CoversClass(UpdateApplier::class)]
+#[CoversClass(UpdatePatch::class)]
 #[CoversClass(UpdateFile::class)]
 #[CoversClass(UpdateManifest::class)]
-#[CoversClass(UpdatePayload::class)]
 #[CoversClass(UpdateReport::class)]
 #[CoversClass(UpdateRoot::class)]
 #[CoversClass(Deployment::class)]
-#[CoversClass(PublicKey::class)]
 #[CoversClass(TarArchive::class)]
 #[CoversClass(TarEntry::class)]
 #[CoversClass(TarMemberType::class)]
 final class UpdateTest extends TestCase
 {
-    private const int BLOCK = 512;
-
     private string $sandbox = '';
-    private OpenSSLAsymmetricKey $privateKey;
-    private File $keyFile;
-    private File $serialFile;
 
     /**
-     * A fresh keypair and a sandbox deployment per test.
+     * A sandbox deployment per test.
      *
-     * The key is generated rather than checked in, so the suite proves the whole chain end to end —
-     * generate, sign, verify — rather than only the verifying half against a fixture whose origin
-     * nothing states.
+     * No key and no serial file, which is the whole difference between this file and
+     * {@link ApiTest}: nothing here is reached through a signature, so nothing here needs one.
+     * {@link UpdateApplier} takes its {@link Deployment} as a constructor argument precisely so a
+     * test cannot reach the live tree rather than being unlikely to.
      *
      * @return void
      */
     protected function setUp(): void
     {
-        $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
-        self::assertNotFalse($key, 'this host cannot generate an EC key, so nothing below is meaningful');
-        $this->privateKey = $key;
-
         $this->sandbox = sys_get_temp_dir() . '/neurosys-update-' . bin2hex(random_bytes(6));
         new Directory($this->sandbox)->create();
-
-        $this->keyFile    = new File($this->sandbox . '/update.pub');
-        $this->serialFile = new File($this->sandbox . '/.update-serial');
-
-        $details = openssl_pkey_get_details($this->privateKey);
-        self::assertIsArray($details);
-        self::assertTrue($this->keyFile->write((string) $details['key']));
     }
 
     /**
@@ -104,240 +77,9 @@ final class UpdateTest extends TestCase
     protected function tearDown(): void
     {
         if ($this->sandbox !== '') {
-            self::removeTree($this->sandbox);
+            UpdateFixture::removeTree($this->sandbox);
         }
     }
-
-    // ───────────────────────────── the decoy ─────────────────────────────
-
-    /**
-     * An unsigned request is answered exactly as a path no route claims.
-     *
-     * **This is the property the whole endpoint is arranged around**, and it is asserted against the
-     * real router rather than against a remembered expectation: whatever `/no-such-page` answers,
-     * `/update` answers, for every method. A 401 or a 403 or a 405 naming POST would each announce
-     * that the address is real, and the announcement is the thing being prevented.
-     *
-     * @param string $method
-     * @return void
-     */
-    #[DataProvider('everyMethodProvider')]
-    public function testAnUnsignedRequestIsAnsweredExactlyLikeAnUnroutedPath(string $method): void
-    {
-        $router = new Router(RouteInitialization::routes());
-
-        $update   = $router->dispatch(self::request($method, SitePath::Update->value));
-        $unrouted = $router->dispatch(self::request($method, '/no-such-page'));
-
-        self::assertSame($unrouted::class, $update::class, $method . ' answers with a different kind of response');
-        self::assertSame(
-            self::statusOf($unrouted),
-            self::statusOf($update),
-            $method . ' answers with a different status',
-        );
-    }
-
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function everyMethodProvider(): iterable
-    {
-        foreach (HttpMethod::cases() as $method) {
-            yield $method->value => [$method->value];
-        }
-    }
-
-    /**
-     * The 405 on `/update` names GET and HEAD, never POST.
-     *
-     * The route does accept POST — that is how a signed push gets in — so the honest `Allow` for it
-     * would be `GET, HEAD, POST`. Sending that would tell an unsigned caller exactly what it is not
-     * allowed to know, so {@link UnroutedController} sends the read-only set instead, which is what
-     * every other unrouted path sends.
-     *
-     * @return void
-     */
-    public function testTheRefusalNeverNamesPost(): void
-    {
-        $response = new Router(RouteInitialization::routes())
-            ->dispatch(self::request('PUT', SitePath::Update->value));
-
-        self::assertInstanceOf(PlainTextResponse::class, $response);
-        self::assertSame(
-            ['Allow: GET, HEAD'],
-            new ReflectionProperty($response, 'headers')->getValue($response)
-                ->map(static fn(object $header): string => $header->line())->toValues(),
-        );
-    }
-
-    // ───────────────────────────── the per-route gate ─────────────────────────────
-
-    /**
-     * `/update` is the one route that accepts a write method, and the only one.
-     *
-     * @return void
-     */
-    public function testOnlyTheUpdateRouteAcceptsAWriteMethod(): void
-    {
-        $accepting = [];
-        $delegated = [];
-
-        foreach (RouteInitialization::routes() as $route) {
-            $pattern = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
-
-            if ($route->accepts(HttpMethod::Post)) {
-                $accepting[] = $pattern;
-            }
-
-            if (new ReflectionProperty(Route::class, 'methods')->getValue($route) === MethodPolicy::Delegated) {
-                $delegated[] = $pattern;
-            }
-        }
-
-        self::assertSame([SitePath::Update], $accepting);
-        self::assertSame([SitePath::Update], $delegated, 'a second route stopped being method-gated');
-    }
-
-    /**
-     * A route given no method set answers on the read-only ones, which is nine routes out of ten.
-     *
-     * @return void
-     */
-    public function testARouteWithNoDeclaredMethodsIsReadOnly(): void
-    {
-        $route = new Route(SitePath::Home, static fn(): never => self::fail('not reached'));
-
-        self::assertTrue($route->accepts(HttpMethod::Get));
-        self::assertTrue($route->accepts(HttpMethod::Head));
-        self::assertFalse($route->accepts(HttpMethod::Post));
-        self::assertFalse($route->accepts(null));
-    }
-
-    /**
-     * A delegated route accepts everything, an unrecognised verb included.
-     *
-     * That last part is the one worth pinning. `Request::method()` is null for a verb this site
-     * does not know, and if the router refused a null here it would answer `BREW /update`
-     * differently from `BREW /no-such-page` — which is the whole property gone, over a method
-     * nobody sends on purpose.
-     *
-     * @return void
-     */
-    public function testADelegatedRouteAcceptsEvenAnUnknownMethod(): void
-    {
-        $route = new Route(
-            SitePath::Update,
-            static fn(): never => self::fail('not reached'),
-            MethodPolicy::Delegated,
-        );
-
-        self::assertTrue($route->accepts(null));
-
-        foreach (HttpMethod::cases() as $method) {
-            self::assertTrue($route->accepts($method), $method->value . ' did not reach the controller');
-        }
-    }
-
-    // ───────────────────────────── the gate ─────────────────────────────
-
-    /**
-     * A well-formed, freshly signed push is accepted.
-     *
-     * @return void
-     */
-    public function testAValidPushIsAccepted(): void
-    {
-        self::assertNotNull($this->verdict($this->push($this->archive([
-            'src/NeuroSYS/Thing.php' => '<?php // thing',
-        ]))));
-    }
-
-    /**
-     * Everything the gate refuses, it refuses as `null` and says nothing about which.
-     *
-     * @param string $case
-     * @return void
-     */
-    #[DataProvider('refusedPushProvider')]
-    public function testTheGateRefusesInSilence(string $case): void
-    {
-        $archive = $this->archive(['src/NeuroSYS/Thing.php' => '<?php // thing']);
-
-        $verdict = match ($case) {
-            'wrong method'   => $this->verdict($this->push($archive), 'GET'),
-            'empty body'     => $this->verdict(''),
-            'garbage body'   => $this->verdict('not a payload'),
-            'wrong magic'    => $this->verdict('XXXX' . str_repeat("\0", 64)),
-            'tampered'       => $this->verdict($this->push($archive, tamper: true)),
-            'wrong key'      => $this->verdict($this->push($archive, signWith: self::otherKey())),
-            'stale serial'   => $this->verdict($this->push($archive, serial: time() - 4000)),
-            'future serial'  => $this->verdict($this->push($archive, serial: time() + 4000)),
-            'wrong digest'   => $this->verdict($this->push($archive, digest: str_repeat('a', 64))),
-            'wrong size'     => $this->verdict($this->push($archive, size: 1)),
-            default          => self::fail('unknown case ' . $case),
-        };
-
-        self::assertNull($verdict, $case . ' was not refused');
-    }
-
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function refusedPushProvider(): iterable
-    {
-        $cases = [
-            'wrong method', 'empty body', 'garbage body', 'wrong magic', 'tampered',
-            'wrong key', 'stale serial', 'future serial', 'wrong digest', 'wrong size',
-        ];
-
-        foreach ($cases as $case) {
-            yield $case => [$case];
-        }
-    }
-
-    /**
-     * No key file, no endpoint — the off switch, and the opposite polarity to `data/site_auth.php`.
-     *
-     * @return void
-     */
-    public function testWithNoKeyFileEveryPushIsRefused(): void
-    {
-        self::assertTrue($this->keyFile->delete());
-
-        self::assertNull($this->verdict($this->push($this->archive(['src/a.php' => 'x']))));
-    }
-
-    /**
-     * A key file holding something that is not an EC public key refuses everything too.
-     *
-     * @return void
-     */
-    public function testAnUnusableKeyFileRefusesEverything(): void
-    {
-        self::assertTrue($this->keyFile->write("-----BEGIN PUBLIC KEY-----\nnope\n-----END PUBLIC KEY-----\n"));
-
-        self::assertNull($this->verdict($this->push($this->archive(['src/a.php' => 'x']))));
-    }
-
-    /**
-     * A serial already accepted cannot be used again.
-     *
-     * @return void
-     */
-    public function testASerialIsAcceptedOnlyOnce(): void
-    {
-        $serial  = time();
-        $archive = $this->archive(['src/NeuroSYS/Thing.php' => '<?php // thing']);
-
-        self::assertNotNull($this->verdict($this->push($archive, serial: $serial)));
-        self::assertTrue($this->gate()->accept($serial));
-        self::assertNull(
-            $this->verdict($this->push($archive, serial: $serial)),
-            'the same serial was accepted twice, so a captured push can be replayed',
-        );
-    }
-
-    // ───────────────────────────── the applier ─────────────────────────────
 
     /**
      * Every member shape this site will not write, refused by name.
@@ -354,8 +96,8 @@ final class UpdateTest extends TestCase
         $this->expectExceptionMessageMatches('/' . preg_quote($expected, '/') . '/');
 
         (void) $this->applier()->apply(
-            (string) gzencode(self::member($name, $type === TarMemberType::File->value ? 'x' : '', $type)
-                . str_repeat("\0", self::BLOCK * 2)),
+            (string) gzencode(UpdateFixture::member($name, $type === TarMemberType::File->value ? 'x' : '', $type)
+                . str_repeat("\0", UpdateFixture::BLOCK * 2)),
             self::manifest(),
         );
     }
@@ -409,8 +151,8 @@ final class UpdateTest extends TestCase
     public function testTheSingleFileRootIsStillWritableUnderItsOwnName(): void
     {
         $report = $this->applier()->apply(
-            (string) gzencode(self::member('autoload.php', '<?php // x')
-                . str_repeat("\0", self::BLOCK * 2)),
+            (string) gzencode(UpdateFixture::member('autoload.php', '<?php // x')
+                . str_repeat("\0", UpdateFixture::BLOCK * 2)),
             self::manifest(),
         );
 
@@ -424,13 +166,13 @@ final class UpdateTest extends TestCase
      */
     public function testABadChecksumIsRefused(): void
     {
-        $bad = substr_replace(self::member('public/x.php', 'x'), 'AAAAAAAA', 148, 8);
+        $bad = substr_replace(UpdateFixture::member('public/x.php', 'x'), 'AAAAAAAA', 148, 8);
 
         $this->expectException(UpdateException::class);
         $this->expectExceptionMessageMatches('/not an octal number/');
 
         (void) $this->applier()->apply(
-            (string) gzencode($bad . str_repeat("\0", self::BLOCK * 2)),
+            (string) gzencode($bad . str_repeat("\0", UpdateFixture::BLOCK * 2)),
             self::manifest(),
         );
     }
@@ -458,7 +200,7 @@ final class UpdateTest extends TestCase
         $this->expectException(UpdateException::class);
         $this->expectExceptionMessageMatches('/truncated/');
 
-        TarArchive::parse(self::member('public/x.php', str_repeat('x', 4096), sizeOverride: 999_999));
+        TarArchive::parse(UpdateFixture::member('public/x.php', str_repeat('x', 4096), sizeOverride: 999_999));
     }
 
     /**
@@ -471,7 +213,7 @@ final class UpdateTest extends TestCase
         $this->expectException(UpdateException::class);
         $this->expectExceptionMessageMatches('/a type no tar defines/');
 
-        TarArchive::parse(self::member('public/x.php', '', 'Z') . str_repeat("\0", self::BLOCK * 2));
+        TarArchive::parse(UpdateFixture::member('public/x.php', '', 'Z') . str_repeat("\0", UpdateFixture::BLOCK * 2));
     }
 
     // ───────────────────────────── the manifest ─────────────────────────────
@@ -499,50 +241,18 @@ final class UpdateTest extends TestCase
      */
     public static function badManifestProvider(): iterable
     {
-        yield 'not JSON'          => ['{'];
-        yield 'not an object'     => ['"a string"'];
-        yield 'no serial'         => ['{"digest":"' . str_repeat('a', 64) . '","size":1,"apply":true,"mirror":true}'];
-        yield 'no digest'         => ['{"serial":1,"size":1,"apply":true,"mirror":true}'];
-        yield 'no apply'          => ['{"serial":1,"digest":"' . str_repeat('a', 64) . '","size":1,"mirror":true}'];
-        yield 'no mirror'         => ['{"serial":1,"digest":"' . str_repeat('a', 64) . '","size":1,"apply":true}'];
-        yield 'serial as string'  => ['{"serial":"1","digest":"' . str_repeat('a', 64)
-            . '","size":1,"apply":true,"mirror":true}'];
-        yield 'apply as int'      => ['{"serial":1,"digest":"' . str_repeat('a', 64)
-            . '","size":1,"apply":1,"mirror":true}'];
-        yield 'digest not a hash' => ['{"serial":1,"digest":"nope","size":1,"apply":true,"mirror":true}'];
-        yield 'digest uppercase'  => ['{"serial":1,"digest":"' . str_repeat('A', 64)
-            . '","size":1,"apply":true,"mirror":true}'];
-        yield 'negative size'     => ['{"serial":1,"digest":"' . str_repeat('a', 64)
-            . '","size":-1,"apply":true,"mirror":true}'];
+        yield 'not JSON'      => ['{'];
+        yield 'not an object' => ['"a string"'];
+        yield 'no apply'      => ['{"mirror":true}'];
+        yield 'no mirror'     => ['{"apply":true}'];
+        yield 'apply as int'  => ['{"apply":1,"mirror":true}'];
+        yield 'mirror as string' => ['{"apply":true,"mirror":"yes"}'];
+
+        // The envelope's fields are not this parser's business and their absence is not an error
+        // here — ApiEnvelope reads the same bytes and refuses them there. A row asserting the
+        // opposite is how one document quietly acquires two owners for one field.
+        yield 'the envelope\'s fields alone' => ['{"serial":1,"method":"POST","path":"/x"}'];
     }
-
-    /**
-     * A length prefix that runs past the end of the body.
-     *
-     * @return void
-     */
-    public function testAPayloadWhoseSegmentRunsPastTheEndIsRefused(): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessageMatches('/only \d+ bytes follow/');
-
-        UpdatePayload::parse(UpdatePayload::MAGIC . pack('N', 4096) . 'short');
-    }
-
-    /**
-     * A manifest length beyond what a manifest can be.
-     *
-     * @return void
-     */
-    public function testAnOversizedSegmentIsRefused(): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessageMatches('/over the \d+-byte limit/');
-
-        UpdatePayload::parse(UpdatePayload::MAGIC . pack('N', 1_000_000) . 'x');
-    }
-
-    // ───────────────────────────── roots ─────────────────────────────
 
     /**
      * `data` is not a root, which is the single rule keeping the credentials and the demos safe.
@@ -594,58 +304,6 @@ final class UpdateTest extends TestCase
     // ───────────────────────────── the key ─────────────────────────────
 
     /**
-     * A key that is not a key, and a key of the wrong kind, are both refused where they are read.
-     *
-     * @return void
-     */
-    public function testOnlyAnEcPublicKeyIsAccepted(): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessageMatches('/not a readable PEM public key/');
-
-        PublicKey::fromPem('not a key');
-    }
-
-    /**
-     * An RSA key parses and is still refused: it would answer a different question.
-     *
-     * @return void
-     */
-    public function testAnRsaKeyIsRefused(): void
-    {
-        $rsa = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048]);
-        self::assertNotFalse($rsa);
-        $details = openssl_pkey_get_details($rsa);
-        self::assertIsArray($details);
-
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessageMatches('/not an EC key/');
-
-        PublicKey::fromPem((string) $details['key']);
-    }
-
-    /**
-     * A good signature verifies and a tampered one does not.
-     *
-     * @return void
-     */
-    public function testTheKeyVerifiesOnlyWhatItSigned(): void
-    {
-        $details = openssl_pkey_get_details($this->privateKey);
-        self::assertIsArray($details);
-        $key = PublicKey::fromPem((string) $details['key']);
-
-        $signature = null;
-        self::assertTrue(openssl_sign('payload', $signature, $this->privateKey, OPENSSL_ALGO_SHA256));
-
-        self::assertTrue($key->verifies('payload', (string) $signature));
-        self::assertFalse($key->verifies('payloaX', (string) $signature));
-        self::assertFalse($key->verifies('payload', 'not a signature'));
-    }
-
-    // ───────────────────────────── the report ─────────────────────────────
-
-    /**
      * The report copies rather than accumulating, and says which run it describes.
      *
      * @return void
@@ -678,7 +336,7 @@ final class UpdateTest extends TestCase
         self::assertTrue($webroot->file('keep.txt')->write('old'));
 
         $report = $this->applier()->apply(
-            $this->archive(['public/keep.txt' => 'new']),
+            UpdateFixture::archive(['public/keep.txt' => 'new']),
             self::manifest(mirror: true),
         );
 
@@ -715,7 +373,7 @@ final class UpdateTest extends TestCase
 
         try {
             $report = $this->applier()->apply(
-                $this->archive(['public/keep.txt' => 'new']),
+                UpdateFixture::archive(['public/keep.txt' => 'new']),
                 self::manifest(mirror: true),
             );
 
@@ -742,7 +400,7 @@ final class UpdateTest extends TestCase
         self::assertTrue($webroot->file('keep.txt')->write('old'));
 
         $report = $this->applier()->apply(
-            $this->archive(['public/keep.txt' => 'new']),
+            UpdateFixture::archive(['public/keep.txt' => 'new']),
             self::manifest(apply: false),
         );
 
@@ -779,12 +437,12 @@ final class UpdateTest extends TestCase
 
         $payload = ['public/same.txt' => 'identical', 'public/other.txt' => 'new'];
 
-        $planned = $this->applier()->apply($this->archive($payload), self::manifest(apply: false));
+        $planned = $this->applier()->apply(UpdateFixture::archive($payload), self::manifest(apply: false));
         self::assertStringContainsString('unchanged 1', $planned->render());
         self::assertStringContainsString('+ public/other.txt', $planned->render());
         self::assertStringNotContainsString('+ public/same.txt', $planned->render());
 
-        $report = $this->applier()->apply($this->archive($payload), self::manifest());
+        $report = $this->applier()->apply(UpdateFixture::archive($payload), self::manifest());
 
         self::assertTrue($report->isComplete(), $report->render());
         self::assertStringContainsString('written 1  unchanged 1', $report->render());
@@ -800,37 +458,6 @@ final class UpdateTest extends TestCase
     }
 
     // ───────────────────────────── the last refusals ─────────────────────────────
-
-    /**
-     * A payload that stops inside a length field is refused rather than read past.
-     *
-     * The two segments are length-prefixed and read in sequence, so the bound has to be checked
-     * before the prefix is unpacked as well as before the segment is taken. `unpack()` on a short
-     * string does not fail usefully — it warns and hands back something — which is why the guard is
-     * an explicit comparison rather than a check of its result.
-     *
-     * @param int $keep
-     * @param string $expected
-     * @return void
-     */
-    #[DataProvider('truncatedPayloadProvider')]
-    public function testAPayloadTruncatedInsideALengthIsRefused(int $keep, string $expected): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessage($expected);
-
-        UpdatePayload::parse(substr($this->push($this->archive(['public/a.txt' => 'x'])), 0, $keep));
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function truncatedPayloadProvider(): iterable
-    {
-        // Magic, then nothing — the manifest's own length field is not there.
-        yield 'before the manifest length'   => [4, 'ends before its manifest length'];
-        yield 'inside the manifest length'   => [6, 'ends before its manifest length'];
-    }
 
     /**
      * A header whose stored checksum does not match its bytes is refused, and says why.
@@ -849,9 +476,9 @@ final class UpdateTest extends TestCase
 
         // The name is changed after the checksum was computed over the original, so the block is
         // well formed in every other way — which is the case worth refusing.
-        $member = self::member('public/a.txt', 'x');
+        $member = UpdateFixture::member('public/a.txt', 'x');
 
-        TarArchive::parse(substr_replace($member, 'X', 0, 1) . str_repeat("\0", self::BLOCK * 2));
+        TarArchive::parse(substr_replace($member, 'X', 0, 1) . str_repeat("\0", UpdateFixture::BLOCK * 2));
     }
 
     /**
@@ -873,7 +500,7 @@ final class UpdateTest extends TestCase
         // the endpoint's whole response, and what is being demonstrated here is that it throws.
         (void) $this->applier()->apply(
             (string) gzencode(
-                self::member($name, 'x', prefix: $prefix) . str_repeat("\0", self::BLOCK * 2),
+                UpdateFixture::member($name, 'x', prefix: $prefix) . str_repeat("\0", UpdateFixture::BLOCK * 2),
             ),
             self::manifest(),
         );
@@ -910,7 +537,7 @@ final class UpdateTest extends TestCase
         self::assertTrue($webroot->file('assets/stale.js')->write('stale'));
 
         $report = $this->applier()->apply(
-            $this->archive(['public/keep.txt' => 'new']),
+            UpdateFixture::archive(['public/keep.txt' => 'new']),
             self::manifest(apply: false, mirror: true),
         );
 
@@ -941,7 +568,7 @@ final class UpdateTest extends TestCase
 
         try {
             $report = $this->applier()->apply(
-                $this->archive(['public/keep.txt' => 'new']),
+                UpdateFixture::archive(['public/keep.txt' => 'new']),
                 self::manifest(mirror: true),
             );
 
@@ -1019,96 +646,26 @@ final class UpdateTest extends TestCase
         );
     }
 
-    // ───────────────────────────── the controller, past the gate ─────────────────────────────
+    // ───────────────────────────── the handler, past the gate ─────────────────────────────
 
     /**
-     * A push that verifies is applied, reported, and answered 200.
-     *
-     * Everything above this point tests the gate refusing; this is the other half, and it is the
-     * half no local rig had exercised before the endpoint went live. The report *is* the response
-     * body — `display_errors` is off on the live host and `error_log` is empty, so anything this
-     * does not say is written down nowhere at all.
-     *
-     * @return void
-     */
-    public function testAVerifiedPushIsAppliedAndReported(): void
-    {
-        $webroot = new Directory($this->sandbox . '/public');
-        self::assertTrue($webroot->create());
-
-        $response = $this->respond($this->push($this->archive(['public/new.txt' => 'hello'])));
-
-        self::assertSame(HttpStatusCode::Ok, self::statusOf($response));
-        self::assertStringContainsString('applied', self::bodyOf($response));
-        self::assertStringContainsString('written 1', self::bodyOf($response));
-        self::assertStringContainsString('+ public/new.txt', self::bodyOf($response));
-        self::assertSame('hello', $webroot->file('new.txt')->read());
-    }
-
-    /**
-     * A verified push advances the serial, so the very same bytes cannot be sent twice.
-     *
-     * @return void
-     */
-    public function testAVerifiedPushAdvancesTheSerial(): void
-    {
-        self::assertTrue(new Directory($this->sandbox . '/public')->create());
-
-        $body = $this->push($this->archive(['public/new.txt' => 'hello']));
-
-        self::assertSame(HttpStatusCode::Ok, self::statusOf($this->respond($body)));
-        self::assertNotNull($this->serialFile->read());
-
-        // The identical bytes again: the gate now refuses, so the controller never runs and the
-        // caller gets the answer an address that does not exist gives.
-        $replay = $this->respond($body);
-        self::assertSame(HttpStatusCode::MethodNotAllowed, self::statusOf($replay));
-        self::assertSame(UnroutedController::REFUSAL, self::bodyOf($replay));
-    }
-
-    /**
-     * A dry run leaves the serial alone, so the same payload can then be sent for real.
-     *
-     * This is the property that makes `--dry-run` worth having rather than merely safe: a captured
-     * dry run replays to nothing, *and* the operator does not have to rebuild to send it properly.
-     *
-     * @return void
-     */
-    public function testADryRunThroughTheControllerLeavesTheSerialAlone(): void
-    {
-        $webroot = new Directory($this->sandbox . '/public');
-        self::assertTrue($webroot->create());
-
-        $body     = $this->push($this->archive(['public/new.txt' => 'hello']), apply: false);
-        $response = $this->respond($body);
-
-        self::assertSame(HttpStatusCode::Ok, self::statusOf($response));
-        self::assertStringContainsString('dry run', self::bodyOf($response));
-        self::assertFalse($webroot->file('new.txt')->exists(), 'a dry run wrote to disk');
-        self::assertNull($this->serialFile->read(), 'a dry run advanced the serial');
-
-        // And now the same bytes for real.
-        self::assertSame(HttpStatusCode::Ok, self::statusOf($this->respond($body)));
-    }
-
-    /**
-     * An archive that verifies but will not expand is a 422 with a sentence, not the decoy.
+     * An archive that verifies but will not expand throws, having written nothing.
      *
      * The signature is over the *manifest*, and the manifest vouches for the archive by digest —
-     * so bytes that are not gzip at all can still be perfectly signed. Past that point the caller
-     * has proved it holds the private key, and there is nothing left to hide from it: the decoy
-     * would only be a worse error message.
+     * so bytes that are not gzip at all can still be perfectly signed. What the caller then sees is
+     * a 422 with this sentence in it, which is {@link \NeuroSYS\Controller\ApiController}'s to
+     * build and {@link ApiTest}'s to assert; what this file owns is that the handler refuses by
+     * throwing rather than by answering, since a refusal that came back as a `Response` would be
+     * indistinguishable from a push that ran.
      *
      * @return void
      */
-    public function testAnArchiveThatWillNotExpandIsAnswered422(): void
+    public function testAnArchiveThatWillNotExpandThrows(): void
     {
-        $response = $this->respond($this->push('this is not gzip at all'));
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessageMatches('/not gzip/');
 
-        self::assertSame(HttpStatusCode::UnprocessableContent, self::statusOf($response));
-        self::assertStringContainsString('refused:', self::bodyOf($response));
-        self::assertStringContainsString('not gzip', self::bodyOf($response));
-        self::assertNull($this->serialFile->read(), 'a refused payload advanced the serial');
+        (void) new UpdatePatch(self::manifest(), 'this is not gzip at all', $this->applier())->handle();
     }
 
     /**
@@ -1126,14 +683,14 @@ final class UpdateTest extends TestCase
         self::assertTrue($webroot->create());
         self::assertTrue($webroot->file('blocked')->write('in the way'));
 
-        $response = $this->respond($this->push($this->archive([
+        $response = $this->respond(UpdateFixture::archive([
             'public/fine.txt'         => 'written',
             'public/blocked/deep.txt' => 'cannot be',
-        ])));
+        ]));
 
-        self::assertSame(HttpStatusCode::InternalServerError, self::statusOf($response));
-        self::assertStringContainsString('! public/blocked/deep.txt', self::bodyOf($response));
-        self::assertStringContainsString('directory could not be created', self::bodyOf($response));
+        self::assertSame(HttpStatusCode::InternalServerError, UpdateFixture::statusOf($response));
+        self::assertStringContainsString('! public/blocked/deep.txt', UpdateFixture::bodyOf($response));
+        self::assertStringContainsString('directory could not be created', UpdateFixture::bodyOf($response));
 
         // The rest still landed. A partial push is reported as one rather than rolled back: there
         // is nothing to roll back to, and the report names exactly what is missing.
@@ -1155,42 +712,12 @@ final class UpdateTest extends TestCase
         self::assertTrue($webroot->directory('occupied.txt')->create());
         self::assertTrue($webroot->file('occupied.txt/inside')->write('x'));
 
-        $response = $this->respond($this->push($this->archive(['public/occupied.txt' => 'nope'])));
+        $response = $this->respond(UpdateFixture::archive(['public/occupied.txt' => 'nope']));
 
-        self::assertSame(HttpStatusCode::InternalServerError, self::statusOf($response));
-        self::assertStringContainsString('! public/occupied.txt', self::bodyOf($response));
-        self::assertStringContainsString('could not be written', self::bodyOf($response));
+        self::assertSame(HttpStatusCode::InternalServerError, UpdateFixture::statusOf($response));
+        self::assertStringContainsString('! public/occupied.txt', UpdateFixture::bodyOf($response));
+        self::assertStringContainsString('could not be written', UpdateFixture::bodyOf($response));
     }
-
-    /**
-     * A serial that could not be recorded is reported, because replay protection is then off.
-     *
-     * The quietest possible failure on this endpoint: everything applied, the response is cheerful,
-     * and the next identical payload is accepted again because nothing remembered this one. So the
-     * write is checked and its failure is a reported failure like any other — which also makes the
-     * response a 500, and a 500 on a push that wrote everything is exactly the alarm wanted here.
-     *
-     * @return void
-     */
-    public function testASerialThatCannotBeRecordedIsReported(): void
-    {
-        self::assertTrue(new Directory($this->sandbox . '/public')->create());
-
-        // File::write() fails on a path whose directory is missing, and does so deliberately.
-        $unwritable = new File($this->sandbox . '/no-such-directory/.update-serial');
-
-        $response = $this->respond(
-            $this->push($this->archive(['public/new.txt' => 'hello'])),
-            serial: $unwritable,
-        );
-
-        self::assertSame(HttpStatusCode::InternalServerError, self::statusOf($response));
-        self::assertStringContainsString('! the update serial', self::bodyOf($response));
-        self::assertStringContainsString('can be replayed', self::bodyOf($response));
-        self::assertStringContainsString('+ public/new.txt', self::bodyOf($response), 'the push itself failed');
-    }
-
-    // ───────────────────────────── helpers ─────────────────────────────
 
     /**
      * An applier that can only reach the sandbox.
@@ -1212,149 +739,6 @@ final class UpdateTest extends TestCase
     }
 
     /**
-     * @return UpdateGate
-     */
-    private function gate(): UpdateGate
-    {
-        return new UpdateGate($this->keyFile, $this->serialFile);
-    }
-
-    /**
-     * A signed push, with every knob a test might want to turn wrong.
-     *
-     * @param string $archive
-     * @param bool $tamper
-     * @param OpenSSLAsymmetricKey|null $signWith
-     * @param int|null $serial
-     * @param string|null $digest
-     * @param int|null $size
-     * @param bool $apply
-     * @param bool $mirror
-     * @return string
-     */
-    private function push(
-        string $archive,
-        bool $tamper = false,
-        ?OpenSSLAsymmetricKey $signWith = null,
-        ?int $serial = null,
-        ?string $digest = null,
-        ?int $size = null,
-        bool $apply = true,
-        bool $mirror = false,
-    ): string {
-        $manifest = json_encode([
-            'serial' => $serial ?? time(),
-            'digest' => $digest ?? hash('sha256', $archive),
-            'size'   => $size ?? strlen($archive),
-            'apply'  => $apply,
-            'mirror' => $mirror,
-        ], JSON_THROW_ON_ERROR);
-
-        $signature = null;
-        openssl_sign($manifest, $signature, $signWith ?? $this->privateKey, OPENSSL_ALGO_SHA256);
-
-        $body = UpdatePayload::MAGIC
-            . pack('N', strlen($manifest)) . $manifest
-            . pack('N', strlen((string) $signature)) . (string) $signature
-            . $archive;
-
-        if ($tamper) {
-            $body[strlen($body) - 1] = $body[strlen($body) - 1] === 'A' ? 'B' : 'A';
-        }
-
-        return $body;
-    }
-
-    /**
-     * What the gate makes of $body, arriving as a POST to `/update`.
-     *
-     * @param string $body
-     * @param string $method
-     * @return array{UpdateManifest, string}|null
-     */
-    private function verdict(string $body, string $method = 'POST'): ?array
-    {
-        $request = self::request($method, SitePath::Update->value);
-
-        return PhpInputStream::around($body, fn(): ?array => $this->gate()->accepts($request));
-    }
-
-    /**
-     * A gzipped ustar archive holding $files, keyed by member name.
-     *
-     * @param array<string, string> $files
-     * @return string
-     */
-    private function archive(array $files): string
-    {
-        $tar = '';
-
-        foreach ($files as $name => $contents) {
-            $tar .= self::member($name, $contents);
-        }
-
-        return (string) gzencode($tar . str_repeat("\0", self::BLOCK * 2));
-    }
-
-    /**
-     * One raw ustar member — built here rather than by `TarWriter`, which cannot write the shapes
-     * these tests need to prove are refused.
-     *
-     * @param string $name
-     * @param string $contents
-     * @param string $type
-     * @param int|null $sizeOverride A size the member does not actually carry, for truncation.
-     * @param string $prefix The second of ustar's two name fields, and the only way a member name
-     *                        exceeds the 100-byte `name` field at all — so also the only way to
-     *                        reach the reader's own 255-byte bound, since prefix + '/' + name tops
-     *                        out at 256.
-     * @return string
-     */
-    private static function member(
-        string $name,
-        string $contents,
-        string $type = '0',
-        ?int $sizeOverride = null,
-        string $prefix = '',
-    ): string {
-        $size   = $sizeOverride ?? ($type === '0' ? strlen($contents) : 0);
-        $header = pack(
-            'a100a8a8a8a12a12a8a1a100a6a2a32a32a8a8a155a12',
-            $name,
-            "0000644\0",
-            "0000000\0",
-            "0000000\0",
-            sprintf('%011o', $size) . "\0",
-            sprintf('%011o', 0) . "\0",
-            '        ',
-            $type,
-            '',
-            'ustar',
-            '00',
-            '',
-            '',
-            "0000000\0",
-            "0000000\0",
-            $prefix,
-            '',
-        );
-
-        $sum = 0;
-        for ($i = 0; $i < self::BLOCK; $i++) {
-            $sum += ord($header[$i]);
-        }
-        $header = substr_replace($header, sprintf('%06o', $sum) . "\0 ", 148, 8);
-
-        if ($type !== '0' || $contents === '') {
-            return $header;
-        }
-
-        $pad = strlen($contents) % self::BLOCK;
-
-        return $header . $contents . ($pad === 0 ? '' : str_repeat("\0", self::BLOCK - $pad));
-    }
-
-    /**
      * @param bool $apply
      * @param bool $mirror
      * @return UpdateManifest
@@ -1362,101 +746,42 @@ final class UpdateTest extends TestCase
     private static function manifest(bool $apply = true, bool $mirror = false): UpdateManifest
     {
         return UpdateManifest::parse(json_encode([
-            'serial' => time(),
-            'digest' => str_repeat('a', 64),
-            'size'   => 0,
             'apply'  => $apply,
             'mirror' => $mirror,
         ], JSON_THROW_ON_ERROR));
     }
 
     /**
-     * A request for $path, arrived by $method.
+     * The handler's answer to $archive, with an applier that can reach nothing but the sandbox.
      *
-     * @param string $method
-     * @param string $path
-     * @return Request
-     */
-    private static function request(string $method, string $path): Request
-    {
-        $_SERVER = ['REQUEST_METHOD' => $method, 'REQUEST_URI' => $path];
-
-        return Request::fromGlobals();
-    }
-
-    /**
-     * The whole endpoint, end to end: a real request carrying $body, a real gate over the
-     * sandbox's key and serial, and an applier that can reach nothing but the sandbox.
+     * **It builds {@link UpdatePatch} directly rather than going through the controller**, and that
+     * is the split rather than a shortcut: what these tests are about is the applier's report
+     * becoming a response — a 422 for an archive that will not expand, a 500 for a run that could
+     * not write everything — and none of that has anything to say about signatures. Reaching it
+     * through {@link \NeuroSYS\Controller\ApiController} would mean minting a credential to test
+     * the shape of a sentence. {@link ApiTest} takes the same path end to end, once, which is where
+     * a claim about the wiring belongs.
      *
-     * @param string $body
+     * @param string $archive
      * @param UpdateApplier|null $applier
-     * @param File|null $serial
+     * @param bool $apply
+     * @param bool $mirror
      * @return PlainTextResponse
      */
     private function respond(
-        string $body,
+        string $archive,
         ?UpdateApplier $applier = null,
-        ?File $serial = null,
+        bool $apply = true,
+        bool $mirror = false,
     ): PlainTextResponse {
-        $controller = new UpdateController(
-            new UpdateGate($this->keyFile, $serial ?? $this->serialFile),
+        $response = new UpdatePatch(
+            self::manifest($apply, $mirror),
+            $archive,
             $applier ?? $this->applier(),
-        );
-
-        $request  = self::request('POST', SitePath::Update->value);
-        $response = PhpInputStream::around($body, static fn(): object => $controller->handle($request));
+        )->handle();
 
         self::assertInstanceOf(PlainTextResponse::class, $response);
 
         return $response;
-    }
-
-    /**
-     * @param object $response
-     * @return HttpStatusCode
-     */
-    private static function statusOf(object $response): HttpStatusCode
-    {
-        return new ReflectionProperty($response, 'status')->getValue($response);
-    }
-
-    /**
-     * @param object $response
-     * @return string
-     */
-    private static function bodyOf(object $response): string
-    {
-        return new ReflectionProperty($response, 'body')->getValue($response);
-    }
-
-    /**
-     * @return OpenSSLAsymmetricKey
-     */
-    private static function otherKey(): OpenSSLAsymmetricKey
-    {
-        $key = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
-        self::assertNotFalse($key);
-
-        return $key;
-    }
-
-    /**
-     * @param string $path
-     * @return void
-     */
-    private static function removeTree(string $path): void
-    {
-        foreach ((array) glob($path . '/{,.}*', GLOB_BRACE) as $entry) {
-            $entry = (string) $entry;
-            $name  = basename($entry);
-
-            if ($name === '.' || $name === '..') {
-                continue;
-            }
-
-            is_dir($entry) ? self::removeTree($entry) : @unlink($entry);
-        }
-
-        @rmdir($path);
     }
 }

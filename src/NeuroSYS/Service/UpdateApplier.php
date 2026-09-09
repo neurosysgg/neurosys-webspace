@@ -42,7 +42,7 @@ use NoDiscard;
  * against the payload, and each surplus path is checked by the same rules an added path passes
  * before {@link File::delete()} is called on it — one named file at a time.
  *
- * **This class is generous with detail, unlike everything in {@link UpdateGate}.** Every refusal
+ * **This class is generous with detail, unlike everything in {@link ApiGate}.** Every refusal
  * below says exactly what was wrong, because nothing reaches here without having produced a valid
  * signature first. It is also the only account of the run there will be: on the live host
  * `display_errors` is off and `error_log` is the empty string, so a warning goes nowhere at all.

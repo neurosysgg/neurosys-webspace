@@ -22,9 +22,10 @@ use NeuroSYS\Exception\RouteException;
  * with *and* what a view builds from — one fact, read from one place, in both directions. That is
  * the whole point: a pattern that is only ever half of a pair cannot drift from its other half.
  *
- * `{slug}`, `{format}` and `{label}` are the three placeholders, and their syntax is
- * {@link Route::matches()}'s to interpret; this class only counts them. Note there is no `/demos`
- * case, and its absence is load-bearing — see {@link RouteInitialization::routes()}.
+ * `{slug}`, `{format}`, `{label}`, `{service}`, `{version}` and `{action}` are the placeholders,
+ * and their syntax is {@link Route::matches()}'s to interpret; this class only counts them. Note
+ * there is no `/demos` case, and its absence is load-bearing — see
+ * {@link RouteInitialization::routes()}.
  */
 enum SitePath: string
 {
@@ -56,19 +57,31 @@ enum SitePath: string
     case Privacy = '/privacy';
 
     /**
-     * The signed deploy endpoint — the one address here that is not a page and the one that writes.
+     * Every signed API address at once — the one case here that is not a page, and the one family
+     * that writes.
      *
      * **It is a case for the same reason every other address is**, even though no view links to it:
      * this enum is what the router matches against, so an address that lived as a literal would be
      * a route the table did not have. That it is unreachable from the site is a property of there
      * being no `<a>` to it, not of it being spelled differently.
      *
-     * Answering on it is another matter. {@link \NeuroSYS\Controller\UpdateController} replies
+     * **It is one case for a whole family, which no other case here is**, and that is what makes
+     * adding a service cheap: `{service}` and `{action}` are matched exactly as `{slug}` is, so a
+     * new service is an {@link \NeuroSYS\Http\Api\ApiService} case and its handlers, with no
+     * route to register and nothing to remember about method policy. It also means the depth is the
+     * pattern: `/api`, `/api/update` and `/api/update/v1` match **nothing**, so they fall through to
+     * the same 404 as any other address that is not there, without a check anywhere saying so.
+     *
+     * `{version}` is a segment rather than something the router understands, deliberately — see
+     * {@link \NeuroSYS\Http\Api\ApiVersion} for why it sits after the service and not before it.
+     *
+     * Answering on it is another matter. {@link \NeuroSYS\Controller\ApiController} replies
      * exactly as the site replies for a path no route claims, unless the request carries a
      * signature `data/update.pub` verifies — and that file is absent by default, so on a fresh
-     * clone this address is a 404 and nothing else. See {@link \NeuroSYS\DataFile::UpdateKey}.
+     * clone every one of these addresses is a 404 and nothing else. See
+     * {@link \NeuroSYS\DataFile::UpdateKey}.
      */
-    case Update = '/update';
+    case Api = '/api/{service}/{version}/{action}';
 
     /**
      * This path with its placeholders filled, in declaration order.

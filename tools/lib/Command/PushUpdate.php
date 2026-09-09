@@ -4,9 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
+use NeuroSYS\Http\Api\ApiService;
+use NeuroSYS\Http\Api\ApiVersion;
+use NeuroSYS\Http\Api\UpdateAction;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
+use NeuroSYS\Tool\Api\PrivateKey;
+use NeuroSYS\Tool\Api\SignedRequest;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -14,12 +19,10 @@ use NeuroSYS\Tool\Cli\Option;
 use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Cli\UsageException;
 use NeuroSYS\Tool\Http\CurlTransport;
-use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Transport;
 use NeuroSYS\Tool\Http\TransportException;
 use NeuroSYS\Tool\Http\Url;
 use NeuroSYS\Tool\Update\PackedFile;
-use NeuroSYS\Tool\Update\PayloadBuilder;
 use NeuroSYS\Tool\Update\TarWriter;
 
 /**
@@ -42,8 +45,15 @@ use NeuroSYS\Tool\Update\TarWriter;
  */
 final readonly class PushUpdate implements Command
 {
-    /** Where a push goes unless `--url` says otherwise. */
-    private const string DEFAULT_URL = 'https://neurosys.gg/update';
+    /**
+     * Which deployment a push goes to unless `--url` says otherwise.
+     *
+     * An **origin**, not an endpoint, which is what changed when `/update` became
+     * `/api/update/v1/patch`. The path is {@link SignedRequest}'s to compute from the typed action,
+     * so there is one place that knows the address and it is the same {@link \NeuroSYS\Support\SitePath}
+     * case the router matches with. A full endpoint here would be that address written twice.
+     */
+    private const string DEFAULT_BASE = 'https://neurosys.gg';
 
     /**
      * Constructs an instance of {@link self}.
@@ -65,7 +75,7 @@ final readonly class PushUpdate implements Command
      */
     public function usage(): string
     {
-        return '[--dry-run] [--no-mirror] [--url <url>] [--key <file>]';
+        return '[--dry-run] [--no-mirror] [--url <origin>] [--key <file>]';
     }
 
     /**
@@ -100,16 +110,23 @@ final readonly class PushUpdate implements Command
 
         $dryRun = $input->has(PushUpdateOption::DryRun);
         $files  = $this->files($dist);
+        $base   = $input->value(PushUpdateOption::Url) ?? self::DEFAULT_BASE;
 
         // A missing or unusable key is an ordinary mistake and reads as one. Runner only catches a
         // UsageException around argument parsing — by design, since a command's run() answers with
         // an ExitCode — so it is caught here rather than escaping as a stack trace.
         try {
-            $payload = PayloadBuilder::build(
-                $files,
-                $this->key($input),
-                !$dryRun,
-                !$input->has(PushUpdateOption::NoMirror),
+            $archive = $this->archive($files);
+            $request = SignedRequest::build(
+                new Url($base),
+                ApiService::Update,
+                ApiVersion::V1,
+                UpdateAction::Patch,
+                $archive,
+                // The flags are negative and the manifest's fields are positive, which is the one
+                // inversion in this command: `--dry-run` means `apply: false`.
+                ['apply' => !$dryRun, 'mirror' => !$input->has(PushUpdateOption::NoMirror)],
+                PrivateKey::fromFile($this->key($input)),
             );
         } catch (UsageException $exception) {
             $output->error($this->name() . ': ' . $exception->getMessage() . "\n");
@@ -118,16 +135,15 @@ final readonly class PushUpdate implements Command
         }
 
         $output->error(sprintf(
-            "%s %d files, %s payload → %s\n",
+            "%s %d files, %s archive → %s\n",
             $dryRun ? 'dry run:' : 'pushing',
             $files->count(),
-            $this->humanised(strlen($payload)),
-            $input->value(PushUpdateOption::Url) ?? self::DEFAULT_URL,
+            $this->humanised(strlen($archive)),
+            $request->url->render(),
         ));
 
         try {
-            $url      = new Url($input->value(PushUpdateOption::Url) ?? self::DEFAULT_URL);
-            $response = ($this->transport ?? new CurlTransport())->send(Request::raw($url, $payload));
+            $response = ($this->transport ?? new CurlTransport())->send($request);
         } catch (TransportException $exception) {
             $output->error($this->name() . ': ' . $exception->getMessage() . "\n");
 
@@ -137,9 +153,9 @@ final readonly class PushUpdate implements Command
         $output->out($response->body);
 
         if (!$response->isOk()) {
-            // 404 and 405 are the same answer wearing two faces: /update replies exactly as the
-            // site replies for an address that does not exist, which is a 404 for a read method and
-            // a 405 for a write one — and a push is a POST. Either means the request was not
+            // 404 and 405 are the same answer wearing two faces: /api replies exactly as the site
+            // replies for an address that does not exist, which is a 404 for a read method and a
+            // 405 for a write one — and a push is a POST. Either means the request was not
             // verified, and the endpoint deliberately will not say which check failed.
             $unverified = $response->status === 404 || $response->status === 405;
 
@@ -147,11 +163,12 @@ final readonly class PushUpdate implements Command
                 "\nrefused with %d.%s\n",
                 $response->status,
                 $unverified
-                    ? "\n  That is what /update answers to anything it will not verify — it does not"
+                    ? "\n  That is what /api answers to anything it will not verify — it does not"
                     . " say which check failed, by design. In order of likelihood:\n"
                     . "    1. data/update.pub on the server does not match this private key\n"
                     . "    2. this machine's clock is more than five minutes from the server's\n"
-                    . "    3. this exact payload was already applied (rebuild to mint a new serial)"
+                    . "    3. this exact payload was already applied (rebuild to mint a new serial)\n"
+                    . "    4. the server is older than /api and still answers on /update"
                     : '',
             ));
 
@@ -185,6 +202,30 @@ final readonly class PushUpdate implements Command
     }
 
     /**
+     * The payload: every file, tarred and gzipped.
+     *
+     * The body of the request and nothing else — where its predecessor framed a manifest and a
+     * signature in front of these bytes, both of those now ride in the `Authorization` header and
+     * the body is exactly what it claims to be. That is what lets a read be signed the same way
+     * with no body at all.
+     *
+     * @param Collection<PackedFile> $files
+     * @return string
+     *
+     * @throws UsageException if the archive cannot be compressed.
+     */
+    private function archive(Collection $files): string
+    {
+        $archive = gzencode(TarWriter::pack($files), 9);
+
+        if ($archive === false) {
+            throw new UsageException('could not gzip the archive');
+        }
+
+        return $archive;
+    }
+
+    /**
      * The private key, from `--key` or from the default under `$HOME`.
      *
      * @param Input $input
@@ -204,7 +245,7 @@ final readonly class PushUpdate implements Command
             throw new UsageException('HOME is not set, so --key must name the private key.');
         }
 
-        return new File($home . '/' . PayloadBuilder::DEFAULT_KEY);
+        return new File($home . '/' . PrivateKey::DEFAULT_PATH);
     }
 
     /**

@@ -26,7 +26,13 @@ enum PushUpdateOption: string implements Option
      */
     case NoMirror = 'no-mirror';
 
-    /** Where to push. Defaults to the live site. */
+    /**
+     * Which deployment to push to. Defaults to the live site.
+     *
+     * An **origin** rather than an endpoint since `/update` became
+     * `/api/update/v1/patch` — the path is derived from the typed action, so naming a
+     * full endpoint here would be the address written twice.
+     */
     case Url = 'url';
 
     /** The private key. Defaults to `~/.config/neurosys/update.key`. */

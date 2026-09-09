@@ -18,8 +18,8 @@ use NeuroSYS\Support\Collection;
  * 404 for a method that reads, the `text/plain` 405 for one that writes.
  *
  * **It exists because two places have to give that answer identically.** {@link \NeuroSYS\Router}
- * gives it when no route matches a path, and {@link UpdateController} gives it when a request
- * carries no signature this deployment can verify — because the whole design of `/update` is that
+ * gives it when no route matches a path, and {@link ApiController} gives it when a request
+ * carries no signature this deployment can verify — because the whole design of `/api` is that
  * an unsigned caller cannot tell it from a typo. Written out twice, those two would be equal on the
  * day they were written and free to drift after: a message reworded, a header added, and the update
  * endpoint starts announcing itself by being subtly different from every other 404 on the site.
@@ -30,7 +30,7 @@ use NeuroSYS\Support\Collection;
  * then not expressible.
  *
  * **The 405 is deliberately the read-only `Allow`, even when the route that delegated here accepts
- * POST.** A 405 saying `Allow: GET, HEAD, POST` on `/update` would tell an unsigned caller exactly
+ * POST.** A 405 saying `Allow: GET, HEAD, POST` under `/api` would tell an unsigned caller exactly
  * what it is not allowed to know. What this sends is what the site sends for `/no-such-page`,
  * because that is what the caller is being told the address is.
  */

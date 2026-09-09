@@ -178,7 +178,6 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Service\UpdateApplier::entries()',
                 'NeuroSYS\Service\UpdateApplier::surplusIn()',
                 'NeuroSYS\Service\UpdateApplier::walk()',
-                'NeuroSYS\Service\UpdateGate::accepts()',
                 'NeuroSYS\Support\Collection::$items',
                 'NeuroSYS\Support\Collection::$steps',
                 'NeuroSYS\Support\Collection::toArray()',
@@ -408,7 +407,7 @@ final class GuidelineTest extends TestCase
      *
      * **This is the one rule that walks `tools/lib/` as well**, and the reason is the same one that
      * keeps that tree out of the other four: what is excluded there are the *doors* — `unpack`,
-     * `preg_match`, `file` — and a suppression is not a door. `PayloadBuilder` signs a push with the
+     * `preg_match`, `file` — and a suppression is not a door. `PrivateKey` signs a call with the
      * only private key this repository ever touches, which is not a place to leave a character that
      * hides whatever it happens to be in front of.
      *

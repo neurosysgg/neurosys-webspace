@@ -25,6 +25,7 @@ readonly class Request
      * @param string $ifNoneMatch
      * @param string $rangeHeader
      * @param string $acceptLanguage
+     * @param string $authorization
      */
     private function __construct(
         private ?HttpMethod $method,
@@ -35,6 +36,7 @@ readonly class Request
         private string $ifNoneMatch = '',
         private string $rangeHeader = '',
         private string $acceptLanguage = '',
+        private string $authorization = '',
     ) {}
 
     /**
@@ -59,7 +61,7 @@ readonly class Request
         $user = ServerVariable::AuthUser->string()     ?? '';
         $pass = ServerVariable::AuthPassword->string() ?? '';
 
-        $authorization = self::authorization();
+        $authorization = self::rawAuthorization();
 
         // Authorization header fallback for hosts that strip PHP_AUTH_* vars. The scheme and the
         // grammar under it are AuthScheme's, so the token this matches on is the same case
@@ -77,6 +79,7 @@ readonly class Request
             self::header(RequestHeader::IfNoneMatch),
             self::header(RequestHeader::Range),
             self::header(RequestHeader::AcceptLanguage),
+            $authorization,
         );
     }
 
@@ -118,7 +121,7 @@ readonly class Request
      *
      * @return string
      */
-    private static function authorization(): string
+    private static function rawAuthorization(): string
     {
         $names = [ServerVariable::Authorization, ServerVariable::RedirectAuthorization];
 
@@ -234,6 +237,31 @@ readonly class Request
      */
     public function authPassword(): string { return $this->authPassword; }
     /**
+     * The credential this request carries in $scheme, or null if it carries one in another scheme
+     * or none at all.
+     *
+     * **Read once, in {@link self::fromGlobals()}, and kept.** The two spellings `Authorization`
+     * arrives under — Apache keeps it out of the CGI environment and `public/.htaccess` puts it
+     * back, where an internal redirect renames it — are dealt with in one place, by
+     * {@link self::rawAuthorization()}. A second reader going to {@link ServerVariable} for itself
+     * would be that loop written again in another file, which is exactly the drift
+     * {@link ServerVariable::RedirectAuthorization}'s docblock exists to prevent, on the header
+     * whose failure this class already calls the quietest on the site.
+     *
+     * The raw value is deliberately **not** exposed. What a caller may have is the parameters of a
+     * scheme it asked for by name, so a reader of one scheme cannot be handed another's credential
+     * and make what it likes of it — the mistake {@link AuthScheme::credentials()} guards from the
+     * other side.
+     *
+     * @param AuthScheme $scheme
+     * @return string|null
+     */
+    public function credential(AuthScheme $scheme): ?string
+    {
+        return $scheme->parameters($this->authorization);
+    }
+
+    /**
      * Returns the `If-None-Match` validator the browser sent back, or `''` if it sent none.
      *
      * Compared verbatim by {@link ViewResponse}: a browser echoes the `ETag` it was given, and the
@@ -253,7 +281,7 @@ readonly class Request
      * and `Request` stays `readonly` with nothing to memoise — `php://input` is re-readable for
      * anything that is not a multipart form, and nothing here posts a form.
      *
-     * **It has exactly one caller**, {@link \NeuroSYS\Controller\UpdateController}, and that is
+     * **It has exactly one caller**, {@link \NeuroSYS\Controller\ApiController}, and that is
      * worth stating because `docs/security.md` used to be able to say the site had no way to obtain
      * a body at all. It no longer can. What replaces that guarantee is narrower and still worth
      * having: the body is read at one call site, past a route that accepts POST and nothing else
@@ -264,7 +292,7 @@ readonly class Request
      * where the `@` this used to justify inline now lives, and where the bound is applied *to the
      * read* rather than after it: an unbounded `file_get_contents('php://input')` pulls up to
      * `post_max_size` into memory before any caller can reject it, so the one caller,
-     * {@link \NeuroSYS\Service\UpdateGate}, passes the largest body it will consider plus a byte and
+     * {@link \NeuroSYS\Service\ApiGate}, passes the largest body it will consider plus a byte and
      * reads no further. `php://input` is a stream `File` reads like any other path — under CLI it is
      * STDIN, which is empty, which is why this is a method and not a property.
      *

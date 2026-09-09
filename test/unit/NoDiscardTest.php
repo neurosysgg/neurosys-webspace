@@ -41,8 +41,8 @@ use ReflectionMethod;
  * {@link \NeuroSYS\Support\PasswordHash} on the demo itself for the third — and the three
  * `require*` methods are only the challenge wrapped around them.
  *
- * `UpdateGate::accepts()` is a fourth of that kind and the strictest: it is the whole of the
- * decision that lets a request overwrite `src/` and the webroot. `UpdateGate::accept()` beside it
+ * `ApiGate::accepts()` is a fourth of that kind and the strictest: it is the whole of the
+ * decision that lets a request overwrite `src/` and the webroot. `ApiGate::accept()` beside it
  * is not a decision but a *record* — dropping its result leaves the accepted serial unwritten, so
  * the payload just applied can be replayed. `UpdateApplier::apply()` and the six on `UpdateReport`
  * are the ordinary kind: copy-returning builders and the rendered result, where a dropped call
@@ -98,11 +98,11 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Model\Update\UpdateReport::render',
                 'NeuroSYS\Model\Update\UpdateReport::wrote',
                 'NeuroSYS\Model\WaveformBand::bands',
+                'NeuroSYS\Service\ApiGate::accept',
+                'NeuroSYS\Service\ApiGate::accepts',
                 'NeuroSYS\Service\Auth::accepts',
                 'NeuroSYS\Service\Auth::admits',
                 'NeuroSYS\Service\UpdateApplier::apply',
-                'NeuroSYS\Service\UpdateGate::accept',
-                'NeuroSYS\Service\UpdateGate::accepts',
                 'NeuroSYS\Support\Collection::first',
                 'NeuroSYS\Support\Collection::isEmpty',
                 'NeuroSYS\Support\Collection::join',

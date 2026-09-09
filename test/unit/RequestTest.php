@@ -260,7 +260,7 @@ final class RequestTest extends TestCase
      * The body is read from `php://input`, and the read is bounded by the limit it is given.
      *
      * No more than that many bytes are ever pulled in, which is what keeps
-     * {@link \NeuroSYS\Service\UpdateGate} from inheriting `post_max_size` as its true ingress cap.
+     * {@link \NeuroSYS\Service\ApiGate} from inheriting `post_max_size` as its true ingress cap.
      * Null reads whatever is there, and asking twice is allowed — the stream is re-readable, which
      * is why {@link Request::body()} is a method rather than a memoised property.
      *

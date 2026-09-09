@@ -198,12 +198,12 @@ else
 fi
 
 # ext/openssl verifies the update signature and ext/zlib unpacks the payload, so between them they
-# are the whole of what /update needs beyond core. Both are in composer.json, and composer never
+# are the whole of what /api needs beyond core. Both are in composer.json, and composer never
 # runs on the server — vendor/ is not deployed — so this is the only place the question gets asked
 # where it matters. The failure is a fatal on a push rather than on a page, which is the quietest
 # kind: the endpoint answers as though it is not there for every other reason too.
 if php -r 'exit(extension_loaded("openssl") && extension_loaded("zlib") ? 0 : 1);'; then
-    pass "ext/openssl and ext/zlib are present — /update can verify and unpack a payload"
+    pass "ext/openssl and ext/zlib are present — /api can verify and unpack a payload"
 else
     fail "ext/openssl or ext/zlib is missing; PublicKey::verify() and UpdateApplier need them"
 fi
@@ -1149,42 +1149,88 @@ check_spa_fragment "AJAX /releases/ill returns fragment only" "$BASE/releases/il
 
 
 echo ""
-echo "=== The update endpoint ==="
-# /update is the one route that writes, and its whole design is that an unsigned caller cannot tell
-# it from an address that does not exist. That is a claim about real responses — status, headers and
-# body — so only this suite can check it. Compared against a path that genuinely is not there rather
-# than against a remembered expectation, because what must hold is that the two agree.
-for method in GET HEAD POST PUT DELETE; do
-    update=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/update")
-    absent=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/no-such-page")
+echo "=== The API ==="
+# /api is the one address family that writes, and its whole design is that an unsigned caller cannot
+# tell any of it from an address that does not exist. That is a claim about real responses — status,
+# headers and body — so only this suite can check it. Compared against a path that genuinely is not
+# there rather than against a remembered expectation, because what must hold is that the two agree.
+#
+# Every depth is swept, not just the real endpoint. `/api` and `/api/update` match no route at all
+# and reach UnroutedController through the router; `/api/update/v1/patch` matches and reaches it
+# through ApiController. Two code paths that must not be distinguishable — and `nope` is the one
+# that looks exactly like the real address and is not.
+#
+# BREW is in the verb list on purpose: Request::method() is null for a verb the site does not
+# recognise, and a gate that read `$method->value` without asking would answer 500 where an absent
+# address answers 405.
+api_paths=(/api /api/update /api/update/v1 /api/update/v1/patch /api/update/v1/version /api/update/v1/nope)
 
-    if [[ "$update" == "$absent" ]]; then
-        pass "$method /update answers like an address that is not there ($update)"
+for method in GET HEAD POST PUT DELETE PATCH OPTIONS BREW; do
+    absent=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/no-such-page")
+    mismatch=""
+
+    for path in "${api_paths[@]}"; do
+        got=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE$path")
+        [[ "$got" == "$absent" ]] || mismatch="$mismatch $path→$got"
+    done
+
+    if [[ -z "$mismatch" ]]; then
+        pass "$method /api/* answers like an address that is not there ($absent)"
     else
-        fail "$method /update → $update but /no-such-page → $absent, so the endpoint announces itself"
+        fail "$method /no-such-page → $absent but$mismatch, so the endpoint announces itself"
     fi
 done
 
 # The Allow header is the subtler half. The route accepts POST, so a 405 naming its own methods
 # would read `GET, HEAD, POST` — and that POST is exactly the fact being hidden.
-update_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/update" | grep -i '^allow:' | tr -d '\r')
+api_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/api/update/v1/patch" | grep -i '^allow:' | tr -d '\r')
 absent_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/no-such-page" | grep -i '^allow:' | tr -d '\r')
-if [[ "$update_allow" == "$absent_allow" && "$update_allow" == *"GET, HEAD"* && "$update_allow" != *"POST"* ]]; then
+if [[ "$api_allow" == "$absent_allow" && "$api_allow" == *"GET, HEAD"* && "$api_allow" != *"POST"* ]]; then
     pass "  and its 405 never names POST"
 else
-    fail "  /update sent '$update_allow' where /no-such-page sent '$absent_allow'"
+    fail "  /api/update/v1/patch sent '$api_allow' where /no-such-page sent '$absent_allow'"
 fi
 
-# A body that is not a signed payload changes nothing about that answer.
-unsigned=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST --data-binary 'not a payload' "$BASE/update")
-if [[ "$unsigned" == "$absent" ]]; then
-    pass "  an unsigned POST body is refused the same way"
+# Neither a body that is not a payload nor a credential that is not ours changes that answer. The
+# second matters more than it looks: the credential now rides in Authorization, and a malformed one
+# reaching strlen() as `false` would be an uncaught TypeError — a 500, on the one route built to be
+# indistinguishable from a typo.
+absent_post=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST "$BASE/no-such-page")
+for probe in "--data-binary|not a payload" "-H|Authorization: NS1 !!!!" "-H|Authorization: NS1 " \
+             "-H|Authorization: NS1abc" "-H|Authorization: Basic YTpi" "-H|Authorization: NS1 $(printf 'A%.0s' {1..9000})"; do
+    flag=${probe%%|*}
+    value=${probe#*|}
+    got=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST "$flag" "$value" "$BASE/api/update/v1/patch")
+
+    # A credential over the header size limit is refused by Apache before PHP sees it, which is a
+    # 400 rather than our 405 — a refusal from the wrong layer, but not one that says /api is there.
+    if [[ "$got" == "$absent_post" || "$got" == "400" || "$got" == "431" ]]; then
+        pass "  refused the same way: ${value:0:28}"
+    else
+        fail "  '${value:0:28}' → $got, where an absent path → $absent_post"
+    fi
+done
+
+# The GET half of the same claim: a read action is as invisible as the write one.
+absent_get=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X GET "$BASE/no-such-page")
+version_get=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -H 'Authorization: NS1 abcd' "$BASE/api/update/v1/version")
+if [[ "$version_get" == "$absent_get" ]]; then
+    pass "  an unsigned read is refused the same way ($version_get)"
 else
-    fail "  an unsigned POST body → $unsigned, where an absent path → $absent"
+    fail "  an unsigned read → $version_get, where an absent path → $absent_get"
+fi
+
+# Nothing may exist under public/api. The webroot passes real files and directories straight through
+# (RewriteCond !-f / !-d), so a directory there would be answered by Apache — a listing or a 403 —
+# and /api would stop looking like a typo without a line of PHP being involved.
+if [[ -e "$REPO/public/api" ]]; then
+    fail "  public/api exists, so Apache answers /api before the router ever sees it"
+else
+    pass "  nothing exists under public/api, so every /api request reaches the router"
 fi
 
 if [[ -f "$REPO/data/update.pub" ]]; then
-    pass "  a key is installed, so this deployment can accept a push"
+    pass "  a key is installed, so this deployment can accept a signed call"
 else
     echo "  SKIP the endpoint is switched off here — no data/update.pub, which is the safe default"
 fi
