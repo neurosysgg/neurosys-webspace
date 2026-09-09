@@ -359,6 +359,20 @@ come from `UnroutedController`, the very object `Router` delegates to when no ro
 HTTP, per method **and per depth**, against `/no-such-page` — because the claim is about status
 codes, headers and bodies, and only a real server has those.
 
+**That scope is deliberate: status, headers and bodies, and not timing.** A request carrying an
+`NS1` credential reaches `ApiGate`, which reads the key and — once the frame parses — runs
+`openssl_verify`; a path that matches no route never does either, because it never leaves
+`UnroutedController`. The 2026-09-09 pentest measured the gap at about **180 µs** on localhost
+between the `/api` shape and a typo of the same length, both carrying a well-formed-but-bogus `NS1`
+header. It is not a usable oracle, and the reason is its precondition rather than its size: the gap
+appears only for a caller already sending an `NS1`-framed `Authorization`, and knowing that scheme
+exists — the source is public — already implies knowing `/api` does. It is well below WAN jitter,
+and it vanishes entirely on a deployment holding no key, which is the one place the silence has to
+be perfect. It is written down because the "same `null` reaching the same line" phrasing below
+reads as a timing identity it does not claim; closing the axis for real would mean a constant-time
+dummy verify on every unrouted path, which protects nothing a reader of this repository could not
+already know.
+
 **The gate verifies before it resolves**, which is what keeps that structural. Asking "does this
 service exist" first would answer an unsigned caller through a different path depending on what they
 guessed, and two paths that agree today are two paths free to stop agreeing. Verified first, a
