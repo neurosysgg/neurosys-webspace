@@ -7,14 +7,13 @@
     <arg name="colors"/>
     <arg name="extensions" value="php"/>
 
-    <!-- The only warnings left are long lines of HTML inside heredocs, which can't be
-         wrapped without changing the output. Report them, don't fail the build on them. -->
-    <config name="ignore_warnings_on_exit" value="1"/>
-
-    <!-- autoload.php is named explicitly because it sits at the root rather than in a directory,
-         so a <file> entry for a folder never reached it. It is the file the whole site loads
-         through and the only one using the pipe operator; it was linted by nothing. -->
+    <!-- The two PHP files at the repo root are named explicitly, because a <file> entry for a
+         folder never reaches either. autoload.php is the file the whole site loads through and the
+         only one using the pipe operator; .php-cs-fixer.dist.php states the rules the *other*
+         linter applies and sits outside its own Finder, which takes directories. Both were linted
+         by nothing, and the second is the funnier of the two. -->
     <file>autoload.php</file>
+    <file>.php-cs-fixer.dist.php</file>
     <file>src</file>
     <file>public</file>
     <file>test</file>

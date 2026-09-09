@@ -65,7 +65,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 
-import { ROOT, cli } from './build-cli.mjs';
+import { ROOT, cli, read } from './build-cli.mjs';
 
 const { fail, label, path } = cli('build-assets', ['js-dir', 'graph-dir', 'css', 'out', 'bundle']);
 
@@ -120,12 +120,22 @@ const ENTRY    = join(GRAPH_DIR, 'main.js');
  */
 const BUNDLE = path('bundle', '');
 
-/** Eight hex characters of SHA-256 — 32 bits over forty-two files, so a collision is not a risk. */
+/**
+ * Eight hex characters of SHA-256 — 32 bits over forty-two files, so a collision is not a risk.
+ *
+ * @param {string} content
+ * @returns {string}
+ */
 function digest(content) {
   return createHash('sha256').update(content).digest('hex').slice(0, 8);
 }
 
-/** The unversioned path below the js dir, under the served prefix. */
+/**
+ * The unversioned path below the js dir, under the served prefix.
+ *
+ * @param {string} file
+ * @returns {string}
+ */
 function jsUrl(file) {
   return `${JS_BASE}/${relative(GRAPH_DIR, file).split(/[\\/]/).join('/')}`;
 }
@@ -136,26 +146,25 @@ function jsUrl(file) {
  * Identical to reading the file itself when the two trees are one, which is the usual case. When
  * they differ it is the whole point: the hash has to be over what the browser receives, or a
  * version segment would name content nobody has.
+ *
+ * @param {string} file
+ * @returns {string}
  */
 function shipped(file) {
   const at = join(JS_DIR, relative(GRAPH_DIR, file));
 
-  try {
-    return readFileSync(at, 'utf8');
-  } catch {
-    return fail(`${label(file)} is in the module graph, but ${label(at)} does not exist.\n`
-              + '              The tree being hashed is missing a module the tree being walked has.');
-  }
+  return read(at) ?? fail(`${label(file)} is in the module graph, but ${label(at)} does not exist.\n`
+                        + '              The tree being hashed is missing a module the tree being walked has.');
 }
 
-/** The bundle's bytes — what the browser receives when the whole graph ships as one file. */
+/**
+ * The bundle's bytes — what the browser receives when the whole graph ships as one file.
+ *
+ * @returns {string}
+ */
 function bundled() {
-  try {
-    return readFileSync(BUNDLE, 'utf8');
-  } catch {
-    return fail(`${label(BUNDLE)} was named with --bundle, and does not exist.\n`
-              + '              That flag says the graph ships as one file; this is the file.');
-  }
+  return read(BUNDLE) ?? fail(`${label(BUNDLE)} was named with --bundle, and does not exist.\n`
+                            + '              That flag says the graph ships as one file; this is the file.');
 }
 
 /**
@@ -163,6 +172,9 @@ function bundled() {
  *
  * Directly after the asset root and before everything else, because that is the only position a
  * relative specifier carries with it. A stamp at the end would not survive `./model/Tag.js`.
+ *
+ * @param {string} url
+ * @returns {string}
  */
 function versioned(url) {
   return url.replace(/^(\/assets\/(?:js|css))\//, `$1/${VERSION_PREFIX}${stamp}/`);
@@ -176,6 +188,11 @@ const graph = new Map();
 /** Grey while a file's subtree is being walked, so a cycle is reported rather than looped on. */
 const walking = new Set();
 
+/**
+ * @param {string} file
+ * @param {string} importedBy
+ * @returns {void}
+ */
 function walk(file, importedBy) {
   if (graph.has(file)) {
     return;
@@ -189,18 +206,14 @@ function walk(file, importedBy) {
 
   walking.add(file);
 
-  let source;
-
-  try {
-    source = readFileSync(file, 'utf8');
-  } catch {
-    fail(`${importedBy} imports ${label(file)}, which does not exist.\n`
-       + '              Run `npm run build` — the committed JS is behind assets/ts/.');
-  }
+  const source = read(file) ?? fail(`${importedBy} imports ${label(file)}, which does not exist.\n`
+                                  + '              Run `npm run build` — the committed JS is behind assets/ts/.');
 
   const deps = [];
 
-  for (const [, bare] of source.replace(COMMENT, '').matchAll(SPECIFIER)) {
+  for (const match of source.replace(COMMENT, '').matchAll(SPECIFIER)) {
+    // SPECIFIER has one group and it is not optional, so a match always carries it.
+    const bare = /** @type {string} */ (match[1]);
 
     if (!bare.startsWith('.')) {
       fail(`${label(file)} imports "${bare}", which is not a relative path.\n`

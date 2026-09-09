@@ -24,11 +24,32 @@
  * checkout while it skips everything that needs `tsc`.
  */
 
+import { readFileSync } from 'node:fs';
 import { dirname, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /** The repository root, one level up from tools/. */
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+/**
+ * A file's text, or `null` for any reason it could not be read.
+ *
+ * `Support\File::read()` on the other side of the boundary, and collapsed for the same reason: a
+ * file that is absent and a file that is present and unreadable are two causes every caller here
+ * was already turning into one message. Answering `null` rather than throwing is what lets the
+ * caller write `read(file) ?? fail(…)`, which is both the message and the narrowing in one line —
+ * see `fail`'s note on why the `if` form does not narrow.
+ *
+ * @param {string} file
+ * @returns {string | null}
+ */
+export function read(file) {
+  try {
+    return readFileSync(file, 'utf8');
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The three things a build tool needs from its command line.
@@ -48,6 +69,12 @@ export function cli(command, declared) {
    * `return`ed out of `build-assets.mjs`'s `shipped()`, where the alternative is a `catch` block
    * that falls off the end and hands `undefined` back as if it were a module's bytes.
    *
+   * It is also what narrows a value the type checker cannot: `list[0] ?? fail(…)` is a `string`
+   * where the same check written as an `if` around a `fail(…)` statement is not, because control
+   * flow does not follow `never` through a destructured binding. The expression form is therefore
+   * the one to reach for, and the three builders do.
+   *
+   * @param {string} message
    * @returns {never}
    */
   const fail = (message) => {
@@ -55,7 +82,12 @@ export function cli(command, declared) {
     process.exit(1);
   };
 
-  /** Repo-relative, forward-slashed — what the markers and the error messages say. */
+  /**
+   * Repo-relative, forward-slashed — what the markers and the error messages say.
+   *
+   * @param {string} file
+   * @returns {string}
+   */
   const label = (file) => {
     const path = relative(ROOT, file);
 
@@ -66,7 +98,10 @@ export function cli(command, declared) {
   const argv = process.argv.slice(2);
 
   for (let i = 0; i < argv.length; i++) {
-    const argument = argv[i];
+    // `i < argv.length` is the proof that this is a string. noUncheckedIndexedAccess cannot read
+    // a loop bound, and a guard for it would be the dead defensive branch this project refuses
+    // elsewhere — so the cast states what the loop already guarantees.
+    const argument = /** @type {string} */ (argv[i]);
 
     if (!argument.startsWith('--')) {
       fail(`'${argument}' is not an option. This tool takes flags only: ${list(declared)}.`);

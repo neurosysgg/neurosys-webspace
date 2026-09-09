@@ -45,6 +45,13 @@ const peaks = (columns) => Buffer.from(columns.flat()).toString('base64');
  * A card the way DemoView emits one: the element carries the attributes and wraps the children.
  *
  * Given a size and a bounding box, because jsdom has no layout and every box is otherwise 0×0.
+ *
+ * The shape is stated rather than inferred: a destructured parameter with a `= {}` default drops
+ * every property that has no default of its own, so `peaks` — the one that matters here — was not
+ * in the inferred type at all, and the twenty-six call sites that pass it were checking nothing.
+ *
+ * @param {{peaks?: string, duration?: string, audio?: boolean, styled?: boolean}} [options]
+ * @returns {HTMLElement}
  */
 function card({ peaks: encoded, duration = '160', audio = true, styled = true } = {}) {
   const el = document.createElement('demo-waveform');
@@ -70,7 +77,11 @@ function card({ peaks: encoded, duration = '160', audio = true, styled = true } 
   const canvas = el.querySelector('canvas');
 
   if (canvas !== null) {
-    canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: WIDTH, height: HEIGHT });
+    // Four of DOMRect's fields, because four is what the element reads. The cast is the double
+    // saying so out loud rather than growing five more zeroes nothing looks at.
+    canvas.getBoundingClientRect = /** @type {() => DOMRect} */ (
+      () => ({ left: 0, top: 0, width: WIDTH, height: HEIGHT })
+    );
   }
 
   return el;
@@ -268,7 +279,9 @@ test('a canvas with no width to click in seeks nowhere', () => {
   const el = card({ peaks: peaks([[255, 255, 0, 0]]) });
   const canvas = el.querySelector('canvas');
 
-  canvas.getBoundingClientRect = () => ({ left: 0, top: 0, width: 0, height: 0 });
+  canvas.getBoundingClientRect = /** @type {() => DOMRect} */ (
+    () => ({ left: 0, top: 0, width: 0, height: 0 })
+  );
   canvas.dispatchEvent(new MouseEvent('click', { clientX: 100 }));
 
   assert.equal(el.querySelector('audio').currentTime, 0);

@@ -1,0 +1,43 @@
+{
+  // The client-side tests, type-checked. Not as strictly as the tools, and the difference is
+  // argued for rather than inherited.
+  //
+  // `strictNullChecks` is off. A test asserting on `el.querySelector('canvas').width` wants the
+  // null to throw where it happens, because that throw *is* the failing assertion — the element
+  // did not build what it was supposed to build. Guarding each one would replace 83 loud failures
+  // with 83 silent skips, which is the opposite of what a test is for. `noImplicitAny` is off for
+  // the neighbouring reason: a callback parameter in an assertion is named for legibility, and
+  // annotating 52 of them would bury the three shapes worth stating.
+  //
+  // What is left is what these files were actually missing — drift between a helper and the call
+  // sites that use it. The first run found the one that mattered: `card()` in demo-waveform's
+  // suite takes a destructured parameter with a `= {}` default, which drops every property that
+  // has no default of its own, so `peaks` was not in the inferred type and twenty-six call sites
+  // passing it were checking nothing at all. That is exactly the failure `--test-coverage-include-all`
+  // and the `#[CoversClass]` trap are about, one layer down: not a wrong answer, an unasked
+  // question.
+  //
+  // dom.mjs is included even though it is a helper rather than a suite — it is where the shapes
+  // the ten suites share are declared, so it is the file this config most wants to read.
+  "include": ["test/js/*.mjs"],
+
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2023",
+
+    // Both, and that is the environment these run in: node --test drives them, jsdom installs the
+    // DOM onto globalThis, and the modules under test are browser code.
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "types": ["node"],
+
+    "strict": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "forceConsistentCasingInFileNames": true
+  }
+}

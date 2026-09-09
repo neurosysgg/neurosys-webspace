@@ -82,7 +82,13 @@ const DIST     = path('out', join(ROOT, 'build/dist'));
 const DIST_PUB = join(DIST, 'public');
 const DIST_JS  = join(DIST_PUB, 'assets/js');
 
-/** Every file under `dir` whose name ends in `suffix`, as absolute paths, sorted. */
+/**
+ * Every file under `dir` whose name ends in `suffix`, as absolute paths, sorted.
+ *
+ * @param {string} dir
+ * @param {string} suffix
+ * @returns {string[]}
+ */
 function filesEnding(dir, suffix) {
   const found = [];
 
@@ -144,7 +150,8 @@ const graph = await esbuild({
   logLevel: 'silent',
 });
 
-const bundledCode = Buffer.from(graph.outputFiles[0].contents).toString('utf8');
+const output = graph.outputFiles[0] ?? fail('esbuild produced no output file for the entry point.');
+const bundledCode = Buffer.from(output.contents).toString('utf8');
 
 const before = sources.reduce((sum, file) => sum + Buffer.byteLength(readFileSync(file, 'utf8')), 0);
 let   after  = 0;
@@ -170,11 +177,14 @@ let   after  = 0;
     format: { comments: false },
   });
 
-  if (result.code === undefined) {
-    fail(`the bundle did not minify: ${result.error ?? 'terser returned no code'}`);
-  }
+  // terser *rejects* on a parse or compress failure rather than reporting one on the result, so a
+  // real failure never arrives here — it comes out of the `await` above and exits non-zero on its
+  // own. This is the other case: a resolved call that carried no code, which has no message to
+  // quote. The `result.error` this used to print was removed in terser 5 and had been reading as
+  // `undefined` ever since, so the sentence was always the fallback half of a `??`.
+  const minified = result.code ?? fail('terser resolved without producing any code for the bundle.');
 
-  after = Buffer.byteLength(result.code);
+  after = Buffer.byteLength(minified);
 
   // The copy above put all forty-nine readable modules and their maps here. Every one of them is
   // now dead — the bundle contains them, and nothing imports them — so the directory is replaced
@@ -184,7 +194,7 @@ let   after  = 0;
   rmSync(DIST_JS, { recursive: true, force: true });
   mkdirSync(DIST_JS, { recursive: true });
 
-  writeFileSync(join(DIST_JS, 'main.js'), result.code, 'utf8');
+  writeFileSync(join(DIST_JS, 'main.js'), minified, 'utf8');
 }
 
 // ── everything was actually minified ────────────────────────────────────────────────────────────
@@ -209,14 +219,18 @@ if (shippedMaps.length > 0) {
      + shippedMaps.map((file) => `              ${label(file)}`).join('\n'));
 }
 
-const bundle = readFileSync(shippedJs[0], 'utf8');
+// The length check above is the proof that this is a string; noUncheckedIndexedAccess cannot read
+// it, and a second guard here would be the dead defensive branch this project refuses elsewhere.
+const bundlePath = /** @type {string} */ (shippedJs[0]);
+
+const bundle = readFileSync(bundlePath, 'utf8');
 
 // The sharpest of the three, and the reason this block exists at all. A surviving relative import
 // means esbuild resolved nothing and this file is main.js by itself — while every module it asks
 // for was just deleted with the rest of the copy. The page then 404s its way down the graph one
 // wave at a time, and nothing says so until it is live.
 if (/(?:^|\n)\s*(?:import|export)\b[^\n]*?['"]\.[^'"\n]*['"]/.test(bundle)) {
-  fail(`${label(shippedJs[0])} still names a relative import, so it was never bundled.\n`
+  fail(`${label(bundlePath)} still names a relative import, so it was never bundled.\n`
      + '              Everything it imports was removed along with the rest of the copy.');
 }
 

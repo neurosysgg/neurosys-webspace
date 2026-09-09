@@ -186,6 +186,17 @@ else
     fail "ext/uri is missing; Element::isAllowedUrl() and Request::normalisePath() need it"
 fi
 
+# ext/openssl verifies the update signature and ext/zlib unpacks the payload, so between them they
+# are the whole of what /update needs beyond core. Both are in composer.json, and composer never
+# runs on the server — vendor/ is not deployed — so this is the only place the question gets asked
+# where it matters. The failure is a fatal on a push rather than on a page, which is the quietest
+# kind: the endpoint answers as though it is not there for every other reason too.
+if php -r 'exit(extension_loaded("openssl") && extension_loaded("zlib") ? 0 : 1);'; then
+    pass "ext/openssl and ext/zlib are present — /update can verify and unpack a payload"
+else
+    fail "ext/openssl or ext/zlib is missing; PublicKey::verify() and UpdateApplier need them"
+fi
+
 # #[\NoDiscard] is what enforces that a copy-returning builder's result is used. It is an attribute,
 # so a runtime without it ignores it silently rather than erroring — which is the whole guarantee
 # quietly gone, with every test still green.
@@ -477,15 +488,21 @@ fi
 # rather than failed, so `composer test` still runs on a clone that has never seen `npm install`.
 TSC="$REPO/node_modules/.bin/tsc"
 if [[ -x "$TSC" ]]; then
-    if (cd "$REPO" && "$TSC" --noEmit >/dev/null 2>&1); then
-        pass "assets/ts/ type-checks"
+    # Three configs: assets/ts/ emits, tools/*.mjs and test/js/*.mjs are checked in place. The
+    # second is the one worth having here — those four tools write the three committed artefacts
+    # this script goes on to diff, and until they were checked a crash on an untaken path was
+    # invisible to everything.
+    if (cd "$REPO" && "$TSC" --noEmit >/dev/null 2>&1 \
+        && "$TSC" -p "$REPO/tsconfig.tools.json" >/dev/null 2>&1 \
+        && "$TSC" -p "$REPO/tsconfig.test.json" >/dev/null 2>&1); then
+        pass "assets/ts/, tools/*.mjs and test/js/*.mjs type-check"
     else
-        fail "assets/ts/ has type errors (run: npm run check)"
+        fail "the front end or its tooling has type errors (run: npm run check)"
     fi
 
     # The element and enum-parity tests run against the compiled output in public/assets/js/, so
     # they need the build to be current -- which the check below is what guarantees.
-    if (cd "$REPO" && node --test >/dev/null 2>&1); then
+    if (cd "$REPO" && node --test 'test/js/*.test.mjs' >/dev/null 2>&1); then
         pass "the element and enum-parity tests pass"
     else
         fail "client-side tests failed (run: npm test)"
@@ -561,7 +578,7 @@ if [[ -x "$TSC" ]]; then
             fail "the prod tree still carries source maps (see tools/build-prod.mjs)"
         fi
 
-        if (cd "$REPO" && NEUROSYS_JS_DIR="$DIST_JS" node --test >/dev/null 2>&1); then
+        if (cd "$REPO" && NEUROSYS_JS_DIR="$DIST_JS" node --test 'test/js/*.test.mjs' >/dev/null 2>&1); then
             pass "the client-side tests pass against the minified output"
         else
             fail "the minified output fails the client-side tests — a mangle broke something"

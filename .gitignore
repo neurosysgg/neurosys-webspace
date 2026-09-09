@@ -7,7 +7,14 @@ data/logs/
 # JetBrains (PHPStorm/IntelliJ) — can contain deployment hostnames/credentials
 .idea/
 
-# Deploy script contains credentials
+# The deploy script. It holds no credential — the GVFS SFTP mount it writes to is already
+# authenticated when you mount it, and the script says so in its own header. What it does hold is
+# the Strato account name and host, which are infrastructure identifiers this repository is public
+# enough not to want.
+#
+# Know what that costs, because it is not nothing: deploy.sh is the *recovery path* for a push that
+# breaks src/, and it therefore exists on exactly one machine and in no repository. If that matters
+# more than the two identifiers do, the fix is to commit it with those read from the environment.
 deploy.sh
 
 # Pre-public site auth — dot-prefix the file to disable the gate without losing it

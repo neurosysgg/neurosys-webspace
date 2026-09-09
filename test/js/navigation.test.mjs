@@ -66,12 +66,14 @@ const unreachable = () => () => Promise.reject(new TypeError('failed to fetch'))
  */
 const real = dom.window.location;
 
-globalThis.location = {
+// Three getters and an assign, because that is every member Navigation touches. The cast says the
+// double is deliberately partial rather than inviting nine more members nothing reads.
+globalThis.location = /** @type {Location} */ (/** @type {unknown} */ ({
   get href() { return real.href; },
   get pathname() { return real.pathname; },
   get origin() { return real.origin; },
   assign(url) { handedBack.push(url); },
-};
+}));
 
 // jsdom prints "Not implemented" for this on every successful navigation.
 dom.window.scrollTo = () => {};

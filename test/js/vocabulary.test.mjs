@@ -19,9 +19,15 @@ import { Tag } from '../../public/assets/js/model/Tag.js';
 
 const ELEMENTS = `${ROOT}/assets/ts/elements`;
 
-/** Every element module, as [file, source] — the abstracts included; they register nothing. */
+/**
+ * Every element module, as [file, source] — the abstracts included; they register nothing.
+ *
+ * @returns {[string, string][]} The pair the name promises. Without it `map` infers an array of
+ *   arrays, and `readdirSync` without an encoding infers `string[] | Buffer[]`, so both halves of
+ *   the pair arrive as `string | Buffer` and every `.split` on one is unchecked.
+ */
 function modules() {
-  return readdirSync(ELEMENTS, { recursive: true })
+  return readdirSync(ELEMENTS, { recursive: true, encoding: 'utf8' })
     .filter((file) => file.endsWith('.ts'))
     .map((file) => [file, readFileSync(`${ELEMENTS}/${file}`, 'utf8')]);
 }
@@ -51,7 +57,8 @@ test('nothing registers a tag the Tag enum does not name', () => {
 
 test('one class per file: no module registers two tags', () => {
   const files = modules()
-    .map(([file, source]) => [file, [...source.matchAll(/customElements\.define\(/g)].length])
+    .map(/** @returns {[string, number]} */ ([file, source]) =>
+      [file, [...source.matchAll(/customElements\.define\(/g)].length])
     .filter(([, count]) => count > 1)
     .map(([file, count]) => `${file} registers ${count}`);
 

@@ -24,7 +24,8 @@ assets/css/ ──tools/build-css.mjs──→  public/assets/css/style.css
 | `npm run build` | both — `tsc` then the stylesheet |
 | `npm run build:css` | the stylesheet only |
 | `npm run watch` | `tsc --watch`. **Does not build CSS.** |
-| `npm run check` | `tsc --noEmit` — types only |
+| `npm run dev` | `php -S` with `tools/dev-router.php`. The router is not optional. |
+| `npm run check` | `tsc` over all three trees — `assets/ts/`, `tools/*.mjs`, `test/js/*.mjs` |
 | `npm test` | `node --test` against the compiled output |
 | `npm run coverage` | the same, with 100% thresholds |
 

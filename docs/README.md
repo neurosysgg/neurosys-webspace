@@ -3,6 +3,10 @@
 Music release site for neuro.SYS at `neurosys.gg`. Plain PHP/HTML/CSS, no framework. The front end
 is TypeScript compiled to ES modules; the output is committed, so the server still gets plain files.
 
+**[../README.md](../README.md) is the front door** — what you need installed (PHP 8.5 with three
+extensions, Node ≥ 26.7, and the two external binaries the demo and release tooling shell out to),
+how to run it, and what the licence does and does not cover. This file is the map of the code.
+
 ## Structure
 
 ```

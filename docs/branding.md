@@ -36,7 +36,7 @@ To add a platform: add a case to `src/NeuroSYS/Model/Platform.php` (label, icon 
 | `spotify.svg` | `2024-spotify-logo-icon.zip` → `Primary_Logo_White_RGB.svg`, from [developer.spotify.com/documentation/design](https://developer.spotify.com/documentation/design) | Spotify brand guidelines |
 | `apple-music-badge.svg` | "Listen on Apple Music" badge (black), [Apple Services Marketing Toolbox](https://toolbox.marketingtools.apple.com/en-us/apple-music) | [Apple Music Identity Guidelines](https://apple.com/itunes/marketing-on-music/identity-guidelines.html) |
 | `github.svg` | `mark-github-24.svg` from [primer/octicons](https://github.com/primer/octicons) | MIT |
-| `soundcloud.webp` | white cloud mark, [soundcloud.com/press](https://soundcloud.com/press) | SoundCloud brand guidelines |
+| `soundcloud.webp` | white cloud mark, [https://soundcloud.com/company/media-kit](https://soundcloud.com/company/media-kit) | SoundCloud brand guidelines |
 | `youtube.png` | white icon, [brand.youtube](https://brand.youtube/) | YouTube brand guidelines |
 | `x.svg` | white X mark, [X brand toolkit](https://about.x.com/en/who-we-are/brand-toolkit) | X brand guidelines |
 

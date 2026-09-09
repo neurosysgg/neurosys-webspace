@@ -16,20 +16,45 @@ compiles, and the stylesheet is assembled from its parts — but both outputs ar
 lands on the server is still plain files served statically. See [Front end](#front-end) and
 [The stylesheet](#the-stylesheet).
 
+**Two more extensions are named, and both belong to `/update` rather than to a page.**
+`ext/openssl` verifies the payload's signature and `ext/zlib` unpacks it — `PublicKey` and
+`UpdateApplier`'s `gzdecode()`, one call site each. Neither is bundled the way `ext/uri` is, and
+both fail the same quiet way: a fatal on a push, on the one route built to answer as though it is
+not there. So they are in `composer.json` and asked for by name in the verify script's Environment
+block, which is the *only* place the question gets asked where it matters — composer never runs on
+the server, because `vendor/` is not deployed.
+
+**`ext/curl` is deliberately in `require-dev` and not in `require`.** The site makes no outbound
+request at all — a property the verify script asserts by grep — and the one class that does,
+`Tool\Http\CurlTransport`, is tooling that `deploy.sh` never uploads. It sat in `require` for one
+commit, which made `composer.json` claim a dependency the site does not have and contradicted the
+paragraph in this file that said it was absent. Two statements of one fact, disagreeing, which is
+the failure this whole file is arranged against.
+
 Composer and npm are dev tooling only (PHPUnit, phpcs, php-cs-fixer; TypeScript). `vendor/` and
 `node_modules/` are both gitignored and `deploy.sh` uploads neither — what runs on the server is
 still plain PHP with a hand-rolled autoloader.
 
+**Node's floor is 26.7 and it is a flag rather than a feature.** `--test-coverage-include-all`
+landed in that release, and it is what makes a module nothing imports read as uncovered rather than
+go unreported — the front end's half of the `#[CoversClass]` trap. An older runtime does not report
+a weaker number, it exits on an unknown option and the 100% gate never runs. `engines` says so and
+`.npmrc` sets `engine-strict`, because npm's default for `engines` is a warning it installs through,
+which is the wrong failure for a floor that exists to keep a gate honest.
+
 ## Local dev
 
 ```bash
-php -S localhost:8080 -t public tools/dev-router.php
+npm run dev
 ```
 
-The router is not optional. Assets are served under a build-stamp path segment
-(`/assets/js/v-a1b2c3d4/main.js`) that `public/.htaccess` strips in production; the built-in server
-reads no `.htaccess`, so without the router every stylesheet and module 404s locally while working
-live. See [Cache versioning](#cache-versioning).
+which is `php -S localhost:8080 -t public tools/dev-router.php` under a name. The router is not
+optional. Assets are served under a build-stamp path segment (`/assets/js/v-a1b2c3d4/main.js`) that
+`public/.htaccess` strips in production; the built-in server reads no `.htaccess`, so without the
+router every stylesheet and module 404s locally while working live. See
+[Cache versioning](#cache-versioning). The script exists so that the router cannot be the part
+somebody forgets — it was named in this file and in `tsconfig.json` for a while before it was a
+script anybody could run.
 
 `composer install` if you want to run the tests or linters, `npm install` if you are going to touch
 the TypeScript. Neither is needed just to serve the site.
@@ -124,8 +149,15 @@ had never executed under either suite, because the placeholder `data/admin.php` 
 ```bash
 npm test           # node --test — the elements and the enum mirrors
 npm run coverage   # the same, with coverage held at 100%
-npm run check      # tsc --noEmit
+npm run check      # tsc over all three trees: assets/ts/, tools/*.mjs, test/js/*.mjs
 ```
+
+**Both test commands name their files.** `node --test` with no argument matches
+`**/test/**/*.?(c|m)js` among its default patterns, which is *everything* under `test/` — so
+`test/js/dom.mjs`, the jsdom helper the ten suites import, was being executed as a suite of its own
+with no tests in it. Harmless and misleading in equal measure: it cost 730 ms and made the run
+report eleven files where there are ten. `'test/js/*.test.mjs'` is quoted so node expands it rather
+than the shell, and the verify script's two invocations pass the same glob.
 
 `npm run coverage` is a gate rather than a report: its thresholds are 100 for lines, branches and
 functions, so a branch nothing exercises fails the command. That gate is why `test/js/dom.mjs`
@@ -140,10 +172,34 @@ else — `assets/ts/` is forty small files with one job each. It runs with
 `--test-coverage-include-all`, the front end's version of the `#[CoversClass]` trap: without it a
 module nothing imports is not reported as uncovered, it is not reported at all.
 
-The verify script runs the client-side tests too, type-checks `assets/ts/`, and asserts the committed
-JS is current with it. All three are skipped with a printed NOTE when `npm install` has never been run,
-so `composer test` still works on a bare clone. It also asserts the committed `style.css` is current
-with `assets/css/`; that one needs only `node`, so it runs on a bare clone rather than skipping.
+The verify script runs the client-side tests too, type-checks all three trees, and asserts the
+committed JS is current with it. All three are skipped with a printed NOTE when `npm install` has
+never been run, so `composer test` still works on a bare clone. It also asserts the committed
+`style.css` is current with `assets/css/`; that one needs only `node`, so it runs on a bare clone
+rather than skipping.
+
+**Three trees rather than one, because the two that were not checked are the ones that write the
+committed artefacts.** `tsconfig.json` covers `assets/ts/` and emits; `tsconfig.tools.json` and
+`tsconfig.test.json` cover `tools/*.mjs` and `test/js/*.mjs` with `checkJs` and emit nothing. What
+already guarded the four build tools is this script, which rebuilds each of their three outputs and
+diffs it byte-for-byte — and that catches a tool producing the wrong bytes while being blind to one
+that crashes on a path it has never taken. Turning the checker on found two of those in the first
+run, both in `build-prod.mjs`: `graph.outputFiles[0]` was read with nothing saying it was there,
+and the minifier's failure message quoted `result.error`, **a property terser removed in version 5**
+— so for as long as that line had existed it had been printing the fallback half of a `??`. The
+real failure was never silent (terser rejects, and an unhandled rejection exits non-zero), but the
+sentence written to explain it could not have been right.
+
+The two configs are at different strictness and the difference is argued for on each. The tools
+match `tsconfig.json` exactly, `noUncheckedIndexedAccess` included; the tests turn off
+`strictNullChecks` and `noImplicitAny`, because a test asserting on `el.querySelector('canvas')`
+*wants* the null to throw — that throw is the failing assertion — and guarding 83 of those would
+trade loud failures for silent ones. What is left is drift between a helper and its callers, which
+is what the first run found: `card()` in the waveform suite takes a destructured parameter with a
+`= {}` default, a shape that drops every property without a default of its own, so `peaks` was not
+in the inferred type and **twenty-six call sites passing it were checking nothing**. Same kind of
+gap as `--test-coverage-include-all` closes, one layer down — not a wrong answer, an unasked
+question.
 
 The client-side tests run against the **compiled output** in `public/assets/js/`, the same files the
 browser loads — so a build that never ran is a failing test rather than a passing one. They use
@@ -1772,8 +1828,8 @@ tools/
 ```
 
 **The build tools are the same layer in the other language.** `build-css.mjs`, `build-assets.mjs`
-and `build-prod.mjs` share `tools/build-cli.mjs` — a `fail`, a `label`, and an argv parsed against
-the flags a tool declares — which is `Cli/` on the other side of the boundary and is here for the
+and `build-prod.mjs` share `tools/build-cli.mjs` — a `fail`, a `label`, a `read`, and an argv
+parsed against the flags a tool declares — which is `Cli/` on the other side of the boundary and is here for the
 reason that layer exists. Each of the three used to hold its own `process.argv.indexOf('--out')`,
 so `node tools/build-css.mjs --ou scratch.css` overwrote the committed stylesheet and reported
 success: the exact failure `Command::options()`'s docblock describes, still live in the tools
@@ -1781,6 +1837,14 @@ nobody came back for. Every flag there takes a path, which is not a simplificati
 vocabulary — there is no `takesValue()` because nothing on that side stands alone. No dependencies
 and nothing runs on import, so the stylesheet still rebuilds on a clone that has never seen
 `npm install`.
+
+`read` is the fourth and arrived with the type checker. It is `Support\File::read()` in the other
+language and collapsed for the same reason — a file that is absent and a file that is present and
+unreadable are two causes every caller was already turning into one message — but it is also what
+makes the narrowing work: `read(file) ?? fail(…)` is a `string`, where the `let source; try { … }
+catch { fail(…) }` it replaced is not, because control flow does not follow a `never` return
+through a destructured binding. Two of the four tools had the try/catch shape and two already had
+the expression shape, in the same file, which is the state `build-cli.mjs` exists to end.
 
 **`FolderReport` is what `stage-release` and `release-track` have in common.** They are the same
 command up to their last step — read a folder, judge it, say what is wrong with it, print an entry
@@ -1945,12 +2009,17 @@ out of it that looked like it worked would be the worst available outcome.
 `deploy.sh` uploads `src/` with `--delete` — so a tooling class under it would ship to Strato and
 join `phpunit.xml.dist`'s coverage source. Composer's `autoload-dev` was the other candidate and was
 turned down for the reason `autoload.php` exists at all: `stage-release` runs on a clone that has
-never seen `composer install`. (`merge-coverage` does need `vendor/`, for the coverage library.)
+never seen `composer install`. (`merge-coverage` does need `vendor/`, and the library it needs is
+**`phpunit/php-code-coverage`, which is a `require-dev` entry in its own right** rather than
+whatever PHPUnit happens to drag in. It reads twelve classes out of it, `Serialization\Unserializer`
+among them; leaving it transitive meant a PHPUnit major bumping that constraint would break
+`composer coverage` with a class-not-found and nothing in `composer.json` to explain it. A direct
+dependency is declared or it is luck.)
 
-`release-track` needs one thing the site does not: **`ext/curl`**. It is not in `composer.json`,
-because that file states what the *site* requires and the site makes no outbound request at all —
-a property the verify script now asserts, alongside the one that says curl is called in exactly one
-class, the way `Probe` is the one class that shells out.
+`release-track` needs one thing the site does not: **`ext/curl`**, which is a `require-dev` entry
+for exactly that reason — `composer.json`'s `require` states what the *site* needs, and the site
+makes no outbound request at all. That is a property the verify script asserts, alongside the one
+that says curl is called in exactly one class, the way `Probe` is the one class that shells out.
 
 That autoloader is also what made the typed design affordable. `phpcs` holds `tools/` to PSR-12,
 where a class-like symbol needs a namespace *and* a file of its own — which is why this started as

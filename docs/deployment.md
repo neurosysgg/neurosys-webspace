@@ -17,6 +17,9 @@ If your account only has one folder and there's no "outside webroot" option, `da
 
 ## First-time setup
 
+Prerequisites are in [../README.md](../README.md) — PHP 8.5 with `ext-uri`, `ext-openssl` and
+`ext-zlib`, Node ≥ 26.7, Composer, and `openssl` on the path once for the update keypair below.
+
 ### 1. Open the project in PHPStorm
 
 Open the `neurosys/` root as the PHPStorm project. The `.idea/` folder is gitignored — it can contain deployment credentials, keep it local.

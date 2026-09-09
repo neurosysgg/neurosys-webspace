@@ -16,7 +16,7 @@ composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 npm test           # node --test, the elements and the enum mirrors
 npm run coverage   # node --test with coverage, held at 100%
-npm run check      # tsc --noEmit, the front end on its own
+npm run check      # tsc over assets/ts/, tools/*.mjs and test/js/*.mjs
 ```
 
 ## The split
@@ -367,10 +367,26 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   execute what the server will send. `npm test` and `npm run coverage` take the default and are
   unchanged; the 100% gate is still measured against `public/assets/js/**`, which is why the debug
   tree stays readable rather than being minified in place.
-- **`assets/ts/` type-checks.** `tsc --noEmit`, with the same config the build uses — `strict`,
-  `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`. This is the front end's equivalent of the
-  typed value objects on the PHP side: the point is that a `data-` attribute rename becomes a compile
-  error instead of the literal text `undefined` appearing on the page.
+- **All three JavaScript trees type-check.** `assets/ts/` with the config the build uses —
+  `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` — which is the front end's
+  equivalent of the typed value objects on the PHP side: a `data-` attribute rename becomes a
+  compile error instead of the literal text `undefined` appearing on the page.
+
+  `tools/*.mjs` and `test/js/*.mjs` are checked in place through `tsconfig.tools.json` and
+  `tsconfig.test.json`, both `checkJs` and both emitting nothing. The tools are the ones worth
+  having: they write the three committed artefacts this script then diffs, so a wrong *output* was
+  already caught and a crash on an untaken path was not. The first run found two in
+  `build-prod.mjs` — an unchecked `graph.outputFiles[0]`, and a failure message quoting
+  `result.error`, a property terser dropped in version 5, which had therefore been printing the
+  fallback half of a `??` since the line was written.
+
+  The tests are checked less strictly, and the two settings that are off are off for a reason
+  stated in the config: `strictNullChecks`, because a test asserting on `el.querySelector('canvas')`
+  wants that null to throw — the throw *is* the failing assertion — and `noImplicitAny`, because
+  annotating 52 assertion callbacks would bury the three shapes worth stating. What is left is
+  helper-to-caller drift, which is what it found: `card()` in the waveform suite drops every
+  property without a default of its own from its inferred parameter type, so twenty-six call sites
+  passing `peaks` were checking nothing.
 
 ## Coverage
 

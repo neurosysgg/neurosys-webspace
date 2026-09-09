@@ -1,9 +1,10 @@
 {
+    "license": "MIT",
     "require": {
-        "php": ">=8.5",
-        "ext-uri": "*",
+        "php": "^8.5",
         "ext-openssl": "*",
-        "ext-curl": "*"
+        "ext-uri": "*",
+        "ext-zlib": "*"
     },
     "autoload": {
         "psr-4": {
@@ -16,9 +17,11 @@
         }
     },
     "require-dev": {
+        "ext-curl": "*",
+        "friendsofphp/php-cs-fixer": "^3.95",
+        "phpunit/php-code-coverage": "^14.3",
         "phpunit/phpunit": "^13.3",
-        "squizlabs/php_codesniffer": "^4.0",
-        "friendsofphp/php-cs-fixer": "^3.95"
+        "squizlabs/php_codesniffer": "^4.0"
     },
     "scripts": {
         "test": [
@@ -48,6 +51,8 @@
         "unit": "PHPUnit unit tests",
         "verify": "End-to-end verify script (real autoloader, real HTTP, repo hygiene)",
         "lint": "phpcs + php-cs-fixer, both read-only",
+        "phpcs": "phpcs only, read-only",
+        "cs-check": "php-cs-fixer only, read-only, with a diff",
         "cs-fix": "Apply php-cs-fixer's changes",
         "coverage": "Both suites' coverage, merged into one report (build/coverage/html)"
     },

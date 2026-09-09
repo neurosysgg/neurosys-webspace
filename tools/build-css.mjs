@@ -1,12 +1,12 @@
 /**
- * Inlines assets/css/main.css's @import list into public/assets/css/style.css.
+ * Inlines assets/css/main.css's `@import` list into public/assets/css/style.css.
  *
  * The CSS half of what tsc is for assets/ts/: sources sit outside public/ so they are neither
  * web-served nor deployed, and the output is committed because deploy.sh rsyncs public/ straight
  * from the working tree. test/basic_test.sh rebuilds and diffs, so a forgotten build fails there
  * rather than shipping a stale stylesheet.
  *
- * @import is the source form and never the served one. Left in place the browser would discover
+ * `@import` is the source form and never the served one. Left in place the browser would discover
  * each part only after parsing the one before it — a serial chain of render-blocking requests, and
  * a typo'd href would 404 in silence with that component simply unstyled. Inlining costs the
  * browser nothing and turns both of those into a build error.
@@ -19,10 +19,10 @@
  * stderr; it never writes a partial file.
  */
 
-import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 
-import { ROOT, cli } from './build-cli.mjs';
+import { ROOT, cli, read } from './build-cli.mjs';
 
 const { fail, label, path } = cli('build-css', ['out']);
 
@@ -32,7 +32,7 @@ const DEFAULT = join(ROOT, 'public/assets/css/style.css');
 /** A CSS comment, non-greedy — the same shape HtmlTest strips before scanning selectors. */
 const COMMENT = /\/\*[\s\S]*?\*\//g;
 
-/** @import url("x"), @import url(x) and @import "x" — the three forms, one capture. */
+/** `@import url("x")`, `@import url(x)` and `@import "x"` — the three forms, one capture. */
 const IMPORT = /@import\s+(?:url\(\s*(?:"([^"]*)"|'([^']*)'|([^)\s]*))\s*\)|"([^"]*)"|'([^']*)')\s*;/g;
 
 /** Every file already inlined, so a part imported twice is an error rather than a duplicate rule. */
@@ -47,6 +47,10 @@ let parts = 0;
  * That is what keeps the ordering decision in one kind of file: main.css says what comes before
  * what and nothing else, and a part says what it styles and never where it sits. A rule sitting in
  * a manifest would be an ordering decision made twice.
+ *
+ * @param {string} file
+ * @param {string} importedBy
+ * @returns {string}
  */
 function inline(file, importedBy) {
   const previous = seen.get(file);
@@ -58,13 +62,7 @@ function inline(file, importedBy) {
 
   seen.set(file, importedBy);
 
-  let source;
-
-  try {
-    source = readFileSync(file, 'utf8');
-  } catch {
-    fail(`${importedBy} imports ${label(file)}, which does not exist.`);
-  }
+  const source = read(file) ?? fail(`${importedBy} imports ${label(file)}, which does not exist.`);
 
   const imports = [...source.replace(COMMENT, '').matchAll(IMPORT)]
     .map((match) => match.slice(1).find((group) => group !== undefined) ?? '');

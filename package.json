@@ -1,19 +1,25 @@
 {
     "name": "neurosys",
     "private": true,
+    "license": "MIT",
     "type": "module",
     "description": "Front-end sources for neurosys.gg. Compiles assets/ts/ to public/assets/js/, inlines assets/css/main.css into public/assets/css/style.css, then content-hashes both into src/NeuroSYS/AssetManifest.php. `build:prod` derives build/dist/ from that: the same tree minified, with the source maps dropped, and its own manifest.",
+    "engines": {
+        "node": ">=26.7.0"
+    },
     "scripts": {
+        "dev": "php -S localhost:8080 -t public tools/dev-router.php",
         "build": "tsc && node tools/build-css.mjs && node tools/build-assets.mjs",
         "build:css": "node tools/build-css.mjs",
         "build:assets": "node tools/build-assets.mjs",
         "build:prod": "npm run build && node tools/build-prod.mjs",
         "watch": "tsc --watch",
-        "check": "tsc --noEmit",
-        "test": "node --test",
-        "coverage": "node --test --experimental-test-coverage --test-coverage-include='public/assets/js/**' --test-coverage-include-all --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100"
+        "check": "tsc --noEmit && tsc -p tsconfig.tools.json && tsc -p tsconfig.test.json",
+        "test": "node --test 'test/js/*.test.mjs'",
+        "coverage": "node --test --experimental-test-coverage --test-coverage-include='public/assets/js/**' --test-coverage-include-all --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100 'test/js/*.test.mjs'"
     },
     "devDependencies": {
+        "@types/node": "^26.5.0",
         "esbuild": "0.28.2",
         "jsdom": "^30.0.1",
         "terser": "^5.51.2",
