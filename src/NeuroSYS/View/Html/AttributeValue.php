@@ -19,7 +19,7 @@ namespace NeuroSYS\View\Html;
  *
  * **Most attribute values want no implementation of this.** A fixed vocabulary is a `BackedEnum` —
  * {@link LinkRel}, {@link LinkTarget}, {@link ScriptType}, {@link MediaPreload}, {@link MetaName},
- * {@link Language} — and {@link Element::attr()} unwraps one directly. A value that is *data*, like
+ * {@link \NeuroSYS\Text\Language} — and {@link Element::attr()} unwraps one directly. A value that is *data*, like
  * a title or a `src`, is a string and always was. This is for the third kind and no other: a value
  * with parts.
  *

@@ -9,7 +9,6 @@ use NeuroSYS\DataFile;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
-use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\PrivacyView;
 
 class PrivacyController implements Controller
@@ -23,10 +22,9 @@ class PrivacyController implements Controller
         return new ViewResponse(new PrivacyView(
             self::policy(DataFile::PrivacyGerman),
             self::policy(DataFile::PrivacyEnglish),
-            // English first, so a request naming neither language gets the site's own — and a tie
-            // does too. See AcceptedLanguages::preferred(), where that argument order *is* the
-            // default rather than merely the first thing tried.
-            $request->acceptedLanguages()->preferred(Language::English, Language::German),
+            // The request's language leads: the visitor's choice, else their browser's, else
+            // English — see Request::language(). Both halves are rendered either way.
+            $request->language(),
         ));
     }
 

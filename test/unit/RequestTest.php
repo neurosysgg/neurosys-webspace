@@ -7,17 +7,20 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Http\AcceptedLanguages;
 use NeuroSYS\Http\AuthScheme;
 use NeuroSYS\Http\BasicChallenge;
+use NeuroSYS\Http\CookieName;
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\RequestCookies;
 use NeuroSYS\Http\RequestedWith;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Http\ServerVariable;
-use NeuroSYS\View\Html\Language;
+use NeuroSYS\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 #[CoversClass(Request::class)]
 #[CoversClass(AcceptedLanguages::class)]
+#[CoversClass(RequestCookies::class)]
 #[CoversClass(AuthScheme::class)]
 #[CoversClass(RequestHeader::class)]
 #[CoversClass(RequestedWith::class)]
@@ -608,5 +611,64 @@ final class RequestTest extends TestCase
             Language::German,
             $request->acceptedLanguages()->preferred(Language::English, Language::German),
         );
+    }
+
+    // ─────────────────────── the language a request is answered in ───────────────────────
+
+    /**
+     * @param string      $header
+     * @param string|null $expected
+     * @return void
+     */
+    #[DataProvider('cookieProvider')]
+    public function testACookieIsFoundByItsName(string $header, ?string $expected): void
+    {
+        self::assertSame($expected, RequestCookies::from($header)->value(CookieName::Language));
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function cookieProvider(): iterable
+    {
+        yield 'alone'                         => ['lang=de', 'de'];
+        yield 'among others'                  => ['theme=dark; lang=en; x=1', 'en'];
+        yield 'with no space after the ;'     => ['a=1;lang=de', 'de'];
+        yield 'quoted, which the grammar allows' => ['lang="de"', 'de'];
+        yield 'the first of two wins'         => ['lang=de; lang=en', 'de'];
+        yield 'a name that only ends in it'   => ['xlang=de', null];
+        yield 'a pair with no ='              => ['lang; other=1', null];
+        yield 'an empty value is still one'   => ['lang=', ''];
+        yield 'a lone quote is not quoting'   => ['lang="', '"'];
+        yield 'no header at all'              => ['', null];
+    }
+
+    /**
+     * The visitor's choice, then their browser's, then the site's — and a cookie that names no
+     * language of ours is no choice.
+     *
+     * @param array<string, string> $server
+     * @param Language              $expected
+     * @return void
+     */
+    #[DataProvider('requestLanguageProvider')]
+    public function testTheRequestIsAnsweredInTheVisitorsLanguage(array $server, Language $expected): void
+    {
+        self::assertSame($expected, $this->request(['REQUEST_URI' => '/'] + $server)->language());
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function requestLanguageProvider(): iterable
+    {
+        $german = ['HTTP_ACCEPT_LANGUAGE' => 'de-DE,de;q=0.9'];
+
+        yield 'nothing asked'                   => [[], Language::English];
+        yield 'the browser asks for German'     => [$german, Language::German];
+        yield 'the cookie asks for German'      => [['HTTP_COOKIE' => 'lang=de'], Language::German];
+        yield 'the cookie outranks the browser' => [['HTTP_COOKIE' => 'lang=en'] + $german, Language::English];
+        yield 'a cookie naming no language falls through' => [['HTTP_COOKIE' => 'lang=xx'] + $german, Language::German];
+        yield 'an empty cookie falls through'   => [['HTTP_COOKIE' => 'lang='] + $german, Language::German];
     }
 }

@@ -713,8 +713,11 @@ otherwise get to choose which of our elements to build.
 ## Language
 
 The imprint and the privacy policy are the only bilingual pages here — each carries a German half and
-an English half, one after the other — and the order is the visitor's: `Accept-Language` decides which
-half they meet first.
+an English half, one after the other — and the order is the visitor's. `Request::language()` decides
+which half they meet first: their `lang` cookie where it names a language this site has, else their
+`Accept-Language`, else English. The cookie outranks the header because it is a choice made on this
+site, where the header is a setting made once for every site; a cookie naming anything else is no
+choice at all and falls through.
 
 Four things are worth knowing before touching any of it.
 

@@ -15,6 +15,16 @@ enum ResponseHeader: string implements HeaderName
     /** What the body is, and in which encoding. */
     case ContentType = 'Content-Type';
 
+    /**
+     * Which language the body is written in, so a browser, a translation offer and a crawler do
+     * not have to guess it from the words.
+     *
+     * Sent by {@link ViewResponse} with every page, from the page's own language — the same fact
+     * `<html lang>` states, once for the document and once for the wire. A fragment has no
+     * `<html>` to carry it, so for `Navigation`'s fetches this is the only statement of it.
+     */
+    case ContentLanguage = 'Content-Language';
+
     /** Where a redirect points. */
     case Location = 'Location';
 

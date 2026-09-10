@@ -76,7 +76,7 @@ original **by name, backing value and declaration order** — declaration order 
 | `model/ArrangementAttribute.ts` | `View\Html\ArrangementAttribute` | `kind` |
 | `model/CssClass.ts` | `View\Html\CssClass` | what the stylesheet selects on |
 | `model/ElementId.ts` | `View\Html\ElementId` | `content` — what the SPA router swaps |
-| `model/RequestHeader.ts` | `Http\RequestHeader` | `X-Requested-With`, `If-None-Match`, `Range`, `Accept-Language` — only the first is written by client code; see below |
+| `model/RequestHeader.ts` | `Http\RequestHeader` | `X-Requested-With`, `If-None-Match`, `Range`, `Accept-Language`, `Cookie` — only the first is written by client code; see below |
 | `model/RequestedWith.ts` | `Http\RequestedWith` | `XMLHttpRequest` |
 
 ### Not an enum, same problem
@@ -92,7 +92,7 @@ player is blocked by our own policy — in the console, with nothing in the page
 
 ## Names with only one side
 
-Six names are written or read on one side only, and each arrangement is deliberate.
+Seven names are written or read on one side only, and each arrangement is deliberate.
 
 | Name | Written by | Read by | Why no mirror |
 |---|---|---|---|
@@ -101,7 +101,8 @@ Six names are written or read on one side only, and each arrangement is delibera
 | `loaded` (`EmbedAttribute::Loaded`) | `ConsentGatedEmbed.ts` | the stylesheet | client-written, but it *does* have a PHP case — see below |
 | `If-None-Match` (`RequestHeader::IfNoneMatch`) | the browser | `ViewResponse` | the mirror image of `loaded`: server-read, mirrored client-side so the enum stays comparable case for case. No client code writes it |
 | `Range` (`RequestHeader::Range`) | the browser, when an `<audio>` is seeked | `Request`, for `FileResponse` | as `If-None-Match` |
-| `Accept-Language` (`RequestHeader::AcceptLanguage`) | the browser | `AcceptedLanguages`, for the imprint and privacy pages | as `If-None-Match` |
+| `Accept-Language` (`RequestHeader::AcceptLanguage`) | the browser | `AcceptedLanguages`, for `Request::language()` | as `If-None-Match` |
+| `Cookie` (`RequestHeader::Cookie`) | the browser | `RequestCookies`, for the `lang` cookie `Request::language()` puts first | as `If-None-Match` |
 
 The first two are named in TypeScript anyway, even though no test can follow them, because **the
 stylesheet is exactly the kind of reader that fails in silence**: get `--player-height` wrong and the

@@ -8,11 +8,11 @@ use NeuroSYS\Config;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\UrlScheme;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\Html\Node;
 
 /**
@@ -22,8 +22,9 @@ use NeuroSYS\View\Html\Node;
  * contact line are built once each and used from both — a legal document with two copies of an
  * address is a legal document with one wrong address, eventually.
  *
- * **Both halves are always rendered; only their order changes**, by the visitor's own
- * `Accept-Language` — see {@link \NeuroSYS\Http\AcceptedLanguages}. The German half is the one
+ * **Both halves are always rendered; only their order changes**, by the language the request is
+ * answered in — the visitor's `lang` cookie, else their `Accept-Language`; see
+ * {@link \NeuroSYS\Http\Request::language()}. The German half is the one
  * that discharges the obligation, so it is never the half left out; what the language decides is
  * only which one a visitor reads first. Each carries its own `lang`, so a screen reader changes
  * voice at the boundary rather than reading German aloud in English.
@@ -76,7 +77,7 @@ class ImprintView extends View
     #[BareArray('overrides View::varyOn(); see the reason there')]
     public function varyOn(): array
     {
-        return [RequestHeader::AcceptLanguage];
+        return [RequestHeader::AcceptLanguage, RequestHeader::Cookie];
     }
 
     /**

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Support\File;
+use NeuroSYS\Text\Language;
 use Uri\Rfc3986\Uri;
 
 /**
@@ -26,6 +27,7 @@ readonly class Request
      * @param string $rangeHeader
      * @param string $acceptLanguage
      * @param string $authorization
+     * @param string $cookie
      */
     private function __construct(
         private ?HttpMethod $method,
@@ -37,6 +39,7 @@ readonly class Request
         private string $rangeHeader = '',
         private string $acceptLanguage = '',
         private string $authorization = '',
+        private string $cookie = '',
     ) {}
 
     /**
@@ -80,6 +83,7 @@ readonly class Request
             self::header(RequestHeader::Range),
             self::header(RequestHeader::AcceptLanguage),
             $authorization,
+            self::header(RequestHeader::Cookie),
         );
     }
 
@@ -326,5 +330,36 @@ readonly class Request
     public function acceptedLanguages(): AcceptedLanguages
     {
         return AcceptedLanguages::from($this->acceptLanguage);
+    }
+
+    /**
+     * The cookies this request carries, to be asked for by name.
+     *
+     * @return RequestCookies
+     */
+    public function cookies(): RequestCookies
+    {
+        return RequestCookies::from($this->cookie);
+    }
+
+    /**
+     * The language this request is answered in.
+     *
+     * **The visitor's own choice first, then their browser's, then the site's.** A `lang` cookie
+     * naming a language this site has is a choice somebody made on this site, so it outranks
+     * `Accept-Language`, which is a setting they made once for every site. With neither, the answer
+     * is English, by the argument order {@link AcceptedLanguages::preferred()} reads its default
+     * from. A cookie naming anything else — `lang=xx` — is no choice at all and falls through
+     * rather than failing: `tryFrom()`, not `from()`.
+     *
+     * **A page answered in this owes a `Vary` on both headers** — see
+     * {@link \NeuroSYS\View\View::varyOn()}.
+     *
+     * @return Language
+     */
+    public function language(): Language
+    {
+        return Language::tryFrom($this->cookies()->value(CookieName::Language) ?? '')
+            ?? $this->acceptedLanguages()->preferred(Language::English, Language::German);
     }
 }

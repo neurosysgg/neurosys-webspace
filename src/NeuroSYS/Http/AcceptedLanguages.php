@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Http;
 
 use NeuroSYS\Support\BareArray;
-use NeuroSYS\View\Html\Language;
+use NeuroSYS\Text\Language;
 
 /**
  * The AcceptedLanguages class. What an `Accept-Language` header asked for, in order.

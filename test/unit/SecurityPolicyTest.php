@@ -12,6 +12,7 @@ use NeuroSYS\Http\BasicChallenge;
 use NeuroSYS\Http\ByteRange;
 use NeuroSYS\Http\CacheControl;
 use NeuroSYS\Http\CacheDirective;
+use NeuroSYS\Http\ContentLanguage;
 use NeuroSYS\Http\ContentLength;
 use NeuroSYS\Http\ContentRange;
 use NeuroSYS\Http\ETag;
@@ -37,6 +38,7 @@ use NeuroSYS\Http\Security\StrictTransportSecurity;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\Vary;
+use NeuroSYS\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -57,6 +59,7 @@ use RecursiveIteratorIterator;
 // that names any #[CoversClass] records coverage for *only* those classes — so without this line
 // the guard reads as 0% while eight data rows drive it. The same trap UpdateFile fell into.
 #[CoversClass(BasicChallenge::class)]
+#[CoversClass(ContentLanguage::class)]
 final class SecurityPolicyTest extends TestCase
 {
     // ───────────────────────── StrictTransportSecurity ─────────────────────────
@@ -419,6 +422,7 @@ final class SecurityPolicyTest extends TestCase
         yield 'the realm, quoted'         => ['Basic realm="neuro.SYS"', new BasicChallenge('neuro.SYS')];
         yield 'where a download goes'     => ['https://x.example/f?id=1', new Location('https://x.example/f?id=1')];
         yield 'a media type'              => ['text/html; charset=utf-8', MimeType::html()];
+        yield 'the language a body is in' => ['de', new ContentLanguage(Language::German)];
         yield 'a single-value enum'       => ['nosniff', ContentTypeOptions::NoSniff];
 
         // The demo routes' four. A file response is the only one here whose body is not a rendered
@@ -548,6 +552,7 @@ final class SecurityPolicyTest extends TestCase
                 'NeuroSYS\Http\Allow',
                 'NeuroSYS\Http\BasicChallenge',
                 'NeuroSYS\Http\CacheControl',
+                'NeuroSYS\Http\ContentLanguage',
                 'NeuroSYS\Http\ContentLength',
                 'NeuroSYS\Http\ContentRange',
                 'NeuroSYS\Http\ETag',

@@ -1058,8 +1058,8 @@ echo "=== Caching ==="
 check_header "a document says it must be revalidated" "$BASE/"       "^cache-control: no-cache"
 check_header "  and hands out a validator to do it with" "$BASE/"    "^etag: \""
 check_header "  and names the header its body depends on" "$BASE/"   "^vary: X-Requested-With"
-check_header "  and the bilingual pages name the language too" "$BASE/imprint" \
-    "^vary: X-Requested-With, Accept-Language"
+check_header "  and the bilingual pages name the two the language is read from" "$BASE/imprint" \
+    "^vary: X-Requested-With, Accept-Language, Cookie"
 check_header "  which the pages that are not do not" "$BASE/releases" "^vary: X-Requested-With$"
 check_revalidates "an unchanged document comes back as a 304" "$BASE/"
 check_revalidates "  and so does a release page" "$BASE/releases/ill"
@@ -1093,8 +1093,11 @@ echo "=== Language negotiation ==="
 
 check_language_order() {
     local desc="$1"; local url="$2"; local accept="$3"; local first="$4"; local second="$5"
+    local cookie="${6:-}"
     local body before_first before_second
-    body=$(curl "${CURL_ARGS[@]}" -H "Accept-Language: $accept" "$url" 2>/dev/null) || true
+    local extra=()
+    [[ -n "$cookie" ]] && extra=(-H "Cookie: $cookie")
+    body=$(curl "${CURL_ARGS[@]}" "${extra[@]}" -H "Accept-Language: $accept" "$url" 2>/dev/null) || true
 
     if [[ "$body" != *"$first"* || "$body" != *"$second"* ]]; then
         fail "$desc (the page is missing one of its two halves)"
@@ -1123,6 +1126,15 @@ check_language_order "  and no header at all is the same as asking for neither" 
     "" "<h1>Imprint</h1>" "<h1>Impressum</h1>"
 check_language_order "the policy orders its two halves the same way" "$BASE/privacy" \
     "de" "Datenschutz" "Privacy Policy"
+
+# A lang cookie is a choice made on this site, so it outranks the browser's setting — and one that
+# names no language of ours is no choice, and the browser's setting stands.
+check_language_order "a chosen language outranks the browser's" "$BASE/imprint" \
+    "de-DE,de;q=0.9" "<h1>Imprint</h1>" "<h1>Impressum</h1>" "lang=en"
+check_language_order "  and the other way round, among other cookies" "$BASE/imprint" \
+    "en-GB,en;q=0.9" "<h1>Impressum</h1>" "<h1>Imprint</h1>" "theme=dark; lang=de"
+check_language_order "  but a cookie naming no language of ours is no choice" "$BASE/imprint" \
+    "de" "<h1>Impressum</h1>" "<h1>Imprint</h1>" "lang=xx"
 
 check_body "the German imprint is sent to an English reader too" "$BASE/imprint" "<h1>Impressum</h1>"
 check_body "  and each half says which language it is" "$BASE/imprint" '<section lang="de">'
@@ -1155,6 +1167,17 @@ check_language_attribute() {
 
 check_language_attribute "the document declares the language it led with" "de" "de"
 check_language_attribute "  and the other one when that is what led" "en" "en"
+
+# Content-Language says on the wire what <html lang> says in the document — and a fragment has no
+# <html>, so for Navigation's fetches the header is the only statement of it.
+check_header "every page says which language its body is in" "$BASE/" "^content-language: en"
+CONTENT_LANGUAGE=$(curl "${CURL_ARGS[@]}" -H "Accept-Language: de" -o /dev/null -D - "$BASE/imprint" 2>/dev/null \
+                   | tr -d '\r' | grep -i '^content-language:')
+if printf '%s' "$CONTENT_LANGUAGE" | grep -qi '^content-language: de$'; then
+    pass "  and the imprint the language it led with"
+else
+    fail "  and the imprint the language it led with (${CONTENT_LANGUAGE:-none})"
+fi
 
 
 echo ""

@@ -90,6 +90,7 @@ readonly class ViewResponse implements Response
 
         http_response_code($this->status->value);
         header(new Header(ResponseHeader::ContentType, MimeType::html())->line());
+        header(new Header(ResponseHeader::ContentLanguage, new ContentLanguage($this->view->language()))->line());
 
         self::sendAll($cache);
         self::sendAll($this->headers);
@@ -127,7 +128,8 @@ readonly class ViewResponse implements Response
      *
      * **Anything else it names comes from the view**, through {@link View::varyOn()}, because the
      * page is what knows which headers it read. The imprint and the privacy policy add
-     * `Accept-Language`; every other page adds nothing, so no page pays for a dependency it does
+     * `Accept-Language` and `Cookie`, the two {@link Request::language()} reads; every other page
+     * adds nothing, so no page pays for a dependency it does
      * not have. The `ETag` is a second guard there too — the two orderings are different bytes.
      *
      * **A caller that supplied its own `Cache-Control` gets none of this**, and no 304 either.

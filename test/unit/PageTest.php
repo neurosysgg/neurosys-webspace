@@ -8,8 +8,8 @@ use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\HomeView;
-use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\PrivacyView;
@@ -438,8 +438,10 @@ final class PageTest extends TestCase
      */
     public function testOnlyTheBilingualPagesVaryOnLanguage(): void
     {
-        self::assertSame([RequestHeader::AcceptLanguage], new ImprintView()->varyOn());
-        self::assertSame([RequestHeader::AcceptLanguage], new PrivacyView('', '')->varyOn());
+        $language = [RequestHeader::AcceptLanguage, RequestHeader::Cookie];
+
+        self::assertSame($language, new ImprintView()->varyOn());
+        self::assertSame($language, new PrivacyView('', '')->varyOn());
         self::assertSame([], new HomeView()->varyOn());
     }
 

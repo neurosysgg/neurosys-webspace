@@ -70,6 +70,19 @@ enum RequestHeader: string implements HeaderName
     case AcceptLanguage = 'Accept-Language';
 
     /**
+     * The cookies the browser holds for this origin.
+     *
+     * Read for one of them only — {@link CookieName::Language}, by {@link Request::language()},
+     * where a visitor's choice outranks {@link self::AcceptLanguage} — and never kept whole; see
+     * {@link RequestCookies}. It carries the same hazard as `Accept-Language` above and for the same
+     * reason: a page answered by it owes a `Vary` naming it.
+     *
+     * Mirrored in `assets/ts/model/RequestHeader.ts` with no reader on that side: the browser sends
+     * it on its own, and no client code here writes a cookie.
+     */
+    case Cookie = 'Cookie';
+
+    /**
      * @return string
      */
     public function headerName(): string

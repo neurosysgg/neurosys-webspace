@@ -24,4 +24,11 @@ export enum RequestHeader {
    * same reason IfNoneMatch and Range are: the mirror is compared case for case.
    */
   AcceptLanguage = 'Accept-Language',
+
+  /**
+   * Written by no client code either — the browser sends it on its own, and the server reads one
+   * cookie out of it, the visitor's chosen language, which outranks Accept-Language. Here for the
+   * same reason the three above are: the mirror is compared case for case.
+   */
+  Cookie = 'Cookie',
 }

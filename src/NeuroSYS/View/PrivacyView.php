@@ -7,11 +7,11 @@ namespace NeuroSYS\View;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Support\BareArray;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\Html\MarkupParser;
 use NeuroSYS\View\Html\Node;
 
@@ -77,7 +77,7 @@ class PrivacyView extends View
     #[BareArray('overrides View::varyOn(); see the reason there')]
     public function varyOn(): array
     {
-        return [RequestHeader::AcceptLanguage];
+        return [RequestHeader::AcceptLanguage, RequestHeader::Cookie];
     }
 
     /**

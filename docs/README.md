@@ -69,7 +69,7 @@ neurosys/
 | `/releases` | release catalogue |
 | `/releases/{slug}` | release landing page |
 | `/releases/{slug}/{format}` | HTTP 303 → HiDrive link (`flac`, `wav`, `mp3`, `aiff`, `stems`, `ogg`) |
-| `/imprint` | Impressum + Imprint — both, ordered by `Accept-Language` |
+| `/imprint` | Impressum + Imprint — both, led by the visitor's language (`lang` cookie, else `Accept-Language`) |
 | `/privacy` | Datenschutzerklärung + Privacy Policy, from the two `data/privacy.*.html` files |
 | `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
 | `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |

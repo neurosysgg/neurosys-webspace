@@ -7,11 +7,11 @@ namespace NeuroSYS\View;
 use NeuroSYS\Config;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Support\BareArray;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Language;
 use NeuroSYS\View\Html\Node;
 
 /**
@@ -44,8 +44,8 @@ abstract class View
      * The language this page is primarily written in.
      *
      * English for everything here but the two legal documents, which carry a German half and an
-     * English half and answer with whichever the visitor asked for — see
-     * {@link \NeuroSYS\Http\AcceptedLanguages}. {@link \NeuroSYS\Layout::wrap()} puts it on
+     * English half and lead with the language the request is answered in — see
+     * {@link \NeuroSYS\Http\Request::language()}. {@link \NeuroSYS\Layout::wrap()} puts it on
      * `<html lang>`, and each half of a bilingual page carries its own `lang` besides, so a screen
      * reader changes voice at the boundary rather than reading one language in the other's.
      *

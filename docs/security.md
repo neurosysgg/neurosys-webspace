@@ -40,10 +40,11 @@ Everything an attacker can reach:
 - Everything else answers `404` or `405`.
 
 Everything an attacker controls: the **request target** (the path), the **method**, the request
-headers the app reads — `Authorization`, and the four `RequestHeader` cases: `X-Requested-With`,
-`If-None-Match`, `Range` (demo audio only) and `Accept-Language` (`/imprint` and `/privacy` only,
-where it picks which language leads) — plus `Referer` only when download logging is on, which it is
-not; and, under `/api` alone, a **request body**.
+headers the app reads — `Authorization`, and the five `RequestHeader` cases: `X-Requested-With`,
+`If-None-Match`, `Range` (demo audio only), and `Accept-Language` and `Cookie` (`/imprint` and
+`/privacy` only, where they pick which language leads; of the cookies, only `lang` is read, and only
+as one of the `Language` cases — anything else falls through) — plus `Referer` only when download
+logging is on, which it is not; and, under `/api` alone, a **request body**.
 
 That body is read at one call site, and **it is not read at all until a signature has verified**.
 The credential arrives in `Authorization` rather than framed into the body, so an unsigned caller is
