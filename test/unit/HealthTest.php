@@ -11,74 +11,78 @@ use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Model\Api\ApiEnvelope;
 use NeuroSYS\Model\Api\VerifiedRequest;
+use NeuroSYS\Model\Health\Area;
+use NeuroSYS\Model\Health\ByteFloor;
+use NeuroSYS\Model\Health\ExtensionRequirement;
+use NeuroSYS\Model\Health\Finding;
 use NeuroSYS\Model\Health\HealthFact;
+use NeuroSYS\Model\Health\HealthResult;
 use NeuroSYS\Model\Health\HealthSection;
+use NeuroSYS\Model\Health\Level;
+use NeuroSYS\Model\Health\Outcome;
 use NeuroSYS\Model\Health\PhpExtension;
 use NeuroSYS\Model\Health\PhpSetting;
-use NeuroSYS\Service\Api\HealthReport;
+use NeuroSYS\Model\Health\Requirement;
+use NeuroSYS\Model\Health\SecondsFloor;
+use NeuroSYS\Model\Health\SettingRequirement;
+use NeuroSYS\Model\Health\Toggle;
+use NeuroSYS\Model\Health\Verdict;
+use NeuroSYS\Model\Health\VersionRequirement;
+use NeuroSYS\Service\Api\HealthCheck;
+use NeuroSYS\Service\ApiGate;
+use NeuroSYS\Service\Health\DataFileRequirement;
+use NeuroSYS\Service\Health\WebrootRequirement;
 use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
+use NeuroSYS\Support\RequirementInitialization;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * `/api/health/v1/report`: what this deployment says about itself.
+ * `/api/health/v1/*`: whether this host meets what this site declares it needs.
  *
- * The report exists because every fact in it was asserted somewhere and checked nowhere, so most
- * of what is worth asserting here is **shape rather than value**. What the live host's
- * `memory_limit` is, is the report's business and not this file's; that the report has a line for
- * it, under the name the enum spells, is exactly what a test can pin — and it is what fails when
- * somebody adds a case to a vocabulary and forgets the one place that shows it.
+ * The core — what a requirement is and how a set of them reads — is {@link RequirementTest}'s. This
+ * file is about **this site's declarations** and the service that checks them, and most of it is
+ * **parity**: the floors are stated elsewhere too — `composer.json`, {@link ApiGate::MAX_BODY} —
+ * and a declaration that drifted from what it restates would be a health check reassuring somebody
+ * about a site that no longer exists.
  *
- * Three properties, and every test here is one of them:
+ * The deployment requirements are driven both ways here, because the branch the live host takes —
+ * a `DOCUMENT_ROOT` that resolves — is never the one a CLI run takes on its own.
  *
- * - **Completeness.** Every {@link PhpSetting}, every {@link PhpExtension} and every
- *   {@link DataFile} appears, because each of those sets is iterated rather than listed — so a
- *   case added to any of them lands in the report on its own, and this is what says so.
- * - **Parity with what already claimed these facts.** {@link PhpExtension} is the third statement
- *   of the extension list, after `composer.json` and `test/basic_test.sh`, and the first that can
- *   be compared to one of the others in code.
- * - **The branches the live host will actually take.** Its `error_log` is empty and its
- *   `DOCUMENT_ROOT` resolves; a developer's machine is the opposite on both counts. Both sides of
- *   both are driven here, because the interesting one is never the one running the test.
- *
- * {@link HealthFact} and {@link HealthSection} are named below although the sections they render
- * are this file's subject rather than its target — the `#[CoversClass]` trap docs/testing.md
- * describes, which has bitten this suite more than once and is cheaper to avoid than to diagnose.
+ * The core classes a check runs through are named below as well as its subjects, for the
+ * `#[CoversClass]` reason docs/testing.md gives.
  */
 #[CoversClass(HealthAction::class)]
-#[CoversClass(HealthReport::class)]
+#[CoversClass(HealthCheck::class)]
+#[CoversClass(RequirementInitialization::class)]
+#[CoversClass(WebrootRequirement::class)]
+#[CoversClass(DataFileRequirement::class)]
+#[CoversClass(PhpExtension::class)]
+#[CoversClass(HealthResult::class)]
+#[CoversClass(Outcome::class)]
+#[CoversClass(Verdict::class)]
+#[CoversClass(Finding::class)]
 #[CoversClass(HealthFact::class)]
 #[CoversClass(HealthSection::class)]
-#[CoversClass(PhpExtension::class)]
-#[CoversClass(PhpSetting::class)]
+#[CoversClass(VersionRequirement::class)]
+#[CoversClass(ExtensionRequirement::class)]
+#[CoversClass(SettingRequirement::class)]
+#[CoversClass(ByteFloor::class)]
+#[CoversClass(SecondsFloor::class)]
+#[CoversClass(Toggle::class)]
 final class HealthTest extends TestCase
 {
-    /** The caption of the section that is present only when there is a log to quote. */
-    private const string LOG = 'error log';
-
-    private string $sandbox = '';
-    private string $errorLog = '';
     private string $documentRoot = '';
 
     /**
-     * Remembers the two pieces of global state these tests turn, so tearDown can put them back.
-     *
-     * Both are deliberate rather than incidental: `error_log` and `DOCUMENT_ROOT` are precisely
-     * the inputs the report reads and a test cannot otherwise reach, which is why
-     * {@link HealthReport} needs no constructor seam.
+     * Remembers `DOCUMENT_ROOT`, the one piece of global state these tests turn.
      *
      * @return void
      */
     protected function setUp(): void
     {
-        $this->errorLog     = (string) ini_get('error_log');
         $this->documentRoot = (string) ($_SERVER['DOCUMENT_ROOT'] ?? '');
-        $this->sandbox      = sys_get_temp_dir() . '/neurosys-health-' . bin2hex(random_bytes(6));
-
-        new Directory($this->sandbox)->create();
     }
 
     /**
@@ -86,165 +90,293 @@ final class HealthTest extends TestCase
      */
     protected function tearDown(): void
     {
-        ini_set('error_log', $this->errorLog);
-
         if ($this->documentRoot === '') {
             unset($_SERVER['DOCUMENT_ROOT']);
         } else {
             $_SERVER['DOCUMENT_ROOT'] = $this->documentRoot;
         }
-
-        if ($this->sandbox !== '') {
-            UpdateFixture::removeTree($this->sandbox);
-        }
     }
 
-    // ───────────────────────────── the action ─────────────────────────────
+    // ───────────────────────────── the actions ─────────────────────────────
 
     /**
-     * The action answers on GET and hands back the report.
+     * Every action is a read on GET, answered by a health check.
      *
      * @return void
      */
-    public function testTheReportActionIsAReadAnsweringOnGet(): void
+    public function testEveryActionIsAReadAnsweringOnGet(): void
     {
-        $manifest = (string) json_encode([
-            'serial' => time(),
-            'method' => HttpMethod::Get->value,
-            'path'   => '/api/health/v1/report',
-            'digest' => hash('sha256', ''),
-            'size'   => 0,
-        ], JSON_THROW_ON_ERROR);
+        foreach (HealthAction::cases() as $action) {
+            $handler = $action->handler(self::verified('/api/health/v1/' . $action->value));
 
-        $handler = HealthAction::Report->handler(
-            new VerifiedRequest(ApiEnvelope::parse($manifest), $manifest, ''),
-        );
-
-        self::assertSame(HttpMethod::Get, HealthAction::Report->method());
-        self::assertInstanceOf(HealthReport::class, $handler);
-        self::assertFalse($handler->isWrite(), 'a report that changes nothing must not spend a serial');
+            self::assertSame(HttpMethod::Get, $action->method());
+            self::assertInstanceOf(HealthCheck::class, $handler);
+            self::assertFalse($handler->isWrite(), 'a check that changes nothing must not spend a serial');
+        }
     }
 
     /**
-     * The whole thing is one 200 of plain text, ending in a newline like every other body here.
+     * Every area has exactly one address, and `report` is the one that names none.
+     *
+     * {@link Area} is the core's vocabulary and {@link HealthAction} the API's, and this is what
+     * keeps them one list: an area added without an address fails here rather than being checkable
+     * only as part of the whole report.
      *
      * @return void
      */
-    public function testTheReportIsOnePlainTextResponse(): void
+    public function testEveryAreaHasExactlyOneAddress(): void
     {
-        $response = new HealthReport()->handle();
+        foreach (Area::cases() as $area) {
+            $naming = 0;
 
-        self::assertInstanceOf(PlainTextResponse::class, $response);
-        self::assertSame(HttpStatusCode::Ok, UpdateFixture::statusOf($response));
-        self::assertStringEndsWith("\n", UpdateFixture::bodyOf($response));
-    }
+            foreach (HealthAction::cases() as $action) {
+                $naming += $action->area() === $area ? 1 : 0;
+            }
 
-    // ───────────────────────────── completeness ─────────────────────────────
-
-    /**
-     * Every section the report promises is in it.
-     *
-     * @param string $caption
-     * @return void
-     */
-    #[DataProvider('captionProvider')]
-    public function testEverySectionIsPresent(string $caption): void
-    {
-        self::assertStringContainsString($caption . "\n", $this->report());
-    }
-
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function captionProvider(): iterable
-    {
-        foreach (['php', 'extensions', 'errors', 'host', 'deployment'] as $caption) {
-            yield $caption => [$caption];
-        }
-    }
-
-    /**
-     * Every name in every vocabulary the report reads has a line of its own.
-     *
-     * The three sets are iterated by the report rather than listed by it, so this is the test that
-     * fails when a case is added to one of them and the report is *not* the place that has to
-     * change — which is the arrangement working, stated from the outside.
-     *
-     * @param string $name
-     * @return void
-     */
-    #[DataProvider('vocabularyProvider')]
-    public function testEveryNameItReadsHasItsOwnLine(string $name): void
-    {
-        self::assertMatchesRegularExpression(
-            '/^  ' . preg_quote($name, '/') . ' +\S/m',
-            $this->report(),
-            'a name in a vocabulary the report iterates, with no line under it',
-        );
-    }
-
-    /**
-     * @return iterable<string, array{string}>
-     */
-    public static function vocabularyProvider(): iterable
-    {
-        foreach (PhpSetting::cases() as $setting) {
-            yield 'setting ' . $setting->value => [$setting->value];
+            self::assertSame(1, $naming, $area->value . ' has ' . $naming . ' addresses');
         }
 
-        foreach (PhpExtension::cases() as $extension) {
-            yield 'extension ' . $extension->value => [$extension->value];
-        }
-
-        foreach (DataFile::cases() as $file) {
-            yield 'data file ' . $file->value => [$file->value];
-        }
-    }
-
-    /**
-     * A directive lands in exactly one of the two sections that show directives.
-     *
-     * {@link PhpSetting::isAboutErrors()} is a partition rather than a flag, and a partition is
-     * only worth having if nothing can fall out of it or into both halves. The `php` section is
-     * everything up to the `extensions` caption; the `errors` section is what sits under its own.
-     *
-     * @return void
-     */
-    public function testEveryDirectiveLandsInExactlyOneSection(): void
-    {
-        $php    = $this->section('php');
-        $errors = $this->section('errors');
-
-        foreach (PhpSetting::cases() as $setting) {
-            $inPhp    = str_contains($php, "\n  " . $setting->value . ' ');
-            $inErrors = str_contains($errors, "\n  " . $setting->value . ' ');
-
-            self::assertTrue(
-                $inPhp !== $inErrors,
-                $setting->value . ' is in both sections or in neither',
-            );
-            self::assertSame($setting->isAboutErrors(), $inErrors, $setting->value . ' is in the wrong one');
-        }
+        self::assertNull(HealthAction::Report->area());
     }
 
     // ───────────────────────────── parity ─────────────────────────────
 
     /**
-     * The extensions this enum names are exactly the ones `composer.json` requires.
+     * The extensions {@link PhpExtension} names are exactly the ones `composer.json` requires —
+     * and exactly the ones declared, every one of them required.
      *
-     * **This is the point of the whole feature, turned into an assertion.** The list is also
-     * stated in `composer.json`, which never runs on the server because `vendor/` is not deployed,
-     * and in `test/basic_test.sh`, which runs a developer's PHP — and neither can speak for the
-     * host. {@link PhpExtension} is the statement that can be compared against another in code, so
-     * this is what stops the report reassuring somebody about a set of extensions the site does not
-     * depend on.
+     * **This is the point of the whole service, turned into an assertion.** `composer.json` never
+     * runs on the server and `test/basic_test.sh` runs a developer's PHP; the declaration is what
+     * the live host is actually asked, and a declaration that drifted from composer's list would
+     * reassure somebody about extensions the site does not depend on.
      *
      * `require-dev`'s `ext-curl` is deliberately not here: the site makes no outbound request at
      * all, and the one class that does is tooling `deploy.sh` never uploads.
      *
      * @return void
      */
-    public function testTheExtensionsNamedAreExactlyTheOnesComposerRequires(): void
+    public function testTheExtensionsDeclaredAreExactlyTheOnesComposerRequires(): void
+    {
+        $required = [];
+        foreach (self::composer()['require'] as $package => $constraint) {
+            if (str_starts_with($package, 'ext-')) {
+                $required[] = substr($package, 4);
+            }
+        }
+
+        $named = [];
+        foreach (PhpExtension::cases() as $extension) {
+            $named[] = $extension->value;
+        }
+
+        $declared = [];
+        foreach (self::declared(Area::Extensions) as $requirement) {
+            self::assertSame(Level::Required, $requirement->level(), $requirement->name() . ' is not required');
+            $declared[] = $requirement->name();
+        }
+
+        sort($required);
+        sort($named);
+        sort($declared);
+
+        self::assertSame($required, $named);
+        self::assertSame($required, $declared);
+    }
+
+    /**
+     * The PHP floor is `composer.json`'s.
+     *
+     * @return void
+     */
+    public function testThePhpFloorIsComposers(): void
+    {
+        $version = self::declared(Area::Runtime)->first(
+            static fn(Requirement $requirement): bool => $requirement instanceof VersionRequirement,
+        );
+
+        self::assertInstanceOf(VersionRequirement::class, $version);
+        self::assertSame(self::composer()['require']['php'], '^' . $version->minimum);
+    }
+
+    /**
+     * The two size floors are derived from the body cap rather than written out — `post_max_size`
+     * is the cap itself, and `memory_limit` holds the three copies of it a push has at its peak.
+     *
+     * @return void
+     */
+    public function testTheSizeFloorsAreDerivedFromTheBodyCap(): void
+    {
+        self::assertSame(ApiGate::MAX_BODY, self::floor(PhpSetting::PostMaxSize)->bytes);
+        self::assertGreaterThanOrEqual(3 * ApiGate::MAX_BODY, self::floor(PhpSetting::MemoryLimit)->bytes);
+    }
+
+    /**
+     * Every declared extension proves itself here, by being used.
+     *
+     * If this fails on a developer's machine it is the same failure it would be on the live host,
+     * which is the only reason the check is worth anything.
+     *
+     * @return void
+     */
+    public function testEveryDeclaredExtensionProvesItself(): void
+    {
+        $response = new HealthCheck(RequirementInitialization::requirements(), Area::Extensions)->handle();
+
+        self::assertSame(HttpStatusCode::Ok, UpdateFixture::statusOf($response));
+        self::assertStringNotContainsString(Verdict::Fail->label(), UpdateFixture::bodyOf($response));
+    }
+
+    // ───────────────────────────── the deployment ─────────────────────────────
+
+    /**
+     * The deployment is `DOCUMENT_ROOT` and the tracked files — no more. An untracked file absent
+     * is state, not a fault, and is `capability`'s to report.
+     *
+     * @return void
+     */
+    public function testTheDeploymentDeclaresExactlyTheTrackedFiles(): void
+    {
+        $expected = ['DOCUMENT_ROOT'];
+        foreach (DataFile::cases() as $file) {
+            if ($file->isTracked()) {
+                $expected[] = $file->value;
+            }
+        }
+
+        $declared = [];
+        foreach (self::declared(Area::Deployment) as $requirement) {
+            $declared[] = $requirement->name();
+        }
+
+        self::assertSame($expected, $declared);
+    }
+
+    /**
+     * A webroot that resolves is met, naming the directory.
+     *
+     * @return void
+     */
+    public function testAResolvableWebrootIsMet(): void
+    {
+        $_SERVER['DOCUMENT_ROOT'] = dirname(__DIR__, 2) . '/public';
+
+        self::assertEquals(new Finding(dirname(__DIR__, 2) . '/public', true), new WebrootRequirement()->check());
+    }
+
+    /**
+     * One that does not resolve is unmet, and the finding is the refusal — never a throw, which
+     * would reach the controller's catch and turn the report into a 422.
+     *
+     * @return void
+     */
+    public function testAWebrootThatWillNotResolveIsUnmetRatherThanThrown(): void
+    {
+        unset($_SERVER['DOCUMENT_ROOT']);
+
+        $finding = new WebrootRequirement()->check();
+
+        self::assertFalse($finding->met);
+        self::assertStringContainsString('DOCUMENT_ROOT is not set', $finding->found);
+    }
+
+    /**
+     * A file that is there is met, with its size; one that is not is unmet.
+     *
+     * The absent side uses the download log, which nothing writes while logging is off and whose
+     * directory no clone has — the one data file guaranteed absent everywhere this runs.
+     *
+     * @return void
+     */
+    public function testADataFileIsMetOnlyWhereItIsThere(): void
+    {
+        $releases = new File(dirname(__DIR__, 2) . '/data/' . DataFile::Releases->value);
+
+        self::assertEquals(
+            new Finding($releases->size() . ' bytes', true),
+            new DataFileRequirement(DataFile::Releases)->check(),
+        );
+        self::assertEquals(
+            new Finding('no file there', false),
+            new DataFileRequirement(DataFile::DownloadLog)->check(),
+        );
+    }
+
+    /**
+     * One area's check is that area's status: the deployment fails without a webroot and passes
+     * with one, and says which line decided it.
+     *
+     * @return void
+     */
+    public function testAnUnmetRequirementIsA503CarryingTheReport(): void
+    {
+        unset($_SERVER['DOCUMENT_ROOT']);
+        $failing = new HealthCheck(RequirementInitialization::requirements(), Area::Deployment)->handle();
+
+        $_SERVER['DOCUMENT_ROOT'] = dirname(__DIR__, 2) . '/public';
+        $passing = new HealthCheck(RequirementInitialization::requirements(), Area::Deployment)->handle();
+
+        self::assertSame(HttpStatusCode::ServiceUnavailable, UpdateFixture::statusOf($failing));
+        self::assertMatchesRegularExpression('/^  DOCUMENT_ROOT +FAIL /m', UpdateFixture::bodyOf($failing));
+        self::assertStringEndsWith(" 1 fail\n", UpdateFixture::bodyOf($failing));
+        self::assertSame(HttpStatusCode::Ok, UpdateFixture::statusOf($passing));
+    }
+
+    /**
+     * The whole report is one plain-text response, with a section for every area.
+     *
+     * @return void
+     */
+    public function testTheReportChecksEveryArea(): void
+    {
+        $response = new HealthCheck(RequirementInitialization::requirements())->handle();
+        $body     = UpdateFixture::bodyOf($response);
+
+        self::assertInstanceOf(PlainTextResponse::class, $response);
+        self::assertStringEndsWith(" fail\n", $body);
+
+        foreach (Area::cases() as $area) {
+            self::assertStringContainsString($area->value . "\n", $body);
+        }
+    }
+
+    // ───────────────────────────── fixtures ─────────────────────────────
+
+    /**
+     * The declared requirements in one area.
+     *
+     * @param Area $area
+     * @return Collection<Requirement>
+     */
+    private static function declared(Area $area): Collection
+    {
+        return RequirementInitialization::requirements()
+            ->where(static fn(Requirement $requirement): bool => $requirement->area() === $area);
+    }
+
+    /**
+     * The byte floor declared for $setting.
+     *
+     * @param PhpSetting $setting
+     * @return ByteFloor
+     */
+    private static function floor(PhpSetting $setting): ByteFloor
+    {
+        $requirement = self::declared(Area::Settings)->first(
+            static fn(Requirement $requirement): bool => $requirement->name() === $setting->value,
+        );
+
+        self::assertInstanceOf(SettingRequirement::class, $requirement);
+        self::assertInstanceOf(ByteFloor::class, $requirement->constraint);
+
+        return $requirement->constraint;
+    }
+
+    /**
+     * `composer.json`, decoded.
+     *
+     * @return array{require: array<string, string>}
+     */
+    private static function composer(): array
     {
         $composer = json_decode(
             (string) new File(dirname(__DIR__, 2) . '/composer.json')->read(),
@@ -255,283 +387,25 @@ final class HealthTest extends TestCase
         self::assertIsArray($composer);
         self::assertIsArray($composer['require']);
 
-        $required = new Collection('string')->with(...array_keys($composer['require']))
-            ->where(static fn(string $package): bool => str_starts_with($package, 'ext-'))
-            ->map(static fn(string $package): string => substr($package, 4))
-            ->toValues();
-
-        $named = new Collection(PhpExtension::class)->with(...PhpExtension::cases())
-            ->map(static fn(PhpExtension $extension): string => $extension->value)
-            ->toValues();
-
-        sort($required);
-        sort($named);
-
-        self::assertSame($required, $named);
+        return $composer;
     }
 
     /**
-     * Every extension the site declares is here **and working**, asked by using it.
+     * What the gate would hand an action for a GET of $path.
      *
-     * If this ever fails on a developer's machine it is the same failure it would be on the live
-     * host, which is the only reason the report is worth anything: `class_exists()` on the class
-     * the site actually names is a stronger question than `extension_loaded()` on a string.
-     *
-     * @return void
+     * @param string $path
+     * @return VerifiedRequest
      */
-    public function testEveryDeclaredExtensionProvesItself(): void
+    private static function verified(string $path): VerifiedRequest
     {
-        foreach (PhpExtension::cases() as $extension) {
-            self::assertTrue($extension->isPresent(), 'ext/' . $extension->value . ' is not usable here');
-        }
+        $manifest = (string) json_encode([
+            'serial' => time(),
+            'method' => HttpMethod::Get->value,
+            'path'   => $path,
+            'digest' => hash('sha256', ''),
+            'size'   => 0,
+        ], JSON_THROW_ON_ERROR);
 
-        self::assertStringNotContainsString('MISSING', $this->section('extensions'));
-    }
-
-    // ───────────────────────────── one line ─────────────────────────────
-
-    /**
-     * A fact's value is rendered unless there is genuinely none.
-     *
-     * **`'0'` is the row that matters and is the bug this pins.** `max_execution_time` is `0` on a
-     * runtime with no limit — a real answer, and the most interesting one that directive has —
-     * and a falsy test prints it as nothing: `-` where it means "unlimited". See
-     * docs/history/coverage.md.
-     *
-     * @param string $value
-     * @param string $expected
-     * @return void
-     */
-    #[DataProvider('factProvider')]
-    public function testOnlyAnEmptyValueRendersAsNothing(string $value, string $expected): void
-    {
-        self::assertSame($expected, trim(new HealthFact('name', $value)->render()));
-    }
-
-    /**
-     * @return iterable<string, array{string, string}>
-     */
-    public static function factProvider(): iterable
-    {
-        yield 'a value'      => ['128M', 'name                 128M'];
-        yield 'zero'         => ['0', 'name                 0'];
-        yield 'the string 0' => ['0.0', 'name                 0.0'];
-        yield 'off'          => ['', 'name                 -'];
-    }
-
-    /**
-     * A name longer than the column pushes its own value across and leaves the next line alone.
-     *
-     * @return void
-     */
-    public function testALongNameOverrunsItsOwnLineOnly(): void
-    {
-        $section = HealthSection::facts('caption', new Collection(HealthFact::class)->with(
-            new HealthFact('a-name-much-longer-than-the-column', 'over'),
-            new HealthFact('short', 'back'),
-        ));
-
-        self::assertSame(
-            "caption\n  a-name-much-longer-than-the-column over\n  short                back",
-            $section->render(),
-        );
-    }
-
-    /**
-     * A section of plain lines is indented like a section of facts, and by the same class.
-     *
-     * @return void
-     */
-    public function testASectionOfLinesIsIndentedLikeOneOfFacts(): void
-    {
-        self::assertSame(
-            "caption\n  first\n  second",
-            HealthSection::lines('caption', 'first', 'second')->render(),
-        );
-    }
-
-    // ───────────────────────────── the error log ─────────────────────────────
-
-    /**
-     * With no destination configured there is no section, which is the live host's own state.
-     *
-     * The `errors` section has already said the destination is empty, so a section repeating it
-     * would be the same fact twice — and `error_log` being empty is not a failure to find a log,
-     * it is the answer.
-     *
-     * @return void
-     */
-    public function testWithNoDestinationThereIsNoLogSection(): void
-    {
-        ini_set('error_log', '');
-
-        self::assertStringNotContainsString(self::LOG, $this->report());
-    }
-
-    /**
-     * A destination naming nothing says so, rather than being absent like the case above.
-     *
-     * The two are different faults and must read differently: nowhere configured is a decision,
-     * and a path that is not there is a log somebody expects to exist. `syslog` is a legal value
-     * of this directive and lands here too, which is honest — this cannot quote a syslog either.
-     *
-     * @return void
-     */
-    public function testADestinationThatIsNotThereSaysSo(): void
-    {
-        ini_set('error_log', $this->sandbox . '/nowhere.log');
-
-        self::assertStringContainsString('no file there to read', $this->section(self::LOG));
-    }
-
-    /**
-     * A readable log is quoted, newest lines last, and never more than the tail.
-     *
-     * @return void
-     */
-    public function testAReadableLogIsQuotedToItsTail(): void
-    {
-        $log   = new File($this->sandbox . '/php.log');
-        $lines = [];
-
-        for ($i = 1; $i <= 25; $i++) {
-            $lines[] = 'line ' . $i;
-        }
-
-        self::assertTrue($log->write(implode("\n", $lines) . "\n"));
-        ini_set('error_log', $log->path);
-
-        $section = $this->section(self::LOG);
-
-        self::assertStringContainsString('last 20 of 25 lines', $section);
-        self::assertStringContainsString("\n  line 25", $section);
-        self::assertStringContainsString("\n  line 6", $section);
-        self::assertStringNotContainsString("\n  line 5\n", $section, 'the tail is 20 lines, not 21');
-    }
-
-    /**
-     * An empty log is reported as empty rather than as twenty lines that are not there.
-     *
-     * @return void
-     */
-    public function testAnEmptyLogPromisesNothing(): void
-    {
-        $log = new File($this->sandbox . '/empty.log');
-
-        self::assertTrue($log->write(''));
-        ini_set('error_log', $log->path);
-
-        self::assertStringContainsString('0 bytes, last 0 of 0 lines', $this->section(self::LOG));
-    }
-
-    /**
-     * A log too large to quote is measured and left closed.
-     *
-     * The cap is what stops a host quietly logging for a year being pulled through one response.
-     * The size still crosses, because the size is the diagnostic in that case.
-     *
-     * @return void
-     */
-    public function testALogOverTheCapIsMeasuredAndNotRead(): void
-    {
-        $log = new File($this->sandbox . '/huge.log');
-
-        self::assertTrue($log->write(str_repeat("padding padding padding padding\n", 9000)));
-        ini_set('error_log', $log->path);
-
-        $section = $this->section(self::LOG);
-
-        self::assertStringContainsString('too large to quote here', $section);
-        self::assertStringNotContainsString('padding', $section);
-    }
-
-    // ───────────────────────────── the deployment ─────────────────────────────
-
-    /**
-     * A webroot that resolves is reported as the directory it resolves to.
-     *
-     * @return void
-     */
-    public function testAResolvableWebrootIsReported(): void
-    {
-        $_SERVER['DOCUMENT_ROOT'] = dirname(__DIR__, 2) . '/public';
-
-        self::assertStringContainsString(dirname(__DIR__, 2) . '/public', $this->section('deployment'));
-    }
-
-    /**
-     * One that does not resolve is reported as the refusal, not as a 422.
-     *
-     * **This is the one place the handler catches rather than throwing**, and it is the whole
-     * difference between a health check and everything else past the gate:
-     * {@link \NeuroSYS\Config::webroot()} refuses with an {@link \NeuroSYS\Exception\UpdateException},
-     * which {@link \NeuroSYS\Controller\ApiController} would turn into a 422 — so a deployment
-     * with a `DOCUMENT_ROOT` it cannot vouch for would answer the question "what is wrong here"
-     * by refusing to say anything at all.
-     *
-     * @return void
-     */
-    public function testAWebrootThatWillNotResolveIsReportedRatherThanThrown(): void
-    {
-        unset($_SERVER['DOCUMENT_ROOT']);
-
-        $deployment = $this->section('deployment');
-
-        self::assertStringContainsString('DOCUMENT_ROOT is not set', $deployment);
-        self::assertStringContainsString('releases.php', $deployment, 'the rest of the section still renders');
-    }
-
-    /**
-     * Whether a file is there and whether the repository carries it are reported side by side.
-     *
-     * Two facts rather than a verdict, so `absent  (tracked)` reads as the fault it is without the
-     * report inventing a severity word — and so that neither half is a branch a real deployment
-     * never takes.
-     *
-     * @return void
-     */
-    public function testEachDataFileReportsBothItsPresenceAndItsTracking(): void
-    {
-        $deployment = $this->section('deployment');
-
-        foreach (DataFile::cases() as $file) {
-            self::assertMatchesRegularExpression(
-                '/^  ' . preg_quote($file->value, '/') . ' +(present  \d+|absent)  \('
-                . ($file->isTracked() ? '' : 'un') . 'tracked\)$/m',
-                $deployment,
-            );
-        }
-    }
-
-    // ───────────────────────────── fixtures ─────────────────────────────
-
-    /**
-     * The whole report, as the endpoint would send it.
-     *
-     * @return string
-     */
-    private function report(): string
-    {
-        return UpdateFixture::bodyOf(new HealthReport()->handle());
-    }
-
-    /**
-     * One section of it: the caption's line and everything up to the blank line after it.
-     *
-     * @param string $caption
-     * @return string
-     */
-    private function section(string $caption): string
-    {
-        // Prefixed with a newline so the first section's caption is found the same way as every
-        // other one's, rather than by a special case for "at the very start of the body".
-        $report = "\n" . $this->report();
-        $start  = strpos($report, "\n" . $caption . "\n");
-
-        self::assertNotFalse($start, 'the report has no ' . $caption . ' section');
-
-        $end = strpos($report, "\n\n", $start + 1);
-
-        return substr($report, $start, $end === false ? null : $end - $start);
+        return new VerifiedRequest(ApiEnvelope::parse($manifest), $manifest, '');
     }
 }

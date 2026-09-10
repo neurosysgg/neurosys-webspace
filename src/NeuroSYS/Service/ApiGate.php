@@ -65,9 +65,12 @@ final readonly class ApiGate
      * **Neither figure above is worth carrying**: the payload grows with the codebase, and the
      * limit is the host's (`post_max_size` read 128M). Re-derive both rather than trusting these —
      * `php tools/push-update.php --dry-run` prints the archive's size, and
-     * `php tools/api.php health v1 report` prints the limit.
+     * `php tools/api.php health v1 settings` checks the limit against this.
+     *
+     * Public because two floors are derived from it rather than written out a second time —
+     * `post_max_size` and `memory_limit`, in {@link \NeuroSYS\Support\RequirementInitialization}.
      */
-    private const int MAX_BODY = 8_388_608;
+    public const int MAX_BODY = 8_388_608;
 
     /**
      * How far a credential's serial may sit from this server's clock, in seconds.

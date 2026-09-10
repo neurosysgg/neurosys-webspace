@@ -9,6 +9,8 @@ use NeuroSYS\Controller\UnroutedController;
 use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
+use NeuroSYS\Http\Api\CapabilityAction;
+use NeuroSYS\Http\Api\HealthAction;
 use NeuroSYS\Http\Api\UpdateAction;
 use NeuroSYS\Http\AuthScheme;
 use NeuroSYS\Http\HttpMethod;
@@ -21,6 +23,7 @@ use NeuroSYS\Model\Api\ApiEnvelope;
 use NeuroSYS\Model\Api\VerifiedRequest;
 use NeuroSYS\Model\Update\Deployment;
 use NeuroSYS\Router;
+use NeuroSYS\Service\Api\HealthCheck;
 use NeuroSYS\Service\Api\UpdatePatch;
 use NeuroSYS\Service\Api\UpdateVersion;
 use NeuroSYS\Service\ApiGate;
@@ -29,6 +32,7 @@ use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\MethodPolicy;
 use NeuroSYS\Support\PublicKey;
+use NeuroSYS\Support\RequirementInitialization;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
@@ -72,15 +76,18 @@ use stdClass;
 #[CoversClass(ApiService::class)]
 #[CoversClass(ApiVersion::class)]
 #[CoversClass(UpdateAction::class)]
+#[CoversClass(HealthAction::class)]
+#[CoversClass(CapabilityAction::class)]
 #[CoversClass(UpdatePatch::class)]
 #[CoversClass(UpdateVersion::class)]
 #[CoversClass(Allow::class)]
 #[CoversClass(PublicKey::class)]
 final class ApiTest extends TestCase
 {
-    private const string PATCH   = '/api/update/v1/patch';
-    private const string VERSION = '/api/update/v1/version';
-    private const string HEALTH  = '/api/health/v1/report';
+    private const string PATCH      = '/api/update/v1/patch';
+    private const string VERSION    = '/api/update/v1/version';
+    private const string HEALTH     = '/api/health/v1/report';
+    private const string CAPABILITY = '/api/capability/v1/extensions';
 
     private string $sandbox = '';
     private OpenSSLAsymmetricKey $privateKey;
@@ -149,14 +156,18 @@ final class ApiTest extends TestCase
             '/api/update/v1',
             self::PATCH,
             '/api/update/v1/nope',
-            // The second service, swept to the same depths as the first. A service that writes and
-            // one that only reads have to be equally invisible, and they are for the same reason —
-            // ApiController hands both to UnroutedController — but "for the same reason" is what a
-            // test is for when a third service arrives.
+            // Every service, swept to the same depths as the first. A service that writes and ones
+            // that only read have to be equally invisible, and they are for the same reason —
+            // ApiController hands every one to UnroutedController — but "for the same reason" is
+            // what a test is for, and the third service is the one that arrived to check it.
             '/api/health',
             '/api/health/v1',
             self::HEALTH,
             '/api/health/v1/nope',
+            '/api/capability',
+            '/api/capability/v1',
+            self::CAPABILITY,
+            '/api/capability/v1/nope',
         ];
 
         foreach ($depths as $path) {
@@ -570,13 +581,23 @@ final class ApiTest extends TestCase
         self::assertSame(HttpStatusCode::Ok, self::statusOf($version));
         self::assertStringContainsString(PHP_VERSION, self::bodyOf($version));
 
-        // The second service through the same controller, which is what says the delegation is the
-        // address's rather than the update service's. What HealthReport says is HealthTest's
-        // subject; that this path reaches it at all is this one's.
+        // The other services through the same controller, which is what says the delegation is the
+        // address's rather than the update service's. What each answers is HealthTest's and
+        // CapabilityTest's subject; that these paths reach them at all is this one's.
+        //
+        // The health check's status is whatever the check itself comes to on this machine — a CLI
+        // run has no webroot, so the declared set is a 503 here and a 200 on the live host — and
+        // the controller has to pass it through untouched either way.
         $health = $this->respond(self::HEALTH, HttpMethod::Get, '');
+        $direct = new HealthCheck(RequirementInitialization::requirements())->handle();
 
-        self::assertSame(HttpStatusCode::Ok, self::statusOf($health));
-        self::assertStringContainsString('extensions', self::bodyOf($health));
+        self::assertSame(self::statusOf($direct), self::statusOf($health));
+        self::assertStringContainsString("extensions\n", self::bodyOf($health));
+
+        $capability = $this->respond(self::CAPABILITY, HttpMethod::Get, '');
+
+        self::assertSame(HttpStatusCode::Ok, self::statusOf($capability));
+        self::assertStringContainsString("zend extensions\n", self::bodyOf($capability));
     }
 
     /**
@@ -694,11 +715,15 @@ final class ApiTest extends TestCase
         yield 'no such action'           => ['/api/update/v1/nope'];
         yield 'no such version, health'  => ['/api/health/v9/report'];
         yield 'no such action, health'   => ['/api/health/v1/nope'];
+        yield 'no such version, capability' => ['/api/capability/v9/runtime'];
+        yield 'no such action, capability'  => ['/api/capability/v1/nope'];
 
-        // An action of the *other* service, which is the row a flat enum of every action on the
-        // site would have passed: `patch` names something real, and it names nothing under
-        // `health`. See ApiAction, where the argument for an enum per service is made.
+        // An action of *another* service, which is the row a flat enum of every action on the site
+        // would have passed: `patch` names something real, and it names nothing under `health`;
+        // `report` is health's, and names nothing under `capability`. See ApiAction, where the
+        // argument for an enum per service is made.
         yield 'another service\'s action' => ['/api/health/v1/patch'];
+        yield 'health\'s action, capability' => ['/api/capability/v1/report'];
     }
 
     /**

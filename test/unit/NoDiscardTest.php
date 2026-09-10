@@ -89,6 +89,8 @@ final class NoDiscardTest extends TestCase
         self::assertSame(
             [
                 'NeuroSYS\Http\Security\ContentSecurityPolicy::allow',
+                'NeuroSYS\Model\Health\HealthResult::render',
+                'NeuroSYS\Model\Health\HealthResult::status',
                 'NeuroSYS\Model\Update\UpdateReport::dryRun',
                 'NeuroSYS\Model\Update\UpdateReport::failed',
                 'NeuroSYS\Model\Update\UpdateReport::isComplete',

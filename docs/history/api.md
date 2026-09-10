@@ -166,6 +166,37 @@ writing it again as a caption in the report would have forced a `#[BareString]` 
 for a word of this one's. The rule is symmetric, which is what made the duplication visible rather
 than arguable.
 
+### 2026-09-10 — `health` split into `capability` and `health`
+
+*From the conversation that asked for it, and the plan it was built from.*
+
+**The report answered two kinds of question in one voice.** Most of its lines were inventory — a
+version, a SAPI, the ini values, a clock, a log's tail — and a few were verdicts: an extension
+`MISSING`, a tracked file `absent`. Nothing told a reader which lines were claims, and the report
+always answered 200, so "is anything wrong" had no answer a script could read.
+
+It became two services. `capability` lists what the host has, all of it — every extension and every
+directive rather than the nine `PhpSetting` named — and judges nothing. `health` checks declared
+requirements and answers **503 when a required one is unmet**, with the whole report in the body.
+`health v1 report` kept its address and became "every check"; the inventory lines moved, and no
+alias was left behind, because the endpoint's design is to have no second door.
+
+**The requirement core was written to be lifted out.** The user was considering extracting a
+framework, so `Model/Health/` imports nothing of this site's, and the site declares its own floors
+through the same extension point a user would — `RequirementInitialization`, beside
+`RouteInitialization`, and two requirement classes of its own under `Service/Health/`. The user's
+example of what a user might need to declare was COM interop on Windows; `ExtensionRequirement`
+with a proof closure covers it in one line.
+
+Three decisions worth keeping:
+
+- **Optional requirements exist from the start**, with `opcache.enable` as the first real one, so
+  the `warn` level is a branch the site takes rather than a case no test reaches.
+- **`update.pub` is not a requirement.** A verified call has already proved the key, so the check
+  could never fail.
+- **The `memory_limit` floor is derived from `ApiGate::MAX_BODY`** — three copies of a push coexist
+  at its peak — which made the constant public rather than restating 8 MiB in a second place.
+
 ## From the code comments
 
 *Moved out of comments under `tools/` and `test/` when those were brought to the present tense.
@@ -224,3 +255,18 @@ From `ApiGate`:
 > and had been wrong since it was written: `post_max_size` on the live host is 128M, and 8 MiB is a
 > sixteenth of it, not a fortieth. The payload said 210 KB and had merely **drifted**, because it
 > grows with the codebase and nothing re-derived it.
+
+### 2026-09-10 — the extension point, cashed twice (split of `health`)
+
+From `ApiService`, which counted its services:
+
+> Two cases, and the enum would be worth having at one … **{@link self::Health} is what cashed that
+> claim**, and it cost what the paragraph above said it would: a case here, one arm of the `match`
+> below, an action enum and a handler. No route, no policy, no second arrangement of anything.
+
+From `HealthReport`, whose inventory half is now `capability`:
+
+> **It exists because every fact below is currently asserted somewhere and checked nowhere.** … The
+> live host's error configuration is stated as measured fact in five separate docblocks … every one
+> of them a copy of one measurement taken by hand. Nothing has ever asked the runtime that actually
+> answers requests. This does.

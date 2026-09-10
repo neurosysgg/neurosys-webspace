@@ -8,11 +8,11 @@ use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 
 /**
- * The HealthSection class. One heading of {@link \NeuroSYS\Service\Api\HealthReport} and whatever
- * sits under it.
+ * The HealthSection class. One heading of a `capability` or `health` answer, and whatever sits
+ * under it.
  *
- * **Two constructors, because the report has two kinds of section and only one kind of shape.**
- * Five of them are facts — a name in a column and a value beside it — and the sixth is the tail of
+ * **Two constructors, because the answers have two kinds of section and only one kind of shape.**
+ * Nearly all of them are facts — a name in a column and a value beside it — and one is the tail of
  * an error log, which is lines of somebody else's text with no name to give them. Both end as a
  * caption and an indented block, so what this holds is the block: a `Collection<string>` of
  * rendered lines, with {@link self::facts()} and {@link self::lines()} the two ways in.
@@ -23,15 +23,14 @@ use NeuroSYS\Support\Collection;
  * everywhere else.
  *
  * {@link self::facts()} takes a collection and {@link self::lines()} takes a variadic, and the
- * difference is not inconsistency: every fact section is built by filtering and mapping an
- * existing set — {@link PhpSetting::cases()}, {@link PhpExtension::cases()},
- * {@link \NeuroSYS\DataFile::cases()} — so a variadic there would mean spreading a collection only
- * to have it rebuilt, where the log's lines are written out at their one call site and a variadic
- * is a check PHP makes for free.
+ * difference is not inconsistency: most fact sections are built by filtering and mapping an
+ * existing set — the declared requirements, {@link \NeuroSYS\DataFile::cases()}, what the engine
+ * lists — so a variadic there would mean spreading a collection only to have it rebuilt, where the
+ * log's lines are written out at their one call site and a variadic is a check PHP makes for free.
  *
- * The caption is a plain string and stays one. It is the report's own copy rather than a
- * vocabulary anything else reads: nothing selects on it, nothing parses it, and the six that exist
- * are written in the one class that shows them.
+ * The caption is a plain string and stays one. It is each answer's own copy rather than a
+ * vocabulary anything else reads: nothing selects on it and nothing parses it. The one exception
+ * is a health check's, which is an {@link Area}'s value — and there the area is what names it.
  */
 #[BareString(
     'string',
@@ -59,15 +58,26 @@ final readonly class HealthSection
     /**
      * A section of named values.
      *
+     * The name column is {@link HealthFact::COLUMN} unless a name in this section is longer, and
+     * then it is that name's width plus one. Per section rather than per response, because a
+     * section is what a reader runs an eye down — and in practice the only section that widens is
+     * `capability v1 settings`'s, which is alone in its response.
+     *
      * @param string $caption
      * @param Collection<HealthFact> $facts
      * @return self
      */
     public static function facts(string $caption, Collection $facts): self
     {
+        $column = HealthFact::COLUMN;
+
+        foreach ($facts as $fact) {
+            $column = max($column, strlen($fact->name) + 1);
+        }
+
         return new self(
             $caption,
-            $facts->map(static fn(HealthFact $fact): string => self::INDENT . $fact->render()),
+            $facts->map(static fn(HealthFact $fact): string => self::INDENT . $fact->render($column)),
         );
     }
 
@@ -88,8 +98,22 @@ final readonly class HealthSection
     }
 
     /**
+     * A whole response body of sections: each rendered, a blank line between them, and the newline
+     * every body on this site ends in.
+     *
+     * @param self ...$sections
+     * @return string
+     */
+    public static function document(self ...$sections): string
+    {
+        return new Collection(self::class)->with(...$sections)
+            ->map(static fn(self $section): string => $section->render())
+            ->join("\n\n") . "\n";
+    }
+
+    /**
      * The caption and everything under it, with no trailing newline — joining sections is
-     * {@link \NeuroSYS\Service\Api\HealthReport}'s to do, the way joining lines is this class's.
+     * {@link self::document()}'s to do, the way joining lines is this method's.
      *
      * @return string
      */

@@ -28,7 +28,7 @@ neurosys/
 │
 ├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
 │   ├── Controller/      ← one class per route group
-│   ├── Exception/       ← SiteException and the twelve conditions under it (see architecture.md)
+│   ├── Exception/       ← SiteException and the thirteen conditions under it (see architecture.md)
 │   ├── Http/            ← Request, Response types, HttpStatusCode, Header/MimeType
 │   │   └── Security/    ← CSP, Permissions-Policy, HSTS — as typed objects
 │   ├── Model/           ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform

@@ -1163,12 +1163,13 @@ echo "=== The API ==="
 # recognise, and a gate that read `$method->value` without asking would answer 500 where an absent
 # address answers 405.
 #
-# Both services are swept, and the second is not a formality: `update` writes and `health` only
-# reads, so a refusal that leaked the difference would leak which of the two an address is. It
-# cannot — ApiController hands anything it will not verify to UnroutedController before it has
-# resolved a service at all — and that is precisely why the rows are cheap to keep.
+# Every service is swept, and the later ones are not a formality: `update` writes and `health` and
+# `capability` only read, so a refusal that leaked the difference would leak which kind an address
+# is. It cannot — ApiController hands anything it will not verify to UnroutedController before it
+# has resolved a service at all — and that is precisely why the rows are cheap to keep.
 api_paths=(/api /api/update /api/update/v1 /api/update/v1/patch /api/update/v1/version /api/update/v1/nope
-           /api/health /api/health/v1 /api/health/v1/report /api/health/v1/nope)
+           /api/health /api/health/v1 /api/health/v1/report /api/health/v1/settings /api/health/v1/nope
+           /api/capability /api/capability/v1 /api/capability/v1/extensions /api/capability/v1/nope)
 
 for method in GET HEAD POST PUT DELETE PATCH OPTIONS BREW; do
     absent=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/no-such-page")
@@ -1216,11 +1217,11 @@ for probe in "--data-binary|not a payload" "-H|Authorization: NS1 !!!!" "-H|Auth
     fi
 done
 
-# The GET half of the same claim: a read action is as invisible as the write one. Asked of both
-# services, because a service made entirely of reads is the one somebody would be tempted to leave
+# The GET half of the same claim: a read action is as invisible as the write one. Asked of every
+# service, because a service made entirely of reads is the one somebody would be tempted to leave
 # open — and the whole of `/api` is that nothing under it answers differently from a typo.
 absent_get=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X GET "$BASE/no-such-page")
-for read_path in /api/update/v1/version /api/health/v1/report; do
+for read_path in /api/update/v1/version /api/health/v1/report /api/capability/v1/runtime; do
     read_get=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -H 'Authorization: NS1 abcd' "$BASE$read_path")
     if [[ "$read_get" == "$absent_get" ]]; then
         pass "  an unsigned read of $read_path is refused the same way ($read_get)"

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
+use BackedEnum;
+use NeuroSYS\Http\Api\ApiAction;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
+use NeuroSYS\Http\Api\CapabilityAction;
 use NeuroSYS\Http\Api\HealthAction;
 use NeuroSYS\Http\Api\UpdateAction;
 use NeuroSYS\Http\AuthScheme;
@@ -23,6 +26,7 @@ use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Response;
 use NeuroSYS\Tool\Http\Transport;
 use NeuroSYS\Tool\Http\Url;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -143,25 +147,32 @@ final class ApiClientTest extends TestCase
     }
 
     /**
-     * A second service needs nothing of this client, which is the claim the client makes.
+     * Every other service needs nothing of this client, which is the claim the client makes.
      *
      * {@link SignedRequest} takes an {@link \NeuroSYS\Http\Api\ApiService}, an
      * {@link \NeuroSYS\Http\Api\ApiVersion} and an `ApiAction&BackedEnum`, and derives the path,
-     * the method and the scheme from them — so `health` is signed and addressed by the same code
-     * that signs a push, with no branch anywhere naming either service. That is easy to believe
-     * and was worth one row: `ApiCall` also refuses an action it cannot resolve *before* sending,
-     * because `/api` answers a typo exactly as it answers a bad key, and a client that could not
-     * see a new service would send somebody looking at their key.
+     * the method and the scheme from them — so `health` and `capability` are signed and addressed
+     * by the same code that signs a push, with no branch anywhere naming a service. That is easy to
+     * believe and was worth a row each: `ApiCall` also refuses an action it cannot resolve *before*
+     * sending, because `/api` answers a typo exactly as it answers a bad key, and a client that
+     * could not see a new service would send somebody looking at their key.
      *
+     * @param ApiService $service
+     * @param ApiAction&BackedEnum $action
+     * @param string $path
      * @return void
      */
-    public function testASecondServiceIsSignedByTheSameClient(): void
-    {
+    #[DataProvider('serviceProvider')]
+    public function testEveryServiceIsSignedByTheSameClient(
+        ApiService $service,
+        ApiAction&BackedEnum $action,
+        string $path,
+    ): void {
         $request = SignedRequest::build(
             new Url('https://example.test'),
-            ApiService::Health,
+            $service,
             ApiVersion::V1,
-            HealthAction::Report,
+            $action,
             '',
             [],
             PrivateKey::fromFile($this->keyFile),
@@ -169,11 +180,20 @@ final class ApiClientTest extends TestCase
 
         $verified = $this->verify($request);
 
-        self::assertSame('https://example.test/api/health/v1/report', $request->url->render());
+        self::assertSame('https://example.test' . $path, $request->url->render());
         self::assertInstanceOf(VerifiedRequest::class, $verified);
-        self::assertSame('/api/health/v1/report', $verified->envelope->path);
+        self::assertSame($path, $verified->envelope->path);
         self::assertSame('GET', $verified->envelope->method);
         self::assertSame('', $verified->body);
+    }
+
+    /**
+     * @return iterable<string, array{ApiService, ApiAction&BackedEnum, string}>
+     */
+    public static function serviceProvider(): iterable
+    {
+        yield 'health'     => [ApiService::Health, HealthAction::Report, '/api/health/v1/report'];
+        yield 'capability' => [ApiService::Capability, CapabilityAction::Settings, '/api/capability/v1/settings'];
     }
 
     /**

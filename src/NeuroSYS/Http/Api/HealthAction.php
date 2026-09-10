@@ -6,32 +6,37 @@ namespace NeuroSYS\Http\Api;
 
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Model\Api\VerifiedRequest;
-use NeuroSYS\Service\Api\HealthReport;
+use NeuroSYS\Model\Health\Area;
+use NeuroSYS\Service\Api\HealthCheck;
+use NeuroSYS\Support\RequirementInitialization;
 
 /**
- * The HealthAction enum. What the `health` service can be asked to do.
+ * The HealthAction enum. What the `health` service can be asked to check.
  *
- * One case, and the enum is worth having at one case for {@link ApiVersion}'s reason: the segment
- * is matched by the router as `([^/]+)` and could otherwise be any string at all, so without a
- * vocabulary there is nothing that can say an action does not exist.
+ * **One case per {@link Area}, and one for all of them.** An area is the unit a caller asks for, and
+ * it has to be an address rather than a parameter — the signature does not cover the query string,
+ * so `?area=settings` would be the one input reaching a verified handler unsigned. `HealthTest`
+ * holds this enum to {@link Area}, so an area added there without an address here fails.
  *
- * **This is the enum that proves {@link ApiService}'s claim** — *adding a service is this file, its
- * action enum, and its handlers, and no route*. The whole of `health` is three files and one arm
- * of one `match`: no route to register, no method policy to choose, no second arrangement of the
- * gate, the silence or the serial. That claim was written when there was one service to make it
- * about, which is the kind of claim worth cashing rather than trusting.
+ * Every case is a read, and the only kind `health` will ever have: a service that checks is a
+ * service that changes nothing, so it consumes no serial and its credential replays to another read.
  */
 enum HealthAction: string implements ApiAction
 {
-    /**
-     * Everything this deployment can say about itself.
-     *
-     * A read, deliberately, and the only kind of action `health` will ever have: a service that
-     * reports is a service that changes nothing, so it consumes no serial and its credential
-     * replays to another read. Its answer is
-     * {@link \NeuroSYS\Service\Api\HealthReport}, which is where the argument for each fact lives.
-     */
+    /** Every requirement, in every area, with a tally. */
     case Report = 'report';
+
+    /** The interpreter's own version. */
+    case Runtime = 'runtime';
+
+    /** The extensions, each asked by being used where the declaration says how. */
+    case Extensions = 'extensions';
+
+    /** The php.ini floors. */
+    case Settings = 'settings';
+
+    /** This installation: its webroot, and the files it cannot run without. */
+    case Deployment = 'deployment';
 
     /**
      * @return HttpMethod
@@ -39,6 +44,26 @@ enum HealthAction: string implements ApiAction
     public function method(): HttpMethod
     {
         return HttpMethod::Get;
+    }
+
+    /**
+     * The one area this action checks, or null for every area.
+     *
+     * Matched rather than derived with `Area::from($this->value)`, which would work today and make
+     * two enums' spellings one fact by coincidence — the arrangement this codebase spends its types
+     * avoiding.
+     *
+     * @return Area|null
+     */
+    public function area(): ?Area
+    {
+        return match ($this) {
+            self::Report     => null,
+            self::Runtime    => Area::Runtime,
+            self::Extensions => Area::Extensions,
+            self::Settings   => Area::Settings,
+            self::Deployment => Area::Deployment,
+        };
     }
 
     /**
@@ -51,8 +76,6 @@ enum HealthAction: string implements ApiAction
      */
     public function handler(VerifiedRequest $verified): ApiHandler
     {
-        return match ($this) {
-            self::Report => new HealthReport(),
-        };
+        return new HealthCheck(RequirementInitialization::requirements(), $this->area());
     }
 }

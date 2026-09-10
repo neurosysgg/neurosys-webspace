@@ -28,8 +28,9 @@ runs on the server (`vendor/` is not deployed):
 | `ext/zlib` | `UpdateApplier`'s `gzdecode()` | a fatal on a push |
 
 Each was checked on the live host (Strato, PHP 8.5.9, `cgi-fcgi`) by being **used**, not by
-`extension_loaded()` — registered and working are two questions. `php tools/api.php health v1 report`
-asks the running deployment the same way.
+`extension_loaded()` — registered and working are two questions. `php tools/api.php health v1
+extensions` asks the running deployment the same way; `capability v1 extensions` lists what it has
+merely registered.
 
 **`ext/curl` is `require-dev` only.** The site makes no outbound request — the verify script asserts
 it by grep — and the one class that does, `Tool\Http\CurlTransport`, is tooling `deploy.sh` never
@@ -106,11 +107,12 @@ src/NeuroSYS/
 │   ├── Link/       ← FileLink + HiDriveLink
 │   ├── Api/        ← a signed call: ApiCredential, ApiEnvelope, VerifiedRequest
 │   ├── Update/     ← a push: UpdateManifest, UpdateRoot, Deployment, UpdateFile, UpdateReport
-│   └── Health/     ← what a deployment says about itself
+│   └── Health/     ← Requirement, the built-in kinds, Verdict, HealthResult — nothing of this site's
 ├── Service/        ← Auth, the repositories, DownloadLogger, ApiGate, UpdateApplier
-│   └── Api/        ← one ApiHandler per action: UpdatePatch, UpdateVersion, HealthReport
-├── Support/        ← Collection, SearchableCollection, File, Directory, Route + SitePath,
-│                     Diagnostics, TarArchive, PasswordHash, PublicKey, the Bare* attributes
+│   ├── Api/        ← one ApiHandler per action: UpdatePatch, UpdateVersion, HealthCheck, Capability*
+│   └── Health/     ← the requirements that know this site: WebrootRequirement, DataFileRequirement
+├── Support/        ← Collection, SearchableCollection, File, Directory, Route + SitePath, the route
+│                     and requirement tables, Diagnostics, TarArchive, PasswordHash, PublicKey, Bare*
 ├── Exception/      ← SiteException and every condition under it
 ├── View/           ← one View per page; each returns a Node
 │   ├── Html/       ← the markup tree, MarkupParser, and the tag/attribute vocabularies
@@ -213,6 +215,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - A push leaves byte-identical files untouched, because rewriting a file the request is executing
   makes NFS silly-rename it into an undeletable `.nfsXXXXXXXX`. Remove a stray over the mount.
 - A server not yet running the `/api` code can only be updated by `./deploy.sh`; `--url` is an origin.
+- A health check **returns** its 503 — a thrown `ApiException` is a 422 — and `Requirement::check()`
+  never throws: nothing catches it, so one throw is a 500 for the whole report. [health.md](docs/health.md)
 - Probe the live host by pushing from a **detached worktree at `HEAD`** — the push mirrors the whole
   tree, so a dirty working tree would ship the change being checked for.
 - A shared host can gain or lose an Apache module without notice, and every `.htaccess` block is
@@ -237,7 +241,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   `'test/js/*.test.mjs'` so node, not the shell, expands it.
 - A test helper with a destructured `= {}` parameter drops every property without its own default
   from the inferred type, so its call sites check nothing.
-- `max_execution_time` is `'0'` when unlimited, and `'0'` is falsy — `HealthFact` asks `=== ''`.
+- `max_execution_time` is `'0'` when unlimited, and `'0'` is falsy — `HealthFact` asks `=== ''`,
+  and a floor is told which value means no limit (`-1` for `memory_limit`, `0` for `post_max_size`).
 
 **Tooling** — [docs/tooling.md](docs/tooling.md)
 - `ffprobe` exits 0 on a text file named `*.flac` and takes the codec from the extension;
@@ -319,9 +324,14 @@ See [docs/security.md](docs/security.md#the-api) and [docs/deployment.md](docs/d
 npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
 npm run build:prod && php tools/push-update.php             # public/ + src/ + autoload.php
 php tools/api.php update v1 version                         # what is deployed
-php tools/api.php health v1 report                          # what this host actually is
+php tools/api.php health v1 report                          # does the host meet the site's floor (503 if not)
+php tools/api.php capability v1 extensions                  # what it has; also runtime, settings, deployment, errors
 ./deploy.sh                                                 # full deploy over SFTP; ships data/
 ```
+
+- **What the site needs of its host is declared in `Support/RequirementInitialization.php`**, in
+  code, so a push carries a floor with the code that needs it. A user's own requirement goes there
+  too — a built-in kind, or a class implementing `Requirement`. See [docs/health.md](docs/health.md).
 
 - **The push is the regular deploy; `./deploy.sh` is the full one and the recovery path** — it owns
   `data/`, and it fixes a push that broke `src/`. Do not make the endpoint replace it.
@@ -350,6 +360,7 @@ php tools/api.php health v1 report                          # what this host act
 | [docs/testing.md](docs/testing.md) | the suites, the invariants, coverage |
 | [docs/security.md](docs/security.md) | auth, headers, the API, what is known and accepted |
 | [docs/deployment.md](docs/deployment.md) | the push, `deploy.sh`, Strato, `.htaccess` |
+| [docs/health.md](docs/health.md) | the `health` and `capability` services, or a requirement to declare |
 | [docs/performance.md](docs/performance.md) | anything on the hot path |
 | [docs/releases.md](docs/releases.md) · [docs/authoring.md](docs/authoring.md) | a release, or the tools that stage one |
 | [docs/demos.md](docs/demos.md) | a demo, or the password gate |

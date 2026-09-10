@@ -18,8 +18,9 @@ use Uri\WhatWg\Url;
  * asks for them by name in its Environment block, and that block runs `php` from `$PATH` on
  * whichever machine is running the suite. So the two statements of this fact both describe a
  * developer's PHP, and the one runtime that matters has never been asked. That gap is what
- * {@link \NeuroSYS\Service\Api\HealthReport} exists to close; this enum is the vocabulary it asks
- * in.
+ * `health v1 extensions` exists to close: {@link \NeuroSYS\Support\RequirementInitialization}
+ * declares each case a required {@link ExtensionRequirement}, with {@link self::isPresent()} as its
+ * proof, and this enum is the vocabulary it asks in.
  *
  * **Each case proves itself by naming what the site actually uses, rather than by asking whether
  * the extension is registered.** That standard is not new here — `test/basic_test.sh` already

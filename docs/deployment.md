@@ -128,43 +128,54 @@ already current), and the PHP version.
 ### When you need more than three lines
 
 ```bash
-php tools/api.php health v1 report
+php tools/api.php health v1 report          # does this host meet what the site needs
+php tools/api.php capability v1 runtime     # what it is; also extensions, settings, deployment, errors
 ```
 
-The second service on the same endpoint, signed with the same key and reached by the same command —
-`/api/health/v1/report`. It answers what `update version` deliberately does not: the SAPI and the
-ini limits a request runs under, whether each of the four extensions the site is a fatal without is
-present **and working**, where a PHP diagnostic goes on this host and the last one that got there,
-the server's own software, kernel and clock, and whether every file under `data/` is where the site
-expects it.
+Two more services on the same endpoint, signed with the same key and reached by the same command.
 
-**It is the one source for what the live runtime is.** The extensions are declared in
-`composer.json`, which never runs there because `vendor/` is not deployed, and asked for in
-`test/basic_test.sh`, which runs whichever `php` is on `$PATH` locally; the error configuration
-docblocks quote (`display_errors` off, `error_log` empty) is a copy of a reading this report
-re-takes. When a docblock and the report disagree, the report is right. ([history](history/api.md))
+- **`health` checks every requirement the site declares**: PHP 8.5, the four extensions the site is
+  a fatal without, the php.ini floors a push needs, the webroot and the tracked `data/` files.
+  **It answers 503 when a required one is unmet**, with the whole report in the body, so
+  `tools/api.php` exits 1 and a script can stop on it.
+- **`capability` lists what the host has, with no verdict**: every extension, every directive, the
+  clock, every `data/` file, the error log's tail.
 
-Five lines are worth reading before the rest of it:
+Both answer what `update version` deliberately does not. See [health.md](health.md).
 
-- **`clock`.** A credential whose serial sits more than five minutes from the server's clock is
-  refused, and that is cause number two in the list a refused call prints. There is a chicken and
-  an egg — a clock far enough out refuses the call that would report it — but a clock that is
-  *drifting* is caught here well before it costs a deploy.
-- **`update.pub`.** It can never read `absent`: a report you are reading verified against it. The
-  size beside it is what tells a whole key from a truncated paste.
-- **Each extension is asked by being used**, not by `extension_loaded()` — registered and working
-  are two questions, the standard `test/basic_test.sh` already states for `ext/dom`.
-- **A file's presence and whether the repository tracks it are two columns, not a verdict.**
-  `absent  (tracked)` reads as the fault it is without the report inventing a severity word.
-- **The `errors` section reads `error_get_last()`**, deliberately process-global. A diagnostic a
-  userland handler takes never populates that function, and every suppression here goes through
-  `Diagnostics::muted()` — so what the line reports is precisely the diagnostics **nothing in this
-  repository handled**.
+**They are the one source for what the live runtime is.** The extensions are declared in
+`composer.json`, which never runs on the server because `vendor/` is not deployed. They are asked
+for in `test/basic_test.sh`, which runs whichever `php` is on `$PATH` locally. The error
+configuration some docblocks quote (`display_errors` off, `error_log` empty) is a copy of a reading
+these services re-take. When a docblock and the answer disagree, the answer is right.
+([history](history/api.md))
 
-It reports **no replay serial**; `update version` does, and the two handlers overlap on
-`PHP_VERSION` and nothing else. Nothing about the answer is public. `/api/health/v1/report` is as
-invisible as `/api/update/v1/patch` — unsigned, it is the same 404 an address that does not exist
-gets — which is the only reason a report this detailed is safe to produce at all.
+Six lines are worth reading before the rest:
+
+- **`health`'s `FAIL` lines and its tally.** The tally names every verdict even at zero, so
+  `0 fail` is the line that says the host is fine.
+- **`capability runtime`'s `clock`.** A credential whose serial sits more than five minutes from
+  the server's clock is refused, and that is cause number two in the list a refused call prints.
+  There is a chicken and an egg here: a clock far enough out refuses the call that would report it.
+  But a clock that is *drifting* is caught here well before it costs a deploy.
+- **`capability deployment`'s `update.pub`.** It can never read `absent`, because an answer you are
+  reading was verified against it. The size beside it is what tells a whole key from a truncated
+  paste.
+- **Each extension `health` checks is asked by being used**, not by `extension_loaded()`. Registered
+  and working are two questions, which is the standard `test/basic_test.sh` already states for
+  `ext/dom`. `capability extensions` lists what is registered.
+- **In `capability deployment`, a file's presence and whether the repository tracks it are two
+  columns, not a verdict.** `absent  (tracked)` reads as the fault it is. `health deployment` fails
+  only the tracked files.
+- **`capability errors` reads `error_get_last()`**, deliberately process-global. A diagnostic that
+  a userland handler takes never populates that function, and every suppression here goes through
+  `Diagnostics::muted()`. So the line reports precisely the diagnostics **nothing in this repository
+  handled**.
+
+Neither reports the **replay serial**, which `update version` does. They overlap with it on
+`PHP_VERSION` and nothing else. Nothing about either answer is public: unsigned, every `health` and
+`capability` address gets the same 404 as an address that does not exist, just like
+`/api/update/v1/patch`. That is the only reason answers this detailed are safe to produce at all.
 
 ### Probing the live host
 

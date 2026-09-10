@@ -39,14 +39,15 @@ src/NeuroSYS/
 │   └── Security/   the response security policies, as typed objects
 ├── Controller/     one class per route group; fetches data, returns a Response
 ├── Service/        the things that talk to the outside — data files, credentials, the API gate
-│   └── Api/        one handler per API action
+│   ├── Api/        one handler per API action
+│   └── Health/     the requirements that know this site: its webroot, its data files
 ├── Model/          the domain: releases, demos, and everything they are made of
 │   ├── Embed/      third-party players
 │   ├── Link/       off-site files
 │   ├── Production/ what the .flp knows: arrangement, time spent, plugins
 │   ├── Api/        what a signed call is made of
 │   ├── Update/     what a push adds to that
-│   └── Health/     what a deployment can say about itself
+│   └── Health/     requirements and verdicts, knowing nothing of this site
 ├── View/           one class per page; each returns a Node, never a string
 │   ├── Html/       the markup tree
 │   └── Terminal/   the terminal component's declared form
@@ -320,8 +321,10 @@ Two sub-namespaces exist so a release can name a thing without knowing where it 
 
 The rest describe something other than a release: `Production/` is what the `.flp` knows
 (`Arrangement`, `Section`, `ProductionTime`, `Plugin` — see [authoring.md](authoring.md)); `Api/`,
-`Update/` and `Health/` are what a signed call, a push and a health report are made of — see
-[security.md](security.md).
+`Update/` and `Health/` are what a signed call, a push and a health check are made of — see
+[security.md](security.md) and [health.md](health.md). `Health/` is the one namespace that imports
+nothing of this site's, so it can be lifted out whole. The requirements that do know the site
+live in `Service/Health/`, and are declared in `Support/RequirementInitialization`.
 
 ### `View/` — one class per page
 
@@ -437,8 +440,8 @@ replace a variadic. The whole of it is in [collections.md](collections.md).
 
 ## Exceptions
 
-Every condition this site can be in has a name, and all of them live in `NeuroSYS\Exception`. Twelve
-classes — one of them abstract — and one interface:
+Every condition this site can be in has a name, and all of them live in `NeuroSYS\Exception`.
+Thirteen classes — one of them abstract — and one interface:
 
 | Class | Is | Raised by |
 |---|---|---|
@@ -453,18 +456,19 @@ classes — one of them abstract — and one interface:
 | `GuidelineException` | an excuse for a guideline with a hole in it | the three attributes |
 | `MimeTypeException` | a media type that is not one | `MimeType` |
 | `ReleaseVerificationException` | a `data/` value object built from data it cannot accept | 15 classes |
+| `RequirementException` | a requirement declared with something it cannot check | 5 classes |
 | `RouteException` | a `SitePath` given the wrong number of values | `SitePath` |
 | `SecurityPolicyException` | a policy value that is not valid on the wire | 10 classes |
 
-**`SiteException` is an interface because the inheritance chain is already spent.** Eight classes
-declare it and the four under `MarkupException` and `ApiException` inherit it; of the eight, five are
+**`SiteException` is an interface because the inheritance chain is already spent.** Nine classes
+declare it and the four under `MarkupException` and `ApiException` inherit it; of the nine, six are
 a `LogicException`, one a `RuntimeException`, one a `TypeError` and one an
 `InvalidArgumentException` — each saying something true — so the question *did this come from us*
 has nowhere else to live. It matters more than it looks: `CollectionException extends TypeError`
 extends **`Error`**, a sibling of `Exception` rather than a subclass, so `catch (Exception)` — the
-widest net anybody reaches for by habit — misses one of the eleven concrete classes, silently, in the
+widest net anybody reaches for by habit — misses one of the twelve concrete classes, silently, in the
 class most likely to be thrown by a mistake made five minutes ago. Only `Throwable` catches all
-eleven, and `Throwable` also catches everything PHP raises. This interface is the difference, and the
+twelve, and `Throwable` also catches everything PHP raises. This interface is the difference, and the
 handler in `public/index.php` is what it is for.
 
 **An exception becomes ours by extending the SPL class it already was, not by replacing it.**
@@ -824,6 +828,7 @@ exceptions:
 | Exception | For |
 |---|---|
 | `ReleaseVerificationException` | anything the `data/` files declare |
+| `RequirementException` | a requirement declared with something it cannot check |
 | `MimeTypeException` | a malformed media type |
 | `SecurityPolicyException` | anything under `Http\Security`, and any header value |
 | `ElementException` | an element asked to be something no element can be |

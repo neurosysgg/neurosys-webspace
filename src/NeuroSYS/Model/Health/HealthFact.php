@@ -5,18 +5,18 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Health;
 
 /**
- * The HealthFact class. One thing {@link \NeuroSYS\Service\Api\HealthReport} has to say, and the
- * one line it says it on.
+ * The HealthFact class. One thing the `capability` or `health` service has to say, and the one line
+ * it says it on.
  *
  * A class rather than the `array{string, string}` it would otherwise be, for
  * {@link \NeuroSYS\Model\Api\VerifiedRequest}'s reason: a two-slot tuple is destructured in the one
  * place that reads it, where `[$name, $value] = $pair` only reads correctly if you already know
  * the answer. Two named properties need no excuse and nothing remembered.
  *
- * **Its whole behaviour is one column.** A report of forty facts across five sections is read by
- * running an eye down the values, and that works only if every section aligns with every *other*
- * section rather than each with itself. So the width is a constant here rather than the longest
- * name in whichever section a fact happened to land in.
+ * **Its whole behaviour is one column.** A report is read by running an eye down the values, and
+ * that works only if the sections of one response align with each other rather than each with
+ * itself — so the column has a floor here that every section starts from, and a section widens it
+ * only for a name that would otherwise overrun. See {@link HealthSection::facts()}.
  *
  * The indent is deliberately **not** here: a fact renders its own line and {@link HealthSection}
  * places it, which is what lets a section of log lines sit at the same indent without a second
@@ -25,14 +25,14 @@ namespace NeuroSYS\Model\Health;
 final readonly class HealthFact
 {
     /**
-     * How wide the name column is.
+     * How wide the name column is at least.
      *
-     * Sized for the longest name the report has today — `max_execution_time`, at eighteen. A
-     * longer one is not an error and is not cut down: it pushes its own value across by however
-     * much it overruns, and the next line is back in the column. That is the right failure for a
-     * report — one ragged line, rather than a name truncated into a different name.
+     * Sized for the names a report of this site's own facts has — `max_execution_time`, at
+     * eighteen, is the longest a health check prints. `capability v1 settings` lists every
+     * directive the engine has, and those run to nearly forty, which is why a section may widen
+     * this rather than let three hundred lines each overrun by a different amount.
      */
-    private const int COLUMN = 20;
+    public const int COLUMN = 20;
 
     /**
      * What a fact with nothing to say says.
@@ -66,10 +66,15 @@ final readonly class HealthFact
     /**
      * The fact's line: the name in its column, then the value.
      *
+     * A name longer than the column is not cut down: it pushes its own value across by however much
+     * it overruns. That is the right failure for a report — one ragged line, rather than a name
+     * truncated into a different name.
+     *
+     * @param int $column How wide the name column is; {@link HealthSection} passes its own.
      * @return string
      */
-    public function render(): string
+    public function render(int $column = self::COLUMN): string
     {
-        return str_pad($this->name, self::COLUMN) . ' ' . ($this->value === '' ? self::NOTHING : $this->value);
+        return str_pad($this->name, $column) . ' ' . ($this->value === '' ? self::NOTHING : $this->value);
     }
 }

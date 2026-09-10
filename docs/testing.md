@@ -101,8 +101,8 @@ Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_
 Files are grouped by layer or by feature, not one-per-class. The site's are `ModelTest`,
 `ProductionTest`, `WaveformTest`, `EmbedTest`, `HtmlTest`, `ViewTest`, `PageTest`, `ServiceTest`,
 `SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `ConfigTest`, `SecurityTest`,
-`SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `UpdateTest`, `HealthTest`,
-`NoDiscardTest` and `GuidelineTest`; `PhpInputStream` and `UpdateFixture` are helpers rather than
+`SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `UpdateTest`, `RequirementTest`,
+`HealthTest`, `CapabilityTest`, `NoDiscardTest` and `GuidelineTest`; `PhpInputStream` and `UpdateFixture` are helpers rather than
 suites. The tooling's are listed under [The development tooling](#the-development-tooling).
 
 Several are named for something other than a layer, because that is what they are about: `PageTest`
@@ -243,7 +243,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   anyone would find out.
 - **A falsy setting is still an answer.** `max_execution_time` is `'0'` on a runtime with no limit,
   and `'0'` is falsy, so `?:` would print the most interesting answer that directive has as "nothing
-  to say". `HealthFact` asks `=== ''`, and `HealthTest` has the row.
+  to say". `HealthFact` asks `=== ''`, and `SecondsFloor` is told which value means no limit
+  rather than reading `0` as below every floor. `RequirementTest` has the rows for both.
+- **A value PHP reads leniently is not met.** `ini_parse_quantity()` reads an unparseable size as
+  `0` "for backwards compatibility", and for `post_max_size` that means unlimited. `ByteFloor`
+  watches for the diagnostic and fails the value, and `RequirementTest` has the row.
 - **The imprint states one address, four times.** It is a legal document, and one built from four
   copies of an address is one with a wrong address eventually. `PageTest` asserts the four rendered
   blocks are byte-identical, not merely present.
@@ -482,8 +486,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **98.92% of lines** (2391/2417), derived on 2026-09-10
-(`8f766f0`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **98.99% of lines** (2552/2578), derived on 2026-09-10
+(the `capability`/`health` split). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
@@ -561,9 +565,9 @@ rule:
   private constructor for a reflection call to "cover". Dead defensive code is worse than none,
   because a reader cannot tell it apart from live code.
 - **A guard for a case that cannot happen is not written.** `PhpSetting::configured()` casts
-  `ini_get()`'s `string|false` because every directive it names exists; `HealthReport` shows a data
-  file's presence and whether git tracks it as two columns rather than a verdict with an arm no real
-  checkout reaches.
+  `ini_get()`'s `string|false` because every directive it names exists; `CapabilityDeployment`
+  shows a data file's presence and whether git tracks it as two columns rather than a verdict with
+  an arm no real checkout reaches, and `health` declares only the tracked files as requirements.
 - **`?:` on one line where both arms are exercised**, rather than `if` on four — a statement rather
   than a branch under line coverage, and not a trick as long as both arms run.
 
@@ -571,7 +575,7 @@ rule:
 
 ### The development tooling
 
-`tools/lib/` has twelve test files and is **deliberately outside the coverage source**, so none of
+`tools/lib/` has thirteen test files and is **deliberately outside the coverage source**, so none of
 them carries `#[CoversClass]`. The figure above is a claim about the shipped site; folding in code
 whose job is to shell out to `metaflac` and `ffprobe` would either drop the number or invite
 contrived tests to prop it up.
@@ -612,6 +616,10 @@ contrived tests to prop it up.
   other: `SignedRequest` builds the request and the real `ApiGate`, over a real generated keypair,
   verifies it. A disagreement between them fails closed and in silence, so the assertion is that
   they agree, with nothing in between restating the format.
+- `test/unit/ApiCallTest.php` — what `tools/api.php` shows and exits with. The exit code is the
+  answer's, so a failed `health` check — a 503 carrying its report — can stop a script; and only a
+  404 is explained as a refusal, because telling someone to check their key about a 503 would send
+  them looking in exactly the wrong place.
 - `test/unit/StageDemoTest.php` — `stage-demo`, which is the only command here that mints a
   credential. The tests that matter are not about the entry it prints: that a password verifies
   against its own hash and nothing else does, that two hundred draws are two hundred different

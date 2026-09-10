@@ -8,6 +8,7 @@ use BackedEnum;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
 use NeuroSYS\Http\HttpMethod;
+use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Api\PrivateKey;
 use NeuroSYS\Tool\Api\SignedRequest;
@@ -25,15 +26,19 @@ use NeuroSYS\Tool\Http\Url;
 /**
  * The ApiCall command. One signed call to `/api`, named on the command line.
  *
- * `php tools/api.php update v1 version` is the whole of it, and `php tools/api.php health v1 report`
- * is the other thing it does today. It is the client for every action that carries **no body** —
- * which is every action but `patch`, and that one has {@link PushUpdate} because building the tree
- * it sends is most of what that command does.
+ * `php tools/api.php update v1 version` is the shape of it — `health v1 report` and
+ * `capability v1 extensions` are the same command. It is the client for every action that carries
+ * **no body** — which is every action but `patch`, and that one has {@link PushUpdate} because
+ * building the tree it sends is most of what that command does.
  *
- * **A second service cost this file nothing**, which is the property worth stating rather than
+ * **A new service costs this file nothing**, which is the property worth stating rather than
  * assuming: the vocabulary below is the server's own {@link ApiService} and {@link ApiVersion}, and
- * the address, method and scheme all come off the action, so `health` became reachable here the day
- * its enum existed and not a line later.
+ * the address, method and scheme all come off the action, so a service is reachable here the day
+ * its enum exists and not a line later.
+ *
+ * **The exit code is the answer's**: 0 for a 2xx and 1 for anything else, so a failed `health`
+ * check — a 503 with the report in its body — can end a script. Only a 404 is explained as a
+ * refusal, because only a 404 is one.
  *
  * **It refuses an action it does not recognise before sending anything**, which is not politeness:
  * `/api` answers an unrecognised address exactly as it answers a wrong signature, so a typo here
@@ -149,26 +154,27 @@ final readonly class ApiCall implements Command
 
         $output->out($response->body);
 
-        if (!$response->isOk()) {
-            // A read that is not verified gets the rendered 404 an address that is not there gets,
-            // which is a whole HTML page — so say what it means rather than leaving the operator to
-            // read markup. Same three causes a refused push has, in the same order.
-            $output->error(sprintf(
-                "\nrefused with %d.%s\n",
-                $response->status,
-                $response->status === 404
-                    ? "\n  That is what /api answers to anything it will not verify — it does not"
-                    . " say which check failed, by design. In order of likelihood:\n"
-                    . "    1. data/update.pub on the server does not match this private key\n"
-                    . "    2. this machine's clock is more than five minutes from the server's\n"
-                    . "    3. the server is older than /api"
-                    : '',
-            ));
-
-            return ExitCode::Failure;
+        if ($response->isOk()) {
+            return ExitCode::Success;
         }
 
-        return ExitCode::Success;
+        // A read that is not verified gets the rendered 404 an address that is not there gets,
+        // which is a whole HTML page — so say what it means rather than leaving the operator to
+        // read markup. Same three causes a refused push has, in the same order.
+        //
+        // Anything else was answered by a verified handler, whose body above already says what
+        // went wrong — a `health` check that failed is a 503 carrying the whole report. Calling
+        // that "refused" would send somebody looking at their key.
+        $output->error($response->code() === HttpStatusCode::NotFound
+            ? "\nrefused with 404.\n"
+            . "  That is what /api answers to anything it will not verify — it does not"
+            . " say which check failed, by design. In order of likelihood:\n"
+            . "    1. data/update.pub on the server does not match this private key\n"
+            . "    2. this machine's clock is more than five minutes from the server's\n"
+            . "    3. the server is older than /api\n"
+            : sprintf("\nanswered %d.\n", $response->status));
+
+        return ExitCode::Failure;
     }
 
     /**
