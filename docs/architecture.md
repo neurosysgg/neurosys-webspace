@@ -49,6 +49,7 @@ src/NeuroSYS/
 │   ├── Api/        what a signed call is made of
 │   ├── Update/     what a push adds to that
 │   └── Health/     requirements and verdicts, knowing nothing of this site
+├── Text/           every word the site says, in both languages — see language.md
 ├── View/           one class per page; each returns a Node, never a string
 │   ├── Html/       the markup tree
 │   └── Terminal/   the terminal component's declared form
@@ -712,26 +713,30 @@ otherwise get to choose which of our elements to build.
 
 ## Language
 
-The imprint and the privacy policy are the only bilingual pages here — each carries a German half and
-an English half, one after the other — and the order is the visitor's. `Request::language()` decides
-which half they meet first: their `lang` cookie where it names a language this site has, else their
+Every page is written in English and German, at the same address, and `Request::language()` decides
+which: the visitor's `lang` cookie where it names a language this site has, else their
 `Accept-Language`, else English. The cookie outranks the header because it is a choice made on this
 site, where the header is a setting made once for every site; a cookie naming anything else is no
-choice at all and falls through.
+choice at all and falls through. How a word on a page finds that language, the catalogs it is
+written in and the switch that sets the cookie are [language.md](language.md)'s.
 
-Four things are worth knowing before touching any of it.
+What is left here is the legal pages' own arrangement. The imprint and the privacy policy are not
+translated but written twice: each carries a German half and an English half, one after the other,
+and the request's language decides which a visitor meets first.
+
+Four things are worth knowing about them before touching either.
 
 - **Both halves are always sent. Only the order changes.** The German imprint is what discharges
   § 5 DDG and § 18 Abs. 2 MStV, so it is never the half left out; a wrong guess costs a visitor one
   scroll, where a wrong *omission* would cost rather more than that. `PageTest` asserts both halves
   are present under either language, which is the property worth pinning rather than the ordering.
-- **Nothing here is translated.** The two halves are written already; the German titles
+- **The legal pages are not translated.** Their two halves are written already; the German titles
   (`Impressum`, `Datenschutzerklärung`) are words in those documents. `AcceptedLanguages` chooses
   between things that exist and never invents one.
 - **A page that reads a request header owes a `Vary` naming it**, and both facts are stated in one
   place so the second cannot be forgotten: `View::varyOn()` declares the headers, `ViewResponse`
-  builds the header from it, and only those two pages are on the list — so nothing else pays for a
-  dependency it does not have. Forget it and there is no error at all; a cache simply becomes free
+  builds the header from it — and since every page is written in a language now, `ViewResponse`
+  names `Accept-Language` and `Cookie` itself, for all of them. Forget it and there is no error at all; a cache simply becomes free
   to hand one visitor the copy it built for another, which here means the wrong language and
   nothing else visibly wrong. The `ETag` is the belt to that brace, since the two orderings are
   different bytes. The verify script checks both, because only it can see a real header.

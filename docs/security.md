@@ -40,11 +40,12 @@ Everything an attacker can reach:
 - Everything else answers `404` or `405`.
 
 Everything an attacker controls: the **request target** (the path), the **method**, the request
-headers the app reads — `Authorization`, and the five `RequestHeader` cases: `X-Requested-With`,
-`If-None-Match`, `Range` (demo audio only), and `Accept-Language` and `Cookie` (`/imprint` and
-`/privacy` only, where they pick which language leads; of the cookies, only `lang` is read, and only
-as one of the `Language` cases — anything else falls through) — plus `Referer` only when download
-logging is on, which it is not; and, under `/api` alone, a **request body**.
+headers the app reads — `Authorization`, and the six `RequestHeader` cases: `X-Requested-With`,
+`If-None-Match`, `Range` (demo audio only), `Accept-Language` and `Cookie` (every page, which is
+written in the language they pick; of the cookies only `lang` is read, and only as one of the
+`Language` cases — anything else falls through), and `Referer` (`/language/{language}` alone, where
+only its path is used — see [the language cookie](#the-language-cookie)) — plus the referrer once
+more when download logging is on, which it is not; and, under `/api` alone, a **request body**.
 
 That body is read at one call site, and **it is not read at all until a signature has verified**.
 The credential arrives in `Authorization` rather than framed into the body, so an unsigned caller is
@@ -356,11 +357,30 @@ file host, breaking a header, or rendering a dead link when a visitor arrives:
 | `CspHost` | a bare origin — scheme + host (+ optional port), no path or trailing slash |
 | `MimeType` | a well-formed subtype token |
 | `Profile` | an absolute `https://` URL |
-| `Location` | an absolute `https://` URL — the one address the site emits in a header |
+| `Location` | an absolute `https://` URL, or a path the WHATWG parser keeps on this site — the one address the site emits in a header |
 
 All of them anchor with `\z`, not `$`, because `$` also matches before a trailing newline — the same
 rule the router's patterns follow. Each bad-input test provider carries a trailing-newline case.
 ([history](history/security.md))
+
+### The language cookie
+
+The site sets one cookie, `lang`, and only when a visitor clicks the language switch in the footer.
+`GET /language/{language}` answers a 303 carrying `Set-Cookie: lang=de; Path=/; Max-Age=31536000;
+SameSite=Lax; Secure; HttpOnly` and `Cache-Control: no-store, private`.
+
+- **It holds a language and nothing else** — `de` or `en`. A value that is not a `Language` case is
+  ignored on the next request rather than trusted.
+- **`HttpOnly`**, because no script reads it: the server decides the language and states it on
+  `<html lang>`, which is where the client reads it.
+- **It is a GET**, so a third party can link somebody to it and switch their language. That costs one
+  click to undo, and is why the route does nothing else.
+- **Back is the `Referer`'s path alone.** Its host is dropped, so the redirect cannot leave the site,
+  and the path is still put to `Element::staysOnThisOrigin()` — `//evil.example` is a path that names
+  another host. `Location` asks the same question of every path it is given, and accepts only that or
+  an absolute `https://` URL. The referrer is never stored or logged.
+
+The privacy policy names the cookie, in both languages. See [language.md](language.md#the-switch).
 
 ### Privacy at rest
 

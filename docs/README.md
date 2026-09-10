@@ -36,6 +36,7 @@ neurosys/
 │   │   └── Link/        ← FileLink interface + HiDriveLink
 │   ├── Service/         ← Auth, ReleaseRepository, ProfileRepository, DownloadLogger…
 │   ├── Support/         ← Collection<T>, SearchableCollection<T> (immutable), Route, JsonDeserializable
+│   ├── Text/            ← every word the site says, in both languages — see language.md
 │   ├── View/            ← one View class per page; each returns a tree of View\Html nodes
 │   │   ├── Html/        ← the markup tree: Node, Element, Text, Fragment, Document, MarkupParser
 │   │   └── Terminal/    ← Terminal, TerminalField, TerminalTone — declared, not written out
@@ -71,6 +72,7 @@ neurosys/
 | `/releases/{slug}/{format}` | HTTP 303 → HiDrive link (`flac`, `wav`, `mp3`, `aiff`, `stems`, `ogg`) |
 | `/imprint` | Impressum + Imprint — both, led by the visitor's language (`lang` cookie, else `Accept-Language`) |
 | `/privacy` | Datenschutzerklärung + Privacy Policy, from the two `data/privacy.*.html` files |
+| `/language/{language}` | the language switch: sets the `lang` cookie and 303s back — see [language.md](language.md) |
 | `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
 | `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |
 | `/admin/stats` | download stats (HTTP basic auth) |
@@ -106,6 +108,8 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 
 - [architecture.md](architecture.md) — the PHP side: the request traced end to end, the layers, the
   type discipline, and the recipes for adding a route, a page, a file host or an embed provider
+- [language.md](language.md) — German and English: which language a request gets, how a word finds
+  it, the catalogs, and the switch and its cookie
 - [frontend.md](frontend.md) — the TypeScript and CSS: the build, the three kinds of custom element,
   the SPA router, and the no-JS cost
 - [collections.md](collections.md) — `Collection` and `SearchableCollection`: immutable, lazy, what

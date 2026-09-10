@@ -31,7 +31,7 @@ Add a new entry to the array in `data/releases.php`. Each entry is a typed `Rele
     bpm:         140,
     key:         MusicalKey::FSharpMajor,
     genre:       Genre::Dubstep,
-    description: 'debut single',         // shown on the release card + page
+    description: Texts::Releases::Descriptions::HelloWorld,   // card + page, both languages — see language.md
     cover:       new HiDriveLink('J2FXbB70A'),   // share id, see below
     formats: new Collection(Format::class)->with(
         new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),

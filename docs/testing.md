@@ -383,7 +383,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **Every preloaded module resolves.** The drift check proves the manifest matches the graph; it
   cannot prove it points at anything, because the href is a graph path under a URL base written by
   hand in `tools/build-assets.mjs`. So the verify script asks the dev server for every one of
-  `AssetManifest::MODULES` (46 in the debug tree), and `ViewTest` asks the filesystem the same
+  `AssetManifest::MODULES` (47 in the debug tree), and `ViewTest` asks the filesystem the same
   question — which fails in the fast suite, without a server. A preload that 404s is the quietest
   failure here: the module is simply fetched late, the slow way, and the console offers at most an
   unused-preload notice.
@@ -469,7 +469,7 @@ npm run coverage    # front end — 100% of lines, branches and functions, enfor
 
 `node --test` has coverage built in. The thresholds in the `coverage` script are set to 100 across
 lines, branches and functions, so this is a gate rather than a report: a new branch nothing
-exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is forty-nine
+exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is fifty
 small files with one job each. It has teeth the other way too: an unreachable fallback such as
 `?? 0` on an index that cannot miss is refused, which is why `DemoWaveform` reads its bytes with a
 `charCodeAt` that needs no fallback at all.

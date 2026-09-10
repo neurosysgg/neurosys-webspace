@@ -106,14 +106,14 @@ class Layout
      * An ES module graph is discovered a wave at a time — the browser learns it needs
      * `model/CssClass.js` only after parsing four files that led to it — so the debug tree's graph
      * costs five sequential round trips before the last module begins downloading. Declared here,
-     * the preload scanner sees all forty-six at once and that becomes one. It is the only one of
+     * the preload scanner sees all forty-seven at once and that becomes one. It is the only one of
      * the three front-end costs that is latency rather than bytes, which is why compressing and
      * stripping comments do not touch it.
      *
      * **What ships has no waterfall left to flatten.** `tools/build-prod.mjs` bundles the graph into
      * one module, so {@link AssetManifest}'s `MODULES` is empty there and this returns nothing — the
      * browser is told to fetch one file, and it has that instruction already from the `<script src>`.
-     * The committed manifest still lists all forty-six, because the debug tree still ships forty-nine
+     * The committed manifest still lists all forty-seven, because the debug tree still ships fifty
      * modules and `npm run dev` still serves them that way. So this is live on the tree a person
      * develops against and inert on the tree a visitor loads, which is the right way round: the hint
      * buys back a cost that bundling removes outright.

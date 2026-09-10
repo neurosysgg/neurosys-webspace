@@ -112,7 +112,7 @@ readonly class ViewResponse implements Response
      *
      * - A document embeds every versioned asset URL — the stylesheet, the entry script and whatever
      *   preloads there are, straight out of {@link \NeuroSYS\AssetManifest}. That is two URLs on the
-     *   bundled tree that ships and forty-eight on the debug tree, and the argument is the same
+     *   bundled tree that ships and forty-nine on the debug tree, and the argument is the same
      *   either way: it takes one. A stale document
      *   therefore names *last build's* URLs, and `public/.htaccess` marked those `immutable` for a
      *   year, so the browser would serve the old JS out of its own cache against the new HTML.

@@ -134,7 +134,7 @@ comments leave the number exactly where it was.
 because that one blocks rendering and these do not. The preload scanner then sees all of them at
 once and the five waves become one, for ~385 gzipped bytes per page.
 
-**The counts:** the debug tree has 49 modules. `main.js` is the `<script src>` itself, 46 more are
+**The counts:** the debug tree has 50 modules. `main.js` is the `<script src>` itself, 47 more are
 reachable from it and preloaded, and two — `model/SectionKind.js` and `model/ArrangementAttribute.js`
 — are imported by no module at all: they are mirrors that only `enum-parity.test.mjs` reads, since
 the arrangement is server-rendered and no element selects on its values.
@@ -171,7 +171,7 @@ the URL it was loaded from — so `/assets/js/v-a1b2c3d4/main.js` importing `./m
 byte-identical to tsc's output, which is what keeps the drift check a straight diff.
 
 The price is one stamp per build rather than one per file, so any change busts the whole tree — all
-49 modules in the debug tree, and the single bundle in the one that ships. At ~6 KB gzipped that is
+50 modules in the debug tree, and the single bundle in the one that ships. At ~6 KB gzipped that is
 not worth a second thought.
 
 **`.htaccess` and `dev-router.php` are a mirror** — one rule, two languages — so the verify script

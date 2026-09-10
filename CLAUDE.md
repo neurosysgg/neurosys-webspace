@@ -116,6 +116,7 @@ src/NeuroSYS/
 ├── Support/        ← Collection, SearchableCollection, File, Directory, Route + SitePath, the route
 │                     and requirement tables, Diagnostics, TarArchive, PasswordHash, PublicKey, Bare*
 ├── Exception/      ← SiteException and every condition under it
+├── Text/           ← every word the site says, in both languages: Texts, the catalogs, Translatable
 ├── View/           ← one View per page; each returns a Node
 │   ├── Html/       ← the markup tree, MarkupParser, and the tag/attribute vocabularies
 │   └── Terminal/   ← Terminal, TerminalCommand, TerminalField
@@ -145,6 +146,9 @@ the code looks the way it does; follow them in new code without being asked.
   built. [architecture.md](docs/architecture.md#the-markup-tree)
 - **Hand-authored HTML enters only through `Element::containingHtml()`**, which parses it against
   this site's own vocabulary and refuses the rest. Never parse anything a request can influence.
+- **Visible text is a `Translatable`, and a view never names a language.** It writes
+  `Texts::Releases::Downloads`; the tree puts it into the nearest `lang` when it renders, and
+  `TranslationTest` fails a catalog case without its German. [language.md](docs/language.md)
 - **Names and values are typed.** A header is a `HeaderName` case and a `HeaderValue`; an attribute
   is an `AttributeName` case and an enum case or `AttributeValue` class for its value. A value with
   a grammar is a class, a fixed vocabulary is an enum. [architecture.md](docs/architecture.md#http--the-wire)
@@ -186,6 +190,14 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - A regex that validates ends in `\z`, not `$` — `$` matches before a trailing newline.
 - A page that reads a request header declares it in `View::varyOn()`, or a cache hands one visitor
   the copy built for another.
+
+**Language** — [docs/language.md](docs/language.md)
+- `Translatable` is asked before `BackedEnum`: a catalog case is both, and read as an enum it renders
+  its key. A translatable with no `lang` above it throws — render a view with `->render(0, $language)`.
+- Every page varies on `Accept-Language` and `Cookie`; `ViewResponse` says so for all of them.
+- A demo's description is never a catalog case — `src/` is public. It is inline in `data/demos.php`.
+- The verify script's "no markup from a string" grep reads comments: an apostrophe followed on the
+  same line by a `<tag` fails it.
 
 **Requests and auth** — [docs/security.md](docs/security.md)
 - Never `parse_url()` the request target: it fails with `false`, which `??` does not guard.
@@ -241,7 +253,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - Both `php -S` invocations — `npm run dev` and the verify script's — must load `tools/dev-router.php`.
 - `npm run watch` rebuilds neither the stylesheet nor the manifest; run `npm run build` before
   committing.
-- The debug and prod manifests differ on purpose (46 preloads against none) — do not add a diff
+- The debug and prod manifests differ on purpose (47 preloads against none) — do not add a diff
   between them.
 - The build tools refuse an undeclared flag; keep it that way, since a misspelled `--out` once
   overwrote the committed stylesheet and reported success.
@@ -302,7 +314,7 @@ of it from a prepared folder (`--project` for the `.flp`); `php tools/release-tr
     bpm:         140,
     key:         MusicalKey::FSharpMajor,
     genre:       Genre::Dubstep,
-    description: 'debut single',
+    description: Texts::Releases::Descriptions::HelloWorld,   // both languages; a plain string works too
     cover:       new HiDriveLink('J2FXbB70A'),   // the 9-char share id — never a full URL
     formats: new Collection(Format::class)->with(
         new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
@@ -368,6 +380,7 @@ php tools/api.php capability v1 extensions                  # what it has; also 
 | [docs/guidelines.md](docs/guidelines.md) | a bare array, a bare string, an `array_*` call, an `@`, a `throw` — or `GuidelineTest` failing |
 | [docs/frontend.md](docs/frontend.md) | the TypeScript, the CSS, the builds, the elements, SPA navigation |
 | [docs/contracts.md](docs/contracts.md) | any name or value both languages know |
+| [docs/language.md](docs/language.md) | any visible word, the catalogs, `Request::language()`, the switch and its cookie |
 | [docs/testing.md](docs/testing.md) | the suites, the invariants, coverage |
 | [docs/security.md](docs/security.md) | auth, headers, the API, what is known and accepted |
 | [docs/deployment.md](docs/deployment.md) | the push, `deploy.sh`, Strato, `.htaccess` |

@@ -55,7 +55,7 @@ The command prints its report and the password to **stderr** and the entry to **
 | label | the version marker in the file name: `v3`, `v12-rc`, else `mix` |
 | duration | `ffprobe` |
 | password | minted here, and nowhere else |
-| description | **nothing.** It is the one editorial field, written out as `null` to fill in |
+| description | **nothing.** It is the one editorial field, written out as `null` to fill in — a string, or `new Translation(en: …, de: …)` for both languages; never a catalog case, since `src/` is public |
 
 `--title` and `--slug` override the first two, and they are not exotic cases:
 `alien house v4.flac` carries an **empty** `TITLE`, and

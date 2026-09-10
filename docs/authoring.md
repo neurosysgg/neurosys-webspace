@@ -109,7 +109,10 @@ new enum case, which is a decision rather than a lookup.
 
 ### What nothing in the folder supplies
 
-- **`description`** — `'wub wub'`, `'debut single'`. Editorial, with nothing to derive it from.
+- **`description`** — `'wub wub'`, `'debut single'`. Editorial, with nothing to derive it from. The
+  staged `''` is a plain string, which reads the same in both languages; once the line has its German
+  it becomes a `ReleaseDescription` case — `Texts::Releases::Descriptions::…` — see
+  [language.md](language.md#words-that-belong-to-one-entry).
 - **HiDrive share ids** — minted by hand in the web UI. The REST API can do it, but the OAuth
   credentials take STRATO up to 72 hours to issue; see [releases.md](releases.md).
 - **SoundCloud `trackId` / `permalink` / `secretToken`** — they do not exist until the track is up.
