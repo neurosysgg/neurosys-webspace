@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\Support\Collection;
+
 /**
  * The RedirectResponse class. Issues an HTTP redirect to the given URL and terminates.
  */
@@ -12,12 +14,16 @@ readonly class RedirectResponse implements Response
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string         $url    The URL to redirect to.
-     * @param HttpStatusCode $status The HTTP status code; defaults to 303 See Other.
+     * @param string             $url     The URL to redirect to.
+     * @param HttpStatusCode     $status  The HTTP status code; defaults to 303 See Other.
+     * @param Collection<Header> $headers Extra headers, sent ahead of the redirect — the language
+     *                                    switch's cookie. The same parameter
+     *                                    {@link PlainTextResponse} and {@link ViewResponse} take.
      */
     public function __construct(
         private string         $url,
         private HttpStatusCode $status = HttpStatusCode::SeeOther,
+        private Collection     $headers = new Collection(Header::class),
     ) {}
 
     /**
@@ -34,6 +40,10 @@ readonly class RedirectResponse implements Response
      */
     public function send(Request $request): never
     {
+        foreach ($this->headers as $header) {
+            header($header->line());
+        }
+
         header(new Header(ResponseHeader::Location, new Location($this->url))->line(), true, $this->status->value);
         exit;
     }

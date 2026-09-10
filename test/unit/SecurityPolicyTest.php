@@ -37,6 +37,7 @@ use NeuroSYS\Http\Security\ReferrerPolicy;
 use NeuroSYS\Http\Security\StrictTransportSecurity;
 use NeuroSYS\Http\SecurityHeader;
 use NeuroSYS\Http\SecurityHeaders;
+use NeuroSYS\Http\SetCookie;
 use NeuroSYS\Http\Vary;
 use NeuroSYS\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -60,6 +61,8 @@ use RecursiveIteratorIterator;
 // the guard reads as 0% while eight data rows drive it. The same trap UpdateFile fell into.
 #[CoversClass(BasicChallenge::class)]
 #[CoversClass(ContentLanguage::class)]
+#[CoversClass(SetCookie::class)]
+#[CoversClass(Location::class)]
 final class SecurityPolicyTest extends TestCase
 {
     // ───────────────────────── StrictTransportSecurity ─────────────────────────
@@ -421,6 +424,11 @@ final class SecurityPolicyTest extends TestCase
         yield 'what the site accepts'     => ['GET, HEAD', Allow::readOnly()];
         yield 'the realm, quoted'         => ['Basic realm="neuro.SYS"', new BasicChallenge('neuro.SYS')];
         yield 'where a download goes'     => ['https://x.example/f?id=1', new Location('https://x.example/f?id=1')];
+        yield 'back to a page, after a switch' => ['/releases/ill', new Location('/releases/ill')];
+        yield 'the one cookie this site sets'  => [
+            'lang=de; Path=/; Max-Age=31536000; SameSite=Lax; Secure; HttpOnly',
+            SetCookie::language(Language::German),
+        ];
         yield 'a media type'              => ['text/html; charset=utf-8', MimeType::html()];
         yield 'the language a body is in' => ['de', new ContentLanguage(Language::German)];
         yield 'a single-value enum'       => ['nosniff', ContentTypeOptions::NoSniff];
@@ -564,6 +572,7 @@ final class SecurityPolicyTest extends TestCase
                 'NeuroSYS\Http\Security\PermissionsPolicy',
                 'NeuroSYS\Http\Security\ReferrerPolicy',
                 'NeuroSYS\Http\Security\StrictTransportSecurity',
+                'NeuroSYS\Http\SetCookie',
                 'NeuroSYS\Http\Vary',
             ],
             $found,
@@ -656,15 +665,17 @@ final class SecurityPolicyTest extends TestCase
     /**
      * A `Location` is an address the site emits, so it is checked like every other one.
      *
-     * Narrower than the spec on purpose: every redirect here goes to the file host, absolute and
-     * over TLS. The newline case is the one that would matter most — PHP's `header()` refuses one
+     * Narrower than the spec on purpose: a redirect here goes to the file host, absolute and over
+     * TLS, or back to a page of this site after a language switch. A path is asked of the WHATWG
+     * parser, so the two spellings of another host a leading slash can hide are refused with the
+     * rest. The newline case is the one that would matter most — PHP's `header()` refuses one
      * anyway, but a validator that does not mean what it says is worth closing regardless.
      *
      * @param string $url
      * @return void
      */
     #[DataProvider('badLocationProvider')]
-    public function testALocationMustBeAnAbsoluteHttpsUrl(string $url): void
+    public function testALocationMustBeHttpsOrAPathOnThisSite(string $url): void
     {
         $this->expectException(SecurityPolicyException::class);
 
@@ -674,8 +685,9 @@ final class SecurityPolicyTest extends TestCase
     /** @return iterable<string, array{string}> */
     public static function badLocationProvider(): iterable
     {
-        yield 'relative'          => ['/releases'];
         yield 'protocol-relative' => ['//evil.example/x'];
+        yield 'a backslash that is a second slash' => ['/\\evil.example/x'];
+        yield 'a path with a space' => ['/a b'];
         yield 'plaintext'         => ['http://x.example/'];
         yield 'a scheme that runs script' => ['javascript:alert(1)'];
         yield 'trailing newline'  => ["https://x.example/\n"];

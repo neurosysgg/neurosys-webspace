@@ -28,6 +28,7 @@ readonly class Request
      * @param string $acceptLanguage
      * @param string $authorization
      * @param string $cookie
+     * @param string $referer
      */
     private function __construct(
         private ?HttpMethod $method,
@@ -40,6 +41,7 @@ readonly class Request
         private string $acceptLanguage = '',
         private string $authorization = '',
         private string $cookie = '',
+        private string $referer = '',
     ) {}
 
     /**
@@ -84,6 +86,7 @@ readonly class Request
             self::header(RequestHeader::AcceptLanguage),
             $authorization,
             self::header(RequestHeader::Cookie),
+            self::header(RequestHeader::Referer),
         );
     }
 
@@ -330,6 +333,19 @@ readonly class Request
     public function acceptedLanguages(): AcceptedLanguages
     {
         return AcceptedLanguages::from($this->acceptLanguage);
+    }
+
+    /**
+     * The `Referer` this request carried, raw, or `''`.
+     *
+     * Raw because its one reader takes a single part of it and checks that — see
+     * {@link RequestHeader::Referer} for which reader, and for how little of it is used.
+     *
+     * @return string
+     */
+    public function referer(): string
+    {
+        return $this->referer;
     }
 
     /**

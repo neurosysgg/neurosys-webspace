@@ -83,6 +83,20 @@ enum RequestHeader: string implements HeaderName
     case Cookie = 'Cookie';
 
     /**
+     * The page the visitor was on when they followed a link here.
+     *
+     * Read by one route, {@link \NeuroSYS\Controller\LanguageController}, for one thing: which page
+     * to send a visitor back to after they switch language. Only its path is taken, and only after
+     * {@link \NeuroSYS\View\Html\Element::staysOnThisOrigin()} agrees the path stays here; it is
+     * never stored and never logged. The site's own `Referrer-Policy` is
+     * `strict-origin-when-cross-origin`, so a click from one of its pages carries the full path.
+     *
+     * Mirrored in `assets/ts/model/RequestHeader.ts` with no reader on that side, the same
+     * arrangement as {@link self::IfNoneMatch}: the browser sends it on its own.
+     */
+    case Referer = 'Referer';
+
+    /**
      * @return string
      */
     public function headerName(): string

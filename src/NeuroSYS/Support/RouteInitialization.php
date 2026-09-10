@@ -11,6 +11,7 @@ use NeuroSYS\Controller\DemoController;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
+use NeuroSYS\Controller\LanguageController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
@@ -44,6 +45,7 @@ class RouteInitialization
             ->addRoute(SitePath::Stats, fn() => new StatsController())
             ->addRoute(SitePath::Imprint, fn() => new ImprintController())
             ->addRoute(SitePath::Privacy, fn() => new PrivacyController())
+            ->addRoute(SitePath::Language, fn($language) => new LanguageController($language))
             // The only route the router forms no opinion about. Every method reaches the
             // controller, including one this site does not recognise, because any refusal the
             // router made here would differ from the one it makes for an address that does not
@@ -63,7 +65,7 @@ class RouteInitialization
     /**
      * @param SitePath $pattern
      * @param Closure $factory
-     * @param MethodPolicy $methods The default is what nine of the ten routes want, and none of
+     * @param MethodPolicy $methods The default is what ten of the eleven routes want, and none of
      *                              them states it.
      * @return $this
      */

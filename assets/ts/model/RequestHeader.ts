@@ -31,4 +31,10 @@ export enum RequestHeader {
    * same reason the three above are: the mirror is compared case for case.
    */
   Cookie = 'Cookie',
+
+  /**
+   * Written by no client code either — the browser sends it on its own, and the server takes its
+   * path to send a visitor back after a language switch. Here for the same reason the others are.
+   */
+  Referer = 'Referer',
 }

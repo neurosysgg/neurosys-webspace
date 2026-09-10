@@ -22,6 +22,7 @@ use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\ElementId;
 use NeuroSYS\View\Html\HtmlAttribute;
 use NeuroSYS\View\Html\HtmlTag;
+use NeuroSYS\View\Html\LinkAttribute;
 use NeuroSYS\View\Html\LinkRel;
 use NeuroSYS\View\Html\LinkTarget;
 use NeuroSYS\View\Html\MetaName;
@@ -52,7 +53,7 @@ class Layout
         return new Document(
             new Element(HtmlTag::Html)
                 ->attr(HtmlAttribute::Lang, $language)
-                ->containing(self::head($view->pageTitle()), self::body($view->content())),
+                ->containing(self::head($view->pageTitle()), self::body($view->content(), $language)),
         );
     }
 
@@ -155,15 +156,16 @@ class Layout
     }
 
     /**
-     * @param Node $content
+     * @param Node     $content
+     * @param Language $language
      * @return Element
      */
-    private static function body(Node $content): Element
+    private static function body(Node $content, Language $language): Element
     {
         return new Element(HtmlTag::Body)->containing(
             self::header(),
             new Element(HtmlTag::Main)->attr(HtmlAttribute::Id, ElementId::Content)->containing($content),
-            self::footer(),
+            self::footer($language),
             // type="module", so it defers on its own and every import resolves as an ES module.
             new Element(HtmlTag::Script)
                 ->attr(HtmlAttribute::Type, ScriptType::Module)
@@ -194,9 +196,10 @@ class Layout
     }
 
     /**
+     * @param Language $language The page's, so the switch can say which one this is.
      * @return Element
      */
-    private static function footer(): Element
+    private static function footer(Language $language): Element
     {
         $footer = new Element(HtmlTag::Footer)->attr(HtmlAttribute::ClassName, CssClass::SiteFooter);
         $links  = new ProfileRepository()->all();
@@ -228,7 +231,41 @@ class Layout
                     ->attr(HtmlAttribute::Href, SitePath::Privacy->to())
                     ->containing(Texts::Layout::Privacy),
             ),
+            self::languages($language),
         );
+    }
+
+    /**
+     * The language switch: every language the site is written in, each named in itself.
+     *
+     * The page's own is plain text; the others link to {@link SitePath::Language}, which sets the
+     * visitor's cookie and sends them back here. **`data-no-spa`**, so the browser loads that
+     * address whole rather than Navigation fetching a fragment of it: the header and the footer are
+     * outside the fragment, and they have to come back in the new language too. Each name carries
+     * its own `lang`, so a screen reader says `deutsch` in German.
+     *
+     * @param Language $current
+     * @return Element
+     */
+    private static function languages(Language $current): Element
+    {
+        $names = [];
+
+        foreach (Language::cases() as $language) {
+            if ($names !== []) {
+                $names[] = ' · ';
+            }
+
+            $names[] = $language === $current
+                ? new Element(HtmlTag::Span)->attr(HtmlAttribute::Lang, $language)->containing($language->endonym())
+                : new Element(HtmlTag::A)
+                    ->attr(LinkAttribute::NoSpa)
+                    ->attr(HtmlAttribute::Href, SitePath::Language->to($language->value))
+                    ->attr(HtmlAttribute::Lang, $language)
+                    ->containing($language->endonym());
+        }
+
+        return new Element(HtmlTag::P)->containing(...$names);
     }
 
     /**

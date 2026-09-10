@@ -39,4 +39,19 @@ enum Language: string
      * {@link \NeuroSYS\View\ImprintView}.
      */
     case German = 'de';
+
+    /**
+     * The language's name in itself — `deutsch`, `english` — which is how the switch in the footer
+     * names it, so a visitor who cannot read the page can still find their own language on it.
+     * Lower case, the way the site writes its navigation.
+     *
+     * @return string
+     */
+    public function endonym(): string
+    {
+        return match ($this) {
+            self::English => 'english',
+            self::German  => 'deutsch',
+        };
+    }
 }

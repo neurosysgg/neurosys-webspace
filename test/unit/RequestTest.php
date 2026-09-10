@@ -671,4 +671,17 @@ final class RequestTest extends TestCase
         yield 'a cookie naming no language falls through' => [['HTTP_COOKIE' => 'lang=xx'] + $german, Language::German];
         yield 'an empty cookie falls through'   => [['HTTP_COOKIE' => 'lang='] + $german, Language::German];
     }
+
+    /**
+     * The `Referer` reaches the request raw; how little of it is used is its one reader's to decide.
+     *
+     * @return void
+     */
+    public function testTheRequestCarriesTheRefererRaw(): void
+    {
+        $from = 'https://x.example/releases/ill';
+
+        self::assertSame($from, $this->request(['REQUEST_URI' => '/', 'HTTP_REFERER' => $from])->referer());
+        self::assertSame('', $this->request(['REQUEST_URI' => '/'])->referer());
+    }
 }

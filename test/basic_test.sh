@@ -718,6 +718,8 @@ check_status "GET /releases/ill                  → 200" "$BASE/releases/ill"  
 check_status "GET /releases/ill/flac             → 303" "$BASE/releases/ill/flac"              303
 check_status "GET /imprint                       → 200" "$BASE/imprint"                        200
 check_status "GET /privacy                       → 200" "$BASE/privacy"                        200
+check_status "GET /language/de                   → 303" "$BASE/language/de"                    303
+check_status "GET /language/xx                   → 404" "$BASE/language/xx"                    404
 check_status "GET /releases/no-such-slug         → 404" "$BASE/releases/no-such-slug"          404
 check_status "GET /releases/hello-world/badformat→ 404" "$BASE/releases/hello-world/badformat" 404
 check_status "GET /notfound                      → 404" "$BASE/notfound"                       404
@@ -1203,6 +1205,35 @@ check_localised "a chosen language outranks the browser's on every page" "$BASE/
 check_localised "  the 404 included" "$BASE/nope" "de" "" "nicht gefunden"
 check_localised "a release's own words are translated too" "$BASE/releases" "de" "" "debütsingle"
 check_localised "  and so is its key" "$BASE/releases" "de" "" "dis-Moll"
+
+# The switch: a link, a cookie, and back to the page the visitor was on — by the Referer's path
+# alone, so whatever host the Referer names, the redirect stays here.
+SWITCH=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - -H "Referer: http://localhost:$PORT/releases/ill" \
+         "$BASE/language/de" 2>/dev/null | tr -d '\r')
+if printf '%s' "$SWITCH" | grep -qi '^set-cookie: lang=de; Path=/; Max-Age=31536000; SameSite=Lax; Secure; HttpOnly$'; then
+    pass "switching language sets the cookie"
+else
+    fail "switching language sets the cookie"
+fi
+if printf '%s' "$SWITCH" | grep -qi '^location: /releases/ill$'; then
+    pass "  and sends the visitor back to the page they were on"
+else
+    fail "  and sends the visitor back to the page they were on"
+fi
+if printf '%s' "$SWITCH" | grep -qi '^cache-control: no-store'; then
+    pass "  and is never stored"
+else
+    fail "  and is never stored"
+fi
+OFFSITE=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - -H "Referer: https://evil.example//evil.example/x" \
+          "$BASE/language/en" 2>/dev/null | tr -d '\r' | grep -i '^location:')
+if printf '%s' "$OFFSITE" | grep -qi '^location: /$'; then
+    pass "  but never to another host, however the path is spelled"
+else
+    fail "  but never to another host, however the path is spelled (${OFFSITE:-none})"
+fi
+check_body "the footer offers the other language" "$BASE/" 'href="/language/de"'
+check_localised "  and a German page offers English" "$BASE/" "de" "" 'href="/language/en"'
 
 FRAGMENT=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" -H "Accept-Language: de" "$BASE/" 2>/dev/null) || true
 if [[ "$FRAGMENT" == *"neueste tracks"* && "$FRAGMENT" != *"<html"* ]]; then

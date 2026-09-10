@@ -22,7 +22,7 @@ use NeuroSYS\Exception\RouteException;
  * with *and* what a view builds from — one fact, read from one place, in both directions. That is
  * the whole point: a pattern that is only ever half of a pair cannot drift from its other half.
  *
- * `{slug}`, `{format}`, `{label}`, `{service}`, `{version}` and `{action}` are the placeholders,
+ * `{slug}`, `{format}`, `{label}`, `{language}`, `{service}`, `{version}` and `{action}` are the placeholders,
  * and their syntax is {@link Route::matches()}'s to interpret; this class only counts them. Note
  * there is no `/demos` case, and its absence is load-bearing — see
  * {@link RouteInitialization::routes()}.
@@ -55,6 +55,13 @@ enum SitePath: string
 
     /** The privacy policy. */
     case Privacy = '/privacy';
+
+    /**
+     * The language switch: remembers a visitor's choice in a cookie and sends them back to the
+     * page they were on. A read, so a plain link can do it — see
+     * {@link \NeuroSYS\Controller\LanguageController}.
+     */
+    case Language = '/language/{language}';
 
     /**
      * Every signed API address at once — the one case here that is not a page, and the one family

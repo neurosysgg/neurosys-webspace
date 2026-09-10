@@ -8,6 +8,7 @@ use NeuroSYS\Config;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
+use NeuroSYS\Controller\LanguageController;
 use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
@@ -60,6 +61,7 @@ use ReflectionProperty;
 #[CoversClass(NotFoundController::class)]
 #[CoversClass(HomeController::class)]
 #[CoversClass(ImprintController::class)]
+#[CoversClass(LanguageController::class)]
 #[CoversClass(PrivacyController::class)]
 #[CoversClass(ReleasesController::class)]
 final class ResponseTest extends TestCase
@@ -400,6 +402,69 @@ final class ResponseTest extends TestCase
         $response = new NotFoundController('/gone')->handle($this->request('/gone'));
 
         self::assertInstanceOf(NotFoundView::class, self::peek($response, 'view'));
+        self::assertSame(HttpStatusCode::NotFound, self::peek($response, 'status'));
+    }
+
+    // ───────────────────────────── the language switch ─────────────────────────────
+
+    /**
+     * Back is the `Referer`'s path and nothing else: its host is dropped, a path that names another
+     * host is refused, and a switch is never sent back to a switch.
+     *
+     * @param string $referer
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('switchProvider')]
+    public function testASwitchSendsTheVisitorBackToThePageTheyWereOn(string $referer, string $expected): void
+    {
+        self::assertSame($expected, LanguageController::back($referer));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function switchProvider(): iterable
+    {
+        yield 'a page of this site'         => ['https://neurosys.gg/releases/ill', '/releases/ill'];
+        yield 'its query dropped'           => ['https://neurosys.gg/releases?x=1', '/releases'];
+        yield 'another host, its path kept' => ['https://evil.example/releases/ill', '/releases/ill'];
+        yield 'a path that is another host' => ['https://evil.example//evil.example/x', '/'];
+        yield 'no referrer'                 => ['', '/'];
+        yield 'not a URL'                   => ['releases/ill', '/'];
+        yield 'a switch'                    => ['https://neurosys.gg/language/de', '/'];
+    }
+
+    /**
+     * A language the site has: a 303 with the cookie, never stored.
+     *
+     * @return void
+     */
+    public function testASwitchToALanguageTheSiteHasSetsTheCookieAndRedirects(): void
+    {
+        $response = new LanguageController('de')->handle($this->request('/language/de'));
+
+        self::assertInstanceOf(RedirectResponse::class, $response);
+        self::assertSame(HttpStatusCode::SeeOther, self::peek($response, 'status'));
+        self::assertSame('/', self::peek($response, 'url'));
+        self::assertSame(
+            [
+                'Set-Cookie: lang=de; Path=/; Max-Age=31536000; SameSite=Lax; Secure; HttpOnly',
+                'Cache-Control: no-store, private',
+            ],
+            self::peek($response, 'headers')->map(static fn(Header $header): string => $header->line())->toValues(),
+        );
+    }
+
+    /**
+     * A language it does not have is an address it does not have.
+     *
+     * @return void
+     */
+    public function testASwitchToALanguageTheSiteDoesNotHaveIsNotThere(): void
+    {
+        $response = new LanguageController('fr')->handle($this->request('/language/fr'));
+
         self::assertSame(HttpStatusCode::NotFound, self::peek($response, 'status'));
     }
 

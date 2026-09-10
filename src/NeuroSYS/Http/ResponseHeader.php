@@ -28,6 +28,15 @@ enum ResponseHeader: string implements HeaderName
     /** Where a redirect points. */
     case Location = 'Location';
 
+    /**
+     * A cookie for the browser to keep.
+     *
+     * Sent by one response, the language switch's 303, and only because a visitor clicked it — see
+     * {@link SetCookie} for the attributes it carries and why each is there. The only cookie this
+     * site sets.
+     */
+    case SetCookie = 'Set-Cookie';
+
     /** Which methods a route accepts, sent with a 405. */
     case Allow = 'Allow';
 

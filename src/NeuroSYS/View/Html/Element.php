@@ -430,10 +430,14 @@ final readonly class Element implements Node
      * is resolved the way a browser would resolve it, and the answer is whether it landed where it
      * started. `Navigation.ts` runs the same check on the client. See docs/history/markup.md.
      *
+     * **Public**, because a redirect asks the same question of the path it sends a visitor to —
+     * {@link \NeuroSYS\Http\Location} and the language switch — and two answers to it would be two
+     * chances to get the one hazard above wrong.
+     *
      * @param string $value
      * @return bool
      */
-    private static function staysOnThisOrigin(string $value): bool
+    public static function staysOnThisOrigin(string $value): bool
     {
         // A null base makes a relative reference unparseable, so the null this returns fails the
         // comparison below rather than needing a branch of its own. The constant is a literal
