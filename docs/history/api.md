@@ -166,7 +166,7 @@ writing it again as a caption in the report would have forced a `#[BareString]` 
 for a word of this one's. The rule is symmetric, which is what made the duplication visible rather
 than arguable.
 
-### 2026-09-10 — `health` split into `capability` and `health`
+### 2026-09-10 — `health` split into `capability` and `health` (`2ab7e6e`)
 
 *From the conversation that asked for it, and the plan it was built from.*
 
@@ -256,7 +256,7 @@ From `ApiGate`:
 > sixteenth of it, not a fortieth. The payload said 210 KB and had merely **drifted**, because it
 > grows with the codebase and nothing re-derived it.
 
-### 2026-09-10 — the extension point, cashed twice (split of `health`)
+### 2026-09-10 — the extension point, cashed twice (`2ab7e6e`)
 
 From `ApiService`, which counted its services:
 
