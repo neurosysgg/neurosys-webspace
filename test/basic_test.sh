@@ -1201,6 +1201,8 @@ check_localised "  and English to a browser asking for neither" "$BASE/" "fr" ""
 check_localised "a chosen language outranks the browser's on every page" "$BASE/releases/ill" \
     "en-GB,en;q=0.9" "lang=de" "künstler"
 check_localised "  the 404 included" "$BASE/nope" "de" "" "nicht gefunden"
+check_localised "a release's own words are translated too" "$BASE/releases" "de" "" "debütsingle"
+check_localised "  and so is its key" "$BASE/releases" "de" "" "dis-Moll"
 
 FRAGMENT=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" -H "Accept-Language: de" "$BASE/" 2>/dev/null) || true
 if [[ "$FRAGMENT" == *"neueste tracks"* && "$FRAGMENT" != *"<html"* ]]; then

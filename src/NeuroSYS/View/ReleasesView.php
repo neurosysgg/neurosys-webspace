@@ -83,7 +83,7 @@ class ReleasesView extends View
                         new Element(Tag::ReleaseMeta)->containing(
                             Texts::Releases::Beats->with(bpm: $release->bpm),
                             ' · ',
-                            $release->key->value,
+                            $release->key,
                             ' · ',
                             $release->genre->value,
                             ' · ',

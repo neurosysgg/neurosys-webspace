@@ -11,6 +11,8 @@ use NeuroSYS\Model\Production\Arrangement;
 use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Text\Translatable;
+use NeuroSYS\Text\Verbatim;
 
 /**
  * The Release class. Represents a music release with metadata and available download formats.
@@ -23,13 +25,24 @@ use NeuroSYS\Support\Collection;
 readonly class Release
 {
     /**
+     * A short description shown in release listings, in whichever language the page is.
+     *
+     * Not promoted, because the constructor takes a plain string as well and turns it into a
+     * {@link Verbatim} here, so every reader meets one type. A release written before descriptions
+     * were translated — and every entry the staging tool writes — stays valid unchanged.
+     */
+    public Translatable $description;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param string     $title              The release title.
      * @param int        $bpm                Beats per minute (must be > 0).
      * @param MusicalKey $key                The musical key.
      * @param Genre      $genre              The musical genre.
-     * @param string     $description        A short description shown in release listings.
+     * @param string|Translatable $description A short description shown in release listings: its
+     *                                       catalog case, `Texts::Releases::Descriptions::…`, or a
+     *                                       plain string, which reads the same in every language.
      * @param FileLink|null $cover           The cover art image, or null to use the placeholder.
      * @param Collection<Format> $formats    The available download {@link Format}s.
      * @param Embed|null $embed              The media player for this release, or null for no player.
@@ -44,7 +57,7 @@ readonly class Release
         public int $bpm,
         public MusicalKey $key,
         public Genre $genre,
-        public string $description,
+        string|Translatable $description,
         public ?FileLink $cover,
         public Collection $formats,
         public ?Embed $embed = null,
@@ -52,6 +65,8 @@ readonly class Release
         public ?ProductionTime $timeSpent = null,
         public Collection $madeWith = new Collection(Plugin::class),
     ) {
+        $this->description = is_string($description) ? new Verbatim($description) : $description;
+
         $this->verify();
     }
 

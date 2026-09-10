@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Text;
 
+use NeuroSYS\Model\MusicalKey;
+
 /**
  * The Texts class. The index of every catalog, so a view writes `Texts::Releases::Downloads`.
  *
@@ -17,8 +19,9 @@ namespace NeuroSYS\Text;
  * `Texts::Releases::Descriptions::Ill` — where `Texts::RELEASES::DESCRIPTIONS::Ill` would shout the
  * part a reader skims past. See docs/language.md.
  *
- * Every catalog is listed here, and `TranslationTest` checks every case of every one of them — so a
- * catalog left out of this index is a catalog nothing checks.
+ * Every catalog is reachable from here — directly, or one step down like `Releases::Descriptions` —
+ * and `TranslationTest` checks every case of every one of them, and that every translated enum under
+ * `src/` is reachable. So a catalog cannot be left out of this index and go unchecked.
  */
 final class Texts
 {
@@ -45,4 +48,11 @@ final class Texts
 
     /** How each external profile is labelled in the footer. */
     public const string Profiles = ProfileText::class;
+
+    /**
+     * The musical keys, which are a model enum and translated like a catalog — `Fis-Dur` beside
+     * `F# Major`. A release renders its own key directly; this is here so the key's German is
+     * checked with everything else's.
+     */
+    public const string Keys = MusicalKey::class;
 }

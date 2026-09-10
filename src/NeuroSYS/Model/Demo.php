@@ -7,6 +7,8 @@ namespace NeuroSYS\Model;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\PasswordHash;
+use NeuroSYS\Text\Translatable;
+use NeuroSYS\Text\Verbatim;
 
 /**
  * The Demo class. Something unreleased, put in front of one person at a time.
@@ -31,6 +33,16 @@ use NeuroSYS\Support\PasswordHash;
 final readonly class Demo
 {
     /**
+     * A line about what is being asked, in whichever language the page is — or null.
+     *
+     * Not promoted, for the reason {@link Release::$description} is not: a plain string is taken as
+     * well, and turned into a {@link Verbatim} here. **Written inline** in `data/demos.php` —
+     * `new Translation(en: …, de: …)` — and never as a catalog case, because `src/` is public and a
+     * case would name an unreleased track.
+     */
+    public ?Translatable $description;
+
+    /**
      * Constructs an instance of {@link self}.
      *
      * @param string       $title       What the track is called, for the heading and the terminal.
@@ -38,7 +50,8 @@ final readonly class Demo
      *                                  handing out one does not hand out another.
      * @param Collection<DemoTrack> $tracks The mixes, newest first — the first is what the page
      *                                  leads with.
-     * @param string|null  $description A line about what is being asked, where there is one.
+     * @param string|Translatable|null $description A line about what is being asked, where there
+     *                                  is one.
      *
      * @throws ReleaseVerificationException if constructed with data it cannot serve.
      */
@@ -46,8 +59,10 @@ final readonly class Demo
         public string       $title,
         public PasswordHash $password,
         public Collection   $tracks,
-        public ?string      $description = null,
+        string|Translatable|null $description = null,
     ) {
+        $this->description = is_string($description) ? new Verbatim($description) : $description;
+
         $this->verify();
     }
 

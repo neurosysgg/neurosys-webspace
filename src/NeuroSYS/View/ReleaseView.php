@@ -149,7 +149,7 @@ class ReleaseView extends View
         $fields = [
             new TerminalField(Texts::Terminal::Artist, Config::NAME),
             new TerminalField(Texts::Releases::Bpm, (string) $release->bpm),
-            new TerminalField(Texts::Releases::Key, $release->key->value),
+            new TerminalField(Texts::Releases::Key, $release->key),
             new TerminalField(Texts::Releases::Genre, $release->genre->value),
         ];
 

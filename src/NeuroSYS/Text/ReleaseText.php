@@ -11,6 +11,12 @@ enum ReleaseText: string implements Translatable
 {
     use Translated;
 
+    /**
+     * What each release is, in a line — `Texts::Releases::Descriptions::Ill`. A step of the path
+     * rather than a value, which is why it is not upper case; see {@link Texts}.
+     */
+    public const string Descriptions = ReleaseDescription::class;
+
     /** A catalogue card's tempo. */
     #[Translation(en: '{bpm} bpm', de: '{bpm} bpm')]
     case Beats = 'beats';

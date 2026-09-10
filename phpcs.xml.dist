@@ -32,12 +32,14 @@
         <exclude-pattern>test/unit/PhpInputStream.php</exclude-pattern>
     </rule>
 
-    <!-- The one file whose constants are not upper case. src/NeuroSYS/Text/Texts.php is the index
+    <!-- The two files whose constants are not upper case. src/NeuroSYS/Text/Texts.php is the index
          a view reads the site's words through — `Texts::Releases::Downloads` — and each constant is
          a step of that path rather than a value to notice; upper case would shout the part a reader
-         skims past. The file says so too. -->
+         skims past. ReleaseText holds the one step below it, `Texts::Releases::Descriptions`. Both
+         files say so too. -->
     <rule ref="Generic.NamingConventions.UpperCaseConstantName">
         <exclude-pattern>src/NeuroSYS/Text/Texts.php</exclude-pattern>
+        <exclude-pattern>src/NeuroSYS/Text/ReleaseText.php</exclude-pattern>
     </rule>
 
     <rule ref="PSR12">

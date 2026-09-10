@@ -4,14 +4,18 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use FilesystemIterator;
 use MessageFormatter;
 use NeuroSYS\Text\Language;
+use NeuroSYS\Text\ReleaseDescription;
 use NeuroSYS\Text\Texts;
 use NeuroSYS\Text\Translatable;
 use NeuroSYS\Text\Translated;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionClass;
 use UnitEnum;
 
@@ -27,7 +31,13 @@ use UnitEnum;
 final class TranslationTest extends TestCase
 {
     /**
-     * Every case of every catalog in the index.
+     * The catalogs whose German may fall back to the English: text a release's author writes,
+     * possibly before the German exists. See {@link ReleaseDescription}.
+     */
+    private const array FALLS_BACK = [ReleaseDescription::class];
+
+    /**
+     * Every case of every catalog reachable from the index.
      *
      * @return iterable<string, array{UnitEnum&Translatable}>
      */
@@ -49,7 +59,9 @@ final class TranslationTest extends TestCase
     {
         $translation = $case->translation();
 
-        self::assertTrue($translation->has(Language::German), 'no German: it would fall back to English');
+        if (!in_array($case::class, self::FALLS_BACK, true)) {
+            self::assertTrue($translation->has(Language::German), 'no German: it would fall back to English');
+        }
 
         foreach (Language::cases() as $language) {
             self::assertNotNull(
@@ -66,37 +78,65 @@ final class TranslationTest extends TestCase
     }
 
     /**
-     * The index names every catalog there is — the provider above reads the index, so a catalog
-     * missing from it would be one nothing checks.
+     * Every translated enum under `src/` is reachable from the index — the provider above walks the
+     * index, so one that is not would be one nothing checks.
      *
      * @return void
      */
-    public function testTheIndexNamesEveryCatalog(): void
+    public function testTheIndexReachesEveryTranslatedEnum(): void
     {
+        $root  = NEUROSYS_ROOT . '/src/';
         $found = [];
+        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
 
-        foreach (glob(NEUROSYS_ROOT . '/src/NeuroSYS/Text/*.php') ?: [] as $file) {
-            $class = 'NeuroSYS\Text\\' . basename($file, '.php');
+        foreach ($files as $file) {
+            if ($file->getExtension() !== 'php') {
+                continue;
+            }
+
+            $class = str_replace('/', '\\', substr($file->getPathname(), strlen($root), -4));
 
             if (enum_exists($class) && in_array(Translated::class, class_uses($class), true)) {
                 $found[] = $class;
             }
         }
 
-        $indexed = self::catalogs();
+        $reached = self::catalogs();
 
         sort($found);
-        sort($indexed);
+        sort($reached);
 
-        self::assertSame($found, $indexed);
+        self::assertSame($found, $reached);
     }
 
     /**
+     * The catalogs the index names, and any a catalog names in turn — `Texts::Releases::Descriptions`.
+     *
      * @return list<class-string<UnitEnum&Translatable>>
      */
     private static function catalogs(): array
     {
-        return array_values(new ReflectionClass(Texts::class)->getConstants());
+        $reached = [];
+        $queue   = array_values(new ReflectionClass(Texts::class)->getConstants());
+
+        while ($queue !== []) {
+            $class = array_shift($queue);
+
+            if (in_array($class, $reached, true)) {
+                continue;
+            }
+
+            $reached[] = $class;
+
+            // An enum's constants include its cases, which are objects; a step down is a string.
+            foreach (new ReflectionClass($class)->getConstants() as $value) {
+                if (is_string($value) && enum_exists($value)) {
+                    $queue[] = $value;
+                }
+            }
+        }
+
+        return $reached;
     }
 
     /**

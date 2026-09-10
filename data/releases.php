@@ -14,6 +14,7 @@ use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Text\Texts;
 
 return [
     'ill' => new Release(
@@ -21,7 +22,7 @@ return [
         bpm:         140,
         key:         MusicalKey::DSharpMinor,
         genre:       Genre::Dubstep,
-        description: 'wub wub',
+        description: Texts::Releases::Descriptions::Ill,
         cover:       new HiDriveLink('J2FXbB70A'),
         formats: new Collection(Format::class)->with(
             new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d')),
@@ -60,7 +61,7 @@ return [
         bpm:         140,
         key:         MusicalKey::FSharpMajor,
         genre:       Genre::FutureBass,
-        description: 'debut single',
+        description: Texts::Releases::Descriptions::HelloWorld,
         cover:       new HiDriveLink('PFGaSOmtM'),
         formats: new Collection(Format::class)->with(
             new Format(ReleaseFormat::FLAC, new HiDriveLink('ebiFGBt52')),
