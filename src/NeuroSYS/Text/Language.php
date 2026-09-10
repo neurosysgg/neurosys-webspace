@@ -24,7 +24,9 @@ namespace NeuroSYS\Text;
  * spelling and date order that this site does not make good on, and a tag claiming more than it
  * delivers is worse than one claiming less.
  *
- * Server-only: nothing client-side reads a language, so there is no TypeScript mirror.
+ * **Mirrored in `assets/ts/model/Language.ts`**, because the client writes a few words of its own —
+ * the consent gate, the title of a player — and reads the language of the page off `<html lang>`
+ * to write them in. `enum-parity.test.mjs` compares the two case for case.
  */
 enum Language: string
 {

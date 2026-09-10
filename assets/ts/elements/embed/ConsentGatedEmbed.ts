@@ -2,7 +2,36 @@ import { CssClass } from '../../model/CssClass.js';
 import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
+import { Language, pageLanguage } from '../../model/Language.js';
 import { Platform, displayName } from '../../model/Platform.js';
+
+/** What the gate says, given the provider's name. */
+interface GateWords {
+  readonly label: (provider: string) => string;
+  readonly load: string;
+  readonly hint: (provider: string) => string;
+}
+
+/**
+ * The gate's words, in each language the site is written in.
+ *
+ * Written here rather than sent by the server, for the reason the gate is built here at all: it is
+ * the client's to show, before anything of the provider's exists. A Record over the enum, so a
+ * language the server gains without its words here is a compile error rather than an English gate
+ * on a German page.
+ */
+const GATE: Record<Language, GateWords> = {
+  [Language.English]: {
+    label: (provider) => `${provider} player`,
+    load: 'Load player',
+    hint: (provider) => `Third-party content — clicking connects you to ${provider}’s servers.`,
+  },
+  [Language.German]: {
+    label: (provider) => `${provider}-Player`,
+    load: 'Player laden',
+    hint: (provider) => `Inhalte von Drittanbietern — ein Klick verbindet dich mit den Servern von ${provider}.`,
+  },
+};
 
 /**
  * Base for a player that loads from someone else's servers.
@@ -56,17 +85,18 @@ export abstract class ConsentGatedEmbed extends HTMLElement {
 
   private renderGate(): void {
     const provider = displayName(this.platform());
+    const words    = GATE[pageLanguage()];
 
     const label = document.createElement(HtmlTag.P);
-    label.textContent = `${provider} player`;
+    label.textContent = words.label(provider);
 
     const button = document.createElement(HtmlTag.Button);
     button.className = CssClass.BtnPrimary;
-    button.textContent = 'Load player';
+    button.textContent = words.load;
     button.addEventListener('click', () => { this.load(); }, { once: true });
 
     const hint = document.createElement(HtmlTag.Small);
-    hint.textContent = `Third-party content — clicking connects you to ${provider}’s servers.`;
+    hint.textContent = words.hint(provider);
 
     this.replaceChildren(label, button, hint);
   }

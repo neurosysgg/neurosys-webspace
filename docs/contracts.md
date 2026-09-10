@@ -78,6 +78,7 @@ original **by name, backing value and declaration order** — declaration order 
 | `model/ElementId.ts` | `View\Html\ElementId` | `content` — what the SPA router swaps |
 | `model/RequestHeader.ts` | `Http\RequestHeader` | `X-Requested-With`, `If-None-Match`, `Range`, `Accept-Language`, `Cookie` — only the first is written by client code; see below |
 | `model/RequestedWith.ts` | `Http\RequestedWith` | `XMLHttpRequest` |
+| `model/Language.ts` | `Text\Language` | `en`, `de` — what `<html lang>` says; `pageLanguage()` reads it for the words an element writes itself |
 
 ### Not an enum, same problem
 
@@ -132,7 +133,9 @@ The absence of a constant is a decision here, not an oversight.
 - **The platform's own vocabulary** — `'click'`, `'error'`, `'popstate'`, `'same-origin'`.
   TypeScript's DOM types already carry those.
 - **User-facing copy.** The consent notice's wording lives where it is written and is asserted
-  there.
+  there — in each language, as a `Record<Language, …>`, so a language the server gains is a
+  compile error in the element until its words are written. The language itself is a contract
+  (`model/Language.ts`, above); the words are not.
 - **SoundCloud's furniture.** The player reproduces the embed dialog's output exactly — `allow`,
   `scrolling`, `frameborder`, the `url`/`color`/`visual` query keys, the accent, the attribution's
   font stack. None of it is a contract with our own code. `SoundCloudOption` is enumerated only

@@ -5,7 +5,17 @@ import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
 import { Config } from '../../Config.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
+import { Language, pageLanguage } from '../../model/Language.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
+
+/**
+ * The word between what is playing and where, in the iframe's title — `ill. on SoundCloud`. A
+ * Record over the enum, for the reason ConsentGatedEmbed's words are one.
+ */
+const ON: Record<Language, string> = {
+  [Language.English]: 'on',
+  [Language.German]: 'auf',
+};
 
 /** The second half of the attribution — what the widget is playing, and where it lives. */
 export interface AttributionTarget {
@@ -113,7 +123,7 @@ export abstract class SoundCloudWidget extends ConsentGatedEmbed {
 
     iframe.width  = '100%';
     iframe.height = this.getAttribute(EmbedAttribute.Height) ?? '';
-    iframe.title  = `${this.subject()} on ${displayName(this.platform())}`;
+    iframe.title  = `${this.subject()} ${ON[pageLanguage()]} ${displayName(this.platform())}`;
     iframe.src    = this.playerUrl();
 
     // allow, scrolling and frameborder are set as attributes rather than properties: the last two

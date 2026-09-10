@@ -5,7 +5,12 @@ import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
 import { Config } from '../../Config.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
+import { Language, pageLanguage } from '../../model/Language.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
+const ON = {
+    [Language.English]: 'on',
+    [Language.German]: 'auf',
+};
 export class SoundCloudWidget extends ConsentGatedEmbed {
     static ACCENT = '#9e55e6';
     static PROFILE = `https://soundcloud.com/${Config.HANDLE}`;
@@ -37,7 +42,7 @@ export class SoundCloudWidget extends ConsentGatedEmbed {
         const iframe = document.createElement(HtmlTag.Iframe);
         iframe.width = '100%';
         iframe.height = this.getAttribute(EmbedAttribute.Height) ?? '';
-        iframe.title = `${this.subject()} on ${displayName(this.platform())}`;
+        iframe.title = `${this.subject()} ${ON[pageLanguage()]} ${displayName(this.platform())}`;
         iframe.src = this.playerUrl();
         iframe.setAttribute('allow', 'autoplay; encrypted-media');
         iframe.setAttribute('scrolling', 'no');

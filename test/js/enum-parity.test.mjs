@@ -31,6 +31,7 @@ import { CssClass } from '../../public/assets/js/model/CssClass.js';
 import { SectionKind } from '../../public/assets/js/model/SectionKind.js';
 import { ArrangementAttribute } from '../../public/assets/js/model/ArrangementAttribute.js';
 import { ElementId } from '../../public/assets/js/model/ElementId.js';
+import { Language } from '../../public/assets/js/model/Language.js';
 import { RequestHeader } from '../../public/assets/js/model/RequestHeader.js';
 import { RequestedWith } from '../../public/assets/js/model/RequestedWith.js';
 import { TerminalFieldKey } from '../../public/assets/js/model/TerminalFieldKey.js';
@@ -122,6 +123,7 @@ const MIRRORED_NAMES = [
   ['SectionKind', SectionKind, 'NeuroSYS\\Model\\Production\\SectionKind'],
   ['ArrangementAttribute', ArrangementAttribute, 'NeuroSYS\\View\\Html\\ArrangementAttribute'],
   ['WaveformAttribute', WaveformAttribute, 'NeuroSYS\\View\\Html\\WaveformAttribute'],
+  ['Language', Language, 'NeuroSYS\\Text\\Language'],
 ];
 
 for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {

@@ -69,6 +69,32 @@ test('consenting swaps the gate for the player and marks the element loaded', ()
   assert.ok(el.hasAttribute('loaded'));
 });
 
+/**
+ * The gate and the iframe's title are the element's own words, so they are read in the page's
+ * language, off <html lang> — the server decided it and stated it there. A language the site is not
+ * written in is the site's own, the way it is on the server.
+ */
+test('the gate and the player title speak the language the page is in', () => {
+  const root = document.documentElement;
+
+  try {
+    root.lang = 'de';
+
+    const el = gated();
+
+    assert.match(el.textContent, /SoundCloud-Player/);
+    assert.match(el.textContent, /Player laden/);
+    assert.match(el.textContent, /verbindet dich mit den Servern von SoundCloud/);
+    assert.equal(loaded().querySelector('iframe').title, 'ill. auf SoundCloud');
+
+    root.lang = 'fr';
+
+    assert.match(gated().textContent, /Load player/);
+  } finally {
+    root.removeAttribute('lang');
+  }
+});
+
 // ───────────────────────────── the widget URL ─────────────────────────────
 
 test('renders an iframe for the given track', () => {

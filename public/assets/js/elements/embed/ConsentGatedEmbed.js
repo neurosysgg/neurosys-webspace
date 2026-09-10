@@ -2,7 +2,20 @@ import { CssClass } from '../../model/CssClass.js';
 import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { HtmlTag } from '../../model/HtmlTag.js';
+import { Language, pageLanguage } from '../../model/Language.js';
 import { Platform, displayName } from '../../model/Platform.js';
+const GATE = {
+    [Language.English]: {
+        label: (provider) => `${provider} player`,
+        load: 'Load player',
+        hint: (provider) => `Third-party content — clicking connects you to ${provider}’s servers.`,
+    },
+    [Language.German]: {
+        label: (provider) => `${provider}-Player`,
+        load: 'Player laden',
+        hint: (provider) => `Inhalte von Drittanbietern — ein Klick verbindet dich mit den Servern von ${provider}.`,
+    },
+};
 export class ConsentGatedEmbed extends HTMLElement {
     wired = false;
     connectedCallback() {
@@ -20,14 +33,15 @@ export class ConsentGatedEmbed extends HTMLElement {
     }
     renderGate() {
         const provider = displayName(this.platform());
+        const words = GATE[pageLanguage()];
         const label = document.createElement(HtmlTag.P);
-        label.textContent = `${provider} player`;
+        label.textContent = words.label(provider);
         const button = document.createElement(HtmlTag.Button);
         button.className = CssClass.BtnPrimary;
-        button.textContent = 'Load player';
+        button.textContent = words.load;
         button.addEventListener('click', () => { this.load(); }, { once: true });
         const hint = document.createElement(HtmlTag.Small);
-        hint.textContent = `Third-party content — clicking connects you to ${provider}’s servers.`;
+        hint.textContent = words.hint(provider);
         this.replaceChildren(label, button, hint);
     }
     load() {
