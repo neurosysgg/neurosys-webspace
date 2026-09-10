@@ -221,6 +221,9 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   tree, so a dirty working tree would ship the change being checked for.
 - A shared host can gain or lose an Apache module without notice, and every `.htaccess` block is
   `<IfModule>`-guarded, so the failure is silent both ways. Re-check after deploying.
+- `public/.user.ini` is PHP's per-directory php.ini: `.htaccess` and `tools/dev-router.php` both hand
+  it to the router for an ordinary 404 (a deny would 403, which says it exists). Strato caches it for
+  300 s, and it cannot switch on `opcache.enable`.
 
 **Front end and builds** — [docs/frontend.md](docs/frontend.md)
 - A bundled class name needs **both** esbuild `keepNames` and terser `keep_classnames`, or the

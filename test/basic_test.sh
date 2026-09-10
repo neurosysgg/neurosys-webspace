@@ -490,8 +490,18 @@ if [[ -n "$htaccess_shape" && "$htaccess_shape" == "$router_shape" ]]; then
     pass "the version segment is stripped identically by .htaccess and the dev router"
 else
     fail "the version-segment pattern differs between public/.htaccess and tools/dev-router.php"
-    echo "       .htaccess: ${htaccess_shape:-<not found>}" 
+    echo "       .htaccess: ${htaccess_shape:-<not found>}"
     echo "       router:    ${router_shape:-<not found>}"
+fi
+
+# public/.user.ini is hidden by the same kind of mirror: .htaccess rewrites it to the router, and the
+# dev router hands it to index.php, so both answer it as an address that does not exist. The HTTP
+# section below asks the dev server; this is what says production does the same.
+if grep -qE '^RewriteRule \^\\\.user\\\.ini\$ index\.php' "$REPO/public/.htaccess" \
+   && grep -q "const USER_INI = '/.user.ini';" "$REPO/tools/dev-router.php"; then
+    pass "public/.user.ini is sent to the router by both .htaccess and the dev router"
+else
+    fail "public/.htaccess and tools/dev-router.php no longer both hide public/.user.ini"
 fi
 
 # public/assets/js/ is generated from assets/ts/ and committed, because deploy.sh rsyncs public/
@@ -701,6 +711,15 @@ check_status "GET /privacy                       → 200" "$BASE/privacy"       
 check_status "GET /releases/no-such-slug         → 404" "$BASE/releases/no-such-slug"          404
 check_status "GET /releases/hello-world/badformat→ 404" "$BASE/releases/hello-world/badformat" 404
 check_status "GET /notfound                      → 404" "$BASE/notfound"                       404
+
+# public/.user.ini is a real file in the webroot. The dev router hands it to the site, as .htaccess
+# does in production, so it is the same 404 as a missing page and none of it crosses the wire.
+check_status "GET /.user.ini                     → 404" "$BASE/.user.ini"                      404
+if curl -s "$BASE/.user.ini" | grep -q 'register_argc_argv'; then
+    fail "GET /.user.ini served the file's contents"
+else
+    pass "GET /.user.ini does not serve the file's contents"
+fi
 
 # Targets parse_url() will not parse. It returns false on failure and `?? '/'` only catches null, so
 # read that way each of these is an uncaught TypeError in fromGlobals() — a 500 ahead of the router

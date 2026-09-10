@@ -144,6 +144,15 @@ RewriteCond %{HTTPS} !=on
 RewriteCond %{HTTP:X-Forwarded-Proto} !=https
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [R=301,L]
 
+# PHP's per-directory php.ini is a real file in the webroot and must never be served. It goes to the
+# router, which answers it exactly as it answers an address that does not exist — a `Require all
+# denied` would be a 403, and a 403 says the file is there. Before the pass-through below, which
+# would otherwise hand it to Strato's CGI handler as though it were a script.
+#
+# **Mirrored in tools/dev-router.php**, for the same reason as the version segment. The verify
+# script pins that both name the same file.
+RewriteRule ^\.user\.ini$ index.php [L]
+
 # Pass real files and directories through (assets, etc.)
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

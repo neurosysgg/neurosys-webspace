@@ -39,7 +39,19 @@ require_once __DIR__ . '/../autoload.php';
 /** The version segment, directly under the asset root. Mirrored in public/.htaccess. */
 const VERSION_SEGMENT = '#^/assets/(js|css)/v-[0-9a-f]{8}/#';
 
+/** PHP's per-directory php.ini, a real file the web must never read. Mirrored in public/.htaccess. */
+const USER_INI = '/.user.ini';
+
 $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+
+// Handed to the site rather than refused here, so it gets exactly the 404 an address that does not
+// exist gets. Returning false would have the built-in server serve the file as it stands.
+if ($path === USER_INI) {
+    require dirname(__DIR__) . '/public/index.php';
+
+    return true;
+}
+
 $bare = preg_replace(VERSION_SEGMENT, '/assets/$1/', $path, 1, $stripped);
 
 // Not a versioned URL — hand it back to the built-in server, which serves real files and falls

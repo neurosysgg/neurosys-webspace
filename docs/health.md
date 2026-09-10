@@ -159,6 +159,7 @@ final readonly class SpoolWritable implements Requirement
 | | `display_errors` | off | required |
 | | `log_errors` | on | required |
 | | `opcache.enable` | on | optional |
+| | `register_argc_argv` | off, set by `public/.user.ini` | optional |
 | deployment | `DOCUMENT_ROOT` | a directory inside this deployment | required |
 | | every tracked `DataFile` | present | required |
 

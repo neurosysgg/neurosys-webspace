@@ -70,6 +70,15 @@ enum PhpSetting: string
     case LogErrors = 'log_errors';
 
     /**
+     * Whether a web request's query string becomes `$_SERVER['argv']`.
+     *
+     * Deprecated in PHP 8.5 and on at the live host, so every request there raised the deprecation
+     * at startup — the last diagnostic `capability v1 errors` reported, and nothing on the web side
+     * reads argv. `public/.user.ini` turns it off; the CLI registers argv regardless.
+     */
+    case RegisterArgcArgv = 'register_argc_argv';
+
+    /**
      * Where a recorded diagnostic goes, and the other half of that pair.
      *
      * Empty is a real answer rather than a missing one: it means the SAPI's own destination, which

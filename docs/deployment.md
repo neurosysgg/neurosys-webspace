@@ -363,7 +363,15 @@ npm installs ever reaches the server.
 ## What `.htaccess` does to a response
 
 Beyond the `SetHandler` allow-list and the HTTPS redirect, `public/.htaccess` shapes every static
-response.
+response — and hides one file.
+
+**`public/.user.ini` is PHP's per-directory php.ini**, read by Strato's `cgi-fcgi` on each request
+and cached for `user_ini.cache_ttl` (300 s there), so a change to it takes up to five minutes to be
+in force after a push. It sets `register_argc_argv = Off`, which `health v1 settings` checks.
+`.htaccess` hands the path to the router, and `tools/dev-router.php` does the same under `php -S`,
+so it answers exactly like an address that does not exist; a `Require all denied` would be a 403,
+which says the file is there. It can only set per-directory and user directives — `opcache.enable`
+is not one of them, and that one is Strato's to switch on.
 
 **Last measured on the live host 2026-09-06.** A stamped module comes back `content-encoding: gzip`
 with `cache-control: public, max-age=31536000, immutable`, and a bare `/assets/js/main.js` comes back

@@ -89,6 +89,9 @@ final class RequirementInitialization
                 new SettingRequirement(PhpSetting::LogErrors->value, Toggle::On),
                 // Optional: the site is correct without the opcode cache, only slower.
                 new SettingRequirement(PhpSetting::OpcacheEnable->value, Toggle::On, Level::Optional),
+                // Optional: on, it is a deprecation raised on every request and nothing worse.
+                // public/.user.ini turns it off; this is what says whether the host took it.
+                new SettingRequirement(PhpSetting::RegisterArgcArgv->value, Toggle::Off, Level::Optional),
             )
             ->with(new WebrootRequirement())
             ->with(...new Collection(DataFile::class)
