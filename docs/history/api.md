@@ -197,6 +197,16 @@ Three decisions worth keeping:
 - **The `memory_limit` floor is derived from `ApiGate::MAX_BODY`** — three copies of a push coexist
   at its peak — which made the constant public rather than restating 8 MiB in a second place.
 
+**Whether Strato would let a 5xx body through was the one thing the repository could not answer**,
+and it was asked the documented way: a push from a detached worktree at `9790d25` declaring one
+required extension no PHP has, `health v1 extensions` called against it, and `HEAD` pushed back.
+The answer was `HTTP/2 503`, `content-type: text/plain; charset=utf-8`, and the report intact.
+
+The first live report also said two things nothing had asked before: `opcache.enable` is `0` on the
+live host — the optional requirement's first real `warn` — and the last unhandled diagnostic there
+was PHP 8.5's deprecation of deriving `$_SERVER['argv']` from the query string, raised at startup
+under `cgi-fcgi` because `register_argc_argv` is on.
+
 ## From the code comments
 
 *Moved out of comments under `tools/` and `test/` when those were brought to the present tense.

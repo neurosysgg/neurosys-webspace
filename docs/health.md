@@ -63,10 +63,11 @@ push. Only a `404` is explained as a refusal ("check the key, the clock, the ser
 only a `404` is one. Any other status is reported as `answered 503.`, and the body above it already
 says what failed.
 
-**Nobody has yet seen a `503` body come back from Strato.** Nothing in `public/.htaccess` replaces
-an error body, and the API's own `422`s arrive intact, but a front proxy can substitute its own page
-for a 5xx. The way to check is a probe push that declares one impossible requirement; see
-[deployment.md](deployment.md#probing-the-live-host).
+**Strato passes a `503`'s body through unchanged**: `HTTP/2 503`, `text/plain`, the report byte
+for byte. Nothing in `public/.htaccess` replaces an error body either. A front proxy *can*
+substitute its own page for a 5xx, which is why this was asked of the live host rather than assumed,
+with a probe push declaring one impossible requirement. Ask again the same way if the host changes;
+see [deployment.md](deployment.md#probing-the-live-host). ([history](history/api.md))
 
 ## Declaring a requirement
 
