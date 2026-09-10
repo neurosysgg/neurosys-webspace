@@ -30,7 +30,8 @@ runs on the server (`vendor/` is not deployed):
 Each was checked on the live host (Strato, PHP 8.5.9, `cgi-fcgi`) by being **used**, not by
 `extension_loaded()` — registered and working are two questions. `php tools/api.php health v1
 extensions` asks the running deployment the same way; `capability v1 extensions` lists what it has
-merely registered.
+merely registered. What each runtime — Strato, the local Apache, the CLI — actually has is read
+out in [docs/runtime.md](docs/runtime.md).
 
 **`ext/curl` is `require-dev` only.** The site makes no outbound request — the verify script asserts
 it by grep — and the one class that does, `Tool\Http\CurlTransport`, is tooling `deploy.sh` never
@@ -221,6 +222,9 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   tree, so a dirty working tree would ship the change being checked for.
 - A shared host can gain or lose an Apache module without notice, and every `.htaccess` block is
   `<IfModule>`-guarded, so the failure is silent both ways. Re-check after deploying.
+- Strato buffers no output and the local Apache buffers 4096 bytes, so a stray byte before a
+  `header()` works locally and costs the live response its headers. Strato also drops notices and
+  deprecations (`error_reporting` 22519). [runtime.md](docs/runtime.md)
 - `public/.user.ini` is PHP's per-directory php.ini: `.htaccess` and `tools/dev-router.php` both hand
   it to the router for an ordinary 404 (a deny would 403, which says it exists). Strato caches it for
   300 s, and it cannot switch on `opcache.enable`.
@@ -364,6 +368,7 @@ php tools/api.php capability v1 extensions                  # what it has; also 
 | [docs/security.md](docs/security.md) | auth, headers, the API, what is known and accepted |
 | [docs/deployment.md](docs/deployment.md) | the push, `deploy.sh`, Strato, `.htaccess` |
 | [docs/health.md](docs/health.md) | the `health` and `capability` services, or a requirement to declare |
+| [docs/runtime.md](docs/runtime.md) | anything that depends on which PHP it runs under — Strato's, the local Apache's, the CLI's |
 | [docs/performance.md](docs/performance.md) | anything on the hot path |
 | [docs/releases.md](docs/releases.md) · [docs/authoring.md](docs/authoring.md) | a release, or the tools that stage one |
 | [docs/demos.md](docs/demos.md) | a demo, or the password gate |

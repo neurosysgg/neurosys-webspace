@@ -118,6 +118,10 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 **Working on it**
 
 - [deployment.md](deployment.md) — Strato setup and the deploy workflow
+- [health.md](health.md) — the `health` and `capability` services: what the host has, whether it
+  meets what the site needs, and how to declare a requirement of your own
+- [runtime.md](runtime.md) — Strato's PHP, the local Apache's and the CLI's, side by side: every
+  extension and the settings that differ
 - [releases.md](releases.md) — adding and updating releases
 - [demos.md](demos.md) — `tools/stage-demo.php`: putting unreleased work behind a per-demo password
   at `/demos/{slug}`, what the gate covers, and why only the hash is ever kept

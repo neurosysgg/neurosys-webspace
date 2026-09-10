@@ -12,6 +12,9 @@ The one overlap is deliberate. `capability v1 extensions` lists what is **regist
 `health v1 extensions` proves that the extensions the site needs actually **work**, by using them.
 Registered and working are two questions.
 
+What `capability` said about Strato, the local Apache and the CLI, side by side, is in
+[runtime.md](runtime.md).
+
 ## Addresses
 
 ```bash

@@ -141,7 +141,8 @@ Two more services on the same endpoint, signed with the same key and reached by 
 - **`capability` lists what the host has, with no verdict**: every extension, every directive, the
   clock, every `data/` file, the error log's tail.
 
-Both answer what `update version` deliberately does not. See [health.md](health.md).
+Both answer what `update version` deliberately does not. See [health.md](health.md), and
+[runtime.md](runtime.md) for what they said about each runtime, side by side.
 
 **They are the one source for what the live runtime is.** The extensions are declared in
 `composer.json`, which never runs on the server because `vendor/` is not deployed. They are asked
