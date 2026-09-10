@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Api;
 
 use BackedEnum;
+use JsonException;
 use NeuroSYS\Http\Api\ApiAction;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
@@ -81,7 +82,7 @@ final readonly class SignedRequest
                 'size'   => strlen($body),
                 ...$fields,
             ], JSON_THROW_ON_ERROR);
-        } catch (\JsonException $cause) {
+        } catch (JsonException $cause) {
             throw new UsageException('could not encode the manifest: ' . $cause->getMessage());
         }
 

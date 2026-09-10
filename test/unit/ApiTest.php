@@ -6,10 +6,10 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Controller\ApiController;
 use NeuroSYS\Controller\UnroutedController;
+use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
 use NeuroSYS\Http\Api\UpdateAction;
-use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\AuthScheme;
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\HttpStatusCode;
@@ -37,6 +37,7 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
+use stdClass;
 
 /**
  * `/api`: what it refuses, how quietly it refuses it, and what it does when it does not.
@@ -251,7 +252,7 @@ final class ApiTest extends TestCase
      */
     public function testARouteWithNoDeclaredMethodsIsReadOnly(): void
     {
-        $route = new Route(SitePath::Home, static fn(): object => new \stdClass());
+        $route = new Route(SitePath::Home, static fn(): object => new stdClass());
 
         self::assertTrue($route->accepts(HttpMethod::Get));
         self::assertTrue($route->accepts(HttpMethod::Head));
@@ -269,7 +270,7 @@ final class ApiTest extends TestCase
      */
     public function testADelegatedRouteAcceptsEvenAnUnknownMethod(): void
     {
-        $route = new Route(SitePath::Api, static fn(): object => new \stdClass(), MethodPolicy::Delegated);
+        $route = new Route(SitePath::Api, static fn(): object => new stdClass(), MethodPolicy::Delegated);
 
         self::assertTrue($route->accepts(null));
 

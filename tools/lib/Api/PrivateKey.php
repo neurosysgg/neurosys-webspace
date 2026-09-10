@@ -7,6 +7,7 @@ namespace NeuroSYS\Tool\Api;
 use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Cli\UsageException;
+use OpenSSLAsymmetricKey;
 
 /**
  * The PrivateKey class. The half of the pair that can make a signature.
@@ -34,9 +35,9 @@ final readonly class PrivateKey
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param \OpenSSLAsymmetricKey $key
+     * @param OpenSSLAsymmetricKey $key
      */
-    private function __construct(private \OpenSSLAsymmetricKey $key) {}
+    private function __construct(private OpenSSLAsymmetricKey $key) {}
 
     /**
      * Reads the key at $file.
@@ -63,7 +64,7 @@ final readonly class PrivateKey
 
         $key = Diagnostics::muted(static fn(): mixed => openssl_pkey_get_private($pem));
 
-        if (!$key instanceof \OpenSSLAsymmetricKey) {
+        if (!$key instanceof OpenSSLAsymmetricKey) {
             throw new UsageException($file->path . ' is not a readable PEM private key');
         }
 

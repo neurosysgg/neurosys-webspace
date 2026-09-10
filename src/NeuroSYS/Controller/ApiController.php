@@ -15,7 +15,6 @@ use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Model\Api\VerifiedRequest;
 use NeuroSYS\Service\ApiGate;
 use NeuroSYS\Support\Collection;
 

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use BackedEnum;
-use NeuroSYS\Http\Api\ApiAction;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
 use NeuroSYS\Http\HttpMethod;
