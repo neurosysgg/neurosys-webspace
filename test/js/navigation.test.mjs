@@ -341,7 +341,7 @@ test('back and forward re-fetch the path they land on', async () => {
 // ───────────────────────── the swap notification ─────────────────────────
 
 /**
- * Custom elements no longer need this — the browser upgrades what innerHTML brings in. It stays
+ * Custom elements do not need this — the browser upgrades what innerHTML brings in. It exists
  * for anything that is not an element, and the name is private so the two halves cannot drift.
  */
 test('subscribers are told once the content has been replaced', async () => {

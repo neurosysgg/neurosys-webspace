@@ -12,13 +12,12 @@ namespace NeuroSYS;
  * and each repository turns that null into an empty collection on purpose — because a clone that
  * has never staged a demo has to be a site rather than a fatal. So the guard that makes a fresh
  * checkout work is the same guard that swallows a typo: `releaes.php` gives an empty catalogue, a
- * 200, and no line in any log. Two of the seven do it worse than that — {@link self::Admin} and
+ * 200, and no line in any log. Two of the nine do it worse than that — {@link self::Admin} and
  * {@link self::SiteAuth} are where the credentials live.
  *
- * The vocabulary already existed before this enum did. It was written down as a hand-maintained
- * data provider in `test/unit/ConfigTest.php`, which listed four of these seven and had no way to
- * notice the other three; that provider now iterates {@link self::cases()} and asks
- * {@link self::isTracked()} instead, so the list cannot fall behind the site again.
+ * `test/unit/ConfigTest.php` iterates {@link self::cases()} and asks {@link self::isTracked()}
+ * rather than keeping a hand-maintained list of its own, so the list of files the site expects
+ * cannot fall behind the site. See docs/history/types.md.
  */
 enum DataFile: string
 {
@@ -102,11 +101,11 @@ enum DataFile: string
     /**
      * Whether the repository carries this file, and so whether every clone has it.
      *
-     * The five that are tracked have to be present for the site to be the site; the other three
+     * The five that are tracked have to be present for the site to be the site; the other four
      * each have their own reason to be absent — two are gitignored so that a public repository
-     * cannot publish what they hold, and the third does not exist until something logs a download.
-     * That difference is what the test asserting these files are where {@link Config::dataFile()}
-     * says used to encode by listing four names and omitting three without saying so.
+     * cannot publish what they hold, one is gitignored because it exists per deployment, and the
+     * fourth does not exist until something logs a download. The test asserting these files are
+     * where {@link Config::dataFile()} says asks this rather than listing names.
      *
      * @return bool
      */

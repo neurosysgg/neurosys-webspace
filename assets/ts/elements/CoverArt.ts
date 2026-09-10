@@ -9,8 +9,8 @@ import { Tag } from '../model/Tag.js';
  * ReleaseView emits one tag rather than a wrapper around an image it also has to describe.
  *
  * The error listener is attached before src is assigned, so a response that fails immediately
- * cannot beat it — which is what the old complete && naturalWidth check was working around.
- * The fallback was an inline onerror= attribute once; as a listener it survives a strict script-src.
+ * cannot beat it, so no `complete && naturalWidth` check is needed. The fallback is a listener
+ * rather than an inline onerror= attribute, which a strict script-src would refuse.
  */
 export class CoverArt extends HTMLElement {
   private wired = false;

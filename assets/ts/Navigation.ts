@@ -16,9 +16,9 @@ export class Navigation {
   /**
    * Fired on `document` once #content has been replaced.
    *
-   * Private, and reachable only through onNavigate() — the name existed in two files once, where a
-   * typo on either side broke the other in silence. Custom elements no longer need it: the browser
-   * upgrades those on its own. It stays for anything that is not an element.
+   * Private, and reachable only through onNavigate(), so the name exists in one file and a typo
+   * cannot break a listener in silence. Custom elements do not need it — the browser upgrades those
+   * on its own. It is for anything that is not an element.
    */
   private static readonly EVENT = 'neurosys:navigate';
 

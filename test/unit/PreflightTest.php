@@ -28,7 +28,7 @@ use ZipArchive;
  * This is the half of the staging tool that earns its keep, because a share link is minted by hand
  * in a web UI and is bound to the bytes it was minted for: a file re-exported afterwards costs an
  * upload, a new link and an edit to `data/releases.php`. Every check in the class exists because a
- * real folder turned out to have that discrepancy in it.
+ * real folder had that discrepancy in it; see docs/history/tooling.md.
  *
  * **Where this stops is where `ReleaseFolderTest` stops, and for the same reason.** `Preflight` has
  * five checks and one of them — `audio()` — compares what `ffprobe` says about each export against
@@ -405,7 +405,7 @@ final class PreflightTest extends TestCase
      *
      * The realistic way to make one is to zip a folder that turned out to be empty: the archive
      * carries a directory entry, {@link \NeuroSYS\Tool\Release\Probe::zipEntries()} drops it for
-     * ending in a slash, and nothing is left. That used to reach the count below and read as
+     * ending in a slash, and nothing is left. Counted, that would read as
      * *`stems: 0 files in the zip, with no loose folder to disagree`* — an OK, because an empty zip
      * has no root to look for a loose folder under. The zip is what a stranger downloads.
      *

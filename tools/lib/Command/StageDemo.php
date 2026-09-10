@@ -40,8 +40,8 @@ use NeuroSYS\Tool\Release\Level;
  * - **It mints a password and shows it once.** Only the bcrypt hash is kept, in the entry. There is
  *   no way to recover the plaintext afterwards and `--rotate` is what to do instead.
  * - **It analyses what it staged.** Each mix gets a {@link Waveform} beside it, which is what
- *   `<demo-waveform>` draws behind the player. `--waveforms` does that half on its own, for demos
- *   staged before this existed — and, like `--rotate`, without touching a password or an entry.
+ *   `<demo-waveform>` draws behind the player. `--waveforms` does that half on its own, for a demo
+ *   whose sidecar is missing — and, like `--rotate`, without touching a password or an entry.
  *
  * The report goes to **stderr** and the entry to **stdout**, the same split `stage-release` uses —
  * except the password, which goes to stderr with the report so `> entry.php` cannot accidentally
@@ -92,13 +92,12 @@ final readonly class StageDemo implements Command
         $paths    = self::operands($input);
         $rotating = $input->has(StageDemoOption::Rotate);
 
-        // **Dispatched on the flags, and never on how many operands came with them.** That is the
-        // fix for a real silence rather than a tidy-up: `--rotate` used to be reachable only when
-        // no file was named, so `--rotate v4.flac` matched neither branch and fell through to a
-        // full staging run — transcoding every mix, minting a *new* password and printing a whole
-        // new entry, which is the exact pair of things --rotate exists not to do. A flag this
-        // command declares must never be one it quietly ignores; that is what Input refusing an
-        // undeclared flag buys, and reading one and dropping it gives back.
+        // **Dispatched on the flags, and never on how many operands came with them.** Dispatched on
+        // the count, `--rotate v4.flac` would match neither branch and fall through to a full
+        // staging run — transcoding every mix, minting a *new* password and printing a whole new
+        // entry, which is the exact pair of things --rotate exists not to do. A flag this command
+        // declares must never be one it quietly ignores; that is what Input refusing an undeclared
+        // flag buys, and reading one and dropping it gives back.
         //
         // Waveforms is asked first because it reads the operands as slugs rather than as files —
         // the only mode that does.
@@ -283,8 +282,8 @@ final readonly class StageDemo implements Command
      * The failure is reported and not fatal, and that is the same judgement `DownloadLogger` makes
      * about its log: a waveform is what the card is drawn on, not what it plays, so a mix that
      * could not be analysed should still be a mix on a page. {@link \NeuroSYS\Model\Waveform}'s
-     * reader answers null for the sidecar that is then not there, which is the state every demo
-     * staged before this existed is already in.
+     * reader answers null for the sidecar that is then not there, which is the same state as a mix
+     * staged without one.
      *
      * @param Directory $directory The demo's own, which is where both files live.
      * @param string    $audio     The staged audio's file name.

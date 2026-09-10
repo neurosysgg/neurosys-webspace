@@ -17,8 +17,8 @@ use Uri\WhatWg\Url;
 /**
  * The Element class. One element: a {@link TagName}, typed attributes, and child {@link Node}s.
  *
- * Replaces the string concatenation and heredocs the views used to be. Four mistakes stop being
- * possible, and three of them were silent: a misspelled tag renders as an inert inline box, a
+ * A page is a tree of these rather than string concatenation and heredocs, and four mistakes stop
+ * being possible, three of which would otherwise be silent: a misspelled tag renders as an inert inline box, a
  * misspelled attribute is a null the client reads as nothing, a value that reaches the markup
  * unescaped is an injection, and a closing tag that does not match its opening one is a document
  * the browser reinterprets. The last is the one a tree removes outright — there is no closing tag
@@ -61,7 +61,7 @@ final readonly class Element implements Node
      * today and stop saying it the moment a scheme is added for one call site. This is what is
      * switched on; the enum is the vocabulary it may be written in — the distinction
      * {@link \NeuroSYS\Http\Security\CspScheme::Data} makes on the other side of the site, where
-     * a case is kept for a source the policy deliberately no longer allows.
+     * a case is kept for a source the policy deliberately does not allow.
      *
      * @var list<UrlScheme>
      */
@@ -238,8 +238,8 @@ final readonly class Element implements Node
      * site emits, that everything on it is an attribute this site emits, and that the parser had to
      * repair nothing to read it. See {@link MarkupParser}, which is where all of that lives.
      *
-     * **This is the whole of what replaced `RawHtml`**, and the standing instruction survived the
-     * change: never hand it anything a request can influence. The refusals mean it would not be an
+     * **This is the one door for markup authored outside PHP**, and it carries a standing
+     * instruction: never hand it anything a request can influence. The refusals mean it would not be an
      * injection, but the vocabulary being this site's own means a visitor would otherwise get to
      * choose which of our elements to build.
      *
@@ -374,17 +374,15 @@ final readonly class Element implements Node
     /**
      * True if a path-shaped $value resolves to the origin it was resolved against.
      *
-     * This used to be a two-entry list of the prefixes an authority can open with — `//` and `/\`,
-     * the second being the same URL spelled the way that does not look like it. A list of the
-     * spellings that occurred to us is exactly the shape of mistake this class is arranged to
-     * avoid, and it had missed one: the WHATWG parser strips tab, CR and LF from a URL *before*
-     * parsing it, so `/\r\n/evil.example` is `//evil.example` is `https://evil.example`, and every
-     * "starts with a slash" test in the world says it is a path on this site.
+     * **Never answer this with a list of the prefixes an authority can open with** (`//`, `/\`). A
+     * list of the spellings that occurred to us is exactly the shape of mistake this class is
+     * arranged to avoid: the WHATWG parser strips tab, CR and LF from a URL *before* parsing it, so
+     * `/\r\n/evil.example` is `//evil.example` is `https://evil.example`, and every "starts with a
+     * slash" test in the world says it is a path on this site.
      *
-     * PHP 8.5 ships that parser, so the question is now put to it instead of pattern-matched: the
-     * value is resolved the way a browser would resolve it, and the answer is whether it landed
-     * where it started. `Navigation.ts` has done it this way round on the client all along — for
-     * want of a URL parser it was the stronger half, and now both halves are the same check.
+     * PHP 8.5 ships that parser, so the question is put to it instead of pattern-matched: the value
+     * is resolved the way a browser would resolve it, and the answer is whether it landed where it
+     * started. `Navigation.ts` runs the same check on the client. See docs/history/markup.md.
      *
      * @param string $value
      * @return bool

@@ -10,9 +10,10 @@ use NeuroSYS\Support\BareString;
 /**
  * The Profile class. One external profile — a platform, and where ours lives on it.
  *
- * Replaces the `['platform' => …, 'url' => …]` shape {@link \NeuroSYS\Service\ProfileRepository}
- * used to hand back. An anonymous array shape is a value object nobody named: nothing checks the
- * keys, and a caller destructuring it wrongly gets null rather than an error. The footer asks the
+ * A class rather than a `['platform' => …, 'url' => …]` shape out of
+ * {@link \NeuroSYS\Service\ProfileRepository}. An anonymous array shape is a value object nobody
+ * named: nothing checks the keys, and a caller destructuring it wrongly gets null rather than an
+ * error. The footer asks the
  * platform for its own label, icon and height, so all this has to carry is the pairing.
  *
  * The URL is verified the way {@link Link\HiDriveLink}'s share id is, and for the same reason: it

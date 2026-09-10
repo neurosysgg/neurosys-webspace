@@ -181,7 +181,7 @@ final class ProductionTest extends TestCase
      * does — which means the sections were not in playing order, which means the entry is wrong.
      *
      * It is a `map()` callback, so the guard fires when the collection is materialised rather than
-     * when `positions()` is called. That is the one place laziness moved a verification exception,
+     * when `positions()` is called. That is the one place laziness defers a verification exception,
      * and `Arrangement::positions()` carries an `@throws` saying so.
      *
      * @return void

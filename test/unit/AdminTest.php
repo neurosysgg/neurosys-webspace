@@ -26,7 +26,7 @@ use ReflectionProperty;
 /**
  * The admin path: the gate, and the log it protects.
  *
- * The gate had never been exercised. `data/admin.php` ships with an empty `pass_hash`, so
+ * Nothing else exercises the comparison. `data/admin.php` ships with an empty `pass_hash`, so
  * `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()` nor
  * `password_verify()` runs — which means `test/basic_test.sh`'s two `/admin/stats → 401` checks
  * prove the route is gated without ever comparing a credential. These tests supply a real bcrypt

@@ -19,22 +19,18 @@ use NeuroSYS\Exception\ApiException;
  * base64 of that, after `NS1 `. base64's alphabet is exactly RFC 9110's `token68`, so the whole
  * thing is one auth-param and nothing between here and the client can read it as several.
  *
- * **One length prefix, not two, and no magic.** Its predecessor framed three segments into the
- * request body and needed a prefix for each of the first two and an `NSU1` in front; here the
- * second segment is simply the rest, and the scheme token {@link \NeuroSYS\Http\AuthScheme::NS1} is the magic —
- * it carries the format's version digit, which is what a magic was for. The payload the manifest
- * vouches for is no longer inside this at all: it is the request body, which is what makes a
- * bodyless GET signable on the same terms as a push.
+ * **One length prefix, and no magic.** The second segment is simply the rest, and the scheme token
+ * {@link \NeuroSYS\Http\AuthScheme::NS1} is the magic — it carries the format's version digit,
+ * which is what a magic is for. The payload the manifest vouches for is not inside this at all: it
+ * is the request body, which is what makes a bodyless GET signable on the same terms as a push.
  *
- * **Why a header, when the body framing this replaced argued against one.** That argument had two
- * halves and only one survives. The first was that {@link \NeuroSYS\Http\RequestHeader} is mirrored
- * in `assets/ts/model/RequestHeader.ts` and compared case for case, so header-carried metadata
- * would put cases in the browser's bundle that no browser reads — but `Authorization` is a
- * {@link \NeuroSYS\Http\ServerVariable}, not a `RequestHeader`, and has no mirror. The second, that
- * a header is the part of a request most likely to be rewritten in transit, is still live and is
- * exactly why `public/.htaccess` puts this one back with `E=HTTP_AUTHORIZATION` and why
+ * **Why a header.** `Authorization` is a {@link \NeuroSYS\Http\ServerVariable}, not a
+ * {@link \NeuroSYS\Http\RequestHeader}, so it has no TypeScript mirror and puts nothing in the
+ * browser's bundle. A header is the part of a request most likely to be rewritten in transit,
+ * which is exactly why `public/.htaccess` puts this one back with `E=HTTP_AUTHORIZATION` and why
  * {@link \NeuroSYS\Http\Request::authorization()} reads both spellings. Both auth gates already
  * depend on this header surviving Strato, which is the strongest evidence available that it does.
+ * See docs/history/api.md.
  *
  * **Nothing here is trusted.** This establishes only that the bytes are shaped like a credential;
  * whether they are *ours* is {@link \NeuroSYS\Service\ApiGate}'s question, and it cannot be asked

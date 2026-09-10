@@ -68,11 +68,10 @@ final class ConfigTest extends TestCase
     /**
      * Every data file the application actually loads has to be one dataFile() resolves.
      *
-     * The provider used to be four names written out here, which is the arrangement
-     * {@link DataFile} was extracted from: it listed the four the repository carries, said nothing
-     * about the three it does not, and had no way to notice a fifth arriving. Iterating the cases
-     * asks the enum instead, so a case added without a file — or a file added without a case —
-     * fails here rather than reading as an empty catalogue on a page.
+     * The provider iterates the {@link DataFile} cases rather than listing names, because a list
+     * written out here would have no way to notice a case arriving. So a case added without a
+     * file — or a file added without a case — fails here rather than reading as an empty catalogue
+     * on a page.
      *
      * @param DataFile $file
      * @return void

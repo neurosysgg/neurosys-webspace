@@ -27,8 +27,8 @@ readonly class PlainTextResponse implements Response
     /**
      * Sends the body and ends the request.
      *
-     * `never` rather than `void` — see the note on {@link RedirectResponse::send()} for why the
-     * JetBrains attribute that used to sit here as well is gone.
+     * `never` rather than `void` — see the note on {@link RedirectResponse::send()} for why, and why
+     * no JetBrains attribute sits beside it.
      *
      * @param Request $request
      * @return never

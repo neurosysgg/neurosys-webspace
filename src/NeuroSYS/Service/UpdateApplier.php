@@ -304,8 +304,7 @@ final readonly class UpdateApplier
      * `public/index.php` while the request is executing out of it makes the NFS client silly-rename
      * the open inode aside as `.nfsXXXXXXXX` instead of unlinking it. The mirror then meets that
      * stray as a surplus path in the same request and cannot remove it, because the handle holding
-     * it open is this very process. That is not a hypothesis: the first real push to production
-     * left `public/.nfs00000000bd2dac2512228f60` in the webroot and reported one failure for it.
+     * it open is this very process. See docs/history/api.md.
      *
      * A file the payload does not change is therefore left strictly alone — not rewritten with the
      * same bytes, not touched, not chmodded. Permissions are not reconciled, deliberately: matching

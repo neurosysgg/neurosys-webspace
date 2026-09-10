@@ -7,10 +7,10 @@ namespace NeuroSYS\Tool\Release;
 /**
  * The Fact enum. One field of a `Release` that a prepared folder can supply.
  *
- * Exists so that a fact, its value and where it came from are addressed by the same thing. The
- * report used to key its provenance by field-name strings and reach the unresolved raw value with
- * `$facts['raw' . ucfirst($field)]` — an array key built by concatenation, which is one typo away
- * from a null that reads as "the folder did not say".
+ * Exists so that a fact, its value and where it came from are addressed by the same thing, rather
+ * than by field-name strings and a raw value reached as `$facts['raw' . ucfirst($field)]` — an
+ * array key built by concatenation, which is one typo away from a null that reads as "the folder
+ * did not say".
  */
 enum Fact: string
 {

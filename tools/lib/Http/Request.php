@@ -148,11 +148,10 @@ final readonly class Request
     /**
      * Whether this request carries a body at all.
      *
-     * Asked by {@link CurlTransport} instead of "does it have fields", which is what it used to ask
-     * and is not the same question. A {@link self::raw()} request has no fields by construction, so
-     * that guard skipped attaching its body and sent an empty POST — and the update endpoint,
-     * doing exactly what it is designed to do, answered like an address that does not exist. The
-     * push failed in the one way that says nothing about why.
+     * Asked by {@link CurlTransport} instead of "does it have fields", which is not the same
+     * question: a {@link self::raw()} request has no fields by construction, so that guard would
+     * skip its body and send an empty POST — which the API, doing exactly what it is designed to
+     * do, answers like an address that does not exist, the one failure that says nothing about why.
      *
      * The guard itself is still needed: a `GET` must not be given `CURLOPT_POSTFIELDS`, which would
      * turn it into a POST.

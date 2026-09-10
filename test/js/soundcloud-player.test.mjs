@@ -1,8 +1,8 @@
 /**
  * <soundcloud-player>, the client-side half of NeuroSYS\Model\Embed\SoundCloudEmbed.
  *
- * These cases were EmbedTest's until the widget URL and the attribution moved into the element.
- * The invariants did not move with them by accident — they are the reason this file exists.
+ * The widget URL and the attribution are built by the element, so the invariants about them are
+ * asserted here rather than in EmbedTest — they are the reason this file exists.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

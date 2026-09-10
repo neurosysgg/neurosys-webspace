@@ -309,10 +309,10 @@ a {
    a JS-off demo card exactly the card it always was.
 
    The height is what the waveform needs and the row does not: min-height leaves the drawing
-   somewhere to be, and a card with no waveform simply has more air in it than it used to. It is
-   11rem because of what is measurably in the way — `align-content: space-between` puts the label
-   row at the top and the control at the bottom, and at the old 8.5rem the card's centre line, which
-   is where the waveform is at its loudest and most colourful, fell exactly on the top edge of the
+   somewhere to be, and a card with no waveform simply has more air in it. It is 11rem because of
+   what is measurably in the way — `align-content: space-between` puts the label row at the top and
+   the control at the bottom, and at 8.5rem the card's centre line, which is where the waveform is
+   at its loudest and most colourful, falls exactly on the top edge of the
    control. */
 .demo-track {
   background: var(--surface);

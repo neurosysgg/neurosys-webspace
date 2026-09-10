@@ -87,8 +87,8 @@ abstract class View
     /**
      * A page title: the section, then the site.
      *
-     * Six views wrote out `' — neuro.SYS'` between them, which is six chances to use a hyphen where
-     * the others use an em dash and never notice.
+     * Written once, here, rather than by each view: `' — neuro.SYS'` in six views is six chances to
+     * use a hyphen where the others use an em dash and never notice.
      *
      * @param ?string $section
      * @return string

@@ -32,7 +32,7 @@ use NeuroSYS\Support\File;
  * **A missing or malformed file is `null` rather than an exception.** {@link self::parse()} takes
  * what {@link File::read()} answers with, including its null, and collapses absent, unreadable and
  * corrupt to the same thing — because they are the same thing to the page above, which draws a card
- * without a waveform. A demo staged before this existed is exactly that case and is not a fault.
+ * without a waveform. A demo staged without a sidecar is exactly that case and is not a fault.
  */
 final readonly class Waveform
 {
@@ -59,14 +59,11 @@ final readonly class Waveform
      * measured on a synthetic three-minute bounce, and a mix with an actual arrangement in it does
      * better still, because a level column that repeats is a level column that compresses.
      *
-     * That is worth stating carefully rather than confidently, and this docblock previously said
-     * the opposite — that Strato compressed nothing, so the base64 figure was the wire figure. It
-     * was written from a reading taken on 2026-09-05, when that was true; the same host was serving
-     * gzip again on 2026-09-06 with nothing in this repository having changed. Both `.htaccess`
-     * blocks are `<IfModule>`-guarded, so the module coming or going is silence in either
-     * direction. See docs/deployment.md, which carries the check to re-run, and
-     * docs/history/hosting.md for the two readings that motivated it. **Do not size anything here
-     * on compression being present.**
+     * That is worth stating carefully rather than confidently: the host's `mod_deflate` can come
+     * and go with nothing in this repository changing, and both `.htaccess` blocks are
+     * `<IfModule>`-guarded, so its absence is silence. See docs/deployment.md, which carries the
+     * check to re-run, and docs/history/hosting.md for the readings that show it happening.
+     * **Do not size anything here on compression being present.**
      */
     public const int COLUMNS = 512;
 

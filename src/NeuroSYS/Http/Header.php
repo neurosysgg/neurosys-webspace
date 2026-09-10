@@ -7,16 +7,14 @@ namespace NeuroSYS\Http;
 /**
  * The Header class. One response header, ready to send.
  *
- * Replaces the raw `'Allow: GET, HEAD'` a response used to be handed — a string carrying both the
- * name and the value, with nothing checking either. The `Name: value` formatting happens here
- * rather than at each `header()` call, and **both halves are typed**: a {@link HeaderName} case and
- * a {@link HeaderValue}.
+ * Not a raw `'Allow: GET, HEAD'` — a string carrying both the name and the value, with nothing
+ * checking either. The `Name: value` formatting happens here rather than at each `header()` call,
+ * and **both halves are typed**: a {@link HeaderName} case and a {@link HeaderValue}.
  *
- * The value was a string for longer than the name was, on the reasoning that a header value is just
- * text. So is a header name. The difference is that a value has a *grammar* — a quoted ETag, a
- * comma-separated method list, `Basic realm="…"`, `max-age=…; includeSubDomains` — and every one of
- * those was being assembled at a `new Header(…)` call site, which is the one place a grammar cannot
- * be checked. See {@link HeaderValue}.
+ * The value is typed as well as the name because a value has a *grammar* — a quoted ETag, a
+ * comma-separated method list, `Basic realm="…"`, `max-age=…; includeSubDomains` — and a
+ * `new Header(…)` call site is the one place a grammar cannot be checked. See {@link HeaderValue},
+ * and docs/history/security.md.
  */
 final readonly class Header
 {

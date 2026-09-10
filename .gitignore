@@ -37,11 +37,10 @@ data/demos/
 .php-cs-fixer.cache
 
 # npm dev dependencies (TypeScript) — same deal, dev-only and never deployed. The *compiled*
-# JS in public/assets/js/ is committed on purpose, and no longer for the reason this said: deploy.sh
-# ships build/dist/public/ now, not public/, so a gitignored build output would not deploy a site
-# with no JS. Three other things read that tree by path and all three break without it — test/js/
-# imports the modules, `npm run coverage` pins its 100% gate to public/assets/js/**, and the verify
-# script diffs it byte-for-byte against a fresh tsc. See CLAUDE.md's "Debug and prod builds".
+# JS in public/assets/js/ is committed on purpose, although what ships is build/dist/public/:
+# three things read that tree by path and all three break without it — test/js/ imports the
+# modules, `npm run coverage` pins its 100% gate to public/assets/js/**, and the verify script
+# diffs it byte-for-byte against a fresh tsc. See docs/frontend.md's "Debug and prod".
 /node_modules/
 *.tsbuildinfo
 

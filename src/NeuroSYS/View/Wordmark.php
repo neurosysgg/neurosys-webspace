@@ -15,8 +15,8 @@ use NeuroSYS\View\Html\Node;
 /**
  * The Wordmark class. The site's name with its dot accented — `neuro.SYS`.
  *
- * In two places: the header logo and the home page's eyebrow. Both used to spell it out as three
- * pieces, which is two chances to end up with a lookalike of the site's own name.
+ * In two places: the header logo and the home page's eyebrow. One method, because spelling it out
+ * as three pieces at each is two chances to end up with a lookalike of the site's own name.
  *
  * Returns the pieces rather than one node on purpose. {@link Element} renders inline only when a
  * child is {@link \NeuroSYS\View\Html\Text}, so a wordmark wrapped in a single node would be laid

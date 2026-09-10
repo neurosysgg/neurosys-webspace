@@ -13,12 +13,12 @@ use NeuroSYS\View\Html\Tag;
 /**
  * The SoundCloudEmbed class. A SoundCloud player declared as typed parameters.
  *
- * Replaces the raw HTML that used to be pasted out of SoundCloud's Share → Embed
- * dialog into `data/releases.php`. A release now names the track and this class
- * builds the markup, so the two can no longer drift apart.
+ * A release names the track as typed parameters rather than carrying HTML pasted
+ * out of SoundCloud's Share → Embed dialog, so the entry and the player cannot drift
+ * apart.
  *
  * The markup itself is not built here. This renders <soundcloud-player> with the
- * release's facts as attributes, and assets/ts/elements/SoundCloudPlayer.ts builds
+ * release's facts as attributes, and assets/ts/elements/embed/SoundCloudPlayer.ts builds
  * the widget URL and the attribution from them — SoundCloud's furniture lives with
  * SoundCloud's element. See docs/branding.md for the same stance on brand assets.
  */

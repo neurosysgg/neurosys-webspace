@@ -11,8 +11,8 @@ namespace NeuroSYS\Http;
  * The quoting is why this is a type. `ETag: abc` and `ETag: "abc"` are different headers to the
  * spec — the quotes are part of the grammar, not decoration — and a bare one is the kind of thing
  * that works against every browser that is lenient about it and fails against the one that is not.
- * {@link ViewResponse} used to build the string with a `'"' . hash(…) . '"'` at the call site;
- * here the quotes cannot be forgotten because nothing else can produce one.
+ * Nothing builds one with a `'"' . hash(…) . '"'` at a call site; the quotes cannot be forgotten
+ * because nothing else can produce one.
  *
  * The hash algorithm lives here for the same reason: it is a fact about what an ETag on this site
  * *is*, and the comparison in `ViewResponse` only works because both ends of it come through this

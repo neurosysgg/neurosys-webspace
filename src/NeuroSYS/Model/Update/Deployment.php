@@ -12,14 +12,13 @@ use NeuroSYS\Support\File;
  * The Deployment class. The two directories a push may write into, and the mapping from a payload
  * member's name to the file it becomes.
  *
- * **This exists because {@link UpdateRoot} used to answer these questions itself, and that was a
- * real fault rather than an untidiness.** The enum reached for {@link Config::webroot()} to decide
- * so much as whether a name was *under* a root, which meant deciding membership required resolving
- * a path — so a test that pointed `DOCUMENT_ROOT` at a sandbox got a sandbox for one root and the
- * live tree for the other, and the mirror deleted the second. It did exactly that, once, to this
- * repository.
+ * **This is separate from {@link UpdateRoot} because membership must not require resolving a
+ * path.** An enum that reached for {@link Config::webroot()} to decide so much as whether a name
+ * is *under* a root would give a test that points `DOCUMENT_ROOT` at a sandbox a sandbox for one
+ * root and the live tree for the other — and the mirror deletes what it reaches. See
+ * docs/history/api.md.
  *
- * The split is the fix and it is the ordinary one: `UpdateRoot` is the **vocabulary** — three names,
+ * The split is the ordinary one: `UpdateRoot` is the **vocabulary** — three names,
  * asked and answered without touching a filesystem — and this is the **environment**, which is a
  * value a caller holds rather than a static reached through. So a test constructs one over a
  * sandbox and cannot reach anything else, and production constructs {@link self::current()} and

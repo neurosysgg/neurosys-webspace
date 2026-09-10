@@ -227,3 +227,67 @@ excuse; at `946c4fd` there are 31 `#[BareArray]` and 20 `#[BareString]` attribut
 The call rule, the `@` rule and the exception rule arrived together, with `BareCall` as the third
 excuse attribute. See the entries under [Exceptions](#exceptions) and
 [Files and `$_SERVER`](#files-and-_server) for what each one changed.
+
+## From the code comments
+
+*Moved out of comments under `src/`, `test/` and `tools/` when those were brought to the present
+tense. Quoted as they stood; an ellipsis marks where a sentence ran on into the rule it supported,
+which stays in the code.*
+
+### 2026-09-05 — `Profile` was an array shape (`156de9d`)
+
+> It replaced an `['platform' => …, 'url' => …]` array shape
+
+### 2026-09-05 — the title suffix was written six times (`156de9d`)
+
+From `PageTest` and `ViewTest`:
+
+> Six views used to write out `' — neuro.SYS'` between them
+
+### 2026-09-05 — before `#[\NoDiscard]`, a naming convention (`4fb5d1a`)
+
+From `NoDiscardTest`:
+
+> That was the whole enforcement mechanism, and it was a naming convention doing a compiler's job.
+
+### 2026-09-07 — `ConfigTest`'s four data files (`903e324`)
+
+> The provider used to be four names written out here, which is the arrangement DataFile was
+> extracted from: it listed the four the repository carries, said nothing about the three it does
+> not, and had no way to notice a fifth arriving.
+
+### 2026-09-04 — values that used to be shapes or pastes (`33abdff`, `d9e65ca`, `7495312`, `00eee34`)
+
+One-line framings, each cut from the docblock of the class that replaced the thing it names:
+
+- `Wordmark`: "Both used to spell it out as three pieces"
+- `Profile`: the "shape … `ProfileRepository` used to hand back"
+- `HiDriveLink` / `SoundCloudEmbed`: "the full share URLs / raw HTML that used to be pasted"
+- `PlainTextResponse` (2026-06-17): "the JetBrains attribute that used to sit here as well is gone"
+
+### 2026-09-05 — `DownloadLogEntry` read corrupt input as data (`a2e8502`)
+
+> Two things it used to get wrong: - Decoding was `assoc: true`, which renders `{}` and `[]` as the
+> same empty array — so a log line of `[1,2,3]` passed the `is_array()` guard and hydrated into an
+> entry of four empty strings, counted in the total and filed under `/`. Corrupt input read as real
+> data. … - Nothing checked the *values*. … a single malformed line took the entire stats page down
+> with a 500 rather than being skipped
+
+### 2026-09-06 — `DownloadStats` was a tuple and a fourth argument (`7f52764`, `e5fb1fe`)
+
+> That distinction used to be a fourth constructor argument on the view.
+
+> Replaces an `array{int, array<string, int>, array<string, int>}`
+
+> The `(string)` cast is the one {@link \NeuroSYS\View\StatsView} used to make with
+> `array_map(strval(...), array_keys($rows))`.
+
+`StatsView` said of it: "which is what this replaced".
+
+### 2026-09-08 — `SectionPosition` was an array shape (`fbb04d3`)
+
+> the `array{section: Section, offset: float}` it used to be … It was also the last thing under
+> `src/` that … SCALARS could not let a collection hold
+
+`TypedItems` said the same from its side: "the two callbacks on this site that used to map to an
+`array`", and "the same decision `rebuilt()` used to make one layer out".

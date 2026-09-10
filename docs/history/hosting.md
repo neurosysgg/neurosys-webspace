@@ -27,6 +27,20 @@ came back at all. Nothing in this repository changed between the two readings. T
 argument for the paragraph below rather than a curiosity — a shared host can gain or lose a module
 without telling anybody, and the failure is silent in both directions.
 
+### 2026-09-05 — the cache tiers were once split by a condition (`d45f671`)
+
+*From a comment in `public/.htaccess`, brought to the present tense.*
+
+> This paragraph used to describe an `env=!VERSIONED` condition on the short tier instead…
+
+### 2026-09-07 — the waveform docblock sized on a reading that had changed (`ebf98f0`)
+
+*From `Waveform`'s docblock, which carried the 2026-09-05 reading after the host had moved on.*
+
+> this docblock previously said the opposite — that Strato compressed nothing, so the base64 figure
+> was the wire figure. It was written from a reading taken on 2026-09-05, when that was true; the same
+> host was serving gzip again on 2026-09-06 with nothing in this repository having changed.
+
 ## Dependencies and extensions
 
 ### 2026-09-08 → 2026-09-09 — `ext/curl` in `require` for one commit (`791fbc4`, `7e7696b`)

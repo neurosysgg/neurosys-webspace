@@ -248,13 +248,13 @@ final class Config
     /**
      * Resolves a file inside `data/`.
      *
-     * It hands back a {@link File} rather than the string it used to, because every one of its
-     * callers immediately asked the same two questions of that string — is it there, and what is in
-     * it — and each of them answered in its own words. The path is still on the object, for the two
+     * It hands back a {@link File} rather than a string, because every one of its callers asks the
+     * same two questions of the path — is it there, and what is in it — and `File` answers them in
+     * one set of words rather than each caller's own. The path is still on the object, for the two
      * places that need the string itself: `require` is a language construct and takes a path, not a
      * file.
      *
-     * The argument is a {@link DataFile} rather than the path it used to be, and the reason is the
+     * The argument is a {@link DataFile} rather than a path, and the reason is the
      * paragraph above turned around: every caller of this collapses a missing file to an empty
      * result, so a mistyped name is not an error anywhere — it is an empty catalogue, an empty
      * footer, or a gate that stands down. See that enum.

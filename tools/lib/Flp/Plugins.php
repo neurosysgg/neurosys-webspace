@@ -94,8 +94,8 @@ final readonly class Plugins
      * a `.flp`. `hello world 140 future bass id.flp` carries 12.7 MB of them across 169 events, and
      * `Project::of()` spent 4.97 of its 5.10 seconds here.
      *
-     * It used to `unpack('P', substr(…))` at each of those offsets — two allocations a byte to
-     * produce a number that is then thrown away 99.9% of the time. The bounds this class already
+     * So the scan does not `unpack('P', substr(…))` at each offset — that is two allocations a byte
+     * to produce a number that is then thrown away 99.9% of the time. The bounds this class already
      * declares say the same thing more cheaply: a length in `[4, 48]` **is** one low byte in that
      * range followed by seven zeroes, so the range check can be `ord()` and the rest of the
      * prefix a string comparison, and no unpacking is needed at all. That is an identity rather

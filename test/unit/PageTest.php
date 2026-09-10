@@ -214,12 +214,12 @@ final class PageTest extends TestCase
      * {@link \NeuroSYS\View\Html\MarkupParser} exists: the policy is hand-authored, so its markup
      * has to arrive as markup rather than as escaped text.
      *
-     * **What is asserted here is narrower than it used to be, and stronger.** This was a pass-through
-     * and the claim was that the bytes came out untouched; it is a parse now, so the claim is that
-     * the *markup* comes out as markup — an `<h2>` with its `id`, and a `&amp;` still an entity
-     * rather than a bare `&` or a doubled `&amp;amp;`. The second one is the round trip worth
-     * pinning: the parser decodes that entity to a single `&` and {@link \NeuroSYS\View\Html\Text}
-     * escapes it back, so agreement here is agreement between two separate pieces of code.
+     * **What is asserted is that the *markup* comes out as markup**, not that the bytes come out
+     * untouched: the policy is parsed, so what is pinned is an `<h2>` with its `id`, and a `&amp;`
+     * still an entity rather than a bare `&` or a doubled `&amp;amp;`. The second one is the round
+     * trip worth pinning: the parser decodes that entity to a single `&` and
+     * {@link \NeuroSYS\View\Html\Text} escapes it back, so agreement here is agreement between two
+     * separate pieces of code.
      *
      * @return void
      */
@@ -275,9 +275,8 @@ final class PageTest extends TestCase
     }
 
     /**
-     * The home page used to be on that list and no longer is, which is worth stating rather than
-     * quietly dropping: the profile player is a custom element, so with the script off the home
-     * page shows an empty reserved box under its heading.
+     * The home page is not on that list, which is worth stating: the profile player is a custom
+     * element, so with the script off the home page shows an empty reserved box under its heading.
      *
      * What it still promises is the half that matters — the hero is every word the page says about
      * itself, and it is all standard tags. The player is the *only* thing on the page that needs
@@ -299,8 +298,8 @@ final class PageTest extends TestCase
     }
 
     /**
-     * Six views used to write out `' — neuro.SYS'` between them, which is six chances to use a
-     * hyphen where the others use an em dash and never notice.
+     * The `' — neuro.SYS'` suffix is added in one place rather than by each view, so no view can
+     * use a hyphen where the others use an em dash and never notice.
      *
      * @param View $view
      * @return void

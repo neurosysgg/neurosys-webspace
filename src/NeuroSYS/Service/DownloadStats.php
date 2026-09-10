@@ -11,15 +11,15 @@ use NeuroSYS\Support\SearchableCollection;
 /**
  * The DownloadStats class. What the downloads log adds up to.
  *
- * Replaces an `array{int, array<string, int>, array<string, int>}` — a tuple destructured at its
- * one call site, where reading it meant remembering which of the three slots was which and what
- * each map was keyed by. The same objection {@link Finding} answered for the preflight's findings.
+ * A class rather than an `array{int, array<string, int>, array<string, int>}` — a tuple that only
+ * reads correctly if you remember which of the three slots is which and what each map is keyed
+ * by. The same objection {@link Finding} answers for the preflight's findings.
  *
  * **Absent and empty are different things here, and the page says so.** A `null` where one of these
  * is expected means the log was never read, because {@link \NeuroSYS\Config::DOWNLOAD_LOGGING} is
  * off; an instance with a total of zero means it was read and held nothing. Those render as
  * different sentences, deliberately — an empty stats page that cannot tell you which of the two it
- * is reads as a bug. That distinction used to be a fourth constructor argument on the view.
+ * is reads as a bug.
  */
 #[BareString(
     'int',
@@ -88,11 +88,10 @@ final readonly class DownloadStats
      * the adapter at the door: the array is local to the loop that fills it, and the collection is
      * what crosses the boundary.
      *
-     * The `(string)` cast is the one {@link \NeuroSYS\View\StatsView} used to make with
-     * `array_map(strval(...), array_keys($rows))`. PHP casts a decimal-looking array key to `int`
-     * on the way in, so a tally is `array-key`-keyed however carefully it was built; a collection's
-     * keys are strings, and doing the cast here is what let the view stop zipping two arrays back
-     * together.
+     * The `(string)` cast is here because PHP casts a decimal-looking array key to `int` on the way
+     * in, so a tally is `array-key`-keyed however carefully it was built; a collection's keys are
+     * strings, and casting here is what spares {@link \NeuroSYS\View\StatsView} from zipping two
+     * arrays back together.
      *
      * @param array<array-key, int> $counts
      * @return SearchableCollection<int>

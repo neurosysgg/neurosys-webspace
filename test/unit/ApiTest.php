@@ -300,8 +300,8 @@ final class ApiTest extends TestCase
     /**
      * A read is accepted with no body at all, and binds `sha256('')`.
      *
-     * This is the whole reason the credential moved out of the body: there is no body to frame it
-     * into. The digest check runs anyway rather than being skipped for a method that "has no body",
+     * This is the whole reason the credential rides in `Authorization`: there is no body to frame
+     * it into. The digest check runs anyway rather than being skipped for a method that "has no body",
      * which is what stops a signed GET smuggling one past it.
      *
      * @return void
@@ -606,10 +606,9 @@ final class ApiTest extends TestCase
     /**
      * A serial that cannot be recorded is a 500, and **nothing is written**.
      *
-     * The replay guard is armed before the action runs rather than after it. Its predecessor wrote
-     * the whole tree and then discovered it could not arm the guard, which left a deployment that
-     * had been updated and a credential that could update it again — there was nothing useful to do
-     * about that but say so.
+     * The replay guard is armed before the action runs rather than after it, so a push can never
+     * write the whole tree and only then discover it cannot arm the guard — leaving a deployment
+     * updated and a credential that could update it again. See docs/history/api.md.
      *
      * @return void
      */
@@ -644,13 +643,10 @@ final class ApiTest extends TestCase
      * patch handler was built from the signed manifest and then run, since this sentence is
      * {@link \NeuroSYS\Service\UpdateApplier}'s.
      *
-     * **And the refused payload has spent its serial**, which is the rule this endpoint changed
-     * when the guard moved in front of the action. Its predecessor recorded the serial only after a
-     * run that wrote, on the reasoning that a refused payload should be sendable again — but a
-     * corrected payload is different bytes with a fresh `time()` on them, so nothing was ever
-     * gained, and the ordering left a real hole the other way: a push could write the whole tree and
-     * only then discover it could not arm the guard. Spending it first costs a second and closes
-     * that.
+     * **And the refused payload has spent its serial**, because the guard is armed in front of the
+     * action. Nothing is lost by it: a corrected payload is different bytes with a fresh `time()` on
+     * them. Spending it first costs a second and is what keeps a push from writing the whole tree
+     * before discovering it cannot arm the guard.
      *
      * @return void
      */

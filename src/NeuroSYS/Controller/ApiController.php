@@ -121,13 +121,11 @@ final readonly class ApiController implements Controller
             // Only an action that changes something consumes the serial. A read leaves it alone,
             // and so does a dry run, so the very same credential can then be sent for real.
             //
-            // **Recorded before the action runs, not after**, which is the one behaviour here that
-            // differs from the endpoint this replaces. That one wrote the whole tree and then
-            // discovered it could not arm the replay guard, leaving a deployment that had been
-            // updated and a credential that could update it again; there was nothing useful to do
-            // about it but say so in the report. Arming first turns that into a refusal with
-            // nothing written. It costs a serial on a deployment that cannot record one, which is a
-            // deployment that is not going to accept the next push either.
+            // **Recorded before the action runs, not after.** A write that could not arm the replay
+            // guard would leave a deployment updated and the credential able to update it again;
+            // arming first makes that a refusal with nothing written. It costs a serial on a
+            // deployment that cannot record one, which is a deployment that is not going to accept
+            // the next push either. See docs/history/api.md.
             if ($handler->isWrite() && !$gate->accept($verified->envelope->serial)) {
                 return new PlainTextResponse(
                     HttpStatusCode::InternalServerError,

@@ -358,8 +358,7 @@ final class StageDemoTest extends TestCase
     }
 
     /**
-     * The parser refuses a flag the command never declared, which is what both hand-rolled parsers
-     * this layer replaced did silently.
+     * The parser refuses a flag the command never declared, rather than dropping it in silence.
      *
      * @return void
      */
@@ -429,10 +428,10 @@ final class StageDemoTest extends TestCase
     /**
      * **A declared flag must never be a silently ignored one.**
      *
-     * `--rotate` used to be reachable only when no file was named, so `--rotate v4.flac` matched
-     * neither branch and fell through to a full staging run: every mix transcoded again, a *new*
-     * password minted, and a whole new entry printed — the exact pair of things `--rotate` exists
-     * not to do, arriving because a flag was read and dropped. Refusing outright is the only safe
+     * `--rotate` beside a file name matches neither mode, and falling through to a full staging
+     * run would transcode every mix again, mint a *new* password and print a whole new entry — the
+     * exact pair of things `--rotate` exists not to do, arriving because a flag was read and
+     * dropped. Refusing outright is the only safe
      * answer, since guessing which of the two modes was meant is guessing about a password that
      * has already been sent to somebody.
      *

@@ -9,16 +9,14 @@
   // the neighbouring reason: a callback parameter in an assertion is named for legibility, and
   // annotating 52 of them would bury the three shapes worth stating.
   //
-  // What is left is what these files were actually missing — drift between a helper and the call
-  // sites that use it. The first run found the one that mattered: `card()` in demo-waveform's
-  // suite takes a destructured parameter with a `= {}` default, which drops every property that
-  // has no default of its own, so `peaks` was not in the inferred type and twenty-six call sites
-  // passing it were checking nothing at all. That is exactly the failure `--test-coverage-include-all`
-  // and the `#[CoversClass]` trap are about, one layer down: not a wrong answer, an unasked
-  // question.
+  // What is left is what these files actually risk — drift between a helper and the call sites
+  // that use it. A helper taking a destructured parameter with a `= {}` default drops every
+  // property that has no default of its own from the inferred type, so its call sites check
+  // nothing. That is the failure `--test-coverage-include-all` and the `#[CoversClass]` trap are
+  // about, one layer down: not a wrong answer, an unasked question. See docs/history/coverage.md.
   //
   // dom.mjs is included even though it is a helper rather than a suite — it is where the shapes
-  // the ten suites share are declared, so it is the file this config most wants to read.
+  // the nine suites share are declared, so it is the file this config most wants to read.
   "include": ["test/js/*.mjs"],
 
   "compilerOptions": {

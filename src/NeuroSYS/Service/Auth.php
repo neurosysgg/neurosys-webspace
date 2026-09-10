@@ -68,8 +68,7 @@ class Auth
      * this is reached for any `/demos/…` target at all, including one no route was meant to claim.
      * {@link BasicChallenge} refuses a realm holding a `"` or a `\`, which is the right answer for a
      * realm built wrong in this repository and the wrong one here: it would turn a hostile target
-     * into a 500 where a 401 belongs, which is both a crash and louder than the malformed header it
-     * replaced. `rawurlencode()` means there is nothing to refuse.
+     * into a 500 where a 401 belongs. `rawurlencode()` means there is nothing to refuse.
      *
      * It is also the treatment {@link \NeuroSYS\Support\SitePath::to()} already gives the same
      * value on the way out, and a no-op for every slug `tools/stage-demo.php` can mint — so the

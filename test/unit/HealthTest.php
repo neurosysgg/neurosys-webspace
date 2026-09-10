@@ -232,12 +232,12 @@ final class HealthTest extends TestCase
     /**
      * The extensions this enum names are exactly the ones `composer.json` requires.
      *
-     * **This is the point of the whole feature, turned into an assertion.** The list existed in
-     * two places before — `composer.json`, which never runs on the server because `vendor/` is not
-     * deployed, and `test/basic_test.sh`, which runs a developer's PHP — and neither could speak
-     * for the host. {@link PhpExtension} is the third statement of it and the first that can be
-     * compared against another in code, so this is what stops the report reassuring somebody about
-     * a set of extensions the site no longer depends on.
+     * **This is the point of the whole feature, turned into an assertion.** The list is also
+     * stated in `composer.json`, which never runs on the server because `vendor/` is not deployed,
+     * and in `test/basic_test.sh`, which runs a developer's PHP — and neither can speak for the
+     * host. {@link PhpExtension} is the statement that can be compared against another in code, so
+     * this is what stops the report reassuring somebody about a set of extensions the site does not
+     * depend on.
      *
      * `require-dev`'s `ext-curl` is deliberately not here: the site makes no outbound request at
      * all, and the one class that does is tooling `deploy.sh` never uploads.
@@ -295,8 +295,8 @@ final class HealthTest extends TestCase
      *
      * **`'0'` is the row that matters and is the bug this pins.** `max_execution_time` is `0` on a
      * runtime with no limit — a real answer, and the most interesting one that directive has —
-     * and a falsy test printed it as nothing. The report's first run said `-` where it meant
-     * "unlimited".
+     * and a falsy test prints it as nothing: `-` where it means "unlimited". See
+     * docs/history/coverage.md.
      *
      * @param string $value
      * @param string $expected

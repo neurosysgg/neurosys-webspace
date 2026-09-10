@@ -137,17 +137,12 @@ readonly class Request
     /**
      * The request target's path, with any trailing slash taken off.
      *
-     * This was `parse_url()` and an `is_string()` guard, and the guard was the whole point of the
-     * method: `parse_url()` signals failure with **false**, not null, so the `?? '/'` it replaced
-     * read as a guard and was not one, and under `strict_types=1` the false went on to `rtrim()`
-     * as an uncaught TypeError. What produced it was not exotic — `GET ///` was enough — and it
-     * was a 500 where the router's 404 belongs, raised here in {@link self::fromGlobals()}, ahead
-     * of {@link \NeuroSYS\Router::dispatch()} and so ahead of the read-only method gate too.
-     *
-     * PHP 8.5's URI parser removes the trap rather than guarding against it: {@link Uri::parse()}
-     * returns **null** on a target it cannot read, which is what `??` was always looking for. It
-     * also reads one this could not: `///` is the root written wastefully and now comes back as
-     * the root, instead of failing and falling through.
+     * **Never `parse_url()` here.** It signals failure with **false**, not null, so `??` does not
+     * guard it, and under `strict_types=1` the false reaches `rtrim()` as an uncaught TypeError — a
+     * 500 for a target as ordinary as `GET ///`, raised in {@link self::fromGlobals()}, ahead of
+     * {@link \NeuroSYS\Router::dispatch()} and so ahead of the method gate too. PHP 8.5's
+     * {@link Uri::parse()} returns **null** on a target it cannot read, which is what `??` looks
+     * for, and it reads `///` as the root written wastefully. See docs/history/security.md.
      *
      * **The fallback is the target, not `/`.** A target this could not read is not a request for
      * the home page, and answering one with the home page is the quiet kind of wrong. Same instinct
@@ -155,11 +150,10 @@ readonly class Request
      * is the different case and is still the root — that default is applied by the caller, before
      * this ever sees it.
      *
-     * It is the target's **path** rather than the whole of it, and this paragraph used to argue the
-     * opposite on a premise that was simply false — see {@link self::unparsedPath()}, where the
-     * correction is written down.
+     * It is the target's **path** rather than the whole of it — {@link self::unparsedPath()} says
+     * why.
      *
-     * Raw, not decoded: a route matches the target as it was sent, the way `parse_url()` gave it.
+     * Raw, not decoded: a route matches the target as it was sent.
      *
      * @param string $uri The raw request target, as `REQUEST_URI` carries it.
      * @return string
@@ -177,19 +171,13 @@ readonly class Request
      * malformed the rest of it turns out to be. It is what {@link Uri::getRawPath()} would have
      * answered had the parse succeeded, which is the whole job of a fallback.
      *
-     * **This used to be the whole target, and the reason given for that was wrong rather than
-     * merely coarse.** {@link self::normalisePath()} argued that no route pattern matches a
-     * malformed target, so passing one through unchanged would 404 like any other unknown path.
-     * It does not: {@link \NeuroSYS\Support\Route::matches()} compiles `{slug}` into `([^/]+)`,
-     * which matches anything at all, so **every placeholder route matched** and whatever followed
-     * the `?` arrived inside a captured value. `/demos/x"y?a=1` reached
-     * {@link \NeuroSYS\Controller\DemoController} with a slug of `x"y?a=1` — and a demo's slug is
-     * what names its realm, so a query string reached a response header. See
-     * {@link \NeuroSYS\Service\Auth::demoRealm()} and {@link BasicChallenge}, which is where the
-     * other half of that is closed.
-     *
-     * The lesson is the narrow one: the claim was about {@link \NeuroSYS\Support\Route}, it was
-     * written in a file that does not import it, and checking it was one `matches()` call.
+     * **Only the path, because a malformed target is not a 404.** {@link \NeuroSYS\Support\Route::matches()}
+     * compiles `{slug}` into `([^/]+)`, which matches anything at all, so every placeholder route
+     * matches one, and whatever followed the `?` would arrive inside a captured value: the whole
+     * of `/demos/x"y?a=1` would reach {@link \NeuroSYS\Controller\DemoController} with a slug of
+     * `x"y?a=1`, and a demo's slug names its realm, so a query string would reach a response
+     * header. {@link \NeuroSYS\Service\Auth::demoRealm()} and {@link BasicChallenge} close the
+     * other half of that. See docs/history/security.md.
      *
      * @param string $uri
      * @return string
@@ -281,16 +269,14 @@ readonly class Request
      * and `Request` stays `readonly` with nothing to memoise — `php://input` is re-readable for
      * anything that is not a multipart form, and nothing here posts a form.
      *
-     * **It has exactly one caller**, {@link \NeuroSYS\Controller\ApiController}, and that is
-     * worth stating because `docs/security.md` used to be able to say the site had no way to obtain
-     * a body at all. It no longer can. What replaces that guarantee is narrower and still worth
-     * having: the body is read at one call site, past a route that accepts POST and nothing else
+     * **It has exactly one caller**, {@link \NeuroSYS\Controller\ApiController}, and that is the
+     * guarantee: the body is read at one call site, past a route that accepts POST and nothing else
      * does, and every byte of it is refused unless {@link \NeuroSYS\Support\PublicKey} says it was
      * signed by a key this deployment holds.
      *
-     * **It is read through {@link \NeuroSYS\Support\File::read()}, bounded by `$limit`.** That is
-     * where the `@` this used to justify inline now lives, and where the bound is applied *to the
-     * read* rather than after it: an unbounded `file_get_contents('php://input')` pulls up to
+     * **It is read through {@link \NeuroSYS\Support\File::read()}, bounded by `$limit`**, which is
+     * where the diagnostic is handled and where the bound is applied *to the read* rather than
+     * after it: an unbounded `file_get_contents('php://input')` pulls up to
      * `post_max_size` into memory before any caller can reject it, so the one caller,
      * {@link \NeuroSYS\Service\ApiGate}, passes the largest body it will consider plus a byte and
      * reads no further. `php://input` is a stream `File` reads like any other path — under CLI it is

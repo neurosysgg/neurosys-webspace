@@ -45,8 +45,7 @@ final readonly class FlpFile
      * How far a variable event's length prefix may shift before it stops being one.
      *
      * Five groups of seven bits, because `FLdt` states its own length as a dword and nothing inside
-     * it can be longer than that. See {@link self::varInt()} for what a sixth group actually means
-     * and what it used to cost.
+     * it can be longer than that. See {@link self::varInt()} for what a sixth group actually means.
      */
     private const int VARINT_BITS = 35;
 

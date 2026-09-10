@@ -14,9 +14,9 @@ use RecursiveIteratorIterator;
  *
  * This is the half that earns its keep, because it runs *before* anything reaches HiDrive. A share
  * link is minted by hand in a web UI and is bound to the bytes it was minted for, so a file
- * re-exported after the fact costs an upload, a new link and an edit to `data/releases.php` — which
- * is exactly what `ill.`'s WAV cost when it turned out to be 16-bit/44.1kHz beside a 24-bit/48kHz
- * FLAC. Every check here is one that a real discrepancy in a real folder suggested.
+ * re-exported after the fact costs an upload, a new link and an edit to `data/releases.php`. Every
+ * check here is one that a real discrepancy in a real folder suggested — see
+ * docs/history/tooling.md.
  */
 final readonly class Preflight
 {
@@ -282,8 +282,9 @@ final readonly class Preflight
         }
 
         // A readable zip holding no files at all, which is not the same as one that would not open.
-        // It used to reach the count below and read as an OK — `0 files in the zip, with no loose
-        // folder to disagree` — because an empty zip has no root to look for a loose folder under.
+        // Without this it would reach the count below and read as an OK — `0 files in the zip, with
+        // no loose folder to disagree` — because an empty zip has no root to look for a loose folder
+        // under.
         // The zip is what a stranger downloads, so an empty one is a failed check and not a quiet
         // zero.
         if ($entries === []) {

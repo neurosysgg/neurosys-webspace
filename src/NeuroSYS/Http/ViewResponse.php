@@ -51,10 +51,10 @@ readonly class ViewResponse implements Response
     /**
      * Sends the response; emits headers and rendered HTML.
      *
-     * The body is rendered **before** any header goes out, which is the opposite of the order this
-     * used to run in and is what makes an `ETag` possible at all: the validator is a hash of the
-     * bytes, so the bytes have to exist first. Nothing is echoed until every header is sent, so
-     * that reordering costs one string held in memory and nothing else.
+     * The body is rendered **before** any header goes out, which is what makes an `ETag` possible
+     * at all: the validator is a hash of the bytes, so the bytes have to exist first. Nothing is
+     * echoed until every header is sent, so that order costs one string held in memory and nothing
+     * else.
      *
      * @param Request $request
      * @return void

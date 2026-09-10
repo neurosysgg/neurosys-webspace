@@ -219,7 +219,7 @@ final class DspTest extends TestCase
      * Ports `spectrum_test.c`'s `test_bin_count_is_flexible()`, with the spectrogram's own bin
      * count — 48, from `spectrogram.h` — even though that module is not part of this port. The
      * property under test is that `$bars` is a runtime argument rather than a constant this file
-     * owns, and 48 is what the C used to demonstrate it.
+     * owns, and 48 is what the C uses to demonstrate it.
      *
      * @return void
      */

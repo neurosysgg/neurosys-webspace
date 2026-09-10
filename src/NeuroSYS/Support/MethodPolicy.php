@@ -13,18 +13,17 @@ use NeuroSYS\Http\HttpMethod;
  * There are two cases because there are two kinds of route here, and the second kind has exactly
  * one member.
  *
- * **This replaced a `Collection<HttpMethod>` on {@link Route}, and the reason is worth keeping.**
+ * **A policy rather than a `Collection<HttpMethod>` on {@link Route}, and the reason is worth keeping.**
  * The obvious design is for each route to carry its own set of methods and for the 405 to name that
  * set — which is what {@link \NeuroSYS\Http\Allow}'s docblock argues for, and it is right for nine
  * routes out of ten. It is wrong for {@link SitePath::Api}, whose entire purpose is to be
  * indistinguishable from an address that does not exist: `PUT /api/update/v1/patch` would answer
  * `Allow: GET, HEAD, POST`, and the `POST` in that list is precisely the fact the endpoint exists
- * to hide. An unrecognised verb was worse still — {@link \NeuroSYS\Http\Request::method()} is null
- * for one, null is in no set, and the refusal would have named the whole set.
+ * to hide. An unrecognised verb would be worse still — {@link \NeuroSYS\Http\Request::method()} is
+ * null for one, null is in no set, and the refusal would name the whole set.
  *
- * So the choice is not "which methods" but "who answers", and once it is written that way the
- * router only ever sends one `Allow` — the read-only one — which is what it sent before any of this
- * existed.
+ * So the choice is not "which methods" but "who answers", and written that way the router only
+ * ever sends one `Allow` — the read-only one. See docs/history/api.md.
  */
 enum MethodPolicy: string
 {

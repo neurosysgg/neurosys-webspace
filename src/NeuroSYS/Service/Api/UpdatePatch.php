@@ -15,9 +15,9 @@ use NeuroSYS\Service\UpdateApplier;
 /**
  * The UpdatePatch class. The one action on this site that writes: the signed tree, applied.
  *
- * It is what `UpdateController` used to be from the signature check down — the applier call, the
- * 422 for an archive that will not expand, the 500 for a push that could not write everything.
- * What it is no longer is a Controller: by the time one of these exists the request has been
+ * It is the write path from the signature check down — the applier call, the 422 for an archive
+ * that will not expand, the 500 for a push that could not write everything. It is not a
+ * Controller: by the time one of these exists the request has been
  * verified, so there is no `Request` to consult and nothing left to refuse quietly. Every failure
  * from here on is reported in full, because the caller has proved it holds the private key and
  * there is nowhere else for that detail to go — the live host has `display_errors` off and an empty

@@ -33,14 +33,11 @@ class PrivacyController implements Controller
     /**
      * The policy document, or an empty string if it is not there.
      *
-     * This used to be `is_file($f) ? file_get_contents($f) ?: '' : ''`, written the way every other
-     * data-file read on this site was written — and it had the flaw that made
-     * {@link \NeuroSYS\Support\File} worth
-     * having. `is_file()` guards a file that is absent and does nothing about one that is present
-     * and unreadable, so `file_get_contents()` emitted a **warning**; the response headers have
-     * already gone out by the time this runs, so that warning printed into the page ahead of the
-     * doctype rather than anywhere a log would catch it. `read()` answers null for both causes,
-     * which is what the ternary was collapsing them to anyway.
+     * Read through {@link \NeuroSYS\Support\File::read()}, which answers null for a file that is
+     * absent and for one that is present and unreadable. `is_file()` would guard only the first,
+     * and `file_get_contents()` on the second emits a **warning** — after the response headers
+     * have gone out, so it would print into the page ahead of the doctype rather than anywhere a
+     * log would catch it. See docs/history/types.md.
      *
      * Both halves read the same way, and either being absent is an empty half rather than an
      * error — which is the state a clone missing one is already allowed to be in.

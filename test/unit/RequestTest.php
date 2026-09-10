@@ -66,10 +66,10 @@ final class RequestTest extends TestCase
         yield 'bare slash stays root'  => ['/', '/'];
         yield 'deep path'              => ['/releases/ill/flac', '/releases/ill/flac'];
 
-        // parse_url() signals failure with false, not null, so `?? '/'` read as a guard and was not
-        // one: the false reached rtrim() as an uncaught TypeError under strict_types, and every one
-        // of these was a 500 rather than a page. They are ordinary request targets — the first is
-        // three slashes — and they died in fromGlobals(), ahead of the read-only gate.
+        // Targets parse_url() cannot read. It signals failure with false, not null, so `?? '/'`
+        // would not guard it: the false would reach rtrim() as an uncaught TypeError under
+        // strict_types, a 500 in fromGlobals() ahead of the read-only gate. They are ordinary
+        // request targets — the first is three slashes. See docs/history/security.md.
         //
         // Note the two different answers. `///` is the root written wastefully, and comes back as
         // the root. The second is a target we could not read, and comes back as itself rather than
@@ -79,13 +79,12 @@ final class RequestTest extends TestCase
         yield 'unparseable, trailing slash' => ['//host:notaport/x/', '//host:notaport/x'];
         yield 'empty'                     => ['', '/'];
 
-        // A target the parser refuses is still cut at the `?` or the `#`, and these are the rows
-        // that were missing when it was not. The fallback used to be the *whole* target, on the
-        // reasoning that a malformed one matches no route — and Route compiles `{slug}` to
-        // `([^/]+)`, which matches anything, so `/demos/x"y?a=1` reached DemoController with a slug
-        // of `x"y?a=1` and a query string ended up inside a WWW-Authenticate realm. See
-        // testAMalformedTargetStillMatchesAPlaceholderRoute() in RoutingTest, which is the fact this
-        // file had no row for, and Request::unparsedPath().
+        // A target the parser refuses is still cut at the `?` or the `#`. A malformed target still
+        // matches a route — Route compiles `{slug}` to `([^/]+)`, which matches anything — so an
+        // uncut `/demos/x"y?a=1` would reach DemoController with a slug of `x"y?a=1` and put a query
+        // string inside a WWW-Authenticate realm. See
+        // testAMalformedTargetStillMatchesAPlaceholderRoute() in RoutingTest, and
+        // Request::unparsedPath().
         yield 'unparseable, query cut'    => ['//host:notaport/x?a=1', '//host:notaport/x'];
         yield 'unparseable, fragment cut' => ['//host:notaport/x#top', '//host:notaport/x'];
         yield 'raw quote, query cut'      => ['/demos/x"y?a=1&b=2', '/demos/x"y'];

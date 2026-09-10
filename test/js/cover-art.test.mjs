@@ -2,9 +2,9 @@
  * <cover-art src fallback alt> — the release cover and what happens when the file host doesn't
  * serve it.
  *
- * The fallback used to be an inline onerror= attribute, which a strict script-src forbids. As a
- * listener it survives the policy, and it is attached before src is assigned so a response that
- * fails immediately cannot beat it — the two facts this file is here to keep true.
+ * The fallback is a listener rather than an inline onerror= attribute, which a strict script-src
+ * forbids, and it is attached before src is assigned so a response that fails immediately cannot
+ * beat it — the two facts this file is here to keep true.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

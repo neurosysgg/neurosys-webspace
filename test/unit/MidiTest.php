@@ -680,10 +680,10 @@ final class MidiTest extends TestCase
      * **A tempo the three-byte payload cannot state is refused, not truncated.**
      *
      * `pack('N')` gives four bytes and the event takes three, so a tempo slow enough to need the
-     * fourth used to lose it silently — 3 BPM writing itself as roughly 18.6, which is a file that
+     * fourth would lose it silently — 3 BPM writing itself as roughly 18.6, which is a file that
      * plays at the wrong speed with nothing anywhere reading as wrong. Nothing this repository
      * reads can reach it, FL's own floor being 10 BPM, but every other value this package cannot
-     * hold throws and this one was the exception.
+     * hold throws, and so does this one.
      *
      * @return void
      */

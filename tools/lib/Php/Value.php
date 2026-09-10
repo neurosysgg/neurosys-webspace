@@ -10,8 +10,7 @@ use UnitEnum;
  * The Value class. A leaf — a string, an int, null, or an enum case.
  *
  * Scalars go through `var_export()`, which is the whole point: quoting and escaping a string for
- * PHP source is a solved problem with a function in the language, and the entry writer had been
- * doing half of it by hand.
+ * PHP source is a solved problem with a function in the language.
  *
  * **An enum renders as its short name**, `Genre::Dubstep`, not the `\NeuroSYS\Model\Genre::Dubstep`
  * that `var_export()` would give. `data/releases.php` imports its enums at the top and every entry

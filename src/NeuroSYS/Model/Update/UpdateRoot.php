@@ -76,11 +76,10 @@ enum UpdateRoot: string
      * Whether this root is a tree rather than a single file.
      *
      * **A fact about the vocabulary, answered without touching a filesystem**, which is the point:
-     * this enum used to answer it by resolving the root's directory, so deciding whether a name was
-     * under `public/` meant resolving where `public/` *is*. That coupled a question about a string
-     * to a question about the environment, and the two disagreed in exactly one situation — a test
-     * pointing DOCUMENT_ROOT somewhere else — where the disagreement deleted a tree. Where a root
-     * lands is {@link Deployment}'s to say now.
+     * deciding whether a name is under `public/` must not mean resolving where `public/` *is*.
+     * Coupling a question about a string to a question about the environment lets a test that
+     * points DOCUMENT_ROOT somewhere else reach the live tree, and the mirror deletes what it
+     * reaches. Where a root lands is {@link Deployment}'s to say. See docs/history/api.md.
      *
      * @return bool
      */

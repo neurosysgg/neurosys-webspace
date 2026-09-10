@@ -14,10 +14,9 @@ use NeuroSYS\Service\Api\UpdateVersion;
 /**
  * The UpdateAction enum. What the `update` service can be asked to do.
  *
- * Two cases, and they are the two halves of a deploy: send the tree, and ask what is running. They
- * were one route and no route respectively — `/update` accepted a POST and there was no way at all
- * to ask the second question, which is why the answer used to be a `curl` against the home page
- * and a look at the asset URL in the markup.
+ * Two cases, and they are the two halves of a deploy: send the tree, and ask what is running — so
+ * that what is deployed is a question the endpoint answers rather than something read off the
+ * asset URLs in the home page's markup.
  */
 enum UpdateAction: string implements ApiAction
 {

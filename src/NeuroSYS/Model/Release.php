@@ -90,7 +90,7 @@ readonly class Release
      *
      * The third argument is what lets `is_a()` take a class-string rather than an object. A
      * collection declared for a scalar answers `false` to it and is still refused, which is the
-     * half of the old comparison worth keeping.
+     * half of a strict `!==` comparison worth keeping.
      *
      * @return void
      * @throws ReleaseVerificationException if either collection holds something else.

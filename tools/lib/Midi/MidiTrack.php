@@ -104,11 +104,10 @@ final readonly class MidiTrack
     /**
      * The two events every chunk ends with: a delta of nothing, and the meta that says stop.
      *
-     * **Public because {@link MidiFile}'s conductor chunk ends exactly the same way**, and used to
-     * spell the type as a bare `0x2F` — the one meta type in that file not named, sitting a line
-     * below its own `TEMPO` and `TIME_SIGNATURE` constants. So changing the value here could not
-     * have reached it, and a chunk missing this is one a player reads past the end of. Sharing the
-     * whole pair rather than exposing the constant is what leaves nothing to assemble twice.
+     * **Public because {@link MidiFile}'s conductor chunk ends exactly the same way.** Sharing the
+     * whole pair rather than exposing the constant leaves nothing to assemble twice: a type spelled
+     * there as a bare `0x2F` could drift from this one, and a chunk missing it is one a player reads
+     * past the end of.
      *
      * @return string
      */

@@ -262,8 +262,8 @@ final readonly class ExtractMidi implements Command
      * **Velocity goes wrong at both ends and the report says which.** 128 comes down to 127, and
      * FL's 0 — a note it plays silently — goes *up* to 1, because a note-on of velocity zero is a
      * note-off in this format and writing it literally would delete the note rather than quieten
-     * it. Both used to increment one counter under a line reading "clamped to 127", which is the
-     * wrong sentence about half of them.
+     * it. They are counted apart, because one line reading "clamped to 127" would be the wrong
+     * sentence about half of them.
      *
      * @param list<PlacedNote> $placed
      * @param Output           $output
@@ -288,8 +288,8 @@ final readonly class ExtractMidi implements Command
             // **Counted in two directions, because they are two different facts.** One clamp does
             // both — FL counts velocity to 128 where MIDI stops at 127, and FL also writes 0 for a
             // note it plays silently, which MIDI reads as a note-off rather than as a quiet note.
-            // Reporting them together said "clamped to 127" about a note that had been raised to 1,
-            // which is a report describing the opposite of what happened to it.
+            // Reporting them together would say "clamped to 127" about a note raised to 1, which is
+            // a report describing the opposite of what happened to it.
             $lowered += $velocity < $note->note->velocity ? 1 : 0;
             $raised  += $velocity > $note->note->velocity ? 1 : 0;
 

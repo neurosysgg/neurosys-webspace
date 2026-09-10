@@ -84,11 +84,6 @@ DirectoryIndex index.php
 # tier is last and wins for the files it matches. The reasoning is on that block; read it before
 # moving anything, because a reordering here is silent — a year-long `immutable` on an unversioned
 # URL, or an hour on the versioned assets, and nothing in either test suite can see a real header.
-#
-# This paragraph used to describe an `env=!VERSIONED` condition on the short tier instead, and say
-# that "neither depends on where it sits in the file". That approach was tried, rejected for the
-# reason the block below gives, and the sentence outlived it — so for a while this file opened by
-# telling a reader the opposite of what it does, in the one place where being wrong is expensive.
 <IfModule mod_headers.c>
     <FilesMatch "\.(css|js)$">
         Header set Cache-Control "public, max-age=3600"

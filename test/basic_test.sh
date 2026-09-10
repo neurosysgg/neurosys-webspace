@@ -669,8 +669,7 @@ SERVER_PID=$!
 trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
 
 # Both branches above must pass the router, or the versioned asset URLs 404 in one of them and not
-# the other. That is how this was found: `composer test` was green and `composer coverage` was not,
-# because only one of the two invocations had been given it.
+# the other — `composer test` green and `composer coverage` not. See docs/history/frontend.md.
 # `dev-rou[t]er` so the pattern does not match the line it is written on — the same idiom as
 # `ps aux | grep [f]oo`. Without it this counts itself and passes with one invocation patched.
 if [[ $(grep -cE -- '-S "localhost:\$PORT" -t "\$REPO/public" "\$REPO/tools/dev-rou[t]er\.php"' "$0") -eq 2 ]]; then
@@ -703,9 +702,9 @@ check_status "GET /releases/no-such-slug         → 404" "$BASE/releases/no-suc
 check_status "GET /releases/hello-world/badformat→ 404" "$BASE/releases/hello-world/badformat" 404
 check_status "GET /notfound                      → 404" "$BASE/notfound"                       404
 
-# Targets parse_url() will not parse. Every one of these was a 500 before Request::normalisePath():
-# parse_url() returns false on failure, `?? '/'` only catches null, and the false reached rtrim() as
-# an uncaught TypeError — in fromGlobals(), so ahead of the router and ahead of the read-only gate.
+# Targets parse_url() will not parse. It returns false on failure and `?? '/'` only catches null, so
+# read that way each of these is an uncaught TypeError in fromGlobals() — a 500 ahead of the router
+# and the read-only gate. Request::normalisePath() asks the RFC 3986 parser instead.
 # Worth a real request rather than only a unit test: what was wrong was the status code, and PHPUnit
 # sees an exception either way.
 check_status "GET /// is the root                → 200" "$BASE///"                             200
@@ -926,8 +925,8 @@ check_body "the profile element is rendered"         "$BASE/"              '<sou
 # ViewTest's and vocabulary.test.mjs's — it would fail here on the terminal's own tags, which are
 # registered but built by <terminal-window> rather than written out by any view.
 #
-# Read from the enum rather than grepped out of the TypeScript: the tag names stopped being string
-# literals when Tag arrived, and the parity test is what ties this list to the client's copy.
+# Read from the enum rather than grepped out of the TypeScript: the tag names are Tag cases, not
+# string literals, and the parity test is what ties this list to the client's copy.
 registered=$(php -r "require '$REPO/autoload.php';
                      foreach (NeuroSYS\View\Html\Tag::cases() as \$t) echo \$t->value, PHP_EOL;" \
              | sort -u)
@@ -1012,8 +1011,8 @@ check_header "headers reach a 303 too"                "$BASE/releases/ill/flac" 
 check_header "transport policy reaches a 401 too"     "$BASE/admin/stats"  "^strict-transport-security:"
 check_header "headers reach a 404 too"                "$BASE/nope"         "^content-security-policy:"
 
-# ViewResponse used to send no Content-Type at all and inherit PHP's default_mimetype — right by
-# accident of the runtime's ini, and unwritten anywhere. It matters most for the AJAX fragment,
+# ViewResponse sends Content-Type itself rather than inheriting PHP's default_mimetype, which is
+# right only by accident of the runtime's ini. It matters most for the AJAX fragment,
 # which carries no <meta charset> of its own, so the header is all a browser has to go on.
 check_header "a page declares its type and encoding"  "$BASE/"             "^content-type: text/html; charset=utf-8"
 check_header "  the 404 does too"                     "$BASE/nope"         "^content-type: text/html; charset=utf-8"

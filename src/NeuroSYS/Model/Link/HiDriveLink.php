@@ -10,8 +10,8 @@ use NeuroSYS\Exception\ReleaseVerificationException;
 /**
  * The HiDriveLink class. A file shared from HiDrive, addressed by its share id.
  *
- * Replaces the full share URLs that used to be pasted into `data/releases.php` — every
- * one of them the same endpoint with a different 9-character id on the end.
+ * Takes the id rather than a full share URL, because every share URL is the same endpoint
+ * with a different 9-character id on the end.
  *
  * {@link self::BASE} is HiDrive's **direct-download** endpoint: it responds with the file
  * itself, which is what both an `<img src>` and a download redirect need. HiDrive's web UI

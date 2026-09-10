@@ -722,11 +722,10 @@ final class UpdateTest extends TestCase
     /**
      * An applier that can only reach the sandbox.
      *
-     * **The important word is *only*.** This used to be `new UpdateApplier()`, with the sandbox
-     * supplied through `$_SERVER['DOCUMENT_ROOT']` — which reached `Config::webroot()`, which
-     * grafted the sandbox's *basename* onto the real deployment directory and handed back this
-     * repository's `public/`. `src/` was never redirected at all. The mirror then deleted both.
-     * Injecting the whole {@link Deployment} is what makes that unreachable rather than unlikely.
+     * **The important word is *only*.** A sandbox supplied through `$_SERVER['DOCUMENT_ROOT']`
+     * reaches `Config::webroot()`, whose job is to find the *real* deployment, and `src/` is not
+     * redirected by it at all. Injecting the whole {@link Deployment} is what makes the live tree
+     * unreachable from a test rather than unlikely. See docs/history/api.md.
      *
      * @return UpdateApplier
      */

@@ -92,8 +92,8 @@ final class HtmlTest extends TestCase
     }
 
     /**
-     * The reason this class exists. Escaping used to be a htmlspecialchars() call per attribute at
-     * every call site, and forgetting one is an injection — so it happens here, once, or not at all.
+     * The reason this class exists. A htmlspecialchars() call per attribute at every call site is
+     * an injection the first time one is forgotten — so escaping happens here, once, or not at all.
      *
      * @return void
      */
@@ -387,11 +387,10 @@ final class HtmlTest extends TestCase
     /**
      * The children are a `Collection<Node>`, so the constructor is checked and not merely annotated.
      *
-     * `containing()` is a variadic and PHP has always guarded it; the constructor took a plain
-     * `array` whose `list<Node>` lived in a docblock, which is the arrangement the attributes were
-     * moved out of one parameter earlier on the same signature. A string getting in that way was
-     * not a TypeError naming the element — it was a fatal in `renderChildren()` calling `render()`
-     * on a string, at whatever depth of the tree it happened to sit.
+     * `containing()` is a variadic and PHP guards it; the constructor takes a collection for the
+     * same reason its attributes do. A plain `array` whose `list<Node>` lived in a docblock would
+     * let a string in, and that is not a TypeError naming the element — it is a fatal in
+     * `renderChildren()` calling `render()` on a string, at whatever depth of the tree it sits.
      *
      * @return void
      */
@@ -1124,11 +1123,11 @@ final class HtmlTest extends TestCase
         yield 'backslash authority'      => ['/\evil.example/x'];
         yield 'backslash authority, deep' => ['/\\\\evil.example'];
 
-        // And the two the enumerated prefix list did not have, which is why there is no longer a
-        // list. The WHATWG parser strips tab, CR and LF from a URL *before* parsing it, so by the
-        // time anything resolves these they are `//evil.example` — while every "starts with a
-        // slash" test, including the one this class used to run, says they are paths on this site.
-        // Element asks the parser now, so it refuses whatever the parser calls an authority rather
+        // And the two an enumerated prefix list misses, which is why there is no list. The WHATWG
+        // parser strips tab, CR and LF from a URL *before* parsing it, so by the time anything
+        // resolves these they are `//evil.example` — while every "starts with a slash" test says
+        // they are paths on this site. See docs/history/markup.md.
+        // Element asks the parser, so it refuses whatever the parser calls an authority rather
         // than whatever somebody thought to write down.
         yield 'authority behind a newline' => ["/\r\n/evil.example"];
         yield 'authority behind a tab'     => ["/\t/evil.example"];
@@ -1212,9 +1211,9 @@ final class HtmlTest extends TestCase
      * Both guarantees live in render(), which is what makes this class the boundary it claims to be.
      *
      * An element assembled by handing the constructor its attributes outright gets exactly the same
-     * treatment as one built through attr(). It did not before: attr() escaped on the way *in* and
-     * render() emitted whatever it found, so the constructor was a way around escaping entirely — a
-     * public one, documented as taking values that were already escaped and trusted to have been.
+     * treatment as one built through attr(), because both guarantees live in render(). Applied on
+     * the way *in* instead, they would make the constructor a way around escaping entirely — a
+     * public one.
      *
      * @return void
      */
@@ -1248,10 +1247,9 @@ final class HtmlTest extends TestCase
     // ───────────────────────────── markup read back in ─────────────────────────────
 
     /**
-     * The hole is closed, and this is the test that says so.
+     * The policy is parsed, and this is the test that says so.
      *
-     * `RawHtml` used to emit the two halves of the policy verbatim, checked by nothing but a
-     * docblock. {@link MarkupParser} reads the same two files instead, so every element and every
+     * {@link MarkupParser} reads the two halves of the policy, so every element and every
      * attribute in them has to be one this site emits — which makes this the regression test that
      * matters: it is what fails the day a re-export from e-recht24 brings a tag the enums do not
      * have, rather than that tag reaching a page unread.

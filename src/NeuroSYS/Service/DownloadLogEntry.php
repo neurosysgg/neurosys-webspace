@@ -79,19 +79,19 @@ readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable,
      * wrote, so it is the only place the shape has to be *checked* rather than known.
      * {@link \NeuroSYS\Controller\StatsController} skips whatever comes back null, and the whole
      * job of this method is to make sure a line it cannot use comes back that way instead of some
-     * other way. Two things it used to get wrong:
+     * other way. Two lines look usable and are not, and both are refused:
      *
-     * - Decoding was `assoc: true`, which renders `{}` and `[]` as the same empty array — so a log
-     *   line of `[1,2,3]` passed the `is_array()` guard and hydrated into an entry of four empty
-     *   strings, counted in the total and filed under `/`. Corrupt input read as real data.
-     *   Decoding to an object distinguishes the two, because an object is what an entry is.
-     * - Nothing checked the *values*. A field holding a number, a bool or a nested object went
+     * - **An array that is not an object.** `assoc: true` decodes `{}` and `[]` to the same empty
+     *   array, so a log line of `[1,2,3]` would pass an `is_array()` guard and hydrate into an entry
+     *   of four empty strings, counted in the total and filed under `/`. Decoding to an object
+     *   tells the two apart, because an object is what an entry is.
+     * - **A value of the wrong type.** A field holding a number, a bool or a nested object would go
      *   straight to a `string`-typed constructor, and under `strict_types=1` that is an uncaught
-     *   TypeError — so a single malformed line took the entire stats page down with a 500 rather
-     *   than being skipped, which is the opposite of what the caller asks for.
+     *   TypeError — one malformed line taking the whole stats page down with a 500 rather than being
+     *   skipped, which is the opposite of what the caller asks for.
      *
-     * A *missing* field is still an empty one. That is deliberate and older than this note; see the
-     * test named for it. Present-but-wrong-type is the different case, and it is refused.
+     * A *missing* field is an empty one, deliberately; see the test named for it. Present-but-wrong-
+     * type is the different case, and it is refused.
      *
      * @param string $json
      * @return ?static

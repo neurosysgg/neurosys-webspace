@@ -47,8 +47,9 @@ const peaks = (columns) => Buffer.from(columns.flat()).toString('base64');
  * Given a size and a bounding box, because jsdom has no layout and every box is otherwise 0×0.
  *
  * The shape is stated rather than inferred: a destructured parameter with a `= {}` default drops
- * every property that has no default of its own, so `peaks` — the one that matters here — was not
- * in the inferred type at all, and the twenty-six call sites that pass it were checking nothing.
+ * every property that has no default of its own, so without it `peaks` — the one that matters
+ * here — would not be in the inferred type at all, and every call site passing it would check
+ * nothing. See docs/history/coverage.md.
  *
  * @param {{peaks?: string, duration?: string, audio?: boolean, styled?: boolean}} [options]
  * @returns {HTMLElement}

@@ -3,18 +3,14 @@
   // tools/*.mjs and emits nothing.
   //
   // These four files write the three committed artefacts — style.css, public/assets/js/ and
-  // AssetManifest.php — and until this config existed nothing checked them at all. What already
-  // guards them is the verify script, which rebuilds each one and diffs it byte-for-byte; that
-  // catches a tool that produces the wrong bytes, and cannot catch a tool that crashes on a path
-  // it has never taken. Turning the checker on found two of those in the first run: terser's
-  // MinifyOutput has carried no `error` property since terser 5, so build-prod.mjs's failure
-  // message had been printing the fallback half of a `??` for as long as it had existed, and
-  // esbuild's outputFiles[0] was read without anything saying it was there.
+  // AssetManifest.php. The verify script rebuilds each one and diffs it byte-for-byte, which
+  // catches a tool that produces the wrong bytes and cannot catch one that crashes on a path it has
+  // never taken; that second kind is what this config is for. See docs/history/coverage.md.
   //
   // Same strictness as tsconfig.json, deliberately — including noUncheckedIndexedAccess, which is
-  // what most of that first run was. Where a loop bound or an earlier check is the proof the
-  // checker cannot read, the site carries a `@type` cast and a sentence saying which; a guard
-  // there would be the dead defensive branch this project refuses elsewhere.
+  // where a build tool's unchecked reads show up. Where a loop bound or an earlier check is the
+  // proof the checker cannot read, the site carries a `@type` cast and a sentence saying which; a
+  // guard there would be the dead defensive branch this project refuses elsewhere.
   "include": ["tools/*.mjs"],
 
   "compilerOptions": {

@@ -29,10 +29,10 @@ use NeuroSYS\Tool\Php\Value;
  *
  * **Nothing here writes PHP as a string.** It composes {@link \NeuroSYS\Tool\Php\Expression}s and
  * one renderer turns them into source — the same arrangement the markup tree has, for the same
- * reason. This used to be a heredoc with `%s` holes, which meant `MusicalKey::DSharpMinor` was
- * assembled by concatenating a class name onto `$key->name`: a spelling nothing checked, in the one
- * file whose failure mode is a data file that will not parse. Now the case is passed as a real
- * `MusicalKey` and `Value` asks it what it is called.
+ * reason. A heredoc with `%s` holes would assemble `MusicalKey::DSharpMinor` by concatenating a
+ * class name onto `$key->name`: a spelling nothing checks, in the one file whose failure mode is a
+ * data file that will not parse. Here the case is passed as a real `MusicalKey` and `Value` asks it
+ * what it is called.
  *
  * **`var_export()` on the whole `Release` was the obvious version of that idea, and it is the wrong
  * output.** It works — PHP emits `\NeuroSYS\Model\Release::__set_state(array(…))` and would
@@ -71,12 +71,12 @@ final readonly class EntryWriter
     /**
      * The entry, with the player either written out or written down.
      *
-     * **The second argument is the one thing about a release that used to have no source at all.**
-     * The three SoundCloud ids do not exist until the track is uploaded, so this has always emitted
-     * them commented out, as a line to fill in by hand from an embed dialog. `release-track` is
-     * where they now come from, and it hands the resulting {@link SoundCloudEmbed} straight back
-     * here — so the entry printed after an upload and the entry printed before one are the same
-     * code with one argument different.
+     * **The second argument is the one thing about a release a folder cannot supply.** The three
+     * SoundCloud ids do not exist until the track is uploaded, so without it they are emitted
+     * commented out, as a line to fill in by hand from an embed dialog. `release-track` uploads the
+     * track and hands the resulting {@link SoundCloudEmbed} straight back here — so the entry
+     * printed after an upload and the entry printed before one are the same code with one argument
+     * different.
      *
      * @param ReleaseFolder        $folder
      * @param SoundCloudEmbed|null $embed Null for a track that has not been uploaded yet.

@@ -13,9 +13,9 @@ use NoDiscard;
 /**
  * The ContentSecurityPolicy class. A Content-Security-Policy assembled from typed parts.
  *
- * Replaces the hand-written string this used to be — a policy is now a set of
- * {@link CspDirective}s, each mapped to {@link CspSource}s, and the header text is generated.
- * A misspelled directive or an unquoted `self` stops being possible.
+ * A policy is a set of {@link CspDirective}s, each mapped to {@link CspSource}s, and the header
+ * text is generated rather than hand-written, so a misspelled directive or an unquoted `self`
+ * cannot be written.
  *
  * Immutable: {@link self::allow()} returns a new instance, so a policy can be built up in a
  * readable chain without any step being able to mutate an earlier one.

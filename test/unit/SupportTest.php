@@ -240,7 +240,7 @@ final class SupportTest extends TestCase
 
     /**
      * The fault this exists for: `instanceof` answers `false` for a string naming no class, so a
-     * misspelled type used to be a collection that silently rejected everything.
+     * misspelled type would be a collection that silently rejects everything.
      *
      * @return void
      */
@@ -521,12 +521,12 @@ final class SupportTest extends TestCase
     }
 
     /**
-     * The inversion, and the behaviour change with the widest blast radius.
+     * The behaviour with the widest blast radius.
      *
-     * This used to reindex, on the reasoning that `array_map` given two arrays returns one — the
-     * implementation talking rather than the type. A `SearchableCollection` is a map, and the whole
-     * reason `ReleasesView` can name each release by its slug is that it stays one through a
-     * `map()`. What follows is that the result can no longer be spread into a call, since string
+     * `map()` keeps keys rather than reindexing the way `array_map` given two arrays does — that
+     * would be the implementation talking rather than the type. A `SearchableCollection` is a map,
+     * and the whole reason `ReleasesView` can name each release by its slug is that it stays one
+     * through a `map()`. What follows is that the result cannot be spread into a call, since string
      * keys are named arguments, so a spreading call site asks {@link Collection::toValues()} and
      * says so.
      *

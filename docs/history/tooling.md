@@ -149,3 +149,85 @@ secret and a rotating refresh token."
 
 > Written because a remix package wants MIDI and the only way to get it was FL's own export dialog in
 > the Windows VM — which is why `hello world!`'s package has one and `ill`'s does not.
+
+## From the code comments
+
+*Moved out of comments under `tools/` and `test/` when those were brought to the present tense.
+Quoted as they stood; an ellipsis marks where a sentence ran on into the rule it supported, which
+stays in the code.*
+
+### 2026-09-05 — an apostrophe in a title (`9e95ccc`)
+
+From `ReleaseFolderTest`:
+
+> one with an apostrophe in it used to be a data file that would not parse.
+
+### 2026-09-05 — provenance keyed by strings (`08f55ab`)
+
+> The report used to key its provenance by field-name strings…
+
+### 2026-09-06 — `--clover=` with nothing after it (`15397cd`)
+
+From `CliTest` and `Cli/Input.php`:
+
+> `--clover=` stored an empty string, so `has()` said the flag was given and `value()` handed the
+> empty path on — `merge-coverage` then died inside a report writer with a stack trace rather than
+> here with a sentence.
+
+> Only one of them used to reach this: the other stored an empty string, `has()` said the flag was
+> given, and `merge-coverage` handed the empty path to a report writer that died with a stack trace.
+
+### 2026-09-06 — an `unpack()` per offset (`15397cd`)
+
+From the `.flp` reader:
+
+> It used to `unpack('P', substr(…))` at each of those offsets — two allocations a byte…
+
+### 2026-09-06 — an empty zip read as an OK (`15397cd`)
+
+From `Release/Preflight.php`:
+
+> It used to reach the count below and read as an OK — `0 files in the zip, with no loose folder to
+> disagree`…
+
+### 2026-09-06 — pending arguments rendered anyway (`15397cd`)
+
+From `ReleaseFolderTest` and `Release/EntryWriter.php`:
+
+> Both used to render, and neither result was a call anybody meant. `Argument::comment()` came out as
+> `new Format('a', , 'b')` … The commented-out one came out as `new Format('a', b: 'b')`, which
+> **parses**
+
+### 2026-09-06 — the embed line was a placeholder, and its names a list (`7f52764`)
+
+From `Release/EntryWriter.php`:
+
+> The line that used to be a placeholder, written out because there are now ids for it.
+
+> A `list<string>` before this, which meant the three names existed twice…
+
+### 2026-09-06 — the response keys were literals (`c8bd783`)
+
+From `SoundCloud/UploadedTrack.php`:
+
+> This paragraph said exactly that while the five keys below were still string literals; the enum is
+> it being acted on.
+
+### 2026-09-07 — `--rotate` with a file named fell through to a full staging run (`8e60bbf`)
+
+From `Command/StageDemo.php` and its test:
+
+> `--rotate` used to be reachable only when no file was named, so `--rotate v4.flac` matched neither
+> branch and fell through to a full staging run: every mix transcoded again, a *new* password
+> minted, and a whole new entry printed
+
+### 2026-09-07 — the MIDI writer's three slips (`ebf98f0`)
+
+From `MidiTest`, `Midi/` and `Command/ExtractMidi.php`:
+
+> a tempo slow enough to need the fourth used to lose it silently — 3 BPM writing itself as roughly
+> 18.6 … every other value this package cannot hold throws and this one was the exception.
+
+> …and used to spell the type as a bare `0x2F` — the one meta type in that file not named…
+
+> Both used to increment one counter under a line reading 'clamped to 127'…

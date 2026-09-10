@@ -387,8 +387,8 @@ final class ViewTest extends TestCase
     }
 
     /**
-     * The command line quotes what it interpolates, which the two concatenations it replaced could
-     * not: a quote written into a literal is just a character.
+     * The command line quotes what it interpolates, which a concatenation cannot: a quote written
+     * into a literal is just a character.
      *
      * @param string $expected
      * @param string $program
@@ -863,8 +863,8 @@ final class ViewTest extends TestCase
 
     /**
      * The title is what the tab says and what Navigation writes into document.title after a swap.
-     * Six views used to spell out `' — neuro.SYS'` between them, which is six chances to use a
-     * hyphen where the others use an em dash and never notice.
+     * The `' — neuro.SYS'` suffix is added in one place rather than by each view, so no view can
+     * use a hyphen where the others use an em dash and never notice.
      *
      * @return void
      */

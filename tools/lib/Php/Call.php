@@ -163,11 +163,10 @@ final readonly class Call implements Expression
      * `// …` between arguments, and {@link Argument::pending()} is an argument written out and
      * commented so a person can uncomment it. An inline call has no lines to put either on.
      *
-     * Rendering them anyway is what this used to do, and neither result was a call anybody meant:
-     * a bare comment came out as `new Format('a', , 'b')`, which is a syntax error, and a pending
-     * argument came out as `new Format('a', b: 'b')` — which parses, so a line meant to be
-     * uncommented later would have shipped as live code in `data/releases.php`. The second is the
-     * one worth throwing over.
+     * Rendering them anyway would produce nothing anybody meant: a bare comment comes out as
+     * `new Format('a', , 'b')`, which is a syntax error, and a pending argument as
+     * `new Format('a', b: 'b')` — which parses, so a line meant to be uncommented later would ship
+     * as live code in `data/releases.php`. The second is the one worth throwing over.
      *
      * @param string $indent
      * @return list<string>

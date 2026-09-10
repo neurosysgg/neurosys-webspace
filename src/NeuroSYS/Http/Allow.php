@@ -11,9 +11,9 @@ use NeuroSYS\Support\Collection;
  *
  * Built by filtering {@link HttpMethod::cases()} on {@link HttpMethod::isReadOnly()} rather than
  * written out, so the header cannot claim something the gate does not do. That derivation is the
- * whole value of the type: a hand-written `'Allow: GET, HEAD'` and the `if (!$request->isReadOnly())`
- * in {@link \NeuroSYS\Router} are two statements of one rule, and marking a method read-only used to
- * mean remembering to edit both.
+ * whole value of the type: a hand-written `'Allow: GET, HEAD'` beside the `isReadOnly()` question
+ * {@link \NeuroSYS\Support\MethodPolicy::ReadOnly} asks would be two statements of one rule, and
+ * marking a method read-only would mean remembering to edit both.
  */
 final readonly class Allow implements HeaderValue
 {

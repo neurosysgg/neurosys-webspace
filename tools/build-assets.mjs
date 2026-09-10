@@ -5,7 +5,7 @@
  *
  * Two jobs that have to be one tool, because the second depends on the first:
  *
- *   1. Version. `/assets/js/model/Tag.js?v=a1b2c3d4` is a different URL from the same file at a
+ *   1. Version. `/assets/js/v-a1b2c3d4/main.js` is a different URL from the same file at a
  *      different version, so it can be cached for a year with `immutable`. Without it the site
  *      asks for `/assets/js/main.js` by that exact name forever, and a long max-age would mean
  *      "keep serving the old one after we replace it" rather than "keep this one".
@@ -13,9 +13,9 @@
  *      the browser would otherwise spend five sequential round trips learning what to fetch.
  *      `<link rel="modulepreload">` in <head> flattens that to one.
  *
- * The href in a preload hint must match the specifier the module actually resolves, query and all,
- * or the browser fetches the file twice and the hint is worse than useless. That is why one tool
- * owns both: the hash it stamps into a specifier is the hash it writes into the manifest.
+ * The href in a preload hint must match the URL the module actually resolves to, stamp and all, or
+ * the browser fetches the file twice and the hint is worse than useless. That is why one tool owns
+ * both: the stamp in every URL the manifest names is the one every import resolves under.
  *
  * **A version segment in the path, not a renamed file and not a query.** `Tag.a1b2c3d4.js` is the
  * conventional shape and would break every test that imports `public/assets/js/model/Tag.js` by
@@ -242,14 +242,12 @@ walk(ENTRY, 'the build');
 /**
  * One hash over every built asset, rather than one per file.
  *
- * Per-file would be better — editing one element would bust that element and its ancestors instead
- * of all forty-two — and it is what an earlier version of this tool did, by writing the hash into
- * each import specifier as `?v=`. That works in a browser and it cost the front end's 100% coverage
- * gate: a module reached through a stamped specifier is attributed by V8 to
- * `…/CoverArt.js?v=48f0b166`, which `--test-coverage-include` does not match, so every module the
- * tests reach through `main.js` reported zero and `--test-coverage-include-all` listed the bare path
- * as uncovered. The gate is a deliberate property and worth more than per-file granularity over
- * twelve kilobytes.
+ * Per-file would bust less — editing one element would bust that element and its ancestors instead
+ * of all forty-nine — but the only per-file shape that keeps every path intact is `?v=` on each
+ * import specifier, and V8 attributes a module reached that way to `…/CoverArt.js?v=48f0b166`,
+ * which `--test-coverage-include` does not match: every module the tests reach through `main.js`
+ * would report zero. The gate is a deliberate property and worth more than per-file granularity
+ * over a few kilobytes. See docs/history/frontend.md.
  *
  * Putting the version in the *path* instead costs nothing, because a relative specifier resolves
  * against the URL it was loaded from: `/assets/js/v-a1b2c3d4/main.js` importing `./model/Tag.js`

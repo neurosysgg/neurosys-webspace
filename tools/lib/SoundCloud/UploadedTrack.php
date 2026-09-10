@@ -44,11 +44,10 @@ final readonly class UploadedTrack
      *
      * The keys are the provider's, and they are {@link TrackKey} cases because a key read wrongly
      * here is *silent* in the way {@link TrackField} describes: `permalink_url` misspelled is an
-     * empty string, and an empty string is a plausible-looking absence. This paragraph said exactly
-     * that while the five keys below were still string literals; the enum is it being acted on.
+     * empty string, and an empty string is a plausible-looking absence.
      *
      * Still read defensively — {@link JsonBody} answers `''` and `0` for a key that is absent or
-     * carries the wrong type, which is what each of these lines used to do for itself. What stops a
+     * carries the wrong type. What stops a
      * plausible absence reaching `data/releases.php` is {@link self::embed()}, where the two ids
      * that matter meet `SoundCloudEmbed`'s own constructor and its verification.
      *

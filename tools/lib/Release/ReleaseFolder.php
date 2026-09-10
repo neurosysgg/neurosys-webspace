@@ -156,7 +156,7 @@ final readonly class ReleaseFolder
         }
 
         // ??=, not =: a key already resolved from the project's own scale marker outranks anything
-        // a filename or a tag could be parsed into, and this line used to be the only assignment.
+        // a filename or a tag could be parsed into.
         $key ??= $rawKey !== null ? KeyNotation::parse($rawKey) : null;
         $genre = $rawGenre !== null ? Genre::tryFrom($rawGenre) : null;
 

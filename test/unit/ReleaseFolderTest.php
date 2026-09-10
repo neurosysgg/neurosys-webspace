@@ -255,9 +255,9 @@ final class ReleaseFolderTest extends TestCase
     /**
      * A string that would break the source is quoted rather than escaped by hand.
      *
-     * This is what `var_export()` is there for, and what a heredoc with `%s` holes was not doing: a
-     * release title is arbitrary text, and one with an apostrophe in it used to be a data file that
-     * would not parse.
+     * This is what `var_export()` is there for, and what a heredoc with `%s` holes cannot do: a
+     * release title is arbitrary text, and an apostrophe in one must not make a data file that
+     * will not parse.
      *
      * @return void
      */
@@ -270,10 +270,10 @@ final class ReleaseFolderTest extends TestCase
     /**
      * A comment is a line, so a call written on one line refuses to carry one.
      *
-     * Both used to render, and neither result was a call anybody meant. `Argument::comment()` came
-     * out as `new Format('a', , 'b')` — a syntax error, which at least announces itself. The
-     * commented-out one came out as `new Format('a', b: 'b')`, which **parses**: a line whose whole
-     * purpose is to be uncommented later would have gone into `data/releases.php` as live code.
+     * Rendered, neither would be a call anybody meant. `Argument::comment()` would come out as
+     * `new Format('a', , 'b')` — a syntax error, which at least announces itself. The commented-out
+     * one would come out as `new Format('a', b: 'b')`, which **parses**: a line whose whole purpose
+     * is to be uncommented later would go into `data/releases.php` as live code.
      *
      * @return void
      */
@@ -596,7 +596,7 @@ final class ReleaseFolderTest extends TestCase
 
     /**
      * The provenance of a cover is the thing that decides whether the preflight warns about it, so
-     * it is compared as an enum case rather than as the string it used to be on both sides.
+     * it is compared as an enum case rather than as a string on both sides.
      *
      * @return void
      */

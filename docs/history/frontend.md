@@ -156,3 +156,44 @@ one tag where it used to be a subtree.
 
 From contracts.md, on the fragment request: it was harmless while nothing cached; it stopped being
 harmless the moment `ViewResponse` started sending an `ETag`.
+
+## From the code comments
+
+*Moved out of comments under `assets/`, `test/` and the tooling config when those were brought to
+the present tense. Quoted as they stood; an ellipsis marks where a sentence ran on into the rule it
+supported, which stays in the code.*
+
+### 2026-09-04 — the cover fallback was an inline `onerror=` (`7c78113`, `156de9d`)
+
+> …which is what the old complete && naturalWidth check was working around. The fallback was an
+> inline onerror= attribute once…
+
+> The fallback used to be an inline onerror= attribute, which a strict script-src forbids.
+
+### 2026-09-04 — the embed attribute name lived in two files (`9d72237`)
+
+> …the name existed in two files once, where a typo on either side broke the other in silence.
+
+### 2026-09-04 — what the element tests took over from the PHP ones (`a083c29`, `1d31d35`)
+
+> these cases stand in for what ViewTest used to assert about the server's markup.
+
+> These cases were EmbedTest's until the widget URL and the attribution moved into the element.
+
+> EmbedTest used to assert the query string here — that assertion lives in
+> test/js/soundcloud-player.test.mjs now
+
+### 2026-09-05 — the home page and the no-JS list (`4f1cdd4`)
+
+> The home page used to be on that list and no longer is
+
+### 2026-09-09 — `public/` committed for a different reason (`e1f08a5`)
+
+From `.gitignore`:
+
+> …committed on purpose, and no longer for the reason this said: deploy.sh ships build/dist/public/
+> now…
+
+### 2026-09-05 — the fragment response's order (`8e931d3`)
+
+From `ViewResponse`: "which is the opposite of the order this used to run in".

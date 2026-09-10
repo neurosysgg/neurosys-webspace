@@ -19,14 +19,13 @@ use NeuroSYS\View\Terminal\TerminalAttribute;
 /**
  * The MarkupParser class. Reads the grammar {@link Element} writes, back into the tree.
  *
- * This is what replaced `RawHtml`, the node that emitted a trusted string verbatim. That class
- * existed for the two halves of `data/privacy.*.html` — a hand-authored document rather than markup
- * a view assembles — and everything standing behind it was prose and an audit: a docblock saying
- * never to construct one from anything a request can influence, and a test pinning its call sites
- * to one file. A convention with a test behind it is not a guarantee, and it left one place where
- * the four mistakes {@link Element} exists to remove were all possible again.
+ * It exists for the two halves of `data/privacy.*.html` — a hand-authored document rather than
+ * markup a view assembles — so that they do not need a node that emits a trusted string verbatim,
+ * guarded by nothing but a docblock and a test pinning its call sites. A convention with a test
+ * behind it is not a guarantee, and it would leave one place where the four mistakes
+ * {@link Element} exists to remove were all possible again. See docs/history/markup.md.
  *
- * A parse makes the guarantee structural instead. The document comes in through the same door as
+ * A parse makes the guarantee structural. The document comes in through the same door as
  * everything else: an element name has to be a {@link TagName} case, an attribute name has to be an
  * {@link AttributeName} case, text is escaped by {@link Text::render()}, and a URL attribute is
  * scheme-checked by {@link Element::render()} like any other. Nothing is trusted for where it came
@@ -42,7 +41,7 @@ use NeuroSYS\View\Terminal\TerminalAttribute;
  *
  * **What it costs, measured rather than assumed.** Per half of the policy, with no Xdebug loaded:
  * 0.071 ms to parse, 0.242 ms to walk into the tree, 0.262 ms for {@link Element::render()} to write
- * it back out — against the 0.004 ms the old verbatim `str_replace` took. So `/privacy` pays about
+ * it back out. So `/privacy` pays about
  * **+1.14 ms** for both halves, which is the largest single cost this site has taken for a
  * guarantee. It is affordable because it is one route out of ten and the least-visited page on the
  * site; it would not be affordable on a page anyone loads twice.
@@ -99,8 +98,8 @@ final readonly class MarkupParser
      *
      * Answers with a collection rather than a single node because a document is not an element: the
      * German policy is 140 top-level nodes. {@link Element::containingHtml()} is what puts them
-     * somewhere, and is the only caller — a fact `HtmlTest` pins, the way it used to pin `RawHtml`'s
-     * constructor. **Never parse anything a request can influence.** Not because this would let it
+     * somewhere, and is the only caller — a fact `HtmlTest` pins. **Never parse anything a request
+     * can influence.** Not because this would let it
      * through — that is the whole point of the refusals — but because the vocabulary is this site's
      * own, so a visitor could otherwise decide which of our elements to build.
      *

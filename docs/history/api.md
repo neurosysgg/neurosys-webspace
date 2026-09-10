@@ -165,3 +165,62 @@ serial: the word `serial` exists in `ApiEnvelope` because it is a key of the sig
 writing it again as a caption in the report would have forced a `#[BareString]` onto *that* class
 for a word of this one's. The rule is symmetric, which is what made the duplication visible rather
 than arguable.
+
+## From the code comments
+
+*Moved out of comments under `tools/` and `test/` when those were brought to the present tense.
+Quoted as they stood; an ellipsis marks where a sentence ran on into the rule it supported, which
+stays in the code.*
+
+### 2026-09-08 — a push that sent an empty POST (`791fbc4`)
+
+From the push side of `tools/lib/Http/`:
+
+> …which is what it used to ask … that guard skipped attaching its body and sent an empty POST — and
+> the update endpoint … answered like an address that does not exist.
+
+### 2026-09-10 — the extension list, stated twice before it could be checked (`8f766f0`)
+
+From `HealthTest`:
+
+> The list existed in two places before — `composer.json` … and `test/basic_test.sh` … neither could
+> speak for the host. PhpExtension is the third statement of it and the first that can be compared
+
+### 2026-09-09 — the credential needed no magic of its own (`5baabd4`)
+
+From `AuthScheme` and `ApiCredential`:
+
+> this token is what replaced a magic: the credential needs no `NSU1` of its own
+
+> Its predecessor framed three segments into the request body and needed a prefix for each of the
+> first two and an `NSU1` in front
+
+### 2026-09-09 — `UpdatePatch` was `UpdateController` from the signature down (`5baabd4`)
+
+> It is what `UpdateController` used to be from the signature check down … What it is no longer is a
+> Controller
+
+### 2026-09-09 — the version question had no route (`5baabd4`)
+
+From `UpdateAction`:
+
+> They were one route and no route respectively — `/update` accepted a POST and there was no way at
+> all to ask the second question, which is why the answer used to be a `curl` against the home page
+> and a look at the asset URL in the markup.
+
+### 2026-09-09 — the replay guard armed after the write (`5baabd4`)
+
+From `ApiController`, telling the ordering in the entry above from the other side:
+
+> which is the one behaviour here that differs from the endpoint this replaces. That one wrote the
+> whole tree and then discovered it could not arm the replay guard
+
+### 2026-09-10 — both body-limit figures were wrong until `/api/health` could ask (`e2bf4e3`)
+
+From `ApiGate`:
+
+> **Both figures above were wrong until `/api/health` could ask**, which is worth recording rather
+> than quietly correcting, because the two were wrong in different ways. The ratio said *a fortieth*
+> and had been wrong since it was written: `post_max_size` on the live host is 128M, and 8 MiB is a
+> sixteenth of it, not a fortieth. The payload said 210 KB and had merely **drifted**, because it
+> grows with the codebase and nothing re-derived it.

@@ -649,7 +649,7 @@ final class SecurityPolicyTest extends TestCase
     }
 
     /**
-     * A `Location` is the one address the site emits that nothing used to look at.
+     * A `Location` is an address the site emits, so it is checked like every other one.
      *
      * Narrower than the spec on purpose: every redirect here goes to the file host, absolute and
      * over TLS. The newline case is the one that would matter most — PHP's `header()` refuses one

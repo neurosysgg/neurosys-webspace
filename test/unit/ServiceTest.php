@@ -295,13 +295,12 @@ final class ServiceTest extends TestCase
     }
 
     /**
-     * Missing is empty; present-but-not-a-string is a line to skip. The two are different cases and
-     * used to be the same one.
+     * Missing is empty; present-but-not-a-string is a line to skip. The two are different cases.
      *
      * Every field is typed `string`, and under `strict_types=1` a number, a bool or a nested object
      * reaching that constructor is an uncaught TypeError — not a null the caller can skip, a fatal.
      * {@link \NeuroSYS\Controller\StatsController} reads the log line by line and skips whatever
-     * comes back null, so before this a single malformed line 500'd the whole stats page instead.
+     * comes back null, which is what keeps a single malformed line from 500ing the whole stats page.
      *
      * @param string $json
      * @return void
@@ -366,9 +365,9 @@ final class ServiceTest extends TestCase
 
     /**
      * All a Profile carries is the pairing: the footer asks the platform for its own label, icon
-     * and height. It replaced an `['platform' => …, 'url' => …]` array shape, which is a value
-     * object nobody named — nothing checked the keys, and a caller destructuring it wrongly got
-     * null rather than an error.
+     * and height. A class rather than a `['platform' => …, 'url' => …]` array shape, which is a
+     * value object nobody named — nothing checks the keys, and a caller destructuring it wrongly
+     * gets null rather than an error.
      *
      * @return void
      */

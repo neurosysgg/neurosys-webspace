@@ -61,19 +61,17 @@ final class SecurityHeaders
     /**
      * Every header this class sends, as the typed pairs it sends them as.
      *
-     * This used to be {@link self::headers()} keyed by name, and `send()` turned each key back into
-     * a {@link SecurityHeader} with `from()` to build the {@link Header} — a case flattened to a
-     * string and parsed back one line later, purely because the value beside it had nowhere typed
-     * to live. Now that a value is a {@link HeaderValue}, the round trip has nothing to be for.
+     * Each is a {@link SecurityHeader} case beside its {@link HeaderValue}, so no case is flattened to
+     * a string and parsed back with `from()` one line later. See docs/history/security.md.
      *
      * A {@link Collection} rather than a list, because that is already what
      * {@link ViewResponse}, {@link PlainTextResponse} and {@link FileResponse} each take: the
      * headers a document sends were inside the type and the headers *every* response sends were
      * not, which is the wrong way round for the five that cover the 401 as well as the 200.
      *
-     * This runs on every request, so it is measured rather than assumed: **33.17 µs → 34.58 µs**,
-     * the construction plus one variadic `with()`, and in line with the 1.76 µs a `Collection` is
-     * documented to cost before it holds anything.
+     * This runs on every request, so it is measured rather than assumed: **34.58 µs**, about 1.4 µs
+     * more than a plain list for the construction plus one variadic `with()`, and in line with the
+     * 1.76 µs a `Collection` is documented to cost before it holds anything.
      *
      * @return Collection<Header>
      */

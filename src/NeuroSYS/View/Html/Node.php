@@ -12,12 +12,10 @@ namespace NeuroSYS\View\Html;
  * reaches the page is one of three things: an {@link Element}, escaped {@link Text}, or a
  * {@link Fragment} of those.
  *
- * **There used to be a fourth, and closing it is worth knowing about.** `RawHtml` emitted a trusted
- * string verbatim — the single audited hole, for the hand-authored privacy policy — and what
- * replaced it is {@link MarkupParser}, which reads that same document *into* these three. So markup
- * authored outside PHP is no longer an exception to the tree; it is a thing the tree can be built
- * from, and an element or an attribute the site does not emit is a refusal rather than a string
- * nobody read.
+ * **Hand-authored markup is not a fourth.** The privacy policy is read *into* these three by
+ * {@link MarkupParser}, so markup authored outside PHP is a thing the tree can be built from rather
+ * than an exception to it, and an element or an attribute the site does not emit is a refusal
+ * rather than a string nobody read. See docs/history/markup.md.
  *
  * **There is a second tree in this repo, and it is deliberately not this one.** The release tooling
  * emits `data/releases.php` through an expression tree of its own, `NeuroSYS\Tool\Php\Expression`,

@@ -19,28 +19,27 @@ use NeuroSYS\Exception\SecurityPolicyException;
  * pass in: a `Digest` or `Bearer` challenge has a different grammar and would be a different named
  * constructor rather than a different string. It is an {@link AuthScheme} case all the same — this
  * is the half that *writes* the token and {@link Request::fromGlobals()} is the half that reads it
- * back, and they used to spell it separately.
+ * back, and one spelling is what keeps them agreeing. See docs/history/security.md.
  *
- * **The realm is checked, and it was the one header value here that was not.** Every other
- * {@link HeaderValue} that carries something other than a fixed vocabulary validates it —
- * {@link Location} refuses anything but an absolute `https://` URL, {@link MimeType} refuses a
- * malformed subtype, {@link Security\CspHost} refuses anything but a bare origin. This
- * concatenated whatever it was handed straight into a quoted-string, and one of its three callers
- * builds the realm out of a **URL segment**: {@link \NeuroSYS\Service\Auth::demoRealm()} names each
- * demo's realm after its own slug, because that is what keeps one demo's saved password from being
- * volunteered to another demo's prompt. A `"` in that slug closed the quoted-string early and left
- * the rest of it as trailing rubbish in a response header, on the one route that exists to give
- * nothing away.
+ * **The realm is checked**, as every other {@link HeaderValue} that carries something other than a
+ * fixed vocabulary is — {@link Location} refuses anything but an absolute `https://` URL,
+ * {@link MimeType} refuses a malformed subtype, {@link Security\CspHost} refuses anything but a
+ * bare origin. It matters here in particular because one of its three callers builds the realm out
+ * of a **URL segment**: {@link \NeuroSYS\Service\Auth::demoRealm()} names each demo's realm after
+ * its own slug, because that is what keeps one demo's saved password from being volunteered to
+ * another demo's prompt. A `"` in that slug would close the quoted-string early and leave the rest
+ * of it as trailing rubbish in a response header, on the one route that exists to give nothing
+ * away.
  *
- * Two things worth knowing about how far that went and why it is still worth a check here:
+ * Two things worth knowing about how far that can go and why it is still worth a check here:
  *
- * - **It was never header injection.** PHP's `header()` refuses a value containing CR or LF, and no
- *   request line can carry a raw one, so the worst available outcome was a malformed challenge
+ * - **It is not header injection.** PHP's `header()` refuses a value containing CR or LF, and no
+ *   request line can carry a raw one, so the worst available outcome is a malformed challenge
  *   rather than a second header.
- * - **Production was already unaffected, by something this repository does not own.** Strato's
- *   proxy percent-encodes a non-`pchar` byte before PHP sees the target, so the realm arrived
+ * - **Production is protected by something this repository does not own.** Strato's proxy
+ *   percent-encodes a non-`pchar` byte before PHP sees the target, so the realm arrives
  *   well-formed there while the same request through a bare Apache 2.4 — the version the live host
- *   runs — did not. That is exactly the standing {@link Request::authorization()} already refuses
+ *   runs — does not. That is exactly the standing {@link Request::authorization()} already refuses
  *   to accept about the header both gates depend on: a shared host's behaviour is not a guarantee
  *   this code may rest on, and the failure is silent in both directions.
  *

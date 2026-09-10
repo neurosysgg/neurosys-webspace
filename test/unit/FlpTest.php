@@ -223,13 +223,13 @@ final class FlpTest extends TestCase
     }
 
     /**
-     * A length prefix long enough to overflow, which is the one that used to get through.
+     * A length prefix long enough to overflow.
      *
      * Ten continuation bytes push the shift to 63, `0x7F << 63` overflows to `PHP_INT_MIN`, and the
-     * length comes back **negative** — which sails through the overrun check above, because a
-     * negative size is always within bounds. `substr()` then read backwards and the cursor moved
-     * backwards, so the walk manufactured an event out of nothing and desynchronised further,
-     * silently. Ten bytes with the high bit set is unremarkable inside a plugin blob, which is
+     * length comes back **negative** — which a bounds check alone passes, because a negative size
+     * is always within bounds. `substr()` would then read backwards and the cursor move backwards,
+     * so the walk would manufacture an event out of nothing and desynchronise further, silently.
+     * See docs/history/coverage.md. Ten bytes with the high bit set is unremarkable inside a plugin blob, which is
      * exactly where a mis-sized event lands a walk.
      *
      * @return void

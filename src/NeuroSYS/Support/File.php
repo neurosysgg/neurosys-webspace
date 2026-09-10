@@ -20,9 +20,9 @@ namespace NeuroSYS\Support;
  *
  * **It deliberately cannot create a directory.** {@link self::write()} and {@link self::append()}
  * both fail on a path whose directory does not exist, and that is the correct behaviour rather than
- * an omission: the downloads log's directory is excluded from `deploy.sh`, an `@mkdir` was once
- * added to "fix" that and had to be reverted, and the live directory it had already created had to
- * be deleted by hand. Creating a directory is {@link Directory}'s to do and a caller's to ask for.
+ * an omission: the downloads log's directory is excluded from `deploy.sh`, and a write that could
+ * create it would create it on the live server, where it then has to be deleted by hand. Creating a
+ * directory is {@link Directory}'s to do and a caller's to ask for. See docs/history/types.md.
  *
  * Who reads what: the site **reads** and **appends** — it never writes a file and never deletes
  * one, which is a property of a read-only deployment rather than a gap. The tooling writes and
@@ -54,9 +54,8 @@ final readonly class File
      * The file's contents, or null where there are none to be had.
      *
      * **One `null` for both failures, on purpose.** Absent and unreadable are different causes and
-     * the same answer: this file did not tell us anything. Every caller this replaced already
-     * collapsed them — `is_file($f) ? file_get_contents($f) ?: '' : ''` is that collapse written
-     * out, minus the warning.
+     * the same answer: this file did not tell us anything. It is the collapse a caller would
+     * otherwise write out as `is_file($f) ? file_get_contents($f) ?: '' : ''`, minus the warning.
      *
      * **`$limit` bounds the read itself, because a bound applied after it is not a bound.**
      * {@link \NeuroSYS\Http\Request::body()} reads `php://input` through here, and left unbounded a

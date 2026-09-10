@@ -305,9 +305,9 @@ final class SecurityTest extends TestCase
     }
 
     /**
-     * `style-src` carried 'unsafe-inline' until SoundCloud's attribution block moved into
-     * <soundcloud-player>, which sets the same properties through the CSSOM instead. Nothing may
-     * put the allowance back by needing it, so assert the views still emit no inline style.
+     * `style-src` carries no 'unsafe-inline': SoundCloud's attribution is styled by
+     * <soundcloud-player> through the CSSOM. Nothing may put the allowance back by needing it, so
+     * assert the views emit no inline style.
      *
      * @return void
      */
@@ -431,9 +431,9 @@ final class SecurityTest extends TestCase
      * would deny that feature everywhere — including inside the SoundCloud iframe, which asks for
      * autoplay and encrypted-media, and would switch the player off with no error anywhere.
      *
-     * That iframe is built by <soundcloud-player> now, so the assertion lives in
+     * That iframe is built by <soundcloud-player>, so the assertion lives with what it guards, in
      * test/js/soundcloud-player.test.mjs: it reads the real allow= off the real element and checks
-     * it against the header this class sends. It did not go away, it moved to what it guards.
+     * it against the header this class sends.
      */
 
     // ───────────────────────── the unmatched path ─────────────────────────

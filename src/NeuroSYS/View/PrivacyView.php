@@ -21,8 +21,7 @@ use NeuroSYS\View\Html\Node;
  * The only view that *parses* a document rather than assembling one, and the reason
  * {@link MarkupParser} exists: the policy is hand-authored, not markup a view builds. It is read
  * from two files next to the code and nothing about a request can reach either — which is the
- * standing instruction on {@link Element::containingHtml()}, and it survived that method replacing
- * the `RawHtml` node that used to emit these two files unread.
+ * standing instruction on {@link Element::containingHtml()}.
  *
  * **Both halves are always sent; only their order changes.** The policy has been bilingual all
  * along, German first for everyone; what {@link self::$language} decides is which one a visitor

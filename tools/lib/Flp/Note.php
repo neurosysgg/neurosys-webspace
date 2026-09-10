@@ -33,8 +33,8 @@ namespace NeuroSYS\Tool\Flp;
  * it would claim otherwise. They are listed above so the next person knows the slots are accounted
  * for rather than skipped.
  *
- * {@link KeyEstimate} decoded two of these fields on its own before this class existed, and still
- * does — it weights pitch classes by duration and needs nothing else. The rest of the struct is
+ * {@link KeyEstimate} decodes two of these fields on its own — it weights pitch classes by duration
+ * and needs nothing else. The rest of the struct is
  * what turns a project into music rather than into a histogram.
  */
 final readonly class Note

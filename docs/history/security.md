@@ -324,3 +324,39 @@ browser sends credentials because of the realm rather than the origin.
 **There is no unaudited hole, and there used to be one.** `RawHtml` emitted `data/privacy.*.html`
 verbatim; `MarkupParser` reads those two files into the tree instead, so a hand-authored document is
 subject to every rule above rather than exempt from them.
+
+## From the code comments
+
+*Moved out of comments under `src/`, `test/` and `tools/` when those were brought to the present
+tense. Quoted as they stood; an ellipsis marks where a passage was cut short.*
+
+### 2026-09-05 — one malformed log line took down the stats page (`a2e8502`)
+
+From `ServiceTest`:
+
+> The two are different cases and used to be the same one. … before this a single malformed line
+> 500'd the whole stats page instead.
+
+### 2026-09-05 — documents inherited their `Content-Type` (`a2e8502`)
+
+From the verify script:
+
+> ViewResponse used to send no Content-Type at all and inherit PHP's default_mimetype — right by
+> accident of the runtime's ini, and unwritten anywhere.
+
+`MimeType` told the same story from the other side:
+
+> The enum this replaced held `text/html` as one opaque string and stapled `; charset=utf-8` onto
+> every case
+
+> {@link ViewResponse} used to send no `Content-Type` at all and inherit PHP's `default_mimetype` and
+> `default_charset` ini settings … it was the only response on the site whose headers were not
+> written down anywhere
+
+### 2026-09-04 → 2026-09-09 — smaller framings from the header classes
+
+- `ContentSecurityPolicy` (`e3aceef`): "hand-written string this used to be"
+- `Allow` (`867372f`): "marking a method read-only used to mean remembering to edit both"
+- `Auth` (`e1f08a5`): "louder than the malformed header it replaced"
+- `SecurityHeaders` (`15a10f1`): sending the headers went 33.17 µs → 34.58 µs; the comment now
+  states the absolute cost.

@@ -14,7 +14,7 @@ namespace NeuroSYS\Exception;
  * whose raw-text content `Text` would escape into meaning something else, and any HTML5 parse error
  * at all.
  *
- * **That last one is the check the verbatim emitter it replaced could never make.**
+ * **That last one is the check a verbatim emitter could never make.**
  * `Dom\HTMLDocument` reports a stray `</div>` as a warning and then recovers silently, which for a
  * hand-edited legal document means the rest of the policy disappears with nothing anywhere saying
  * so. Both halves of `data/privacy.*.html` parse with zero errors, which is what makes refusing on

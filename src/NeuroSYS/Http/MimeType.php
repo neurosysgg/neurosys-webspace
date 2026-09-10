@@ -11,21 +11,19 @@ use NeuroSYS\Support\Charset;
  * The MimeType class. What a response body is: a type, a subtype, and the encoding it is in.
  *
  * A class rather than an enum because the value carries a parameter — the same reasoning
- * {@link Security\StrictTransportSecurity} records for carrying a number. The enum this replaced
- * held `text/html` as one opaque string and stapled `; charset=utf-8` onto every case, which said
- * the quiet part out loud: what was being modelled was never the type, it was the type *and its
- * charset*, and an enum case cannot hold the second one. So the parts are typed and separate here,
- * the way {@link Header} is a {@link HeaderName} beside a value rather than one string carrying
- * both.
+ * {@link Security\StrictTransportSecurity} records for carrying a number. An enum could hold
+ * `text/html` only as one opaque string with `; charset=utf-8` stapled onto every case, and what is
+ * being modelled is the type *and its charset*, which a case cannot hold. So the parts are typed and
+ * separate here, the way {@link Header} is a {@link HeaderName} beside a value rather than one
+ * string carrying both.
  *
  * The charset is still the half that earns it. A browser told a document's bytes are text but not
  * which encoding has to decide for itself; `X-Content-Type-Options: nosniff` stops it guessing the
  * *type*, and nothing stops it guessing the encoding.
  *
- * {@link ViewResponse} used to send no `Content-Type` at all and inherit PHP's `default_mimetype`
- * and `default_charset` ini settings, which happen to be right. That is a fact about the runtime,
- * not about this code, and it was the only response on the site whose headers were not written
- * down anywhere — awkward in particular for the AJAX fragment, which carries no charset
+ * Every response sends its `Content-Type` rather than inheriting PHP's `default_mimetype` and
+ * `default_charset` ini settings. Those happen to be right, but that is a fact about the runtime,
+ * not about this code — and it matters most for the AJAX fragment, which carries no charset
  * declaration of its own, so the header is all a browser has to go on.
  */
 final readonly class MimeType implements HeaderValue

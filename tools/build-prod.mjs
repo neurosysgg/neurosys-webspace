@@ -14,19 +14,19 @@
  *
  * Three things change, and all three are only worth doing here:
  *
- *   1. **The maps go.** 79,354 bytes across the tree, three times the JS they describe, and
- *      `tsconfig`'s `inlineSources` puts the whole commented TypeScript inside each one. Static
+ *   1. **The maps go.** They are several times the JS they describe, because `tsconfig`'s
+ *      `inlineSources` puts the whole commented TypeScript inside each one. Static
  *      assets are served straight by Apache and reach neither auth gate (docs/security.md), so on
  *      the live host those are public files. The source is on GitHub, which is a reason not to
  *      worry about it rather than a reason to serve a second copy from Strato.
  *   2. **The graph is bundled into one module**, which is the change that pays for the rest.
- *      Forty-nine files gzip to 12,798 bytes as forty-nine responses and to 5,801 as one — 6,997
- *      saved, 54.7%, because gzip's window then spans the whole graph instead of restarting at
- *      every small module. It also turns forty-nine requests into one and empties the preload list,
- *      which takes another ~400 bytes off *every document* — see Layout::modulePreloads().
- *   3. **The JS is minified.** Worth much less than it used to be and still worth doing: the
- *      compression above already does most of the work identifier mangling would have done, which
- *      is exactly what `tsconfig`'s old ~260-byte figure was measuring on a concatenated stream.
+ *      gzip's window then spans the whole graph instead of restarting at every small module, so
+ *      one response compresses to well under half of what forty-nine separate ones do. It also
+ *      turns forty-nine requests into one and empties the preload list, which takes forty-six
+ *      `modulepreload` links off *every document* — see Layout::modulePreloads(), and
+ *      docs/performance.md for the figures.
+ *   3. **The JS is minified.** Still worth doing, though the compression above already does most
+ *      of the work identifier mangling would.
  *
  * **Why the debug tree does not get any of this.** public/ is imported by test/js/ by path, pinned
  * by `npm run coverage`'s 100% gate, and diffed byte-for-byte against a fresh `tsc`. All three want
@@ -43,13 +43,11 @@
  * `class X extends Y {}` declarations into `var X = class extends Y {}`, whose name is inferred
  * from the binding rather than declared — and `keep_classnames` only protects a declared one. So
  * terser mangles the binding and the error becomes `<terminal-key> must be inside <P>`. esbuild's
- * `keepNames` emits an explicit name assignment that survives it. That option is the reason this
- * file used to say "terser rather than esbuild", because it injects a `__name` helper and on 42
- * separate modules that cost 1,868 of the 2,252 bytes minifying won. In one bundle the helper is
- * emitted once: 256 gzipped bytes. The objection was real and bundling is what answered it.
+ * `keepNames` emits an explicit name assignment that survives it. Its `__name` helper is emitted
+ * once in the bundle, for about 256 gzipped bytes.
  *
- * The suite catches this rather than the reasoning being trusted — it is what caught it the first
- * time. test/basic_test.sh re-runs every client test against these bytes.
+ * The suite checks this rather than the reasoning being trusted: test/basic_test.sh re-runs every
+ * client test against these bytes. See docs/history/frontend.md.
  *
  * `mangle.properties` stays off for the same kind of reason one step further out: `connectedCallback`,
  * `observedAttributes` and `attributeChangedCallback` are contracts with the browser rather than
@@ -180,8 +178,7 @@ let   after  = 0;
   // terser *rejects* on a parse or compress failure rather than reporting one on the result, so a
   // real failure never arrives here — it comes out of the `await` above and exits non-zero on its
   // own. This is the other case: a resolved call that carried no code, which has no message to
-  // quote. The `result.error` this used to print was removed in terser 5 and had been reading as
-  // `undefined` ever since, so the sentence was always the fallback half of a `??`.
+  // quote — terser 5's result has no `error` property to read one from.
   const minified = result.code ?? fail('terser resolved without producing any code for the bundle.');
 
   after = Buffer.byteLength(minified);
@@ -199,13 +196,11 @@ let   after  = 0;
 
 // ── everything was actually minified ────────────────────────────────────────────────────────────
 
-// The copy above put a readable module at every path this tree serves, and the loop then overwrote
-// each one. So a write that did not happen does not leave a hole — it leaves the *original*, which
-// works perfectly and ships as though it had been minified, under a stamp claiming otherwise. The
-// only visible symptom is a page that is quietly bigger than it says it is.
-//
-// All 42 change under terser today, so "none identical" is a real property rather than a hopeful
-// one. It is the cheapest statement that distinguishes a minified tree from a copied one.
+// The copy above put a readable module at every path this tree serves, and the bundle step then
+// replaced the whole directory with one file. A step that did not happen does not leave a hole — it
+// leaves the *originals*, which work perfectly and ship under a stamp claiming otherwise, and the
+// only visible symptom is a page quietly bigger than it says it is. So the tree is refused unless it
+// holds exactly one module and no map.
 const shippedJs  = filesEnding(DIST_JS, '.js');
 const shippedMaps = filesEnding(DIST_PUB, '.map');
 

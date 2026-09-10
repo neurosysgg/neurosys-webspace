@@ -10,15 +10,11 @@ namespace NeuroSYS\View\Html;
  * A class rather than an enum for the reason {@link \NeuroSYS\Http\Security\StrictTransportSecurity}
  * and {@link \NeuroSYS\Http\MimeType} are: the value carries **parameters**, and a case cannot hold
  * one. `width=device-width, initial-scale=1.0` is a comma-separated descriptor list — a grammar,
- * and until now a grammar assembled inside the `->attr(…)` call in {@link \NeuroSYS\Layout::head()},
- * which is precisely where a grammar cannot be checked.
+ * which as a string would be assembled inside the `->attr(…)` call in {@link \NeuroSYS\Layout::head()},
+ * precisely where a grammar cannot be checked. A grammar is what earns a type here, not what
+ * excuses one — the same argument {@link \NeuroSYS\Http\HeaderValue} makes on the header side.
  *
- * {@link MetaName::Viewport}'s docblock used to argue this value "stays a string: it is a descriptor
- * list with its own grammar, not a case". The first half of that was right and the second half is
- * the case for this class — a grammar is what earns a type here, not what excuses one. The same
- * turn {@link \NeuroSYS\Http\HeaderValue} records on the header side.
- *
- * What it buys is that both halves are now checked. The width is a {@link ViewportWidth} case, so
+ * What it buys is that both halves are checked. The width is a {@link ViewportWidth} case, so
  * `device-widht` is a compile-time error rather than a page that lays out at 980px on every phone
  * with nothing in any console; and the scale is a `float`, so `initial-scale=1,0` cannot be written
  * at all.

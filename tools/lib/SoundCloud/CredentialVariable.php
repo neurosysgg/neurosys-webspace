@@ -7,9 +7,8 @@ namespace NeuroSYS\Tool\SoundCloud;
 /**
  * The CredentialVariable enum. The environment variables an app's identity is read from.
  *
- * A `list<string>` before this, which meant the three names existed twice — once as constants to
- * read by and once as an array to print in the "not configured" message — and nothing tied the two
- * lists together. Adding a fourth credential meant remembering both.
+ * An enum rather than a `list<string>`, so the three names exist once — the same cases are read by
+ * and printed in the "not configured" message, and a fourth credential is one case to add.
  *
  * The failure this prevents is the usual one for a name: `getenv()` answers `false` for a variable
  * that does not exist and for one whose name is misspelled, so a typo here reads as *"no app is

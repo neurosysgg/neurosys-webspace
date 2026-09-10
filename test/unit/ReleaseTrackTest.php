@@ -323,7 +323,7 @@ final class ReleaseTrackTest extends TestCase
     }
 
     /**
-     * The line that used to be a placeholder, written out because there are now ids for it.
+     * The `embed:` line, written out rather than commented out, because an upload supplies its ids.
      *
      * @return void
      */

@@ -9,7 +9,7 @@ use Closure;
 /**
  * The Diagnostics class. Runs an operation with PHP's own complaints handled rather than printed.
  *
- * This is what `@` was doing everywhere it used to appear, said out loud and scoped. The calls it
+ * This is what `@` does, said out loud and scoped. The calls it
  * stands in front of are all the same shape: a filesystem or crypto call whose failure is expected
  * and answered by its return value, next to a warning that must not reach the page —
  * {@link File::read()}'s is the clearest, since the headers have gone out by the time
@@ -35,8 +35,8 @@ use Closure;
  * builds no collection at all, so it pays for the handler and nothing else.
  *
  * Note what carries no `#[\NoDiscard]`, unlike most of {@link Support}: both members run somebody
- * else's operation and hand back what it answered, and three of the call sites this replaced
- * discard that answer on purpose — {@link File::write()} unlinks its temporary file on the way out
+ * else's operation and hand back what it answered, and three of its call sites discard that answer
+ * on purpose — {@link File::write()} unlinks its temporary file on the way out
  * of a failure it is already reporting. A dropped result here is the caller's decision, not a bug.
  */
 #[BareString(

@@ -84,7 +84,7 @@ final class EmbedTest extends TestCase
     }
 
     /**
-     * The whole reason the markup moved client-side is that none of it may exist before a click.
+     * The whole reason the markup is built client-side is that none of it may exist before a click.
      * The server's output is the element and its attributes — no iframe, and no SoundCloud URL for
      * a browser to preconnect, prefetch or otherwise act on.
      *
@@ -103,8 +103,8 @@ final class EmbedTest extends TestCase
 
     /**
      * The element resolves every case to true or false; what crosses the boundary is the list of
-     * the ones that are on. EmbedTest used to assert the query string here — that assertion lives
-     * in test/js/soundcloud-player.test.mjs now, where the query string is actually built.
+     * the ones that are on. The query string built from it is asserted in
+     * test/js/soundcloud-player.test.mjs, where it is actually built.
      *
      * @return void
      */

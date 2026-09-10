@@ -52,8 +52,7 @@ final readonly class Response
      * The body decoded as a JSON object.
      *
      * A {@link JsonBody} rather than the array `json_decode()` produced, so that every key a caller
-     * reaches for is named by an enum case. See that class for what the nine hand-written
-     * `is_string($body['x'] ?? null)` reads it replaced looked like.
+     * reaches for is named by an enum case.
      *
      * @return JsonBody
      * @throws JsonException if the body is not JSON, or is JSON that is not an object.

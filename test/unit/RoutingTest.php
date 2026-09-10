@@ -191,8 +191,7 @@ final class RoutingTest extends TestCase
 
     /**
      * Every path a view can build is one the router answers on. That is the whole reason the
-     * patterns are an enum: the two used to be written in different files and nothing compared
-     * them.
+     * patterns are an enum: one vocabulary for both, rather than two files that nothing compares.
      *
      * @return void
      */

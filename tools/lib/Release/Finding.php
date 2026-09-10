@@ -7,8 +7,8 @@ namespace NeuroSYS\Tool\Release;
 /**
  * The Finding class. One thing {@link Preflight} noticed about a folder.
  *
- * Replaces the `array{0: string, 1: string}` tuples this used to be, where reading a finding meant
- * remembering which end the severity was on.
+ * A class rather than an `array{0: string, 1: string}` tuple, which only reads correctly if you
+ * remember which end the severity is on.
  */
 final readonly class Finding
 {

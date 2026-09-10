@@ -149,8 +149,8 @@ trait TypedItems
      * and a collection of arrays is the shape every one of these was written to replace — allowing
      * it would let the escape hatch back in under the type's own name. That refusal is load-bearing
      * rather than tidy: it is what forced {@link \NeuroSYS\Http\Security\CspSourceList} to exist,
-     * and it is why the two callbacks on this site that used to map to an `array` are now a
-     * `JsonSerializable` and a {@link \NeuroSYS\Model\Production\SectionPosition} instead.
+     * and it is why two callbacks on this site map to a `JsonSerializable` and a
+     * {@link \NeuroSYS\Model\Production\SectionPosition} rather than to an `array`.
      */
     private const array SCALARS = ['string', 'int', 'float', 'bool'];
 
@@ -159,8 +159,8 @@ trait TypedItems
      *
      * **The declared type is checked here, and that is the same move {@link \NeuroSYS\Model\Link\HiDriveLink}
      * makes on a share id.** {@link self::guard()} asks `instanceof`, which answers `false` for a
-     * string naming no class rather than complaining about it — so before this check existed,
-     * `new Collection('Reelase')` was not an error but a collection that silently rejected
+     * string naming no class rather than complaining about it — so without this check,
+     * `new Collection('Reelase')` would not be an error but a collection that silently rejects
      * everything ever offered to it, reporting the typo as a `CollectionException` about the *item*. Naming
      * the fault where it is written is worth one `class_exists()`.
      *
@@ -341,10 +341,10 @@ trait TypedItems
      * a `Collection` and calling it a source list would be a lie. A list maps to a list and a map
      * maps to a map — {@link self::ofType()} is what knows which.
      *
-     * **A map keeps its keys.** This used to reindex, on the reasoning that `array_map` given two
-     * arrays returns one; that was the implementation talking. A `SearchableCollection` is a map,
-     * and the whole reason `ReleasesView` can name each release by its slug is that it stays one.
-     * The consequence to know is that its result can no longer be spread into a call — string keys
+     * **A map keeps its keys.** Reindexing would be the implementation talking — `array_map` given
+     * two arrays returns one — and a `SearchableCollection` is a map: the whole reason `ReleasesView`
+     * can name each release by its slug is that it stays one. See docs/history/types.md.
+     * The consequence to know is that its result cannot be spread into a call — string keys
      * become named arguments — so a call site that spreads asks {@link self::toValues()} for a list
      * and says so.
      *
@@ -580,8 +580,8 @@ trait TypedItems
     /**
      * $stream, keyed the way this kind of collection keys things.
      *
-     * Abstract because it is the one thing {@link self::where()} cannot decide for both, and it is
-     * the same decision `rebuilt()` used to make one layer out: a `Collection` is a `list<T>` and a
+     * Abstract because it is the one thing {@link self::where()} cannot decide for both: a
+     * `Collection` is a `list<T>` and a
      * filter leaves the holes a list may not have, so it renumbers; a `SearchableCollection` keeps
      * its keys, which is what it is for — and its implementation is therefore not a generator at
      * all but a `return $stream`, which is what keeps a map's `where()` from paying for a layer

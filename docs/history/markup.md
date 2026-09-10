@@ -98,3 +98,60 @@ And the one measured result that went the opposite way from the obvious one:
 > saved, but not the direction anybody would have guessed.
 
 The German half lost about 2.4 KB of `&auml;` in the process.
+
+## From the code comments
+
+*Moved out of comments under `src/`, `test/` and `tools/` when those were brought to the present
+tense. Quoted as they stood; an ellipsis marks where a sentence ran on into the rule it supported,
+which stays in the code.*
+
+### 2026-09-04 — escaping at every call site (`ee0a7dd`)
+
+From `HtmlTest`:
+
+> Escaping used to be a htmlspecialchars() call per attribute at every call site
+
+### 2026-09-04 — tag names as string literals (`9fd5f88`)
+
+From the verify script:
+
+> the tag names stopped being string literals when Tag arrived
+
+### 2026-09-05 — the constructor was a way around escaping (`a2e8502`)
+
+From `HtmlTest`:
+
+> It did not before: attr() escaped on the way *in* and render() emitted whatever it found, so the
+> constructor was a way around escaping entirely — a public one, documented as taking values that
+> were already escaped and trusted to have been.
+
+### 2026-09-05 — the terminal command was two concatenations (`8e931d3`)
+
+From `ViewTest`:
+
+> the two concatenations it replaced could not
+
+### 2026-09-05 — `Charset`'s two spellings (`dceda61`)
+
+> Both forms, pinned to the literals the three readers carried before this enum existed
+
+### 2026-09-07 — `Element`'s children were a bare array (`c078707`)
+
+From `HtmlTest`:
+
+> the constructor took a plain `array` whose `list<Node>` lived in a docblock, which is the
+> arrangement the attributes were moved out of one parameter earlier
+
+### 2026-09-04 — the views were heredocs (`ee0a7dd`)
+
+From `Element`: "heredocs the views used to be".
+
+### 2026-09-08 — the viewport was a string, argued for (`2405b8f`)
+
+From `ViewportContent` and `MetaName`:
+
+> {@link MetaName::Viewport}'s docblock used to argue this value "stays a string: it is a descriptor
+> list with its own grammar, not a case".
+
+> That used to be the string `width=device-width, initial-scale=1.0`, on the reasoning that it is a
+> descriptor list … right about the grammar and backwards about what follows from it.

@@ -23,7 +23,7 @@ class StatsView extends View
      * @param DownloadStats|null $stats What the log adds up to, or **null where it was never
      *                                  read** because logging is switched off. Those are two
      *                                  different pages, and one object carrying both would need a
-     *                                  flag beside it saying which — which is what this replaced.
+     *                                  flag beside it saying which.
      */
     public function __construct(private readonly ?DownloadStats $stats = null) {}
 

@@ -60,7 +60,7 @@ final readonly class JsonBody
      * The value under $key, or `0` where there is none that is a number.
      *
      * `is_numeric()` rather than `is_int()`, because a JSON number that arrived quoted is still the
-     * number the provider meant — and because that is what the hand-written reads this replaced did.
+     * number the provider meant.
      *
      * @param BackedEnum $key
      * @return int

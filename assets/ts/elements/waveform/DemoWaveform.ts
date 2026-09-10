@@ -131,8 +131,8 @@ export class DemoWaveform extends HTMLElement {
   /**
    * Base64 to bytes, or null for anything that is not a whole number of columns.
    *
-   * Null is a card with no waveform rather than an error, which is what a demo staged before this
-   * existed looks like — see NeuroSYS\Model\Waveform, whose reader collapses the same cases.
+   * Null is a card with no waveform rather than an error, which is what a mix without a waveform
+   * sidecar looks like — see NeuroSYS\Model\Waveform, whose reader collapses the same cases.
    */
   private static decode(encoded: string | null): string | null {
     if (encoded === null || encoded === '') return null;

@@ -701,8 +701,8 @@ final class ResponseTest extends TestCase
     // ───────────────────────────── Charset ─────────────────────────────
 
     /**
-     * Both forms, pinned to the literals the three readers carried before this enum existed: the
-     * header parameter, the charset meta tag in Layout, and htmlspecialchars in Text.
+     * Both forms, pinned to the literal each of the three readers expects: the header parameter,
+     * the charset meta tag in Layout, and htmlspecialchars in Text.
      *
      * @return void
      */

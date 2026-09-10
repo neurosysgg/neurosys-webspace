@@ -79,10 +79,10 @@ final readonly class Input
             $value ??= $arguments[++$i] ?? null;
 
             // `''` is refused alongside `null`, because `--clover=` and a bare `--clover` at the
-            // end of the line are the same mistake typed two ways. Only one of them used to reach
-            // this: the other stored an empty string, `has()` said the flag was given, and
-            // `merge-coverage` handed the empty path to a report writer that died with a stack
-            // trace. This class exists to answer that in one sentence and a usage line.
+            // end of the line are the same mistake typed two ways. Stored, the empty string would
+            // make `has()` say the flag was given and hand an empty path to whatever reads it — for
+            // `merge-coverage`, a report writer that dies with a stack trace. This class exists to
+            // answer that in one sentence and a usage line.
             if ($value === null || $value === '') {
                 throw new UsageException(sprintf("option '--%s' needs a value", $name));
             }

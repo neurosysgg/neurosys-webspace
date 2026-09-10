@@ -23,9 +23,9 @@ use ReflectionProperty;
 /**
  * The CLI layer under `tools/lib/Cli/`.
  *
- * Argument parsing is the part worth pinning, because the two parsers this replaced agreed on the
- * one thing that was wrong: a flag neither of them recognised was dropped in silence. For
- * `merge-coverage` that meant a mistyped `--clover` reported success and wrote no report.
+ * Argument parsing is the part worth pinning, because its failure is silent: a flag the parser
+ * does not recognise, dropped rather than refused, means a mistyped `--clover` reports success and
+ * writes no report. See docs/history/tooling.md.
  */
 final class CliTest extends TestCase
 {
@@ -181,11 +181,11 @@ final class CliTest extends TestCase
     }
 
     /**
-     * The other spelling of the same mistake, which used to get a different answer.
+     * The other spelling of the same mistake, which must get the same answer.
      *
-     * `--clover=` stored an empty string, so `has()` said the flag was given and `value()` handed
-     * the empty path on — `merge-coverage` then died inside a report writer with a stack trace
-     * rather than here with a sentence. A flag that takes a path either has one or does not.
+     * `--clover=` storing an empty string would make `has()` say the flag was given and `value()`
+     * hand the empty path on — `merge-coverage` would then die inside a report writer with a stack
+     * trace rather than here with a sentence. A flag that takes a path either has one or does not.
      *
      * @return void
      */
@@ -268,13 +268,11 @@ final class CliTest extends TestCase
     }
 
     /**
-     * **`merge-coverage` is the command a dropped flag was worst for, and it is now the one with a
-     * test.**
+     * **`merge-coverage` is the command a dropped flag is worst for.**
      *
-     * Both hand-rolled parsers this layer replaced dropped an unrecognised flag in silence. For
-     * this command that meant a mistyped `--clover` reported success and wrote no report — a
+     * Dropped rather than refused, a mistyped `--clover` reports success and writes no report — a
      * failure whose only symptom is a file that is not there, noticed whenever someone next goes
-     * looking for it. `Command::options()` is what makes that a refusal instead, so this asserts
+     * looking for it. `Command::options()` is what makes that a refusal, so this asserts
      * the declaration and the refusal together: a flag declared but not value-taking would parse,
      * and then `--clover` would swallow the path as an operand.
      *

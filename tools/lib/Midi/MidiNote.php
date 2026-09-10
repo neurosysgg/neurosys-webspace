@@ -32,7 +32,7 @@ final readonly class MidiNote
      * not an off-by-one: a note-on of velocity zero **is** a note-off in this format, so zero is not
      * a quiet note but an absent one. {@link \NeuroSYS\Tool\Command\ExtractMidi} raises FL's silent
      * notes to this and says how many, which is a different fact from lowering FL's 128 to 127 —
-     * and the two used to be counted together and reported as one.
+     * so the two are counted and reported apart.
      */
     public const int MIN_VELOCITY = 1;
 

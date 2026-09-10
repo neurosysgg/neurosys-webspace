@@ -51,8 +51,8 @@ enum AuthScheme: string
      * **The digit is a format version and is deliberately not the API's.** `/api/{service}/v1/…`
      * versions what is being asked for; this versions how the asking is signed, and the two move
      * for different reasons. It is the same argument {@link \NeuroSYS\Model\Waveform}'s magic
-     * makes, and this token is what replaced a magic: the credential needs no `NSU1` of its own
-     * when the scheme it arrives under already says which reader to use.
+     * makes, and this token *is* the magic: the credential needs no magic bytes of its own when the
+     * scheme it arrives under already says which reader to use.
      *
      * **It is not a bearer token and the name is chosen to stop it reading as one.** A `Bearer`
      * value is a secret the server could replay; this is a signature over a manifest naming the

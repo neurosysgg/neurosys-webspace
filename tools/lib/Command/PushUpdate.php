@@ -48,8 +48,7 @@ final readonly class PushUpdate implements Command
     /**
      * Which deployment a push goes to unless `--url` says otherwise.
      *
-     * An **origin**, not an endpoint, which is what changed when `/update` became
-     * `/api/update/v1/patch`. The path is {@link SignedRequest}'s to compute from the typed action,
+     * An **origin**, not an endpoint. The path is {@link SignedRequest}'s to compute from the typed action,
      * so there is one place that knows the address and it is the same {@link \NeuroSYS\Support\SitePath}
      * case the router matches with. A full endpoint here would be that address written twice.
      */
@@ -168,7 +167,7 @@ final readonly class PushUpdate implements Command
                     . "    1. data/update.pub on the server does not match this private key\n"
                     . "    2. this machine's clock is more than five minutes from the server's\n"
                     . "    3. this exact payload was already applied (rebuild to mint a new serial)\n"
-                    . "    4. the server is older than /api and still answers on /update"
+                    . "    4. the server is older than /api (./deploy.sh is the way to update it)"
                     : '',
             ));
 

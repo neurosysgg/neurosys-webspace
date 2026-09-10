@@ -19,8 +19,8 @@ use ReflectionMethod;
  * Everything immutable here builds by copying — `with()`, `allow()`, `attr()`, `containing()` —
  * and every one of those was named so that a discarded call would *read* as wrong: `$c->add(…)`
  * as a statement looks finished, `$c->with(…)` as a statement looks like somebody forgot the
- * left-hand side. That was the whole enforcement mechanism, and it was a naming convention doing
- * a compiler's job. PHP 8.5's `#[\NoDiscard]` is the compiler doing it: a call whose result goes
+ * left-hand side. A naming convention is a compiler's job done badly; PHP 8.5's `#[\NoDiscard]`
+ * is the compiler doing it: a call whose result goes
  * nowhere is an E_WARNING, and `phpunit.xml.dist` has `failOnWarning`, so it is a failing test.
  *
  * The set is asserted rather than left to each class's own good judgement, for the same reason
@@ -48,10 +48,9 @@ use ReflectionMethod;
  * are the ordinary kind: copy-returning builders and the rendered result, where a dropped call
  * writes nothing into the only account of the run that exists.
  *
- * The one on `Route` is the *method* gate rather than a credential gate, and it is here because it
- * used to be a global `if` in {@link \NeuroSYS\Router} that nothing could drop. Now that each route
- * answers for itself, a discarded `accepts()` is a POST reaching a controller that only reads —
- * which is precisely what that `if` was put there to stop. `Route::methods()` beside it carries no
+ * The one on `Route` is the *method* gate rather than a credential gate. Each route answers for
+ * itself, so a discarded `accepts()` is a POST reaching a controller that only reads — nothing
+ * else stands in front of it. `Route::methods()` beside it carries no
  * attribute: it hands back what it was given, like {@link \NeuroSYS\Http\Request::path()}, and
  * dropping it decides nothing.
  *

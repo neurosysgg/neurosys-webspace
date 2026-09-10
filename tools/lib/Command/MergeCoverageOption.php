@@ -9,8 +9,8 @@ use NeuroSYS\Tool\Cli\Option;
 /**
  * The MergeCoverageOption enum. The report formats `tools/merge-coverage.php` can write.
  *
- * Both take a path, and both used to be read out of a string-keyed array — so a mistyped `--clover`
- * meant the command reported success and wrote nothing. `Input` now refuses the flag by name.
+ * Both take a path. They are cases rather than keys of a string-keyed array so that `Input` refuses
+ * a mistyped `--clover` by name — a dropped flag would report success and write nothing.
  *
  * @see MergeCoverage
  */

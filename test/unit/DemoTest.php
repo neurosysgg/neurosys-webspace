@@ -473,10 +473,11 @@ final class DemoTest extends TestCase
      * An unknown demo is challenged exactly like a known one — that is the whole point of
      * {@link Auth::requireDemoAuth()} taking a nullable `Demo` — so **any** `/demos/…` target
      * reaches this, including one carrying bytes no route was meant to claim. `Request::path()`
-     * hands a target the URI parser refused straight through, and `{slug}` matches anything, so
-     * `a"b` used to arrive here and be concatenated into a quoted-string.
+     * hands a target the URI parser refused through with only its query and fragment cut, and
+     * `{slug}` matches anything, so `a"b` arrives here — and concatenated into a quoted-string it
+     * would break out of it. See docs/history/security.md.
      *
-     * {@link \NeuroSYS\Http\BasicChallenge} refuses that now, which is right for a realm written
+     * {@link \NeuroSYS\Http\BasicChallenge} refuses that, which is right for a realm written
      * wrong in this repository and would be wrong here: it would turn a hostile target into a 500
      * where a 401 belongs. So the slug is `rawurlencode`d and there is nothing left to refuse —
      * the same treatment {@link \NeuroSYS\Support\SitePath::to()} gives the same value on the way

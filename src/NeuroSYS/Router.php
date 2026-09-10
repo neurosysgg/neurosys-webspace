@@ -31,13 +31,10 @@ readonly class Router
      */
     public function dispatch(Request $request): Response
     {
-        // The path is asked first and the method second, which is the opposite of how this was
-        // written and is the reason it can be. The method question used to be global — one
-        // `if (!$request->isReadOnly())` in front of the route table, because every route was a
-        // read. SitePath::Api is not, so the question moved onto Route as a MethodPolicy.
-        //
-        // Nine of the ten routes answer exactly as the global gate did: POST to a download route
-        // still 405s rather than 303'ing like a GET, with the same `Allow: GET, HEAD` as before.
+        // The path is asked first and the method second, because the method question belongs to
+        // the route: each Route carries a MethodPolicy. Nine of the ten are read-only, so POST to a
+        // download route 405s with `Allow: GET, HEAD` rather than 303'ing like a GET; SitePath::Api
+        // delegates the question to its own controller. See docs/history/api.md.
         foreach ($this->routes as $route) {
             if (($params = $route->matches($request->path())) !== false) {
                 return $route->accepts($request->method())

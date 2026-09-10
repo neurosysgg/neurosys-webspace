@@ -1,8 +1,8 @@
 /**
  * <terminal-window>, which builds every node below itself.
  *
- * The rows it renders are a release's metadata and the 404's error line, so these cases stand in
- * for what ViewTest used to assert about the server's markup.
+ * The rows it renders are a release's metadata and the 404's error line. The server sends only
+ * the declaration, so this is where what those rows look like is asserted.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

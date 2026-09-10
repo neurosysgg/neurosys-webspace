@@ -102,8 +102,8 @@ test('TerminalTone mirrors NeuroSYS\\View\\Terminal\\TerminalTone', () => {
  *
  * Not covered here, and worth knowing: `tone` and `--player-height` are written by an element and
  * read only by the stylesheet, so they have no PHP side and no test can follow them. See
- * TerminalFieldAttribute and CustomProperty. `loaded` was a third until EmbedAttribute gained a PHP
- * side — it is still written only by the client, but it now has a case to be compared against.
+ * TerminalFieldAttribute and CustomProperty. `loaded` is written only by the client too, but
+ * EmbedAttribute gives it a PHP case, so it is compared like any other.
  */
 const MIRRORED_NAMES = [
   ['Tag', Tag, 'NeuroSYS\\View\\Html\\Tag'],
