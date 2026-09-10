@@ -30,7 +30,7 @@ use NeuroSYS\Tool\Update\TarWriter;
  *
  * **Why it exists is a measurement.** `deploy.sh` rsyncs over a GVFS SFTP mount where a single
  * `stat` costs 480 ms and walking `src/` alone costs 3.7 s; with `-c` it reads every one of 269
- * files on both sides. The same trees are 209 KB gzipped. So this is minutes against under a second,
+ * files on both sides. The same trees are 250 KB gzipped. So this is minutes against under a second,
  * and the difference is entirely round trips rather than bytes.
  *
  * **It does not replace `deploy.sh` and must not be made to.** That script still owns `data/` — 8.6

@@ -27,7 +27,7 @@ use NoDiscard;
  * **Everything is validated before anything is written.** The archive is expanded and every member
  * checked in memory first, so a payload with one bad name writes nothing at all rather than the
  * files that happened to come before it. That is affordable because the payload is small — about
- * 210 KB compressed, 700 KB expanded, against a 512 MB limit measured on the live host — and it is
+ * 250 KB compressed, 810 KB expanded, against a 512 MB limit the live host reports — and it is
  * why there is no staging directory: staging exists to make a half-run recoverable, and a run that
  * cannot start half-way needs no recovery. It would also have cost something real, since
  * {@link Directory::temporary()} lives under `sys_get_temp_dir()` and a `rename()` across

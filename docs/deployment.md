@@ -98,7 +98,7 @@ If either is in doubt, ship `StrictTransportSecurity::ONE_DAY` first — one con
 `php tools/push-update.php` deploys `public/`, `src/` and `autoload.php` in **one HTTPS request**.
 It exists because the mount is slow in the way that matters: a single `stat` over it costs 480 ms,
 walking `src/` costs 3.7 s, and `deploy.sh`'s `rsync -c` reads all 269 files on both sides. The
-payload is 209 KB.
+payload is 250 KB, and grows with the codebase — `--dry-run` prints the current figure.
 
 ```bash
 npm run build:prod

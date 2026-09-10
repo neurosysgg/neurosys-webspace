@@ -1967,7 +1967,8 @@ is the stronger credential, so the site gate could stand down for `/demos/`) rat
 `/api/{service}/{version}/{action}` is the one address family that writes, and the only reason it
 exists is a measurement: deploying means `rsync -c` over a GVFS SFTP mount where a single `stat`
 costs **480 ms**, walking `src/` alone costs **3.7 s**, and `-c` reads every one of 269 files on
-both sides. The same two trees are **209 KB gzipped**. So a deploy is minutes of round trips for a
+both sides. The same two trees are **250 KB gzipped** — a figure that grows with the codebase, so
+re-derive it with `--dry-run` rather than quoting this. So a deploy is minutes of round trips for a
 payload that fits in one request.
 
 ```bash
@@ -2433,7 +2434,7 @@ the tool.
 `public/` maps to Strato's `htdocs/` (web-exposed). `data/` lives **outside** the webroot — it's uploaded separately and never via the standard deployment mapping.
 
 - Regular deploy: **`php tools/push-update.php`**, one signed HTTPS request carrying `public/`,
-  `src/` and `autoload.php` — 209 KB against minutes of SFTP round trips. Run `npm run build:prod`
+  `src/` and `autoload.php` — 250 KB against minutes of SFTP round trips. Run `npm run build:prod`
   first; it ships `build/dist/`, the same tree `deploy.sh` does. See [The API](#the-api), and
   `--dry-run` before anything you are unsure of. `php tools/api.php update v1 version` afterwards
   says what is actually running.

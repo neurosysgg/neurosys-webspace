@@ -339,7 +339,7 @@ it would have to be amended first.
 
 `/api/{service}/{version}/{action}` is the one address family that writes. It exists because
 deploying meant `rsync -c` over a GVFS SFTP mount where a single `stat` costs **480 ms** and walking
-`src/` alone costs **3.7 s**, across 269 files, for a payload that is **209 KB gzipped**. It
+`src/` alone costs **3.7 s**, across 269 files, for a payload that is **250 KB gzipped**. It
 replaces minutes with one request.
 
 It was `/update`, one address with one verb. Generalising it was cheaper than adding a second

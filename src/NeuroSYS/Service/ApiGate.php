@@ -53,13 +53,22 @@ final readonly class ApiGate
     /**
      * The most a request body may weigh.
      *
-     * The real payload is about 210 KB, so this is thirty times what it takes and a fortieth of
-     * what the live host's `post_max_size` would permit. **It is a ceiling on what the envelope may
-     * ask for rather than the length anything is read to**: the read below is bounded by the
-     * *signed* size, so a credential claiming ten bytes cannot make this process buffer eight
-     * megabytes, and a credential claiming more than this is refused before a byte is read at all.
-     * A bound the application states is worth more than one inherited from a php.ini nobody in this
-     * repository owns.
+     * The real payload is about 250 KB, so this is thirty times what it takes and a **sixteenth**
+     * of what the live host's `post_max_size` would permit.
+     *
+     * **It is a ceiling on what the envelope may ask for rather than the length anything is read
+     * to**: the read below is bounded by the *signed* size, so a credential claiming ten bytes
+     * cannot make this process buffer eight megabytes, and a credential claiming more than this is
+     * refused before a byte is read at all. A bound the application states is worth more than one
+     * inherited from a php.ini nobody in this repository owns.
+     *
+     * **Both figures above were wrong until `/api/health` could ask**, which is worth recording
+     * rather than quietly correcting, because the two were wrong in different ways. The ratio said
+     * *a fortieth* and had been wrong since it was written: `post_max_size` on the live host is
+     * 128M, and 8 MiB is a sixteenth of it, not a fortieth. The payload said 210 KB and had merely
+     * **drifted**, because it grows with the codebase and nothing re-derived it. Neither is worth
+     * carrying: `php tools/push-update.php --dry-run` prints the archive's size, and
+     * `php tools/api.php health v1 report` prints the limit.
      */
     private const int MAX_BODY = 8_388_608;
 
