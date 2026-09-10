@@ -185,7 +185,7 @@ class ReleaseView extends View
      * The arrangement, as the project's own markers describe it.
      *
      * **Server-rendered, and that is a decision rather than an oversight.** Every self-building
-     * element on this site costs a visitor with no JS the content inside it, and `CLAUDE.md` asks
+     * element on this site costs a visitor with no JS the content inside it, and `docs/frontend.md` asks
      * for that cost to be re-read whenever another fragment moves. The release page has already
      * spent it twice, on the cover and the player; a list of section names is text, and text that
      * only appears for people running scripts is a worse trade than the one the terminal made.

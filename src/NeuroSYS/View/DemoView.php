@@ -32,7 +32,7 @@ use NeuroSYS\View\Terminal\TerminalTone;
  * **The player is a native `<audio>` and not a custom element**, which is the opposite of what the
  * release page does with `<soundcloud-player>` and `<cover-art>`, and it is deliberate. Those two
  * build their own markup, so with JavaScript off a release page shows an empty box where the player
- * would be — a cost CLAUDE.md sets out and accepts, because the page is still a page. A demo *is*
+ * would be — a cost docs/frontend.md sets out and accepts, because the page is still a page. A demo *is*
  * the audio: an empty box is the whole thing missing. The browser's own control also seeks, takes a
  * keyboard, and is announced by a screen reader, none of which would come free in a rewrite.
  *

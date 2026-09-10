@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  * The pages that are only content: the home hero, the imprint and the privacy policy.
  *
  * None of them has a moving part — no repository, no request data, no custom element — which is
- * exactly what makes them worth pinning. They are the pages CLAUDE.md's no-JS note promises are
+ * exactly what makes them worth pinning. They are the pages docs/frontend.md's no-JS note promises are
  * unaffected with the script off, and the imprint is a legal document that states the same address
  * four times.
  */
@@ -249,7 +249,7 @@ final class PageTest extends TestCase
     // ───────────────────────── what the pages promise ─────────────────────────
 
     /**
-     * CLAUDE.md's no-JS note names these as unaffected with the script off. They are, because they
+     * docs/frontend.md's no-JS note names these as unaffected with the script off. They are, because they
      * emit no custom element at all — everything they show is a standard tag the browser lays out
      * whether or not main.js ever loads.
      *

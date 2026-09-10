@@ -70,7 +70,7 @@ enum HtmlTag: string implements TagName
      * is not, because the browser's own controls are the whole feature: they seek, they work with
      * a keyboard, they work with a screen reader, and — unlike everything else on a release page —
      * **they work with JavaScript off**, which for something being sent to one person to listen to
-     * is worth more than any styling. See the note in CLAUDE.md on what a no-JS visitor loses.
+     * is worth more than any styling. See docs/frontend.md on what a no-JS visitor loses.
      */
     case Audio    = 'audio';
 

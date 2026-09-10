@@ -535,7 +535,7 @@ final class ViewTest extends TestCase
      * The other direction, and the one that catches a rename: a case added to {@link Tag} that no
      * view emits and no element builds is a tag nothing has. The five the terminal builds on the
      * client are the expected exceptions, and naming them here is the point — the list says which
-     * tags exist only after the script runs, which is the same list CLAUDE.md's no-JS note is about.
+     * tags exist only after the script runs, which is the same list docs/frontend.md's no-JS note is about.
      *
      * @return void
      */

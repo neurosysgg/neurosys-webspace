@@ -23,7 +23,7 @@ use NeuroSYS\Support\SearchableCollection;
  * It is gitignored because `origin` is a public GitHub repository and this file names unreleased
  * tracks. `deploy.sh` rsyncs `data/` from the working tree without consulting git, so the file
  * still reaches the server — the two facts fit together on purpose, and neither is an oversight.
- * See CLAUDE.md and `docs/demos.md`.
+ * See `docs/demos.md`.
  */
 class DemoRepository
 {

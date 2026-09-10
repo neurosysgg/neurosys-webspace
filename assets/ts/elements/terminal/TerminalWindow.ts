@@ -27,7 +27,7 @@ interface TerminalFieldData {
  * src/NeuroSYS/View/Terminal/ is laid out on the other side of the same feature.
  *
  * With no JS the window is empty. The rows are the release's metadata and the 404's error line, so
- * that is a real cost and not only a cosmetic one — see CLAUDE.md.
+ * that is a real cost and not only a cosmetic one — see docs/frontend.md.
  */
 export class TerminalWindow extends HTMLElement {
   private built = false;

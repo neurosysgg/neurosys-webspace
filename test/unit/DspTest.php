@@ -249,7 +249,7 @@ final class DspTest extends TestCase
     /**
      * The three-band split the demo waveform colours by, which nobody chose.
      *
-     * Worth pinning because it is quoted as a fact in CLAUDE.md and in {@link Spectrum}'s docblock:
+     * Worth pinning because it is quoted as a fact in docs/demos.md and in {@link Spectrum}'s docblock:
      * at `$bars = 3` the log spacing lands on essentially a CDJ's low/mid/high. If the spacing ever
      * changes, the prose describing the waveform becomes wrong at the same moment.
      *

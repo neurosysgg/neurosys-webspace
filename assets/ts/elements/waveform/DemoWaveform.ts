@@ -15,7 +15,7 @@ import { STRIDE, WaveformBand } from '../../model/WaveformBand.js';
  * **It is the one element here that neither builds its whole subtree nor builds nothing.** It
  * prepends a canvas and leaves the server's children exactly where they were, because those
  * children are the content — the label, the duration and a native <audio> — and the canvas is
- * decoration. That is what keeps the demo page's exception intact: CLAUDE.md accepts an empty box
+ * decoration. That is what keeps the demo page's exception intact: docs/frontend.md accepts an empty box
  * on a release page because the page is still a page, and refuses it here because a demo *is* the
  * audio. With no JS this card lays out and plays exactly as it did before waveforms existed.
  *

@@ -45,7 +45,7 @@ class DownloadLogger
         // The locked append lives on File now, and the failure is still silent on purpose: the
         // log's directory is excluded from deploy.sh, so on the server this returns false and
         // nothing is written. That was once "fixed" with an @mkdir and had to be reverted — see
-        // CLAUDE.md. A download is not worth failing over a log.
+        // docs/history/types.md. A download is not worth failing over a log.
         $this->logFile->append((string) $entry);
     }
 }

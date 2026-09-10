@@ -16,7 +16,7 @@ use NeuroSYS\Tool\Http\Url;
  * possibly a log, and the thing that redeems it never leaves the process that asked for it.
  *
  * **The parameter names are literals here, and enums elsewhere in this client.** The rule is the one
- * `CLAUDE.md` states about SoundCloud's furniture: a name is typed when getting it wrong is
+ * `docs/tooling.md` states about this client: a name is typed when getting it wrong is
  * *silent*. Misspell `code_challenge_method` and the authorization server refuses in words, on the
  * first attempt, in a browser. Misspell {@link TrackField::Title} and the upload succeeds with an
  * untitled track. Those are not the same risk and they do not get the same treatment.

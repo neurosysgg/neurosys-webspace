@@ -5,7 +5,7 @@
  *
  * - **It leaves the card alone.** The children are the server's — a label, a duration and a native
  *   <audio> — and the element only prepends a canvas. That is what keeps the demo page's exception
- *   to CLAUDE.md's no-JS rule intact: the player is native and stays native, and the waveform is
+ *   to docs/frontend.md's no-JS rule intact: the player is native and stays native, and the waveform is
  *   allowed to be absent because it is decoration.
  * - **The byte layout is read the way it was written.** A column is level, low, mid, high, and the
  *   bands stack outward from the centre in that order. Get an offset wrong and the picture is drawn

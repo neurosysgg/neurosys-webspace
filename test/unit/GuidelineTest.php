@@ -123,7 +123,7 @@ final class GuidelineTest extends TestCase
      *
      * A **variadic** is not on the list and never will be. `deny(PermissionsPolicyFeature
      * ...$features)` is a check PHP makes for free, and a collection parameter there would replace
-     * it with one we make ourselves — the distinction CLAUDE.md draws between what a class *takes*
+     * it with one we make ourselves — the distinction docs/collections.md draws between what a class *takes*
      * and what it *stores*.
      *
      * @return void

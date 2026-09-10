@@ -103,7 +103,7 @@ enum ServerVariable: string
     /**
      * Which HTTP version the request arrived on, and the second of that pair.
      *
-     * Worth reporting for the reason CLAUDE.md records the live host serves HTTP/2 and no HTTP/3:
+     * Worth reporting for the reason docs/deployment.md records the live host serves HTTP/2 and no HTTP/3:
      * it is a fact about a shared host that can change without anybody being told, exactly as the
      * `mod_deflate` measurement did between two consecutive days.
      */

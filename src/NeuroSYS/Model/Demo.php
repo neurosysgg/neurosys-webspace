@@ -26,7 +26,7 @@ use NeuroSYS\Support\PasswordHash;
  *
  * There is no listing anywhere. `/demos` is not a route, `data/demos.php` is gitignored, and
  * nothing links here — so the existence of a demo is not something the site publishes.
- * See CLAUDE.md and `docs/demos.md`.
+ * See `docs/demos.md`.
  */
 final readonly class Demo
 {

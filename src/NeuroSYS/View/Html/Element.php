@@ -209,7 +209,7 @@ final readonly class Element implements Node
         'maps the variadic PHP has already guarded, straight into with() — so a Collection here '
         . 'would be constructed only to be spread back out on the same line. This is also the '
         . 'hottest path on the site: every element of every page is built through it, and '
-        . "CLAUDE.md's note that renderChildren() is the one place to spend a foreach is about "
+        . "docs/collections.md's note that renderChildren() is the one place to spend a foreach is about "
         . 'these two lines.',
     )]
     public function containing(Node|string ...$children): self

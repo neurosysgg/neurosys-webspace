@@ -45,8 +45,8 @@ use PHPUnit\Framework\TestCase;
  *   both are driven here, because the interesting one is never the one running the test.
  *
  * {@link HealthFact} and {@link HealthSection} are named below although the sections they render
- * are this file's subject rather than its target — the `#[CoversClass]` trap CLAUDE.md records
- * being bitten by three times, and cheaper to avoid than to diagnose.
+ * are this file's subject rather than its target — the `#[CoversClass]` trap docs/testing.md
+ * describes, which has bitten this suite more than once and is cheaper to avoid than to diagnose.
  */
 #[CoversClass(HealthAction::class)]
 #[CoversClass(HealthReport::class)]

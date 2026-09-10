@@ -24,7 +24,7 @@ namespace NeuroSYS\Model;
  * heights — a column is coloured by which of the three dominates, and that is a ratio a second
  * normalisation would only distort.
  *
- * A four-slot array would have done the same work, and this is a class for the reason CLAUDE.md
+ * A four-slot array would have done the same work, and this is a class for the reason docs/architecture.md
  * gives about `Attribute`: a tuple only reads correctly if you already know which slot is which,
  * and here the slots are not even in the same unit.
  *

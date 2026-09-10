@@ -64,8 +64,9 @@ final readonly class Waveform
      * was written from a reading taken on 2026-09-05, when that was true; the same host was serving
      * gzip again on 2026-09-06 with nothing in this repository having changed. Both `.htaccess`
      * blocks are `<IfModule>`-guarded, so the module coming or going is silence in either
-     * direction. See CLAUDE.md's deployment section, which carries the check to re-run and the two
-     * readings that motivated it. **Do not size anything here on compression being present.**
+     * direction. See docs/deployment.md, which carries the check to re-run, and
+     * docs/history/hosting.md for the two readings that motivated it. **Do not size anything here
+     * on compression being present.**
      */
     public const int COLUMNS = 512;
 
@@ -86,7 +87,7 @@ final readonly class Waveform
     /**
      * Builds one from the columns an analysis produced.
      *
-     * A variadic rather than a {@link \NeuroSYS\Support\Collection}, per CLAUDE.md's rule: a
+     * A variadic rather than a {@link \NeuroSYS\Support\Collection}, per the rule in docs/collections.md: a
      * collection replaces a hand-rolled type check on data crossing a public boundary, and it does
      * not replace a variadic, which PHP already enforces at the same boundary.
      *
