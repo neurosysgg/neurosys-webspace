@@ -424,7 +424,8 @@ test should reach for; it is exercised by running the tool, and the tool stays o
 because the music folder is not in the repo and will not exist on a clone.
 
 `SoundCloudTest` answers every request from an array, because `Http\Transport` is an interface and
-`Client` takes one. No app is registered yet, so nothing has ever been uploaded; what is worth
+`Client` takes one. Nothing has ever been uploaded through it — see [releases.md](releases.md#the-tool-once-an-app-is-registered)
+for what is and is not set up — so what is worth
 pinning is what goes out — the URL, the `OAuth` scheme, every field under its declared name, and the
 order in which a rotated refresh token reaches disk.
 

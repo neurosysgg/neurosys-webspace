@@ -153,6 +153,29 @@ one is not fixed.
   now refused before `php://input` is touched at all, and a signed one's body is read to the length
   the envelope declares rather than to a fixed 8 MB cap.
 
+### 2026-09-10 — `TRACE`, checked on the live host
+
+*Moved from security.md's "Known and accepted", where it stood open.*
+
+> **`TRACE` is answered by the server, not the site — low severity, and not reachable through this
+> code at all.** Apache's default `TraceEnable On` answers a `TRACE` before the request reaches
+> `index.php`, echoing the request's own headers back in a `message/http` body — and because it never
+> reaches PHP, that response carries none of the security headers a real one does. It is the same
+> "static assets never reach PHP" gap, one step worse because the echoed body is attacker-shaped. It
+> is bounded on every side that matters: a browser refuses to issue a cross-origin `TRACE`, so the
+> classic cross-site-tracing route to a stored credential is closed in the client; the site sets no
+> cookie to harvest; and the `Authorization` header both gates read is not one a cross-site `TRACE`
+> could originate. It cannot be fixed where the rest of this repository's Apache config lives —
+> `TraceEnable` is a server-level directive, invalid in `.htaccess`, so the only lever on shared
+> hosting is a `RewriteRule` that refuses the method at the edge. **Open:** a `curl -X TRACE`
+> against the live host would say which way Strato has it; the local rig has it on, and the local
+> rig is not Strato.
+
+The curl was sent against `/`, `/releases` and a static path under `/assets/`. Each came back
+`HTTP/2 405` from Apache itself — `Server: Apache/2.4.68 (Unix)`, an empty `Allow`, Apache's own
+`text/html` body, and none of the probe's headers echoed. Strato has `TraceEnable` off, so there is
+nothing to close; security.md states the result where the method gate is described.
+
 ## Response headers and the CSP
 
 ### 2026-09-04 — `'unsafe-inline'` leaves `style-src` (`a0c6a1a`)

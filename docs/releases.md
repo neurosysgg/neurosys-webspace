@@ -124,9 +124,12 @@ php tools/release-track.php ~/Music/neuro.SYS/releases/ill --upload
 It uploads the track **private** and prints the whole `data/releases.php` entry with `trackId`, `permalink` and
 `secretToken` already filled in — no embed dialog, no snippet to read. It sends nothing without `--upload`, and
 there is no flag that can make a track public: that stays the step below, taken on the day. `--authorize` does
-the one browser round trip it needs, once per machine. It wants three environment variables and no SoundCloud
-app is registered yet, so until one is, the path below is the one that works. See
-[authoring.md](authoring.md#uploading-the-track).
+the one browser round trip it needs, once per machine. It wants three environment variables —
+`NEUROSYS_SOUNDCLOUD_CLIENT_ID`, `_CLIENT_SECRET` and `_REDIRECT_URI` — which come from an app registered with
+SoundCloud. **None of that is set up on this machine** (checked 2026-09-10: the variables are unset and there
+is no token store at `~/.config/neurosys/soundcloud.json`), and whether an app exists on SoundCloud's side is
+recorded nowhere here. Until the three are set and `--authorize` has run, the path below is the one that works.
+See [authoring.md](authoring.md#uploading-the-track).
 
 ### By hand, from the embed snippet
 

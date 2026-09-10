@@ -184,6 +184,12 @@ does not honour — a hand-written `Allow: GET, HEAD` could drift; this cannot. 
 (`REQUEST_METHOD` is whatever the client sent) parses to `null` rather than a guessed `GET`, and
 `null` is not read-only — so a `PROPFIND` or a typo is refused, not silently treated as a read.
 
+**`TRACE` never reaches this gate on the live host.** Strato's Apache refuses it itself — `405`, an
+empty `Allow`, Apache's own body, nothing echoed — on every path including static files (checked
+2026-09-10 with `curl -X TRACE`). The local rig has `TraceEnable On`, so a local run is no evidence
+either way. If the live answer ever changes, the only lever is a `RewriteRule` refusing the method:
+`TraceEnable` is a server-level directive and invalid in `.htaccess`.
+
 **The method question lives on the route, as a `MethodPolicy` rather than a set of methods.** That
 is not a stylistic choice. A route carrying its own set would make the `405` name it, so
 `PUT /api/update/v1/patch` would answer `Allow: GET, HEAD, POST` — and that `POST` is precisely the
@@ -603,21 +609,9 @@ assessments turned up is fixed — see [history/security.md](history/security.md
   through before the rewrite to `index.php`, so while the pre-launch gate is up it covers documents
   and not `/assets/**` — see [Transport](#1-transport--https-and-hsts). The same is true of the
   debug tree's source maps on a dev server bound beyond localhost.
-- **`TRACE` is answered by the server, not the site — low severity, and not reachable through this
-  code at all.** Apache's default `TraceEnable On` answers a `TRACE` before the request reaches
-  `index.php`, echoing the request's own headers back in a `message/http` body — and because it never
-  reaches PHP, that response carries none of the security headers a real one does. It is the same
-  "static assets never reach PHP" gap, one step worse because the echoed body is attacker-shaped. It
-  is bounded on every side that matters: a browser refuses to issue a cross-origin `TRACE`, so the
-  classic cross-site-tracing route to a stored credential is closed in the client; the site sets no
-  cookie to harvest; and the `Authorization` header both gates read is not one a cross-site `TRACE`
-  could originate. It cannot be fixed where the rest of this repository's Apache config lives —
-  `TraceEnable` is a server-level directive, invalid in `.htaccess`, so the only lever on shared
-  hosting is a `RewriteRule` that refuses the method at the edge. **Open:** a `curl -X TRACE`
-  against the live host would say which way Strato has it; the local rig has it on, and the local
-  rig is not Strato. (An overlong target is the server's to answer too, and does: past roughly 4 KB
-  Apache cannot map the path to a file and returns `AH00127`/`403`, and past its request-line limit
-  a `414` — both route-independent, and neither reaching a real slug.)
+- **An overlong target is the server's to answer, not the site's.** Past roughly 4 KB Apache cannot
+  map the path to a file and returns `AH00127`/`403`, and past its request-line limit a `414` — both
+  route-independent, neither reaching a real slug, and neither carrying the site's security headers.
 - **The SoundCloud `secret-token` is public in a release page — by design.** A private or scheduled
   track embeds with a `secret-token`, and the release page that plays it is public, so the token is
   rendered into public HTML where anyone can read it. That is correct: the token is a per-track

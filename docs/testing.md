@@ -75,7 +75,7 @@ The division matters in a few concrete places:
   that the real catalogue will never contain.
 - **The SoundCloud client has never made a request**, and the tests are why that is fine rather than
   a gap. `Http\Transport` is an interface and `Client` takes one, so `SoundCloudTest` answers every
-  request from an array and asserts what went out. No app is registered yet; when one is, the same
+  request from an array and asserts what went out. No credentials are set up yet; when they are, the same
   tests still describe the contract. `ReleaseTrackTest` stops where `ReleaseFolderTest` stops — the
   command's uploading branch needs a folder whose audio `metaflac` and `ffprobe` can read, so what
   is covered there is every path that *refuses*.
@@ -585,7 +585,7 @@ contrived tests to prop it up.
   last of these `eval`s the generated block and asserts it produces a renderable `Release`, so a
   staged entry cannot be merely plausible.
 - `test/unit/SoundCloudTest.php` — the upload client, against a `Transport` that answers from an
-  array. No app is registered yet, so nothing has ever been sent; what is pinned is what *would* be
+  array. Nothing has ever been sent through it for real; what is pinned is what *would* be
   — the URL, the `OAuth` scheme, every multipart field under its declared name, and the order in
   which a rotated refresh token reaches disk.
 - `test/unit/ReleaseTrackTest.php` — the export port and every path `release-track` *refuses* on.
