@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Config;
 use NeuroSYS\Model\Embed\SoundCloudProfileEmbed;
 use NeuroSYS\Support\SitePath;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -20,9 +21,9 @@ use NeuroSYS\View\Html\Node;
 class HomeView extends View
 {
     /**
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string { return self::title(); }
+    public function pageTitle(): Translatable { return self::title(); }
 
     /**
      * @return Node
@@ -33,6 +34,10 @@ class HomeView extends View
     }
 
     /**
+     * The headline is the tagline and its full stop, which carries the accent. The stop is set
+     * beside the words rather than split off them, because the words are not known until the
+     * language is — see {@link View::accent()}.
+     *
      * @return Element
      */
     private static function heroSection(): Element
@@ -45,13 +50,13 @@ class HomeView extends View
                     ->containing(...Wordmark::nodes()),
                 new Element(HtmlTag::H1)
                     ->attr(HtmlAttribute::ClassName, CssClass::HomeTitle)
-                    ->containing(...self::accented(Config::TAGLINE)),
+                    ->containing(Texts::Layout::Tagline, self::accent('.')),
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::ClassName, CssClass::BtnPrimary)
                     ->attr(HtmlAttribute::Href, SitePath::Releases->to())
                     // The real arrow, not &rarr;: an entity written here would come back out as
                     // &amp;rarr;, since Text is the only way content gets in and it escapes all of it.
-                    ->containing('releases →'),
+                    ->containing(Texts::Layout::Releases, ' →'),
             );
     }
 
@@ -60,8 +65,8 @@ class HomeView extends View
      *
      * Built here rather than handed in by {@link \NeuroSYS\Controller\HomeController}, which is the
      * opposite of how {@link ReleaseView} gets its data — because this is not data. It is a fixed
-     * fact about the site, the same kind of thing as {@link Config::TAGLINE} two methods up, and
-     * there is no repository it could come from.
+     * fact about the site, the same kind of thing as the tagline two methods up, and there is no
+     * repository it could come from.
      *
      * @return Element
      */
@@ -72,7 +77,7 @@ class HomeView extends View
             ->containing(
                 new Element(HtmlTag::H2)
                     ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
-                    ->containing('latest tracks'),
+                    ->containing(Texts::Home::LatestTracks),
                 new SoundCloudProfileEmbed()->toElement(),
             );
     }

@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
-use JsonException;
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Exception\TerminalException;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Tag;
@@ -56,39 +54,19 @@ final readonly class Terminal
     /**
      * Returns the element that builds this terminal.
      *
-     * `JSON_THROW_ON_ERROR` is what makes a row that cannot be serialised loud rather than a silent
-     * `false`, and the {@link JsonException} it throws is caught here rather than propagated — not
-     * to swallow it, but to translate it. A terminal whose rows will not encode is a page that
-     * cannot be built, which is what {@link MarkupException} already means, and it is what every
-     * other failure in this layer throws. Propagating the core exception instead would make every
-     * view that declares a terminal owe an `@throws` for a condition none of them can act on.
+     * The rows go to the attribute unencoded, as {@link TerminalFields}: their captions are
+     * translated, so the JSON can only be written at render, in the language the element renders
+     * in. A row that will not encode is a {@link \NeuroSYS\Exception\TerminalException} then,
+     * rather than here.
      *
      * @return Element
-     * @throws TerminalException if a row cannot be encoded — in practice, invalid UTF-8 in a value.
      */
     public function toElement(): Element
     {
-        try {
-            $fields = json_encode(
-                $this->fields->toValues(),
-                JSON_THROW_ON_ERROR | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
-            );
-        } catch (JsonException $cause) {
-            // The tag through the enum rather than written out. A quoted angle bracket followed by
-            // a tag name, anywhere under src/, fails the verify script's "nothing builds markup
-            // from a string" check — rightly, since it cannot tell an error message from a heredoc
-            // and should not have to. Naming it through Tag is the better answer anyway.
-            throw new TerminalException(
-                'A terminal row could not be encoded for ' . Tag::TerminalWindow->value
-                . ': ' . $cause->getMessage(),
-                previous: $cause,
-            );
-        }
-
         return new Element(Tag::TerminalWindow)
             ->attr(TerminalAttribute::Label, $this->label)
             ->attr(TerminalAttribute::Command, $this->command->render())
-            ->attr(TerminalAttribute::Fields, $fields)
+            ->attr(TerminalAttribute::Fields, new TerminalFields($this->fields))
             ->attr(TerminalAttribute::Narrow, $this->narrow);
     }
 }

@@ -31,6 +31,7 @@ use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\PasswordHash;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\DemoView;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\Html\Tag;
@@ -41,6 +42,7 @@ use NeuroSYS\View\StatsView;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
+use NeuroSYS\View\Terminal\TerminalFields;
 use NeuroSYS\View\Terminal\TerminalTone;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -54,6 +56,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(Layout::class)]
 #[CoversClass(Terminal::class)]
 #[CoversClass(TerminalField::class)]
+#[CoversClass(TerminalFields::class)]
 final class ViewTest extends TestCase
 {
     /**
@@ -76,11 +79,11 @@ final class ViewTest extends TestCase
                 arrangement: $this->arrangement(),
             ),
             'ill',
-        )->content()->render()
-            . new ReleasesView($this->catalogue())->content()->render()
-            . new NotFoundView('/x')->content()->render()
-            . new HomeView()->content()->render()
-            . $this->demoPage()->content()->render();
+        )->content()->render(0, Language::English)
+            . new ReleasesView($this->catalogue())->content()->render(0, Language::English)
+            . new NotFoundView('/x')->content()->render(0, Language::English)
+            . new HomeView()->content()->render(0, Language::English)
+            . $this->demoPage()->content()->render(0, Language::English);
     }
 
     /**
@@ -188,7 +191,7 @@ final class ViewTest extends TestCase
         string $stem,
         ?string $mark,
     ): void {
-        $html = new ReleaseView($this->release(title: $title), 'x')->content()->render();
+        $html = new ReleaseView($this->release(title: $title), 'x')->content()->render(0, Language::English);
 
         if ($mark === null) {
             self::assertStringNotContainsString('<span class="bang">', $html);
@@ -205,7 +208,7 @@ final class ViewTest extends TestCase
      */
     public function testAMultibyteTitleIsNotCorrupted(): void
     {
-        $html = new ReleaseView($this->release(title: 'überfall'), 'x')->content()->render();
+        $html = new ReleaseView($this->release(title: 'überfall'), 'x')->content()->render(0, Language::English);
 
         self::assertStringContainsString('überfall', $html);
     }
@@ -215,7 +218,7 @@ final class ViewTest extends TestCase
      */
     public function testAMultibyteTitleEndingInAMarkStillSplitsCleanly(): void
     {
-        $html = new ReleaseView($this->release(title: 'überfall!'), 'x')->content()->render();
+        $html = new ReleaseView($this->release(title: 'überfall!'), 'x')->content()->render(0, Language::English);
 
         self::assertStringContainsString('überfall<span class="bang">!</span>', $html);
     }
@@ -227,7 +230,9 @@ final class ViewTest extends TestCase
      */
     public function testTheReleaseTitleIsEscapedEverywhereItAppears(): void
     {
-        $html = new ReleaseView($this->release(title: '<script>alert(1)</script>'), 'x')->content()->render();
+        $html = new ReleaseView($this->release(title: '<script>alert(1)</script>'), 'x')
+            ->content()
+            ->render(0, Language::English);
 
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
@@ -241,7 +246,7 @@ final class ViewTest extends TestCase
         $html = new ReleaseView(
             $this->release(formats: [new Format(ReleaseFormat::FLAC)]),
             '"><script>alert(1)</script>',
-        )->content()->render();
+        )->content()->render(0, Language::English);
 
         self::assertStringNotContainsString('<script>alert(1)</script>', $html);
     }
@@ -251,7 +256,7 @@ final class ViewTest extends TestCase
      */
     public function testTheNotFoundPathIsEscaped(): void
     {
-        $html = new NotFoundView('/<img src=x onerror=alert(1)>')->content()->render();
+        $html = new NotFoundView('/<img src=x onerror=alert(1)>')->content()->render(0, Language::English);
 
         self::assertStringNotContainsString('<img src=x', $html);
         self::assertStringContainsString('&lt;img', $html);
@@ -265,7 +270,10 @@ final class ViewTest extends TestCase
         $releases = new SearchableCollection(Release::class)
             ->with('x', $this->release(title: 'a & b'));
 
-        self::assertStringContainsString('a &amp; b', new ReleasesView($releases)->content()->render());
+        self::assertStringContainsString(
+            'a &amp; b',
+            new ReleasesView($releases)->content()->render(0, Language::English),
+        );
     }
 
     // ───────────────────────────── cover art ─────────────────────────────
@@ -275,7 +283,7 @@ final class ViewTest extends TestCase
      */
     public function testFallsBackToThePlaceholderWhenThereIsNoCover(): void
     {
-        $html = new ReleaseView($this->release(), 'x')->content()->render();
+        $html = new ReleaseView($this->release(), 'x')->content()->render(0, Language::English);
 
         self::assertStringContainsString('src="/assets/img/cover-placeholder.svg"', $html);
         self::assertStringNotContainsString('src=""', $html);
@@ -286,7 +294,9 @@ final class ViewTest extends TestCase
      */
     public function testUsesTheConfiguredCoverWhenThereIsOne(): void
     {
-        $html = new ReleaseView($this->release(cover: new HiDriveLink('J2FXbB70A')), 'x')->content()->render();
+        $html = new ReleaseView($this->release(cover: new HiDriveLink('J2FXbB70A')), 'x')
+            ->content()
+            ->render(0, Language::English);
 
         self::assertStringContainsString('id=J2FXbB70A', $html);
     }
@@ -305,7 +315,7 @@ final class ViewTest extends TestCase
         $html = new ReleaseView(
             $this->release(embed: new SoundCloudEmbed(trackId: 1, permalink: 'x')),
             'x',
-        )->content()->render();
+        )->content()->render(0, Language::English);
 
         self::assertStringNotContainsString('<iframe', $html);
         self::assertStringNotContainsString('soundcloud.com', $html);
@@ -323,7 +333,7 @@ final class ViewTest extends TestCase
     public function testTheViewEmitsTheProvidersOwnElement(): void
     {
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x');
-        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content()->render();
+        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content()->render(0, Language::English);
 
         self::assertSame(Platform::SoundCloud, $embed->platform());
         self::assertStringContainsString('<soundcloud-player', $html);
@@ -334,7 +344,7 @@ final class ViewTest extends TestCase
      */
     public function testThereIsNoPlayerAtAllWithoutAnEmbed(): void
     {
-        $html = new ReleaseView($this->release(), 'x')->content()->render();
+        $html = new ReleaseView($this->release(), 'x')->content()->render(0, Language::English);
 
         self::assertStringNotContainsString('soundcloud-player', $html);
     }
@@ -352,7 +362,7 @@ final class ViewTest extends TestCase
     public function testTheGateReservesThePlayersHeight(SoundCloudPlayerStyle $style, int $height): void
     {
         $embed = new SoundCloudEmbed(trackId: 1, permalink: 'x', style: $style);
-        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content()->render();
+        $html  = new ReleaseView($this->release(embed: $embed), 'x')->content()->render(0, Language::English);
 
         self::assertStringContainsString('height="' . $height . '"', $html);
 
@@ -433,7 +443,7 @@ final class ViewTest extends TestCase
      */
     public function testTheNotFoundCommandContainsThePathItWasGiven(): void
     {
-        $html = new NotFoundView('/some odd path')->content()->render();
+        $html = new NotFoundView('/some odd path')->content()->render(0, Language::English);
 
         self::assertStringContainsString('find &quot;/some odd path&quot;', $html);
     }
@@ -444,7 +454,8 @@ final class ViewTest extends TestCase
      * propagated: a terminal whose rows cannot be serialised is a page that cannot be built, which
      * is what MarkupException already means and what every other failure in this layer throws.
      * Propagating the core exception would make every view declaring a terminal owe and throw for
-     * a condition none of them can act on.
+     * a condition none of them can act on. It is raised at render, which is when the rows are
+     * encoded — their captions are translated, so the language has to be known first.
      *
      * @return void
      */
@@ -458,7 +469,7 @@ final class ViewTest extends TestCase
             command: new TerminalCommand('./x'),
             fields:  new Collection(TerminalField::class)
                 ->with(new TerminalField('title', "\xB1\x31")),
-        )->toElement();
+        )->toElement()->render(0, Language::English);
     }
 
     /**
@@ -468,8 +479,29 @@ final class ViewTest extends TestCase
     {
         self::assertStringContainsString(
             'fields="[]"',
-            new Terminal('error.log', new TerminalCommand('find', '/x'))->toElement()->render(),
+            new Terminal('error.log', new TerminalCommand('find', '/x'))->toElement()->render(0, Language::English),
         );
+    }
+
+    /**
+     * A caption is translated, and a row written in words is put into the terminal's language when
+     * it is encoded — which is at render, the one point the language is known.
+     *
+     * @return void
+     */
+    public function testATerminalRowIsEncodedInTheLanguageItRendersIn(): void
+    {
+        $terminal = new Terminal(
+            label:   'release.log',
+            command: new TerminalCommand('./x'),
+            fields:  new Collection(TerminalField::class)
+                ->with(new TerminalField(TextFixture::Plain, TextFixture::EnglishOnly)),
+        )->toElement();
+
+        $key = '&quot;key&quot;:&quot;';
+
+        self::assertStringContainsString($key . 'Downloads&quot;', $terminal->render(0, Language::German));
+        self::assertStringContainsString($key . 'downloads&quot;', $terminal->render(0, Language::English));
     }
 
     /**
@@ -484,7 +516,7 @@ final class ViewTest extends TestCase
             command: new TerminalCommand('./x'),
             fields:  new Collection(TerminalField::class)
                 ->with(new TerminalField('title', '" onload="alert(1)', TerminalTone::Ok)),
-        )->toElement()->render();
+        )->toElement()->render(0, Language::English);
 
         // JSON escapes the quote, htmlspecialchars then escapes that — belt and braces, in that order.
         self::assertStringContainsString('\\&quot; onload=\\&quot;alert(1)', $html);
@@ -569,7 +601,7 @@ final class ViewTest extends TestCase
     {
         $html = new ReleaseView($this->release(
             formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
-        ), 'ill')->content()->render();
+        ), 'ill')->content()->render(0, Language::English);
 
         preg_match_all('/<download-card[^>]*>\s*<a([^>]*)>/', $html, $m);
 
@@ -586,7 +618,7 @@ final class ViewTest extends TestCase
     {
         $html = new ReleaseView($this->release(
             formats: [new Format(ReleaseFormat::FLAC, new HiDriveLink('BXRsy9S7d'))],
-        ), 'ill')->content()->render();
+        ), 'ill')->content()->render(0, Language::English);
 
         self::assertStringContainsString('href="/releases/ill/flac"', $html);
         self::assertStringNotContainsString('hidrive', $html);
@@ -597,7 +629,9 @@ final class ViewTest extends TestCase
      */
     public function testAFormatWithNoLinkStillRendersItsCard(): void
     {
-        $html = new ReleaseView($this->release(formats: [new Format(ReleaseFormat::WAV)]), 'ill')->content()->render();
+        $html = new ReleaseView($this->release(formats: [new Format(ReleaseFormat::WAV)]), 'ill')
+            ->content()
+            ->render(0, Language::English);
 
         self::assertStringContainsString('href="/releases/ill/wav"', $html);
     }
@@ -611,7 +645,7 @@ final class ViewTest extends TestCase
             new Format(ReleaseFormat::FLAC),
             new Format(ReleaseFormat::WAV),
             new Format(ReleaseFormat::MP3),
-        ]), 'ill')->content()->render();
+        ]), 'ill')->content()->render(0, Language::English);
 
         self::assertSame(2, substr_count($html, 'lossless, 24-bit/48kHz'));
         self::assertStringContainsString('320 kbps', $html);
@@ -624,7 +658,7 @@ final class ViewTest extends TestCase
      */
     public function testStatsSaysLoggingIsOffRatherThanShowingAnEmptyTable(): void
     {
-        $html = new StatsView()->content()->render();
+        $html = new StatsView()->content()->render(0, Language::English);
 
         self::assertStringContainsString('switched off', $html);
         self::assertStringNotContainsString('<table', $html);
@@ -637,7 +671,7 @@ final class ViewTest extends TestCase
     {
         self::assertStringContainsString(
             'No downloads logged yet',
-            new StatsView(DownloadStats::fromLines([]))->content()->render(),
+            new StatsView(DownloadStats::fromLines([]))->content()->render(0, Language::English),
         );
     }
 
@@ -650,7 +684,7 @@ final class ViewTest extends TestCase
         // `slug/format`, and the slug is the one part of it a request ever influenced.
         $html = new StatsView(DownloadStats::fromLines([
             new DownloadLogEntry('2026-09-06T00:00:00+00:00', '<script>x</script>', 'flac', '')->toJson(),
-        ]))->content()->render();
+        ]))->content()->render(0, Language::English);
 
         self::assertStringNotContainsString('<script>x</script>', $html);
         self::assertStringContainsString('&lt;script&gt;', $html);
@@ -663,7 +697,7 @@ final class ViewTest extends TestCase
      */
     public function testTheLayoutWrapsContentInADocumentWithTheViewsTitle(): void
     {
-        $html = Layout::wrap(new NotFoundView('/nope'))->render();
+        $html = Layout::wrap(new NotFoundView('/nope'), Language::English)->render();
 
         self::assertStringStartsWith('<!DOCTYPE html>', $html);
         self::assertStringContainsString('<title>404 — neuro.SYS</title>', $html);
@@ -675,7 +709,7 @@ final class ViewTest extends TestCase
      */
     public function testProfileLinksOpenSafelyInANewTab(): void
     {
-        $html = Layout::wrap(new NotFoundView('/nope'))->render();
+        $html = Layout::wrap(new NotFoundView('/nope'), Language::English)->render();
 
         preg_match_all('/<a class="profile-link"[^>]*>/', $html, $m);
 
@@ -695,7 +729,7 @@ final class ViewTest extends TestCase
      */
     public function testNothingInTheLayoutIsFetchedFromARemoteHostOnPageLoad(): void
     {
-        $html = Layout::wrap(new NotFoundView('/x'))->render();
+        $html = Layout::wrap(new NotFoundView('/x'), Language::English)->render();
 
         preg_match_all('/\\bsrc="([^"]+)"/', $html, $src);
         preg_match_all('/<link[^>]+href="([^"]+)"/', $html, $link);
@@ -721,7 +755,7 @@ final class ViewTest extends TestCase
      */
     public function testEveryModuleInTheGraphIsPreloaded(): void
     {
-        $html = Layout::wrap(new NotFoundView('/x'))->render();
+        $html = Layout::wrap(new NotFoundView('/x'), Language::English)->render();
 
         self::assertNotEmpty(AssetManifest::MODULES, 'the generated manifest is empty');
         foreach (AssetManifest::MODULES as $module) {
@@ -747,7 +781,7 @@ final class ViewTest extends TestCase
 
         self::assertStringNotContainsString(
             '<link rel="modulepreload" href="' . Config::SCRIPT,
-            Layout::wrap(new NotFoundView('/x'))->render(),
+            Layout::wrap(new NotFoundView('/x'), Language::English)->render(),
         );
     }
 
@@ -849,7 +883,7 @@ final class ViewTest extends TestCase
     {
         preg_match_all(
             '/<a class="profile-link" href="([^"]+)"/',
-            Layout::wrap(new NotFoundView('/x'))->render(),
+            Layout::wrap(new NotFoundView('/x'), Language::English)->render(),
             $m,
         );
 
@@ -872,7 +906,7 @@ final class ViewTest extends TestCase
     {
         self::assertSame(
             'ill. — ' . Config::NAME,
-            new ReleaseView($this->release(), 'ill')->pageTitle(),
+            new ReleaseView($this->release(), 'ill')->pageTitle()->in(Language::English),
         );
     }
 
@@ -883,7 +917,7 @@ final class ViewTest extends TestCase
     {
         self::assertSame(
             'a & b — ' . Config::NAME,
-            new ReleaseView($this->release(title: 'a & b'), 'x')->pageTitle(),
+            new ReleaseView($this->release(title: 'a & b'), 'x')->pageTitle()->in(Language::English),
         );
     }
 
@@ -892,7 +926,10 @@ final class ViewTest extends TestCase
      */
     public function testTheCataloguePageIsTitledForTheSection(): void
     {
-        self::assertSame('releases — ' . Config::NAME, new ReleasesView($this->catalogue())->pageTitle());
+        self::assertSame(
+            'releases — ' . Config::NAME,
+            new ReleasesView($this->catalogue())->pageTitle()->in(Language::English),
+        );
     }
 
     /**
@@ -900,6 +937,6 @@ final class ViewTest extends TestCase
      */
     public function testTheStatsPageIsTitledForTheSection(): void
     {
-        self::assertSame('stats — ' . Config::NAME, new StatsView()->pageTitle());
+        self::assertSame('stats — ' . Config::NAME, new StatsView()->pageTitle()->in(Language::English));
     }
 }

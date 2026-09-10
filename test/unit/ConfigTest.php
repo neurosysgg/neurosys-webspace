@@ -142,14 +142,6 @@ final class ConfigTest extends TestCase
     // ───────────────────────────── identity ─────────────────────────────
 
     /**
-     * @return void
-     */
-    public function testTheDescriptionIsTheNameAndTheTagline(): void
-    {
-        self::assertSame('neuro.SYS — electronic music.', Config::description());
-    }
-
-    /**
      * {@link \NeuroSYS\View\Wordmark} splits the name on its first dot and accents it, so a name
      * with no dot would render as the whole name and an empty second half — a wordmark that is
      * a lookalike of the site's own name, which is the thing Wordmark exists to prevent.

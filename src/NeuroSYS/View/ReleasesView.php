@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Model\Release;
-use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
@@ -19,12 +20,6 @@ use NeuroSYS\View\Html\Tag;
 /**
  * The ReleasesView class. Renders the full list of releases.
  */
-#[BareString(
-    'releases',
-    'the page word, written as the heading and again as the title. Its twin is the footer link in '
-    . 'Layout, which is copy in another place rather than the same fact twice — the address they '
-    . 'share is SitePath::Releases, and that is the half that has to be one thing.',
-)]
 class ReleasesView extends View
 {
     /**
@@ -35,9 +30,9 @@ class ReleasesView extends View
     public function __construct(private readonly SearchableCollection $releases) {}
 
     /**
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string { return self::title('releases'); }
+    public function pageTitle(): Translatable { return self::title(Texts::Layout::Releases); }
 
     /**
      * @return Node
@@ -49,7 +44,7 @@ class ReleasesView extends View
             ->containing(
                 new Element(HtmlTag::H2)
                     ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
-                    ->containing('releases'),
+                    ->containing(Texts::Layout::Releases),
                 new Element(Tag::ReleaseList)
                     ->containing(...$this->releases->map(self::card(...))->toValues()),
             );
@@ -65,19 +60,15 @@ class ReleasesView extends View
      * {@link \NeuroSYS\Support\TypedItems::map()} hands them over — so this stays a first-class
      * callable at its one call site rather than growing a closure to reverse it.
      *
+     * The meta line is several children rather than one joined string, because the tempo is
+     * translated and the rest may be: the language is not known until the card renders.
+     *
      * @param Release $release
      * @param string  $slug
      * @return Element
      */
     private static function card(Release $release, string $slug): Element
     {
-        $meta = implode(' · ', [
-            $release->bpm . ' bpm',
-            $release->key->value,
-            $release->genre->value,
-            $release->description,
-        ]);
-
         return new Element(Tag::ReleaseCard)
             ->attr(CardAttribute::Slug, $slug)
             ->containing(
@@ -89,7 +80,15 @@ class ReleasesView extends View
                     ->attr(HtmlAttribute::Href, SitePath::Release->to($slug))
                     ->containing(
                         new Element(Tag::ReleaseTitle)->containing($release->title),
-                        new Element(Tag::ReleaseMeta)->containing($meta),
+                        new Element(Tag::ReleaseMeta)->containing(
+                            Texts::Releases::Beats->with(bpm: $release->bpm),
+                            ' · ',
+                            $release->key->value,
+                            ' · ',
+                            $release->genre->value,
+                            ' · ',
+                            $release->description,
+                        ),
                     ),
             );
     }

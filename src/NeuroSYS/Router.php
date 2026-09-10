@@ -39,7 +39,7 @@ readonly class Router
             if (($params = $route->matches($request->path())) !== false) {
                 return $route->accepts($request->method())
                     ? $route->createController($params)->handle($request)
-                    : self::refuse();
+                    : self::refuse($request);
             }
         }
 
@@ -57,13 +57,14 @@ readonly class Router
      * `/api` announces the endpoint that exists to be unannounceable — so it never reaches here
      * at all, having {@link \NeuroSYS\Support\MethodPolicy::Delegated} instead.
      *
+     * @param Request $request
      * @return PlainTextResponse
      */
-    private static function refuse(): PlainTextResponse
+    private static function refuse(Request $request): PlainTextResponse
     {
         return new PlainTextResponse(
             HttpStatusCode::MethodNotAllowed,
-            UnroutedController::REFUSAL,
+            UnroutedController::refusal($request->language()),
             new Collection(Header::class)->with(new Header(ResponseHeader::Allow, Allow::readOnly())),
         );
     }

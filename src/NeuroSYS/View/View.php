@@ -7,7 +7,9 @@ namespace NeuroSYS\View;
 use NeuroSYS\Config;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Support\BareArray;
-use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Joined;
+use NeuroSYS\Text\Translatable;
+use NeuroSYS\Text\Verbatim;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -28,11 +30,11 @@ use NeuroSYS\View\Html\Node;
 abstract class View
 {
     /**
-     * Returns the page title for this view.
+     * Returns the page title for this view, to be put into the page's language when it renders.
      *
-     * @return string
+     * @return Translatable
      */
-    abstract public function pageTitle(): string;
+    abstract public function pageTitle(): Translatable;
     /**
      * Returns the HTML content fragment for this view.
      *
@@ -41,36 +43,18 @@ abstract class View
     abstract public function content(): Node;
 
     /**
-     * The language this page is primarily written in.
-     *
-     * English for everything here but the two legal documents, which carry a German half and an
-     * English half and lead with the language the request is answered in — see
-     * {@link \NeuroSYS\Http\Request::language()}. {@link \NeuroSYS\Layout::wrap()} puts it on
-     * `<html lang>`, and each half of a bilingual page carries its own `lang` besides, so a screen
-     * reader changes voice at the boundary rather than reading one language in the other's.
-     *
-     * A default rather than an abstract, unlike the two above: a page that has not thought about
-     * this is English, which is true of seven of the nine.
-     *
-     * @return Language
-     */
-    public function language(): Language
-    {
-        return Language::English;
-    }
-
-    /**
-     * The request headers this page's body depends on, beyond the one every page depends on.
+     * The request headers this page's body depends on, beyond the ones every page depends on.
      *
      * **A page that reads a request header owes a `Vary` naming it**, and stating both facts in one
      * place is what stops the second being forgotten: {@link \NeuroSYS\Http\ViewResponse} builds
      * the header from this, so a view cannot start varying on something without saying so. Forget
      * it and there is no error — a cache simply becomes free to hand one visitor the page it built
-     * for another, which on the two pages this concerns means the wrong language and nothing else
-     * wrong at all.
+     * for another, with nothing visibly wrong at all.
      *
-     * `X-Requested-With` is not on any view's list because every response varies on it, document or
-     * fragment; that one belongs to the response rather than to the page.
+     * Three are on no view's list because every page varies on them, so they belong to the response
+     * rather than to the page: `X-Requested-With`, which decides document or fragment, and
+     * `Accept-Language` and `Cookie`, which decide the language every page is written in — see
+     * {@link \NeuroSYS\Http\Request::language()}. No view adds anything today.
      *
      * @return list<RequestHeader>
      */
@@ -88,14 +72,22 @@ abstract class View
      * A page title: the section, then the site.
      *
      * Written once, here, rather than by each view: `' — neuro.SYS'` in six views is six chances to
-     * use a hyphen where the others use an em dash and never notice.
+     * use a hyphen where the others use an em dash and never notice. A translatable rather than a
+     * string, because most sections are words, which the language decides when the title renders;
+     * a section that is a name — a release's title — is the same in every language.
      *
-     * @param ?string $section
-     * @return string
+     * @param Translatable|string|null $section
+     * @return Translatable
      */
-    protected static function title(?string $section = null): string
+    protected static function title(Translatable|string|null $section = null): Translatable
     {
-        return $section === null ? Config::NAME : $section . ' — ' . Config::NAME;
+        $site = new Verbatim(Config::NAME);
+
+        return match (true) {
+            $section === null                => $site,
+            $section instanceof Translatable => new Joined(' — ', $section, $site),
+            default                          => new Joined(' — ', new Verbatim($section), $site),
+        };
     }
 
     /**
@@ -118,11 +110,20 @@ abstract class View
             return [$text];
         }
 
-        return [
-            substr($text, 0, -1),
-            new Element(HtmlTag::Span)
-                ->attr(HtmlAttribute::ClassName, CssClass::Bang)
-                ->containing($matches[0]),
-        ];
+        return [substr($text, 0, -1), self::accent($matches[0])];
+    }
+
+    /**
+     * The accented mark on its own.
+     *
+     * For a line whose words are translated: they are not known until the language is, so they
+     * cannot be split — the mark is set beside them instead, and it is the same in every language.
+     *
+     * @param string $mark
+     * @return Element
+     */
+    protected static function accent(string $mark): Element
+    {
+        return new Element(HtmlTag::Span)->attr(HtmlAttribute::ClassName, CssClass::Bang)->containing($mark);
     }
 }

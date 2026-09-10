@@ -12,6 +12,8 @@ use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Texts;
 
 /**
  * The UnroutedController class. What this site says about an address it does not have: the rendered
@@ -37,14 +39,21 @@ use NeuroSYS\Support\Collection;
 final readonly class UnroutedController implements Controller
 {
     /**
-     * The body of every 405 this site sends.
+     * The body of every 405 this site sends, in $language.
      *
-     * A constant because {@link \NeuroSYS\Router} sends one too, for the other 405 — a path a
+     * One method because {@link \NeuroSYS\Router} sends one too, for the other 405 — a path a
      * route *did* claim with a method it does not accept — and those two bodies being the same
-     * sentence is the whole reason a caller cannot tell the two situations apart. The `Allow`
+     * sentence is the whole reason a caller cannot tell the two situations apart. Both put it into
+     * the request's language, so for any one caller it is still one sentence. The `Allow`
      * headers differ, correctly; the body must not.
+     *
+     * @param Language $language
+     * @return string
      */
-    public const string REFUSAL = "This site is read-only.\n";
+    public static function refusal(Language $language): string
+    {
+        return Texts::Errors::ReadOnly->in($language) . "\n";
+    }
 
     /**
      * @param Request $request
@@ -58,7 +67,7 @@ final readonly class UnroutedController implements Controller
 
         return new PlainTextResponse(
             HttpStatusCode::MethodNotAllowed,
-            self::REFUSAL,
+            self::refusal($request->language()),
             new Collection(Header::class)->with(new Header(ResponseHeader::Allow, Allow::readOnly())),
         );
     }

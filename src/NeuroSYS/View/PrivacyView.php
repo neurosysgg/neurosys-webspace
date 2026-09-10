@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Exception\MarkupException;
-use NeuroSYS\Http\RequestHeader;
-use NeuroSYS\Support\BareArray;
 use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -53,31 +52,14 @@ class PrivacyView extends View
      * Both spellings are already words of the documents below, so nothing here is translated that
      * was not translated before.
      *
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string
+    public function pageTitle(): Translatable
     {
         return self::title(match ($this->language) {
             Language::German  => 'Datenschutzerklärung',
             Language::English => 'Privacy Policy',
         });
-    }
-
-    /**
-     * @return Language
-     */
-    public function language(): Language
-    {
-        return $this->language;
-    }
-
-    /**
-     * @return list<RequestHeader>
-     */
-    #[BareArray('overrides View::varyOn(); see the reason there')]
-    public function varyOn(): array
-    {
-        return [RequestHeader::AcceptLanguage, RequestHeader::Cookie];
     }
 
     /**

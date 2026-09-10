@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model;
 
+use NeuroSYS\Text\ProfileText;
+
 /**
  * The Platform enum. External profile platforms linked from the site footer.
  *
@@ -21,19 +23,20 @@ enum Platform: string
     case GitHub     = 'github';
 
     /**
-     * Returns the accessible link label, worded per each platform's brand guidelines.
+     * Returns the accessible link label, worded per each platform's brand guidelines — in both
+     * languages, so the footer says it in the page's. See {@link ProfileText}.
      *
-     * @return string
+     * @return ProfileText
      */
-    public function label(): string
+    public function label(): ProfileText
     {
         return match ($this) {
-            self::SoundCloud => 'Listen on SoundCloud',
-            self::Spotify    => 'Listen on Spotify',
-            self::AppleMusic => 'Listen on Apple Music',
-            self::YouTube    => 'Watch on YouTube',
-            self::X          => 'Follow on X',
-            self::GitHub     => 'GitHub',
+            self::SoundCloud => ProfileText::SoundCloud,
+            self::Spotify    => ProfileText::Spotify,
+            self::AppleMusic => ProfileText::AppleMusic,
+            self::YouTube    => ProfileText::YouTube,
+            self::X          => ProfileText::X,
+            self::GitHub     => ProfileText::GitHub,
         };
     }
 

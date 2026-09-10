@@ -8,10 +8,14 @@ use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\BareCall;
-use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\Support\UrlScheme;
+use NeuroSYS\Text\Joined;
+use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
+use NeuroSYS\Text\Verbatim;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Document;
 use NeuroSYS\View\Html\Element;
@@ -31,33 +35,32 @@ use NeuroSYS\View\Wordmark;
 /**
  * The Layout class. Renders the site shell — HTML document, header, footer, and scripts.
  */
-#[BareString(
-    'releases',
-    'the footer link\'s copy. Its twin is the heading on the page it points at, and the address '
-    . 'between them is SitePath::Releases — which is the half that has to be one fact, and is.',
-)]
 class Layout
 {
     /**
-     * Wraps the given view's content in the full site shell.
+     * Wraps the given view's content in the full site shell, in $language.
      *
-     * @param View $view The view whose content to embed.
+     * `<html lang>` is where a page states its language, and so where the tree takes it from:
+     * every translatable in the document renders in it — see {@link \NeuroSYS\View\Html\Node}.
+     *
+     * @param View     $view     The view whose content to embed.
+     * @param Language $language The language the request is answered in.
      * @return Document The complete document, ready to render.
      */
-    public static function wrap(View $view): Document
+    public static function wrap(View $view, Language $language): Document
     {
         return new Document(
             new Element(HtmlTag::Html)
-                ->attr(HtmlAttribute::Lang, $view->language())
+                ->attr(HtmlAttribute::Lang, $language)
                 ->containing(self::head($view->pageTitle()), self::body($view->content())),
         );
     }
 
     /**
-     * @param string $title
+     * @param Translatable $title
      * @return Element
      */
-    private static function head(string $title): Element
+    private static function head(Translatable $title): Element
     {
         return new Element(HtmlTag::Head)->containing(
             new Element(HtmlTag::Meta)->attr(HtmlAttribute::Charset, Charset::Utf8->canonical()),
@@ -70,11 +73,28 @@ class Layout
             new Element(HtmlTag::Title)->containing($title),
             new Element(HtmlTag::Meta)
                 ->attr(HtmlAttribute::Name, MetaName::Description)
-                ->attr(HtmlAttribute::Content, Config::description()),
+                ->attr(HtmlAttribute::Content, self::description()),
             new Element(HtmlTag::Link)
                 ->attr(HtmlAttribute::Rel, LinkRel::Stylesheet)
                 ->attr(HtmlAttribute::Href, AssetManifest::STYLESHEET),
             ...self::modulePreloads(),
+        );
+    }
+
+    /**
+     * The site's meta description — `neuro.SYS — electronic music.` — in the page's language.
+     *
+     * Joined rather than written out as a phrase of its own, so the tagline stays one case of the
+     * catalog: the home page's headline is the same words.
+     *
+     * @return Translatable
+     */
+    private static function description(): Translatable
+    {
+        return new Joined(
+            ' — ',
+            new Verbatim(Config::NAME),
+            new Joined('', Texts::Layout::Tagline, new Verbatim('.')),
         );
     }
 
@@ -168,7 +188,7 @@ class Layout
                     ->containing(
                         new Element(HtmlTag::A)
                             ->attr(HtmlAttribute::Href, SitePath::Releases->to())
-                            ->containing('releases'),
+                            ->containing(Texts::Layout::Releases),
                     ),
             );
     }
@@ -188,7 +208,7 @@ class Layout
             $footer = $footer->containing(
                 new Element(HtmlTag::Nav)
                     ->attr(HtmlAttribute::ClassName, CssClass::ProfileLinks)
-                    ->attr(HtmlAttribute::AriaLabel, 'Profiles')
+                    ->attr(HtmlAttribute::AriaLabel, Texts::Layout::Profiles)
                     ->containing(...$links->map(self::profileLink(...))->toValues()),
             );
         }
@@ -202,11 +222,11 @@ class Layout
                 ' · ',
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::Href, SitePath::Imprint->to())
-                    ->containing('imprint'),
+                    ->containing(Texts::Layout::Imprint),
                 ' · ',
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::Href, SitePath::Privacy->to())
-                    ->containing('privacy policy'),
+                    ->containing(Texts::Layout::Privacy),
             ),
         );
     }

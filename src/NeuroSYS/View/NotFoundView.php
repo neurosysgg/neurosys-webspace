@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -20,12 +21,6 @@ use NeuroSYS\View\Terminal\TerminalTone;
 /**
  * The NotFoundView class. Renders the 404 error page.
  */
-#[BareString(
-    'error',
-    'the caption of the row, which TerminalTone::Error spells by coincidence — the tone is passed '
-    . 'beside it in the same call. Two words about different things: one names the accent, this '
-    . 'one is what the reader sees.',
-)]
 class NotFoundView extends View
 {
     /**
@@ -36,9 +31,9 @@ class NotFoundView extends View
     public function __construct(private readonly string $path) {}
 
     /**
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string { return self::title('404'); }
+    public function pageTitle(): Translatable { return self::title('404'); }
 
     /**
      * @return Node
@@ -51,8 +46,9 @@ class NotFoundView extends View
                 new Terminal(
                     label:   'error.log',
                     command: new TerminalCommand('find', $this->path),
-                    fields:  new Collection(TerminalField::class)
-                        ->with(new TerminalField('error', '404 — not found', TerminalTone::Error)),
+                    fields:  new Collection(TerminalField::class)->with(
+                        new TerminalField(Texts::Errors::Error, Texts::Errors::NotFound, TerminalTone::Error),
+                    ),
                     narrow:  true,
                 )->toElement(),
                 new Element(HtmlTag::P)
@@ -60,7 +56,7 @@ class NotFoundView extends View
                     ->containing(
                         new Element(HtmlTag::A)
                             ->attr(HtmlAttribute::Href, SitePath::Home->to())
-                            ->containing('← home'),
+                            ->containing(Texts::Errors::Home),
                     ),
             );
     }

@@ -18,7 +18,8 @@ use NeuroSYS\Support\File;
  * else here is arranged: a fact normally lives with the thing it describes, so its docblock can say
  * why. A constant earns a place here only by being one of three things:
  *
- * 1. **identity** — the name, handle, address and tagline this site is;
+ * 1. **identity** — the name, handle and address this site is (its tagline is words, and words
+ *    are in the catalog — see {@link Text\LayoutText::Tagline});
  * 2. **environment** — where the data lives, which third-party origins are reachable, what is
  *    switched on;
  * 3. **already stated twice** — a fact two files had their own copy of.
@@ -45,9 +46,6 @@ final class Config
 
     /** The contact address, in the footer, the imprint and the stems licensing note. */
     public const string EMAIL = 'neuro.sys@neurosys.gg';
-
-    /** What the site is, in three words. The home page headline and the meta description. */
-    public const string TAGLINE = 'electronic music.';
 
     /**
      * The user name on every demo gate.
@@ -326,15 +324,5 @@ final class Config
     public static function demoDir(string $slug): Directory
     {
         return self::data()->directory('demos')->directory($slug);
-    }
-
-    /**
-     * The site's meta description: `neuro.SYS — electronic music.`
-     *
-     * @return string
-     */
-    public static function description(): string
-    {
-        return self::NAME . ' — ' . self::TAGLINE;
     }
 }

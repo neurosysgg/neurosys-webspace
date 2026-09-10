@@ -61,6 +61,8 @@ readonly class ViewResponse implements Response
      */
     public function send(Request $request): void
     {
+        $language = $request->language();
+
         // The fragment leads with a <title> so Navigation can read the new page title out of it —
         // an element like any other, so the title is escaped by the same rule as everything else.
         $body = $request->isAjax()
@@ -68,11 +70,11 @@ readonly class ViewResponse implements Response
                 new Element(HtmlTag::Title)->containing($this->view->pageTitle()),
                 $this->view->content(),
             )
-            : Layout::wrap($this->view);
+            : Layout::wrap($this->view, $language);
 
         // The language is passed in as well as stated on <html lang>, because a fragment has no
         // <html>: without it, the first translated text in the fragment would have no scope.
-        $markup = $body->render(0, $this->view->language());
+        $markup = $body->render(0, $language);
 
         // Hashed once and passed down, rather than built here and built again inside
         // cacheHeaders(): the validator sent and the validator compared have to be the same value,
@@ -92,7 +94,7 @@ readonly class ViewResponse implements Response
 
         http_response_code($this->status->value);
         header(new Header(ResponseHeader::ContentType, MimeType::html())->line());
-        header(new Header(ResponseHeader::ContentLanguage, new ContentLanguage($this->view->language()))->line());
+        header(new Header(ResponseHeader::ContentLanguage, new ContentLanguage($language))->line());
 
         self::sendAll($cache);
         self::sendAll($this->headers);
@@ -128,11 +130,11 @@ readonly class ViewResponse implements Response
      * and the fragment are different bytes, so they cannot validate against each other even where
      * `Vary` is ignored.
      *
-     * **Anything else it names comes from the view**, through {@link View::varyOn()}, because the
-     * page is what knows which headers it read. The imprint and the privacy policy add
-     * `Accept-Language` and `Cookie`, the two {@link Request::language()} reads; every other page
-     * adds nothing, so no page pays for a dependency it does
-     * not have. The `ETag` is a second guard there too — the two orderings are different bytes.
+     * It names `Accept-Language` and `Cookie` too, on every page, because every page is written in
+     * the language {@link Request::language()} reads from those two; the `ETag` is a second guard
+     * there as well, since two languages are different bytes. **Anything beyond those three comes
+     * from the view**, through {@link View::varyOn()}, because the page is what knows which other
+     * headers it read — none, today.
      *
      * **A caller that supplied its own `Cache-Control` gets none of this**, and no 304 either.
      * That is {@link \NeuroSYS\Controller\StatsController}, which says `no-store, private` because
@@ -163,7 +165,12 @@ readonly class ViewResponse implements Response
             new Header(ResponseHeader::ETag, $etag),
             new Header(
                 ResponseHeader::Vary,
-                Vary::on(RequestHeader::RequestedWith, ...$this->view->varyOn()),
+                Vary::on(
+                    RequestHeader::RequestedWith,
+                    RequestHeader::AcceptLanguage,
+                    RequestHeader::Cookie,
+                    ...$this->view->varyOn(),
+                ),
             ),
         );
     }

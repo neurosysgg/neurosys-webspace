@@ -6,7 +6,6 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Config;
 use NeuroSYS\DataFile;
-use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Text\Language;
 use NeuroSYS\View\HomeView;
@@ -47,7 +46,7 @@ final class PageTest extends TestCase
      */
     public function testTheWordmarkRendersOnOneLineWithNoSpaceAroundTheDot(): void
     {
-        $html = new HomeView()->content()->render();
+        $html = new HomeView()->content()->render(0, Language::English);
 
         self::assertStringContainsString('neuro<span class="logo-dot">.</span>SYS', $html);
     }
@@ -86,8 +85,8 @@ final class PageTest extends TestCase
      */
     public function testTheHomePageTitleIsTheBareSiteName(): void
     {
-        self::assertSame(Config::NAME, new HomeView()->pageTitle());
-        self::assertStringNotContainsString('—', new HomeView()->pageTitle());
+        self::assertSame(Config::NAME, new HomeView()->pageTitle()->in(Language::English));
+        self::assertStringNotContainsString('—', new HomeView()->pageTitle()->in(Language::English));
     }
 
     /**
@@ -97,7 +96,7 @@ final class PageTest extends TestCase
     {
         self::assertStringContainsString(
             'electronic music<span class="bang">.</span>',
-            new HomeView()->content()->render(),
+            new HomeView()->content()->render(0, Language::English),
         );
     }
 
@@ -110,7 +109,7 @@ final class PageTest extends TestCase
      */
     public function testTheCallToActionCarriesARealArrowRatherThanAnEntity(): void
     {
-        $html = new HomeView()->content()->render();
+        $html = new HomeView()->content()->render(0, Language::English);
 
         self::assertStringContainsString('releases →', $html);
         self::assertStringNotContainsString('&amp;rarr;', $html);
@@ -121,7 +120,7 @@ final class PageTest extends TestCase
      */
     public function testTheCallToActionPointsAtTheCatalogue(): void
     {
-        self::assertStringContainsString('href="/releases"', new HomeView()->content()->render());
+        self::assertStringContainsString('href="/releases"', new HomeView()->content()->render(0, Language::English));
     }
 
     // ───────────────────────────── the imprint ─────────────────────────────
@@ -131,7 +130,7 @@ final class PageTest extends TestCase
      */
     public function testTheImprintIsTitledInEnglish(): void
     {
-        self::assertSame('Imprint — neuro.SYS', new ImprintView()->pageTitle());
+        self::assertSame('Imprint — neuro.SYS', new ImprintView()->pageTitle()->in(Language::English));
     }
 
     /**
@@ -144,7 +143,7 @@ final class PageTest extends TestCase
      */
     public function testEveryCopyOfTheAddressIsTheSameAddress(): void
     {
-        preg_match_all('#<p>Niclas Ahl.*?</p>#s', new ImprintView()->content()->render(), $m);
+        preg_match_all('#<p>Niclas Ahl.*?</p>#s', new ImprintView()->content()->render(0, Language::English), $m);
 
         self::assertCount(4, $m[0]);
         self::assertCount(1, array_unique($m[0]));
@@ -157,7 +156,7 @@ final class PageTest extends TestCase
      */
     public function testTheAddressLinesAreSeparatedRatherThanTerminated(): void
     {
-        preg_match('#<p>Niclas Ahl.*?</p>#s', new ImprintView()->content()->render(), $m);
+        preg_match('#<p>Niclas Ahl.*?</p>#s', new ImprintView()->content()->render(0, Language::English), $m);
 
         self::assertSame(4, substr_count($m[0], '<br>'));
         self::assertStringEndsWith('Germany</p>', $m[0]);
@@ -170,7 +169,7 @@ final class PageTest extends TestCase
      */
     public function testTheContactAddressIsTheConfiguredOneInBothHalves(): void
     {
-        $html = new ImprintView()->content()->render();
+        $html = new ImprintView()->content()->render(0, Language::English);
 
         self::assertSame(2, substr_count($html, 'href="mailto:' . Config::EMAIL . '">' . Config::EMAIL . '</a>'));
     }
@@ -180,7 +179,7 @@ final class PageTest extends TestCase
      */
     public function testBothLanguagesGetTheirOwnHeading(): void
     {
-        $html = new ImprintView()->content()->render();
+        $html = new ImprintView()->content()->render(0, Language::English);
 
         self::assertStringContainsString('<h1>Impressum</h1>', $html);
         self::assertStringContainsString('<h1>Imprint</h1>', $html);
@@ -193,7 +192,7 @@ final class PageTest extends TestCase
      */
     public function testTheGermanTextSurvivesAsUtf8RatherThanAsEntities(): void
     {
-        $html = new ImprintView()->content()->render();
+        $html = new ImprintView()->content()->render(0, Language::English);
 
         self::assertStringContainsString('gemäß § 5 DDG', $html);
         self::assertStringContainsString('48157 Münster', $html);
@@ -206,7 +205,7 @@ final class PageTest extends TestCase
      */
     public function testThePrivacyPolicyIsTitled(): void
     {
-        self::assertSame('Privacy Policy — neuro.SYS', new PrivacyView('', '')->pageTitle());
+        self::assertSame('Privacy Policy — neuro.SYS', new PrivacyView('', '')->pageTitle()->in(Language::English));
     }
 
     /**
@@ -225,7 +224,9 @@ final class PageTest extends TestCase
      */
     public function testThePolicyDocumentIsEmittedAsMarkup(): void
     {
-        $html = new PrivacyView('<h2 id="a">Datenschutz</h2>', '<p>text &amp; more</p>')->content()->render();
+        $html = new PrivacyView('<h2 id="a">Datenschutz</h2>', '<p>text &amp; more</p>')
+            ->content()
+            ->render(0, Language::English);
 
         self::assertStringContainsString('<h2 id="a">Datenschutz</h2>', $html);
         self::assertStringContainsString('<p>text &amp; more</p>', $html);
@@ -240,7 +241,7 @@ final class PageTest extends TestCase
         $html = new PrivacyView(
             (string) Config::dataFile(DataFile::PrivacyGerman)->read(),
             (string) Config::dataFile(DataFile::PrivacyEnglish)->read(),
-        )->content()->render();
+        )->content()->render(0, Language::English);
 
         self::assertStringStartsWith('<section class="page-section">', $html);
         self::assertStringContainsString('HiDrive', $html);
@@ -261,7 +262,7 @@ final class PageTest extends TestCase
     {
         self::assertDoesNotMatchRegularExpression(
             '/<[a-z][a-z0-9]*-[a-z0-9-]+/',
-            $view->content()->render(),
+            $view->content()->render(0, Language::English),
         );
     }
 
@@ -286,7 +287,7 @@ final class PageTest extends TestCase
      */
     public function testTheHomeHeroNeedsNoScriptAndThePlayerIsTheOnlyThingThatDoes(): void
     {
-        $html = new HomeView()->content()->render();
+        $html = new HomeView()->content()->render(0, Language::English);
         [$hero] = explode('</section>', $html, 2);
 
         self::assertDoesNotMatchRegularExpression('/<[a-z][a-z0-9]*-[a-z0-9-]+/', $hero);
@@ -307,7 +308,7 @@ final class PageTest extends TestCase
     #[DataProvider('titledViewProvider')]
     public function testEveryPageTitleEndsWithTheSiteName(View $view): void
     {
-        self::assertStringEndsWith(Config::NAME, $view->pageTitle());
+        self::assertStringEndsWith(Config::NAME, $view->pageTitle()->in(Language::English));
     }
 
     /**
@@ -337,7 +338,7 @@ final class PageTest extends TestCase
     #[DataProvider('languageProvider')]
     public function testBothHalvesOfTheImprintAreAlwaysRendered(Language $language): void
     {
-        $html = new ImprintView($language)->content()->render();
+        $html = new ImprintView($language)->content()->render(0, Language::English);
 
         self::assertStringContainsString('<h1>Impressum</h1>', $html);
         self::assertStringContainsString('<h1>Imprint</h1>', $html);
@@ -351,7 +352,7 @@ final class PageTest extends TestCase
     #[DataProvider('languageProvider')]
     public function testBothHalvesOfThePolicyAreAlwaysRendered(Language $language): void
     {
-        $html = new PrivacyView('<p>de</p>', '<p>en</p>', $language)->content()->render();
+        $html = new PrivacyView('<p>de</p>', '<p>en</p>', $language)->content()->render(0, Language::English);
 
         self::assertStringContainsString('<p>de</p>', $html);
         self::assertStringContainsString('<p>en</p>', $html);
@@ -372,13 +373,13 @@ final class PageTest extends TestCase
     public function testTheImprintLeadsWithTheRequestedLanguage(): void
     {
         self::assertLessThan(
-            strpos(new ImprintView(Language::German)->content()->render(), '<h1>Imprint</h1>'),
-            strpos(new ImprintView(Language::German)->content()->render(), '<h1>Impressum</h1>'),
+            strpos(new ImprintView(Language::German)->content()->render(0, Language::English), '<h1>Imprint</h1>'),
+            strpos(new ImprintView(Language::German)->content()->render(0, Language::English), '<h1>Impressum</h1>'),
         );
 
         self::assertLessThan(
-            strpos(new ImprintView(Language::English)->content()->render(), '<h1>Impressum</h1>'),
-            strpos(new ImprintView(Language::English)->content()->render(), '<h1>Imprint</h1>'),
+            strpos(new ImprintView(Language::English)->content()->render(0, Language::English), '<h1>Impressum</h1>'),
+            strpos(new ImprintView(Language::English)->content()->render(0, Language::English), '<h1>Imprint</h1>'),
         );
     }
 
@@ -387,11 +388,15 @@ final class PageTest extends TestCase
      */
     public function testThePolicyLeadsWithTheRequestedLanguage(): void
     {
-        $german = new PrivacyView('<p>de</p>', '<p>en</p>', Language::German)->content()->render();
+        $german = new PrivacyView('<p>de</p>', '<p>en</p>', Language::German)
+            ->content()
+            ->render(0, Language::English);
 
         self::assertLessThan(strpos($german, '<p>en</p>'), strpos($german, '<p>de</p>'));
 
-        $english = new PrivacyView('<p>de</p>', '<p>en</p>', Language::English)->content()->render();
+        $english = new PrivacyView('<p>de</p>', '<p>en</p>', Language::English)
+            ->content()
+            ->render(0, Language::English);
 
         self::assertLessThan(strpos($english, '<p>de</p>'), strpos($english, '<p>en</p>'));
     }
@@ -403,12 +408,12 @@ final class PageTest extends TestCase
      */
     public function testEachHalfDeclaresItsOwnLanguage(): void
     {
-        $imprint = new ImprintView()->content()->render();
+        $imprint = new ImprintView()->content()->render(0, Language::English);
 
         self::assertStringContainsString('<section lang="de">', $imprint);
         self::assertStringContainsString('<section lang="en">', $imprint);
 
-        $policy = new PrivacyView('', '')->content()->render();
+        $policy = new PrivacyView('', '')->content()->render(0, Language::English);
 
         self::assertStringContainsString('<section lang="de">', $policy);
         self::assertStringContainsString('<section lang="en">', $policy);
@@ -421,38 +426,32 @@ final class PageTest extends TestCase
      */
     public function testTheTitleFollowsTheLeadingHalf(): void
     {
-        self::assertSame('Impressum — neuro.SYS', new ImprintView(Language::German)->pageTitle());
-        self::assertSame('Imprint — neuro.SYS', new ImprintView(Language::English)->pageTitle());
+        self::assertSame(
+            'Impressum — neuro.SYS',
+            new ImprintView(Language::German)->pageTitle()->in(Language::English),
+        );
+        self::assertSame(
+            'Imprint — neuro.SYS',
+            new ImprintView(Language::English)->pageTitle()->in(Language::English),
+        );
         self::assertSame(
             'Datenschutzerklärung — neuro.SYS',
-            new PrivacyView('', '', Language::German)->pageTitle(),
+            new PrivacyView('', '', Language::German)->pageTitle()->in(Language::English),
         );
     }
 
     /**
-     * A page whose body depends on a request header has to say so, or a cache is free to hand one
-     * visitor the copy it built for another — which here means the wrong language and nothing else
-     * visibly wrong at all. {@link \NeuroSYS\Http\ViewResponse} builds the header from this.
+     * No page varies on anything beyond the three every page varies on — `X-Requested-With`, and
+     * the two the language is read from — which {@link \NeuroSYS\Http\ViewResponse} names itself.
+     * The bilingual pages once named the language here; now every page is written in one, so
+     * saying it per page would be saying it nine times.
      *
      * @return void
      */
-    public function testOnlyTheBilingualPagesVaryOnLanguage(): void
+    public function testNoPageVariesOnMoreThanEveryPageDoes(): void
     {
-        $language = [RequestHeader::AcceptLanguage, RequestHeader::Cookie];
-
-        self::assertSame($language, new ImprintView()->varyOn());
-        self::assertSame($language, new PrivacyView('', '')->varyOn());
+        self::assertSame([], new ImprintView()->varyOn());
+        self::assertSame([], new PrivacyView('', '')->varyOn());
         self::assertSame([], new HomeView()->varyOn());
-    }
-
-    /**
-     * Every other page is English and says nothing about it.
-     *
-     * @return void
-     */
-    public function testAPageThatHasNotThoughtAboutLanguageIsEnglish(): void
-    {
-        self::assertSame(Language::English, new HomeView()->language());
-        self::assertSame(Language::German, new ImprintView(Language::German)->language());
     }
 }

@@ -13,6 +13,7 @@ use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Text\Texts;
 use NeuroSYS\View\NotFoundView;
 
 /**
@@ -62,7 +63,7 @@ readonly class DownloadController implements Controller
         if ($format->link === null) {
             return new PlainTextResponse(
                 HttpStatusCode::ServiceUnavailable,
-                "This file isn't available yet — check back soon.\n",
+                Texts::Errors::NotYetAvailable->in($request->language()) . "\n",
             );
         }
 

@@ -34,6 +34,6 @@ enum MetaName: string
      */
     case Viewport = 'viewport';
 
-    /** The sentence a search result or a link preview quotes. See {@link \NeuroSYS\Config::description()}. */
+    /** The sentence a search result or a link preview quotes, in the page's language. See {@link \NeuroSYS\Layout}. */
     case Description = 'description';
 }

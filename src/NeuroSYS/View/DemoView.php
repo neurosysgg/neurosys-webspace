@@ -8,10 +8,11 @@ use NeuroSYS\Config;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
-use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -47,12 +48,6 @@ use NeuroSYS\View\Terminal\TerminalTone;
  * The page names no file. Every `src` is `/demos/<slug>/<label>`, and the label is matched against
  * what the demo declares — see {@link \NeuroSYS\Controller\DemoAudioController}.
  */
-#[BareString(
-    'artist',
-    'a caption in the demo terminal. Its twin is the release page\'s, and captions are copy: two '
-    . 'pages naming the same row is two designs agreeing, and either is free to stop.',
-)]
-#[BareString('status', 'a caption; see the one on artist above')]
 class DemoView extends View
 {
     /**
@@ -72,9 +67,9 @@ class DemoView extends View
     ) {}
 
     /**
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string
+    public function pageTitle(): Translatable
     {
         return self::title($this->demo->title);
     }
@@ -114,19 +109,19 @@ class DemoView extends View
         $latest = $this->demo->tracks->first();
 
         $fields = [
-            new TerminalField('artist', Config::NAME),
-            new TerminalField('mixes', (string) $this->demo->tracks->count()),
+            new TerminalField(Texts::Terminal::Artist, Config::NAME),
+            new TerminalField(Texts::Demo::Mixes, (string) $this->demo->tracks->count()),
         ];
 
         if ($latest !== null) {
             $fields[] = new TerminalField(
-                'latest',
+                Texts::Demo::Latest,
                 $latest->label . ($latest->duration() !== null ? '  ' . $latest->duration() : ''),
                 TerminalTone::Ok,
             );
         }
 
-        $fields[] = new TerminalField('status', 'unreleased', TerminalTone::Error);
+        $fields[] = new TerminalField(Texts::Terminal::Status, Texts::Demo::Unreleased, TerminalTone::Error);
 
         return new Terminal(
             label:   'demo.log',
@@ -149,7 +144,7 @@ class DemoView extends View
                 new Element(HtmlTag::H1)->containing(...self::accented($this->demo->title)),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::Tagline)
-                    ->containing(Config::NAME . ' — ' . ($this->demo->description ?? 'work in progress')),
+                    ->containing(Config::NAME . ' — ', $this->demo->description ?? Texts::Demo::WorkInProgress),
                 $this->notice(),
                 $this->tracks(),
             );
@@ -168,10 +163,7 @@ class DemoView extends View
     {
         return new Element(HtmlTag::P)
             ->attr(HtmlAttribute::ClassName, CssClass::DemoNotice)
-            ->containing(
-                'unreleased — please keep the link and the password to yourself, '
-                . 'and don\'t repost or share the audio.',
-            );
+            ->containing(Texts::Demo::Notice);
     }
 
     /**

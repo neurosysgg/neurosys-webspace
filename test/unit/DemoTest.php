@@ -31,6 +31,7 @@ use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\PasswordHash;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\DemoView;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -892,7 +893,7 @@ final class DemoTest extends TestCase
         $html = new DemoView(
             self::demo([new DemoTrack('v4', 'v4.mp3', 157), new DemoTrack('v3', 'v3.mp3', 158)]),
             'alien-house',
-        )->content()->render();
+        )->content()->render(0, Language::English);
 
         // Native <audio>, not a custom element: the browser's own control seeks, takes a keyboard,
         // and works with JS off — which for something sent to one person to listen to is the point.
@@ -916,7 +917,7 @@ final class DemoTest extends TestCase
      */
     public function testThePageSaysWhatIsBeingAsked(): void
     {
-        $html = new DemoView(self::demo(), 'alien-house')->content()->render();
+        $html = new DemoView(self::demo(), 'alien-house')->content()->render(0, Language::English);
 
         self::assertStringContainsString('unreleased', $html);
         self::assertStringContainsString('demo-notice', $html);
@@ -932,7 +933,7 @@ final class DemoTest extends TestCase
     public function testAnUnmeasuredTrackShowsNoDuration(): void
     {
         $html = new DemoView(self::demo([new DemoTrack('v3', 'v3.mp3', 0)]), 'alien-house')
-            ->content()->render();
+            ->content()->render(0, Language::English);
 
         self::assertStringNotContainsString('demo-time', $html);
         self::assertStringContainsString('demo-label', $html);

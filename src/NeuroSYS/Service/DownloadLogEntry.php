@@ -6,7 +6,6 @@ namespace NeuroSYS\Service;
 
 use JsonSerializable;
 use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\JsonDeserializable;
 use stdClass;
 use Stringable;
@@ -17,11 +16,6 @@ use Stringable;
  * Implements {@link JsonSerializable} + {@link JsonDeserializable} for symmetric JSON codec,
  * and {@link Stringable} so instances can be written directly to a file or echoed.
  */
-#[BareString(
-    'time',
-    'a JSON key in the download log, not the caption ReleaseView writes beside a production '
-    . 'time. This one is a wire format, written here and read back by fromJson() alone.',
-)]
 readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable, Stringable
 {
     /**

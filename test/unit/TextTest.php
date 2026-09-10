@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Exception\TranslationException;
+use NeuroSYS\Text\Joined;
 use NeuroSYS\Text\Language;
 use NeuroSYS\Text\Phrase;
 use NeuroSYS\Text\Translated;
 use NeuroSYS\Text\Translation;
+use NeuroSYS\Text\Verbatim;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +22,8 @@ use PHPUnit\Framework\TestCase;
  */
 #[CoversClass(Translation::class)]
 #[CoversClass(Phrase::class)]
+#[CoversClass(Verbatim::class)]
+#[CoversClass(Joined::class)]
 #[CoversTrait(Translated::class)]
 final class TextTest extends TestCase
 {
@@ -110,5 +114,31 @@ final class TextTest extends TestCase
         $this->expectExceptionMessage('is not a message ICU can format in English');
 
         new Phrase(new Translation('{count, plural,'), ['count' => 1])->in(Language::English);
+    }
+
+    /**
+     * A name is the same in every language, and says so rather than posing as a translation — which
+     * is also why it takes the empty string a translation refuses.
+     *
+     * @return void
+     */
+    public function testVerbatimTextIsTheSameInEveryLanguage(): void
+    {
+        self::assertSame('ill', new Verbatim('ill')->in(Language::German));
+        self::assertSame('', new Verbatim('')->in(Language::English));
+    }
+
+    /**
+     * Each part is put into the language before the parts are joined, which is what lets a
+     * translated section and a name share one title.
+     *
+     * @return void
+     */
+    public function testJoinedTextPutsEachPartIntoTheLanguageFirst(): void
+    {
+        $title = new Joined(' — ', TextFixture::Plain, new Verbatim('neuro.SYS'));
+
+        self::assertSame('downloads — neuro.SYS', $title->in(Language::English));
+        self::assertSame('Downloads — neuro.SYS', $title->in(Language::German));
     }
 }

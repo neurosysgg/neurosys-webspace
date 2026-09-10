@@ -6,6 +6,8 @@ namespace NeuroSYS\View;
 
 use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Support\SearchableCollection;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlAttribute;
@@ -28,9 +30,9 @@ class StatsView extends View
     public function __construct(private readonly ?DownloadStats $stats = null) {}
 
     /**
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string { return self::title('stats'); }
+    public function pageTitle(): Translatable { return self::title(Texts::Stats::Title); }
 
     /**
      * @return Node
@@ -40,11 +42,11 @@ class StatsView extends View
         // Distinguish "switched off" from "on, but nothing yet" — otherwise an empty page reads as
         // a bug. Logging is off for legal reasons; see DownloadLogger and CLAUDE.md.
         if ($this->stats === null) {
-            return self::notice('Download logging is switched off — nothing is recorded.');
+            return self::notice(Texts::Stats::LoggingOff);
         }
 
         if ($this->stats->isEmpty()) {
-            return self::notice('No downloads logged yet.');
+            return self::notice(Texts::Stats::NothingYet);
         }
 
         return new Element(HtmlTag::Section)
@@ -52,16 +54,16 @@ class StatsView extends View
             ->containing(
                 new Element(HtmlTag::H2)
                     ->attr(HtmlAttribute::ClassName, CssClass::PageHeading)
-                    ->containing('stats'),
+                    ->containing(Texts::Stats::Title),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::Muted)
                     ->containing(
-                        'total downloads: ',
+                        Texts::Stats::Total,
                         new Element(HtmlTag::Strong)->containing((string) $this->stats->total),
                     ),
-                self::subheading('by format'),
+                self::subheading(Texts::Stats::ByFormat),
                 self::table($this->stats->byFormat),
-                self::subheading('by day'),
+                self::subheading(Texts::Stats::ByDay),
                 self::table($this->stats->byDay),
             );
     }
@@ -69,10 +71,10 @@ class StatsView extends View
     /**
      * A page that is only a sentence: switched off, or on with nothing to show.
      *
-     * @param string $text
+     * @param Translatable $text
      * @return Element
      */
-    private static function notice(string $text): Element
+    private static function notice(Translatable $text): Element
     {
         return new Element(HtmlTag::Section)
             ->attr(HtmlAttribute::ClassName, CssClass::PageSection)
@@ -82,10 +84,10 @@ class StatsView extends View
     }
 
     /**
-     * @param string $text
+     * @param Translatable $text
      * @return Element
      */
-    private static function subheading(string $text): Element
+    private static function subheading(Translatable $text): Element
     {
         return new Element(HtmlTag::H3)
             ->attr(HtmlAttribute::ClassName, CssClass::StatsSub)

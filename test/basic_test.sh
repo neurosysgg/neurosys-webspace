@@ -1057,10 +1057,10 @@ echo "=== Caching ==="
 
 check_header "a document says it must be revalidated" "$BASE/"       "^cache-control: no-cache"
 check_header "  and hands out a validator to do it with" "$BASE/"    "^etag: \""
-check_header "  and names the header its body depends on" "$BASE/"   "^vary: X-Requested-With"
-check_header "  and the bilingual pages name the two the language is read from" "$BASE/imprint" \
-    "^vary: X-Requested-With, Accept-Language, Cookie"
-check_header "  which the pages that are not do not" "$BASE/releases" "^vary: X-Requested-With$"
+check_header "  and names the headers its body depends on" "$BASE/" \
+    "^vary: X-Requested-With, Accept-Language, Cookie$"
+check_header "  which every page does, since every page is written in a language" "$BASE/releases" \
+    "^vary: X-Requested-With, Accept-Language, Cookie$"
 check_revalidates "an unchanged document comes back as a 304" "$BASE/"
 check_revalidates "  and so does a release page" "$BASE/releases/ill"
 check_revalidates "  and the 404, which is a document like any other" "$BASE/nope"
@@ -1177,6 +1177,36 @@ if printf '%s' "$CONTENT_LANGUAGE" | grep -qi '^content-language: de$'; then
     pass "  and the imprint the language it led with"
 else
     fail "  and the imprint the language it led with (${CONTENT_LANGUAGE:-none})"
+fi
+
+# Every page, not only the two legal ones: the request's language is the page's. The same address
+# answers in German to a German browser or a German cookie, and in English to everyone else — and
+# a fragment, which has no <html lang>, is put into the same language as the document would be.
+check_localised() {
+    local desc="$1"; local url="$2"; local accept="$3"; local cookie="$4"; local expected="$5"
+    local body
+    local extra=()
+    [[ -n "$cookie" ]] && extra=(-H "Cookie: $cookie")
+    body=$(curl "${CURL_ARGS[@]}" "${extra[@]}" -H "Accept-Language: $accept" "$url" 2>/dev/null) || true
+    if [[ "$body" == *"$expected"* ]]; then
+        pass "$desc"
+    else
+        fail "$desc (no '$expected')"
+    fi
+}
+
+check_localised "the home page speaks German to a German browser" "$BASE/" "de-DE,de;q=0.9" "" "neueste tracks"
+check_localised "  and says so on <html lang>" "$BASE/" "de" "" '<html lang="de">'
+check_localised "  and English to a browser asking for neither" "$BASE/" "fr" "" "latest tracks"
+check_localised "a chosen language outranks the browser's on every page" "$BASE/releases/ill" \
+    "en-GB,en;q=0.9" "lang=de" "künstler"
+check_localised "  the 404 included" "$BASE/nope" "de" "" "nicht gefunden"
+
+FRAGMENT=$(curl "${CURL_ARGS[@]}" -H "X-Requested-With: XMLHttpRequest" -H "Accept-Language: de" "$BASE/" 2>/dev/null) || true
+if [[ "$FRAGMENT" == *"neueste tracks"* && "$FRAGMENT" != *"<html"* ]]; then
+    pass "a fragment is put into the request's language too"
+else
+    fail "a fragment is put into the request's language too"
 fi
 
 

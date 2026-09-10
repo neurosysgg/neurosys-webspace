@@ -30,6 +30,9 @@ use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
+use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Translatable;
+use NeuroSYS\Text\Verbatim;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\HtmlTag;
@@ -211,11 +214,11 @@ final class ResponseTest extends TestCase
     {
         $view = new class () extends View {
             /**
-             * @return string
+             * @return Translatable
              */
-            public function pageTitle(): string
+            public function pageTitle(): Translatable
             {
-                return 'rock & roll';
+                return new Verbatim('rock & roll');
             }
 
             /**
@@ -284,7 +287,7 @@ final class ResponseTest extends TestCase
 
         self::assertSame('Cache-Control: no-cache', $headers[0]);
         self::assertMatchesRegularExpression('/^ETag: "[0-9a-f]+"$/', $headers[1]);
-        self::assertSame('Vary: X-Requested-With', $headers[2]);
+        self::assertSame('Vary: X-Requested-With, Accept-Language, Cookie', $headers[2]);
     }
 
     /**
@@ -534,7 +537,7 @@ final class ResponseTest extends TestCase
     public function testThePrivacyControllerReadsTheRealPolicyDocument(): void
     {
         $response = new PrivacyController()->handle($this->request('/privacy'));
-        $html     = self::peek($response, 'view')->content()->render();
+        $html     = self::peek($response, 'view')->content()->render(0, Language::English);
 
         $lines = explode("\n", (string) Config::dataFile(DataFile::PrivacyEnglish)->read())
                 |> (fn($x) => array_map(trim(...), $x))
@@ -561,7 +564,7 @@ final class ResponseTest extends TestCase
     {
         $response = new ReleasesController($this->stagedCatalogue())->handle($this->request('/releases'));
 
-        $html = self::peek($response, 'view')->content()->render();
+        $html = self::peek($response, 'view')->content()->render(0, Language::English);
 
         self::assertStringContainsString('staged', $html);
         self::assertStringNotContainsString('hello-world', $html);
@@ -578,7 +581,7 @@ final class ResponseTest extends TestCase
 
         self::assertStringContainsString(
             'hello-world',
-            self::peek($response, 'view')->content()->render(),
+            self::peek($response, 'view')->content()->render(0, Language::English),
         );
     }
 

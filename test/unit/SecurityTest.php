@@ -22,6 +22,7 @@ use NeuroSYS\Router;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\RouteInitialization;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleaseView;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -314,9 +315,9 @@ final class SecurityTest extends TestCase
     public function testNoViewEmitsAnInlineStyleOrEventHandler(): void
     {
         $release = new ReleaseRepository()->find('ill');
-        $html = new ReleaseView($release, 'ill')->content()->render()
-            . new NotFoundView('/x')->content()->render()
-            . Layout::wrap(new NotFoundView('/x'))->render();
+        $html = new ReleaseView($release, 'ill')->content()->render(0, Language::English)
+            . new NotFoundView('/x')->content()->render(0, Language::English)
+            . Layout::wrap(new NotFoundView('/x'), Language::English)->render();
 
         self::assertDoesNotMatchRegularExpression('/\sstyle="/', $html);
         self::assertDoesNotMatchRegularExpression('/\son(error|click|load|mouse\w+)=/', $html);
@@ -328,7 +329,7 @@ final class SecurityTest extends TestCase
     public function testTheCoverFallbackIsAnAttributeNotAnInlineHandler(): void
     {
         $release = new ReleaseRepository()->find('ill');
-        $html = new ReleaseView($release, 'ill')->content()->render();
+        $html = new ReleaseView($release, 'ill')->content()->render(0, Language::English);
 
         self::assertStringContainsString('fallback="/assets/img/cover-placeholder.svg"', $html);
         self::assertStringNotContainsString('onerror', $html);
@@ -340,7 +341,7 @@ final class SecurityTest extends TestCase
     public function testTheConsentGateCarriesItsHeightAsAnAttribute(): void
     {
         $release = new ReleaseRepository()->find('ill');
-        $html = new ReleaseView($release, 'ill')->content()->render();
+        $html = new ReleaseView($release, 'ill')->content()->render(0, Language::English);
 
         self::assertStringContainsString('height="300"', $html);
     }
@@ -469,7 +470,7 @@ final class SecurityTest extends TestCase
         $view = new ReflectionProperty($response, 'view')->getValue($response);
 
         self::assertInstanceOf(NotFoundView::class, $view);
-        self::assertStringContainsString('/no-such-page', $view->content()->render());
+        self::assertStringContainsString('/no-such-page', $view->content()->render(0, Language::English));
     }
 
     /**

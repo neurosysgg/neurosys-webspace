@@ -11,9 +11,10 @@ use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\BareString;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
+use NeuroSYS\Text\Texts;
+use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\ArrangementAttribute;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
@@ -33,19 +34,6 @@ use NeuroSYS\View\Terminal\TerminalTone;
 /**
  * The ReleaseView class. Renders the detail page for a single release.
  */
-#[BareString(
-    'artist',
-    'a caption in the release terminal, the same word the demo page captions its own row with. '
-    . 'Copy rather than a name: nothing looks either of them up, and the row they label is built '
-    . 'from different facts on each page.',
-)]
-#[BareString('status', 'a caption; see the one on artist above')]
-#[BareString(
-    'time',
-    'a caption, and its twin is a JSON key: DownloadLogEntry writes a timestamp under "time" '
-    . 'and this writes the hours a track took beside the word. Two vocabularies that happen to '
-    . 'agree on four letters.',
-)]
 class ReleaseView extends View
 {
     /**
@@ -60,9 +48,9 @@ class ReleaseView extends View
     ) {}
 
     /**
-     * @return string
+     * @return Translatable
      */
-    public function pageTitle(): string
+    public function pageTitle(): Translatable
     {
         return self::title($this->release->title);
     }
@@ -93,7 +81,7 @@ class ReleaseView extends View
         $cover = new Element(Tag::CoverArt)
             ->attr(CoverArtAttribute::Src, $release->cover?->url() ?? Config::COVER_PLACEHOLDER)
             ->attr(CoverArtAttribute::Fallback, Config::COVER_PLACEHOLDER)
-            ->attr(CoverArtAttribute::Alt, $release->title . ' cover art');
+            ->attr(CoverArtAttribute::Alt, Texts::Releases::CoverArt->with(title: $release->title));
 
         return new Element(HtmlTag::Section)
             ->attr(HtmlAttribute::ClassName, CssClass::Hero)
@@ -113,7 +101,7 @@ class ReleaseView extends View
                 new Element(HtmlTag::H1)->containing(...self::accented($this->release->title)),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::Tagline)
-                    ->containing(Config::NAME . ' — ' . $this->release->description),
+                    ->containing(Config::NAME . ' — ', $this->release->description),
             );
 
         // A release with no embed emits no player element at all, rather than an empty one: the
@@ -159,24 +147,24 @@ class ReleaseView extends View
         $timeSpent = $release->timeSpent;
 
         $fields = [
-            new TerminalField('artist', Config::NAME),
-            new TerminalField('bpm', (string) $release->bpm),
-            new TerminalField('key', $release->key->value),
-            new TerminalField('genre', $release->genre->value),
+            new TerminalField(Texts::Terminal::Artist, Config::NAME),
+            new TerminalField(Texts::Releases::Bpm, (string) $release->bpm),
+            new TerminalField(Texts::Releases::Key, $release->key->value),
+            new TerminalField(Texts::Releases::Genre, $release->genre->value),
         ];
 
         if ($timeSpent !== null) {
-            $fields[] = new TerminalField('time', $timeSpent->render());
+            $fields[] = new TerminalField(Texts::Releases::Time, $timeSpent->render());
         }
 
         if (!$release->madeWith->isEmpty()) {
             $fields[] = new TerminalField(
-                'made with',
+                Texts::Releases::MadeWith,
                 $release->madeWith->map(static fn(Plugin $plugin): string => $plugin->name)->join(', '),
             );
         }
 
-        $fields[] = new TerminalField('status', 'ready', TerminalTone::Ok);
+        $fields[] = new TerminalField(Texts::Terminal::Status, Texts::Releases::Ready, TerminalTone::Ok);
 
         return $fields;
     }
@@ -199,7 +187,7 @@ class ReleaseView extends View
         $bpm         = $this->release->bpm;
 
         return new Element(Tag::ReleaseArrangement)->containing(
-            new Element(HtmlTag::H2)->containing('arrangement'),
+            new Element(HtmlTag::H2)->containing(Texts::Releases::Arrangement),
             ...$arrangement->sections->map(
                 fn(Section $section): Element => $this->section($section, $bpm, $arrangement->ppq),
             )->toValues(),
@@ -238,7 +226,7 @@ class ReleaseView extends View
     private function downloads(): Element
     {
         return new Element(Tag::DownloadList)->containing(
-            new Element(HtmlTag::H2)->containing('downloads'),
+            new Element(HtmlTag::H2)->containing(Texts::Releases::Downloads),
             ...$this->release->formats->map($this->downloadCard(...))->toValues(),
         );
     }
@@ -271,21 +259,21 @@ class ReleaseView extends View
     }
 
     /**
-     * Returns the human-readable metadata string for a given format type.
+     * What a download card says about its format, in the page's language.
      *
      * Which formats are lossless is {@link ReleaseFormat::isLossless()}'s to know — listing
      * them again here would be a second copy of that fact, free to drift from the first.
      *
      * @param ReleaseFormat $format
-     * @return string
+     * @return Translatable
      */
-    private static function formatMeta(ReleaseFormat $format): string
+    private static function formatMeta(ReleaseFormat $format): Translatable
     {
         return match ($format) {
-            ReleaseFormat::STEMS => 'non-commercial — commercial licensing: ' . Config::EMAIL,
-            ReleaseFormat::MP3   => '320 kbps',
-            ReleaseFormat::OGG   => 'OGG Vorbis',
-            default              => $format->isLossless() ? 'lossless, 24-bit/48kHz' : 'lossy',
+            ReleaseFormat::STEMS => Texts::Releases::Stems->with(email: Config::EMAIL),
+            ReleaseFormat::MP3   => Texts::Releases::Mp3,
+            ReleaseFormat::OGG   => Texts::Releases::Ogg,
+            default              => $format->isLossless() ? Texts::Releases::Lossless : Texts::Releases::Lossy,
         };
     }
 }
