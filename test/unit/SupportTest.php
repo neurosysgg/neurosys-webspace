@@ -6,6 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
 use DateTime;
+use DateTimeImmutable;
 use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Http\Security\CspSourceList;
 use NeuroSYS\Model\Format;
@@ -16,6 +17,7 @@ use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Diagnostics;
 use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\ErrorLog;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\TypedItems;
@@ -33,6 +35,7 @@ use TypeError;
 #[CoversClass(File::class)]
 #[CoversClass(Diagnostics::class)]
 #[CoversClass(Directory::class)]
+#[CoversClass(ErrorLog::class)]
 final class SupportTest extends TestCase
 {
     // ───────────────────────────── Collection ─────────────────────────────
@@ -1402,6 +1405,100 @@ final class SupportTest extends TestCase
     public function testAFileKnowsWhichDirectoryItIsIn(): void
     {
         self::assertSame('/x/web', new File('/x/web/cover.jpg')->directory()->path);
+    }
+
+    /**
+     * A tail is the last bytes, the whole file where it is shorter, and null where there is none.
+     *
+     * @return void
+     */
+    public function testATailIsTheFilesLastBytes(): void
+    {
+        $directory = Directory::temporary('neurosys-support-');
+        $file      = $directory->file('php.log');
+
+        try {
+            self::assertTrue($file->write('0123456789'));
+            self::assertSame('6789', $file->tail(4));
+            self::assertSame('0123456789', $file->tail(100), 'a tail past the start is the whole file');
+            self::assertNull($directory->file('never-written.log')->tail(4));
+        } finally {
+            $directory->remove();
+        }
+    }
+
+    /**
+     * Writable is asked of a directory that is there; one that is not is not writable either.
+     *
+     * @return void
+     */
+    public function testADirectoryIsWritableOnlyWhereItIsThereAndPermitsIt(): void
+    {
+        $directory = Directory::temporary('neurosys-support-');
+
+        try {
+            self::assertTrue($directory->isWritable());
+            self::assertFalse($directory->directory('nope')->isWritable());
+
+            chmod($directory->path, 0o500);
+
+            if (is_writable($directory->path)) {
+                self::markTestSkipped('this process can write to a read-only directory');
+            }
+
+            self::assertFalse($directory->isWritable());
+        } finally {
+            chmod($directory->path, 0o700);
+            $directory->remove();
+        }
+    }
+
+    // ───────────────────────────── ErrorLog ─────────────────────────────
+
+    /**
+     * One file a month, named for it — the last second of a month still lands in that month.
+     *
+     * @return void
+     */
+    public function testTheErrorLogIsNamedForItsMonth(): void
+    {
+        $logs = new Directory('/x/data/logs');
+        $in   = static fn(string $when): string => ErrorLog::file($logs, new DateTimeImmutable($when))->path;
+
+        self::assertSame('/x/data/logs/php-2026-09.log', $in('2026-09-11 00:26'));
+        self::assertSame('/x/data/logs/php-2026-12.log', $in('2026-12-31 23:59:59'));
+    }
+
+    /**
+     * Installed, it takes every severity and sends what PHP logs to the file named.
+     *
+     * The line is written through `error_log()`, the call the last-resort handler in
+     * `public/index.php` makes. A raised notice would reach PHPUnit's own handler instead, which is
+     * the point of `failOnNotice` rather than a gap here.
+     *
+     * @return void
+     */
+    public function testAnInstalledErrorLogTakesEverySeverityIntoItsFile(): void
+    {
+        $directory = Directory::temporary('neurosys-errorlog-');
+        $log       = $directory->file('php.log');
+        $path      = (string) ini_get('error_log');
+        $mask      = error_reporting();
+
+        try {
+            ErrorLog::install($log);
+
+            self::assertSame($log->path, ini_get('error_log'));
+            self::assertSame(E_ALL, error_reporting());
+
+            error_log('neuro.SYS: a line for the test');
+
+            self::assertStringContainsString('neuro.SYS: a line for the test', (string) $log->read());
+        } finally {
+            ini_set('error_log', $path);
+            error_reporting($mask);
+            $directory->remove();
+        }
     }
 
     // ───────────────────────────── Diagnostics ─────────────────────────────

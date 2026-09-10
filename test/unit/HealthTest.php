@@ -31,8 +31,10 @@ use NeuroSYS\Model\Health\VersionRequirement;
 use NeuroSYS\Service\Api\HealthCheck;
 use NeuroSYS\Service\ApiGate;
 use NeuroSYS\Service\Health\DataFileRequirement;
+use NeuroSYS\Service\Health\LogDirectoryRequirement;
 use NeuroSYS\Service\Health\WebrootRequirement;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\RequirementInitialization;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -58,6 +60,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(RequirementInitialization::class)]
 #[CoversClass(WebrootRequirement::class)]
 #[CoversClass(DataFileRequirement::class)]
+#[CoversClass(LogDirectoryRequirement::class)]
 #[CoversClass(PhpExtension::class)]
 #[CoversClass(HealthResult::class)]
 #[CoversClass(Outcome::class)]
@@ -229,12 +232,12 @@ final class HealthTest extends TestCase
     // ───────────────────────────── the deployment ─────────────────────────────
 
     /**
-     * The deployment is `DOCUMENT_ROOT` and the tracked files — no more. An untracked file absent
-     * is state, not a fault, and is `capability`'s to report.
+     * The deployment is `DOCUMENT_ROOT`, the tracked files and the log directory — no more. An
+     * untracked file absent is state, not a fault, and is `capability`'s to report.
      *
      * @return void
      */
-    public function testTheDeploymentDeclaresExactlyTheTrackedFiles(): void
+    public function testTheDeploymentDeclaresExactlyTheTrackedFilesAndTheLogDirectory(): void
     {
         $expected = ['DOCUMENT_ROOT'];
         foreach (DataFile::cases() as $file) {
@@ -242,6 +245,7 @@ final class HealthTest extends TestCase
                 $expected[] = $file->value;
             }
         }
+        $expected[] = 'logs/';
 
         $declared = [];
         foreach (self::declared(Area::Deployment) as $requirement) {
@@ -299,6 +303,41 @@ final class HealthTest extends TestCase
             new Finding('no file there', false),
             new DataFileRequirement(DataFile::DownloadLog)->check(),
         );
+    }
+
+    /**
+     * The log directory is met where PHP can write into it, and says which of the two ways it is
+     * not — the fix for each differs. Optional either way: without it the site is only harder to
+     * diagnose.
+     *
+     * @return void
+     */
+    public function testTheLogDirectoryIsMetOnlyWhereItCanBeWrittenInto(): void
+    {
+        $sandbox = Directory::temporary('neurosys-health-');
+
+        try {
+            self::assertSame(Level::Optional, new LogDirectoryRequirement($sandbox)->level());
+            self::assertEquals(new Finding('writable', true), new LogDirectoryRequirement($sandbox)->check());
+            self::assertEquals(
+                new Finding('no directory there', false),
+                new LogDirectoryRequirement($sandbox->directory('logs'))->check(),
+            );
+
+            chmod($sandbox->path, 0o500);
+
+            if (is_writable($sandbox->path)) {
+                self::markTestSkipped('this process can write to a read-only directory');
+            }
+
+            self::assertEquals(
+                new Finding('not writable by this process', false),
+                new LogDirectoryRequirement($sandbox)->check(),
+            );
+        } finally {
+            chmod($sandbox->path, 0o700);
+            $sandbox->remove();
+        }
     }
 
     /**

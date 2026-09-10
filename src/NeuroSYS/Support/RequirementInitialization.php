@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Support;
 
+use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Health\ByteFloor;
 use NeuroSYS\Model\Health\ExtensionRequirement;
@@ -17,6 +18,7 @@ use NeuroSYS\Model\Health\Toggle;
 use NeuroSYS\Model\Health\VersionRequirement;
 use NeuroSYS\Service\ApiGate;
 use NeuroSYS\Service\Health\DataFileRequirement;
+use NeuroSYS\Service\Health\LogDirectoryRequirement;
 use NeuroSYS\Service\Health\WebrootRequirement;
 
 /**
@@ -98,6 +100,8 @@ final class RequirementInitialization
                 ->with(...DataFile::cases())
                 ->where(static fn(DataFile $file): bool => $file->isTracked())
                 ->map(static fn(DataFile $file): Requirement => new DataFileRequirement($file))
-                ->toValues());
+                ->toValues())
+            // Optional: without it the site is correct and its diagnostics go where nobody reads.
+            ->with(new LogDirectoryRequirement(Config::logs()));
     }
 }

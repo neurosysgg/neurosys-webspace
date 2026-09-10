@@ -73,9 +73,11 @@ php -r "echo password_hash('yourpassword', PASSWORD_BCRYPT) . PHP_EOL;"
 Paste the output into `data/admin.php` as `pass_hash`, then upload that file by hand — `deploy.sh`
 excludes it, because the repo copy is a placeholder.
 
-`data/logs/` is only needed if download logging is ever switched on, and it has to be created on the
-server by hand then: `deploy.sh` excludes it, and `fopen(…, 'ab')` creates the file but not its
-directory.
+`data/logs/` has to be created on the server by hand, once: `deploy.sh` excludes it, and PHP creates
+a log file but not its directory. `public/index.php` points `error_log` at
+`data/logs/php-YYYY-MM.log`, and without the directory every diagnostic silently goes to Strato's
+own log instead — `health v1 report` shows `logs/` as a `warn` until it exists. The download log
+would land there too, if download logging were ever switched on.
 
 ### 6. Check the HTTPS redirect on the first deploy
 

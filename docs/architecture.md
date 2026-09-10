@@ -21,6 +21,7 @@ request
   └─ public/index.php          in this order:
        │
        ├─ set_exception_handler(…)     ⓪ the last resort, for when nothing else worked
+       ├─ ErrorLog::install(…)         ⓪ every diagnostic, at E_ALL, into data/logs/php-YYYY-MM.log
        ├─ SecurityHeaders::send()      ① headers first, so they cover every exit below
        ├─ Request::fromGlobals()       ② $_SERVER → a typed, readonly Request
        ├─ Auth::requireSiteAuth()      ③ pre-launch gate; may exit 401

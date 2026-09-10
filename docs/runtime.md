@@ -170,12 +170,15 @@ What the differences mean, the dangerous ones first:
   `header()` call is swallowed by the local buffer and works. On Strato the same byte sends the
   headers, and that request loses its security headers and its status. The verify script's `php -S`
   runs unbuffered like Strato, which makes it the more honest of the two local servers for this.
-- **Strato logs neither notices nor deprecations, and keeps its log where we cannot read it.**
-  `error_reporting` `22519` is `E_ALL` minus `E_DEPRECATED`, `E_STRICT` and `E_NOTICE`. Locally,
-  `22527` keeps notices. And Strato's `error_log` is empty, which sends a diagnostic to the SAPI's
-  own log, not a file this repository can reach. So a notice from our own code is logged locally
-  and vanishes live. `capability v1 errors` shows the last diagnostic a Strato worker recorded,
-  which is the one window onto it.
+- **No runtime's php.ini sends a diagnostic anywhere this repository can read, so the site sets
+  its own.** Strato's `error_reporting` `22519` is `E_ALL` minus `E_DEPRECATED`, `E_STRICT` and
+  `E_NOTICE`, and its empty `error_log` sends what is left to the SAPI's own log. Locally, `22527`
+  keeps notices, but `/var/log/php_errors.log` is `root:root 0644` and php-fpm runs as `http`, so
+  the Apache could never open it either. The columns above are the php.ini values; at runtime
+  `public/index.php` overrides both through `ErrorLog`: `E_ALL`, into
+  `data/logs/php-YYYY-MM.log`, on every runtime that serves a request. `capability v1 errors` quotes
+  the file. What PHP raises before the script starts still goes to the host's log, and a missing or
+  unwritable `data/logs/` silently sends everything there — `health v1` warns on that.
 - **The limits are Strato's to be generous with.** Every local limit is lower. Locally,
   `post_max_size` is exactly `ApiGate::MAX_BODY`, so a push to the local Apache at the cap would
   only just fit. On the CLI, `max_execution_time` is `0` (unlimited), so a test can never hit the

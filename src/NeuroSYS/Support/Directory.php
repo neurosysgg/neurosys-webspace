@@ -58,6 +58,20 @@ final readonly class Directory
     }
 
     /**
+     * Whether there is a directory here that this process can create files in.
+     *
+     * Asked of the directory rather than of a file in it, because the file PHP logs into need not
+     * exist yet — it is opened for appending and created on the first diagnostic — and whether it
+     * *can* be created is a question of the directory's permissions, not of the file's.
+     *
+     * @return bool
+     */
+    public function isWritable(): bool
+    {
+        return $this->exists() && is_writable($this->path);
+    }
+
+    /**
      * A file in this directory, by name. The file need not exist.
      *
      * @param string $name A file name, or a path relative to this directory — `logs/downloads.log`.

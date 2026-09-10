@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+use NeuroSYS\Config;
 use NeuroSYS\Exception\SiteException;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Router;
 use NeuroSYS\Service\Auth;
+use NeuroSYS\Support\ErrorLog;
 use NeuroSYS\Support\RouteInitialization;
 
 require __DIR__ . '/../autoload.php';
@@ -56,6 +58,13 @@ set_exception_handler(static function (Throwable $fault): void {
 
     echo "500\n";
 });
+
+/*
+ * Every diagnostic from here on, the handler's own line above included — it is written when a fault
+ * happens, not when the handler is installed — goes to this month's file under data/logs/, at
+ * E_ALL. Neither host's php.ini sends one anywhere this repository can read; see ErrorLog.
+ */
+ErrorLog::install(Config::errorLog());
 
 SecurityHeaders::send();
 

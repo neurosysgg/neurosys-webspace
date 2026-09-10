@@ -66,6 +66,19 @@ final class ConfigTest extends TestCase
     }
 
     /**
+     * The error log sits beside the download log, in the one directory the site writes into, and
+     * is this month's file.
+     *
+     * @return void
+     */
+    public function testTheErrorLogIsThisMonthsFileInTheLogDirectory(): void
+    {
+        self::assertSame(NEUROSYS_ROOT . '/data/logs', Config::logs()->path);
+        self::assertSame(Config::downloadLog()->directory()->path, Config::logs()->path);
+        self::assertSame(Config::logs()->file('php-' . date('Y-m') . '.log')->path, Config::errorLog()->path);
+    }
+
+    /**
      * Every data file the application actually loads has to be one dataFile() resolves.
      *
      * The provider iterates the {@link DataFile} cases rather than listing names, because a list

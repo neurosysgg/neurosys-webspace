@@ -27,16 +27,18 @@ use NeuroSYS\Support\File;
  * separate docblocks, every one a copy of one measurement taken by hand. This re-takes it.
  *
  * A read: it writes nothing and consumes no serial, and opens only the log, only for reading, and
- * only when it is small enough to quote.
+ * never more than its last {@link self::MAX_LOG} bytes.
  */
 final readonly class CapabilityErrors implements ApiHandler
 {
     /**
-     * The most of an error log this will read.
+     * The most of an error log this will read, counted back from its end.
      *
-     * A quarter of a megabyte, which is generous for a log that should be empty and small enough
-     * that a host quietly writing to one for a year cannot be pulled through a response. Over it,
-     * the size is reported and the file is not opened — see {@link self::log()}.
+     * A quarter of a megabyte: generous for twenty lines, and small enough that a month of a noisy
+     * host cannot be pulled through a response. A log over it is still quoted — from its last
+     * quarter-megabyte, which is where the lines worth reading are. It once refused such a log
+     * outright, which was right while the log was the host's and wrong once it became this site's
+     * own: the file most worth reading would have been the one it would not open.
      */
     private const int MAX_LOG = 262_144;
 
@@ -104,11 +106,17 @@ final readonly class CapabilityErrors implements ApiHandler
     /**
      * The error log's last lines, or null where there is no log to read.
      *
-     * Three answers rather than one, because "there is no tail" has three quite different causes
-     * and the difference is the whole diagnostic: no destination configured at all, a destination
-     * naming nothing, and a file too large to quote. The first is the live host's own state — see
+     * Three answers where there is no tail, because "there is no tail" has three quite different
+     * causes and the difference is the whole diagnostic: no destination configured at all, a
+     * destination naming nothing, and a file that is there and cannot be read. The first was the
+     * live host's own state before {@link \NeuroSYS\Support\ErrorLog} — see
      * {@link PhpSetting::ErrorLog} — and the section is simply absent for it, since the `errors`
      * section above has already said the destination is empty.
+     *
+     * A log larger than {@link self::MAX_LOG} is read from that far before its end, and its first
+     * line is dropped, because that line was almost certainly cut through. The header then says how
+     * much was read rather than how many lines the log has, which this does not know without
+     * reading all of it.
      *
      * The path is whatever the directive holds, which need not be a file at all: `syslog` is a
      * legal value and reads here as a destination that is not there. That is honest rather than
@@ -130,26 +138,37 @@ final readonly class CapabilityErrors implements ApiHandler
             return HealthSection::lines(self::LOG, $path . ' — no file there to read');
         }
 
-        if ($file->size() > self::MAX_LOG) {
-            return HealthSection::lines(self::LOG, sprintf(
-                '%s — %d bytes, too large to quote here',
-                $path,
-                $file->size(),
-            ));
+        $size = $file->size();
+        $text = $file->tail(self::MAX_LOG);
+
+        if ($text === null) {
+            return HealthSection::lines(self::LOG, $path . ' — there, but not readable by this process');
         }
 
-        $lines = $file->lines();
-        $tail  = array_slice($lines, -self::TAIL);
+        $whole = $size <= self::MAX_LOG;
+        $lines = $text === '' ? [] : explode("\n", rtrim($text, "\n"));
 
-        // Both counts, because either alone is misleading: the total says whether the log is busy,
-        // and the shown count says how much of it is below — and for an empty log, which is what
-        // the live host's ought to be, they agree at zero and the section says so rather than
-        // promising twenty lines and printing none.
-        return HealthSection::lines(
-            self::LOG,
-            sprintf('%s — %d bytes, last %d of %d lines', $path, $file->size(), count($tail), count($lines)),
-            ...$tail,
-        );
+        if (!$whole) {
+            array_shift($lines);
+        }
+
+        $tail = array_slice($lines, -self::TAIL);
+
+        // Both counts where the whole log was read, because either alone is misleading: the total
+        // says whether the log is busy, and the shown count says how much of it is below — and for
+        // an empty log they agree at zero and the section says so rather than promising twenty
+        // lines and printing none. Where only the end was read there is no total to give.
+        $header = $whole
+            ? sprintf('%s — %d bytes, last %d of %d lines', $path, $size, count($tail), count($lines))
+            : sprintf(
+                '%s — %d bytes, last %d lines, read from its final %d',
+                $path,
+                $size,
+                count($tail),
+                self::MAX_LOG,
+            );
+
+        return HealthSection::lines(self::LOG, $header, ...$tail);
     }
 
     /**

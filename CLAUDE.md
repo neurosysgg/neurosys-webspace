@@ -128,10 +128,10 @@ src/NeuroSYS/
 tooling, the `.flp` reader, the DSP port and the signing side of the API. It has its own autoloader
 and is never deployed. See [docs/tooling.md](docs/tooling.md).
 
-`public/index.php` is six statements: install the last-resort handler → security headers → parse the
-request → site auth check → `Router::dispatch()` → send. **The handler is first because it has to
-work when nothing else did**: it logs, sends a 500 if headers are still unsent, writes `500`, and
-depends on nothing but `SiteException`.
+`public/index.php` is seven statements: install the last-resort handler → point the error log at
+`data/logs/` → security headers → parse the request → site auth check → `Router::dispatch()` → send.
+**The handler is first because it has to work when nothing else did**: it logs, sends a 500 if
+headers are still unsent, writes `500`, and depends on nothing but `SiteException`.
 
 ## Rules
 
@@ -203,6 +203,9 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   off.** The two files look alike and have opposite polarity.
 - `public/api/` must never exist, and an API action never reads a query parameter — it would reach
   the handler unsigned.
+- **`data/logs/` must exist and be writable by PHP, or the error log silently falls back to the
+  host's own log** — PHP says nothing when it cannot open the file. `deploy.sh` never creates it;
+  `health v1` warns. Locally php-fpm runs as `http`, so the directory is group `http`, `2775`.
 - `ApiGate` refuses an unrecognised (null) method on its first line; comparing it would be a 500
   where an absent address sends a 405.
 - A write spends its serial **before** applying; a dry run and a read never spend one.

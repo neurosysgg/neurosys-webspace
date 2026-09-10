@@ -33,7 +33,7 @@ php tools/api.php health v1 <action>
 | `health v1` | checks |
 |---|---|
 | `runtime` · `extensions` · `settings` · `deployment` | the declared requirements in that area |
-| `report` | every area, then a tally: `16 pass, 1 warn, 0 fail` |
+| `report` | every area, then a tally: `17 pass, 1 warn, 0 fail` |
 
 A `health` line gives the name, the verdict, what was found, and the floor. The verdict comes first
 because it is the column worth reading down:
@@ -165,6 +165,7 @@ final readonly class SpoolWritable implements Requirement
 | | `register_argc_argv` | off, set by `public/.user.ini` | optional |
 | deployment | `DOCUMENT_ROOT` | a directory inside this deployment | required |
 | | every tracked `DataFile` | present | required |
+| | `logs/` | writable, so PHP can log into it | optional |
 
 - **`HealthTest` pins these values to their sources.** It checks the extension list and the PHP
   floor against `composer.json`, and the two size floors against `MAX_BODY`.

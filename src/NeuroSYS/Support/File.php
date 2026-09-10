@@ -78,6 +78,32 @@ final readonly class File
     }
 
     /**
+     * The file's last $bytes bytes — all of it where it is shorter — or null where it cannot be read.
+     *
+     * {@link self::read()} from the other end, and bounded for the same reason. A log is read from
+     * where it was last written to, and a whole-file read of one that has grown for a month pays
+     * for every line in it to quote the last twenty — which is all
+     * {@link \NeuroSYS\Service\Api\CapabilityErrors} does with it. The length is passed as well as
+     * the offset, so a file that grows between the size and the read still yields no more than
+     * $bytes.
+     *
+     * The first line of what comes back is usually cut through; which lines are whole is the
+     * caller's to decide, because only the caller knows whether it read the file from its start.
+     *
+     * @param int $bytes The most bytes to read, counted back from the end.
+     * @return string|null
+     */
+    public function tail(int $bytes): ?string
+    {
+        $offset   = max(0, $this->size() - $bytes);
+        $contents = Diagnostics::muted(
+            fn(): string|false => file_get_contents($this->path, false, null, $offset, $bytes),
+        );
+
+        return $contents === false ? null : $contents;
+    }
+
+    /**
      * The file's lines, without their trailing newlines, or none at all.
      *
      * @return list<string>

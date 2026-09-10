@@ -354,21 +354,57 @@ final class CapabilityTest extends TestCase
     }
 
     /**
-     * A log too large to quote is measured and left closed.
+     * A log over the cap is quoted from its end: the last lines are there, the first are not, and
+     * the header says how much was read rather than promising a line count it never took.
+     *
+     * 9000 lines of 35 bytes is 315,000 — past the quarter-megabyte, so the read starts mid-file
+     * and the line it starts in is dropped rather than quoted cut through.
      *
      * @return void
      */
-    public function testALogOverTheCapIsMeasuredAndNotRead(): void
+    public function testALogOverTheCapIsQuotedFromItsEnd(): void
     {
-        $log = new File($this->sandbox . '/huge.log');
+        $log   = new File($this->sandbox . '/huge.log');
+        $lines = [];
 
-        self::assertTrue($log->write(str_repeat("padding padding padding padding\n", 9000)));
+        for ($i = 1; $i <= 9000; $i++) {
+            $lines[] = sprintf('padding padding padding line %05d', $i);
+        }
+
+        self::assertTrue($log->write(implode("\n", $lines) . "\n"));
         ini_set('error_log', $log->path);
 
         $section = $this->log();
 
-        self::assertStringContainsString('too large to quote here', $section);
-        self::assertStringNotContainsString('padding', $section);
+        self::assertStringContainsString('315000 bytes, last 20 lines, read from its final 262144', $section);
+        self::assertStringContainsString("\n  padding padding padding line 09000", $section);
+        self::assertStringContainsString("\n  padding padding padding line 08981", $section);
+        self::assertStringNotContainsString('line 08980', $section, 'the tail is 20 lines, not 21');
+        self::assertStringNotContainsString('line 00001', $section);
+    }
+
+    /**
+     * A log that is there and cannot be read says so, rather than reading as an empty one.
+     *
+     * @return void
+     */
+    public function testALogThatCannotBeReadSaysSo(): void
+    {
+        $log = new File($this->sandbox . '/locked.log');
+
+        self::assertTrue($log->write("a line\n"));
+        chmod($log->path, 0o000);
+        ini_set('error_log', $log->path);
+
+        try {
+            if (is_readable($log->path)) {
+                self::markTestSkipped('this process can read a file with no permissions');
+            }
+
+            self::assertStringContainsString('there, but not readable by this process', $this->log());
+        } finally {
+            chmod($log->path, 0o600);
+        }
     }
 
     // ───────────────────────────── fixtures ─────────────────────────────

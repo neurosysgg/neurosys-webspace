@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use DateTimeImmutable;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\ErrorLog;
 use NeuroSYS\Support\File;
 
 /**
@@ -275,6 +277,31 @@ final class Config
     public static function downloadLog(): File
     {
         return self::dataFile(DataFile::DownloadLog);
+    }
+
+    /**
+     * `data/logs/`: what the site writes, beside what it reads.
+     *
+     * Gitignored and excluded from `deploy.sh`, so it exists only where somebody made it — and
+     * nothing here makes it, for the reason {@link File} gives. `health v1` warns where it is
+     * missing or unwritable; see {@link Service\Health\LogDirectoryRequirement}.
+     *
+     * @return Directory
+     */
+    public static function logs(): Directory
+    {
+        return self::data()->directory('logs');
+    }
+
+    /**
+     * This month's PHP error log, which `public/index.php` points `error_log` at. See
+     * {@link ErrorLog}.
+     *
+     * @return File
+     */
+    public static function errorLog(): File
+    {
+        return ErrorLog::file(self::logs(), new DateTimeImmutable());
     }
 
     /**

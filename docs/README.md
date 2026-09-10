@@ -13,7 +13,7 @@ how to run it, and what the licence does and does not cover. This file is the ma
 neurosys/
 ├── public/              ← webroot (maps to htdocs/ on Strato)
 │   ├── .htaccess        ← rewrites all requests to index.php
-│   ├── index.php        ← front controller (6 statements)
+│   ├── index.php        ← front controller (7 statements)
 │   └── assets/
 │       ├── css/style.css
 │       ├── js/           ← GENERATED from assets/ts/ — never hand-edit

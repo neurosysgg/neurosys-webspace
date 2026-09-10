@@ -69,10 +69,11 @@ there.
 
 ## Defense in depth, following `index.php`
 
-The front controller is six statements, and they are the spine of the request:
+The front controller is seven statements, and they are the spine of the request:
 
 ```php
 set_exception_handler(...);              // 0. the last resort — logs, and answers a bare 500
+ErrorLog::install(Config::errorLog());   // 0. …into a file under data/logs/ this repository can read
 SecurityHeaders::send();                 // 1. headers first — cover every response
 $request = Request::fromGlobals();       // 2. parse the request defensively
 Auth::requireSiteAuth($request);         // 3. the pre-launch gate
