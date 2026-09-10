@@ -5,16 +5,17 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Health;
 
 use Dom\HTMLDocument;
+use MessageFormatter;
 use OpenSSLAsymmetricKey;
 use Uri\Rfc3986\Uri;
 use Uri\WhatWg\Url;
 
 /**
- * The PhpExtension enum. The four extensions this site is a fatal without, and how to prove each
+ * The PhpExtension enum. The five extensions this site is a fatal without, and how to prove each
  * one is really there.
  *
  * **They were already named twice, and neither place is the host.** `composer.json` requires all
- * four, and composer never runs on the server — `vendor/` is not deployed. `test/basic_test.sh`
+ * five, and composer never runs on the server — `vendor/` is not deployed. `test/basic_test.sh`
  * asks for them by name in its Environment block, and that block runs `php` from `$PATH` on
  * whichever machine is running the suite. So the two statements of this fact both describe a
  * developer's PHP, and the one runtime that matters has never been asked. That gap is what
@@ -47,12 +48,25 @@ enum PhpExtension: string
     /**
      * PHP 8.4's WHATWG HTML parser.
      *
-     * The narrowest failure of the four and the easiest to miss: it is a fatal on `/privacy` and
+     * The narrowest failure of the five and the easiest to miss: it is a fatal on `/privacy` and
      * on nothing else, because {@link \NeuroSYS\View\Html\MarkupParser} is the only reader. That
      * is the one page here which is a legal obligation rather than a choice, and the one page a
      * smoke test of the site's own markup would never reach.
      */
     case Dom = 'dom';
+
+    /**
+     * ICU, for the text layer: `MessageFormatter` formats every translated string — its arguments,
+     * its plurals, and a language's own way of writing a number (`1.000` in German, `1,000` in
+     * English).
+     *
+     * **Declared before anything uses it, and the order is the point.** It is on Strato and was on
+     * neither local runtime — Arch ships it commented out in php.ini — which is the dangerous
+     * direction docs/runtime.md names: code that reached for it would have worked live and failed
+     * every test. Declared first, a runtime without it fails `health v1` and the verify script
+     * before a single page depends on it.
+     */
+    case Intl = 'intl';
 
     /**
      * What {@link \NeuroSYS\Support\PublicKey} verifies a signature with.
@@ -89,6 +103,7 @@ enum PhpExtension: string
         return match ($this) {
             self::Uri     => class_exists(Url::class) && class_exists(Uri::class),
             self::Dom     => class_exists(HTMLDocument::class),
+            self::Intl    => class_exists(MessageFormatter::class),
             self::OpenSsl => class_exists(OpenSSLAsymmetricKey::class),
             self::Zlib    => function_exists('gzdecode'),
         };

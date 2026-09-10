@@ -33,7 +33,7 @@ php tools/api.php health v1 <action>
 | `health v1` | checks |
 |---|---|
 | `runtime` · `extensions` · `settings` · `deployment` | the declared requirements in that area |
-| `report` | every area, then a tally: `17 pass, 1 warn, 0 fail` |
+| `report` | every area, then a tally: `19 pass, 1 warn, 0 fail` |
 
 A `health` line gives the name, the verdict, what was found, and the floor. The verdict comes first
 because it is the column worth reading down:
@@ -155,7 +155,7 @@ final readonly class SpoolWritable implements Requirement
 | Area | Requirement | Floor | Level |
 |---|---|---|---|
 | runtime | `php` | 8.5 or later, `composer.json`'s `^8.5` | required |
-| extensions | `uri`, `dom`, `openssl`, `zlib` | working, each proved by `PhpExtension::isPresent()` | required |
+| extensions | `uri`, `dom`, `intl`, `openssl`, `zlib` | working, each proved by `PhpExtension::isPresent()` | required |
 | settings | `post_max_size` | `ApiGate::MAX_BODY` (8M), or 0 | required |
 | | `memory_limit` | 4 × `MAX_BODY` (32M), or -1 | required |
 | | `max_execution_time` | 30s, or 0 | required |

@@ -10,7 +10,9 @@ Three PHP runtimes run this code, and they are not the same PHP:
   command under `tools/`.
 
 **These tables are a reading, not a contract.** They were taken on **2026-09-10** through
-`capability v1`, and they go stale the day a host changes. What the site actually *needs* is
+`capability v1`, and they go stale the day a host changes. The local columns' `intl` row, extension
+counts and `health` tally were re-read on **2026-09-11**, when `intl` was declared and switched on
+locally. What the site actually *needs* is
 declared in `Support/RequirementInitialization.php` and checked by `health v1`; see
 [health.md](health.md). When a table here disagrees with the API, the API is right, and this page
 is the one to update. [Re-reading](#re-reading-them) is at the end.
@@ -26,16 +28,16 @@ is the one to update. [Re-reading](#re-reading-them) is at the end.
 | protocol | `HTTP/1.1` | `HTTP/1.1` | — |
 | kernel | `5.14.0-611.24.1.el9_7.x86_64` | `7.2.3-arch1-2` | `7.2.3-arch1-2` |
 | `date.timezone` | `UTC` | `UTC` | `UTC` |
-| extensions | 55 + OPcache | 35 + OPcache, Xdebug | 34 + OPcache, Xdebug |
+| extensions | 55 + OPcache | 36 + OPcache, Xdebug | 35 + OPcache, Xdebug |
 | php.ini directives | 290 | 327 | 319 |
-| `health v1 report` | 200 — 16 pass, 1 warn (OPcache off) | 200 — 17 pass | — (no `DOCUMENT_ROOT` on a CLI run) |
+| `health v1 report` | 200 — 16 pass, 1 warn (OPcache off) | 200 — 20 pass | — (no `DOCUMENT_ROOT` on a CLI run) |
 
 **Local runs one patch release ahead.** A fix that lands in 8.5.10 is in force in the test suite
 and on the local Apache, but not on Strato.
 
 ## Extensions
 
-The four the site cannot run without are in bold. Only those are declared, in `composer.json` and
+The five the site cannot run without are in bold. Only those are declared, in `composer.json` and
 as required requirements, and `health v1 extensions` proves them by using them.
 
 | extension | Strato | local Apache | local CLI |
@@ -61,7 +63,7 @@ as required requirements, and `health v1 extensions` proves them by using them.
 | iconv | `8.5.9` | `8.5.10` | `8.5.10` |
 | imagick | `3.8.0` | — | — |
 | imap | `1.0.3` | — | — |
-| intl | `8.5.9` | — | — |
+| **intl** | `8.5.9` | `8.5.10` | `8.5.10` |
 | json | `8.5.9` | `8.5.10` | `8.5.10` |
 | lexbor | `8.5.9` | `8.5.10` | `8.5.10` |
 | libxml | `8.5.9` | `8.5.10` | `8.5.10` |
@@ -99,10 +101,11 @@ as required requirements, and `health v1 extensions` proves them by using them.
 | *Zend:* Zend OPcache | `8.5.9` (loaded, off) | `8.5.10` | `8.5.10` |
 | *Zend:* Xdebug | — | `3.5.3` | `3.5.3` |
 
-- **Strato has 21 extensions no local runtime has.** They are bcmath, bz2, calendar, dba, exif,
-  ftp, gd, gettext, gmp, imagick, imap, intl, mailparse, mysqli, pdo_mysql, pdo_sqlite, soap,
-  sodium, sqlite3, tidy and xsl. **That is the dangerous direction**: code that reached for `intl` or
-  `sodium` would work in production and fail every test. An extension becomes something the site
+- **Strato has 20 extensions no local runtime has.** They are bcmath, bz2, calendar, dba, exif,
+  ftp, gd, gettext, gmp, imagick, imap, mailparse, mysqli, pdo_mysql, pdo_sqlite, soap, sodium,
+  sqlite3, tidy and xsl. **That is the dangerous direction**: code that reached for `sodium` would
+  work in production and fail every test. `intl` was the twenty-first, and left the list the way
+  any of these would: switched on locally (`extension=intl` in `/etc/php/php.ini`), then declared. An extension becomes something the site
   uses only by being declared: in `composer.json`, as a `PhpExtension` case, and so as a required
   requirement. That order also makes it fail locally first.
 - **Only the local runtimes have `readline` and Xdebug.** Nothing in `src/` uses either, and Xdebug

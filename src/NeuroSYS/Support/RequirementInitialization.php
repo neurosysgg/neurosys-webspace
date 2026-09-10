@@ -68,7 +68,7 @@ final class RequirementInitialization
     {
         return new Collection(Requirement::class)
             ->with(new VersionRequirement(self::PHP))
-            // The four extensions the site is a fatal without, each proved by being used rather
+            // The five extensions the site is a fatal without, each proved by being used rather
             // than by its name being registered. PhpExtension is the vocabulary, and the one
             // statement of the list that is compared with composer.json in code.
             ->with(...new Collection(PhpExtension::class)

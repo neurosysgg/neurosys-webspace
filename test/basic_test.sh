@@ -197,6 +197,16 @@ else
     fail "ext/dom is missing; MarkupParser::parse() needs it and /privacy would be a fatal"
 fi
 
+# ext/intl is what the text layer formats every translated string with. Strato has it and Arch
+# ships it commented out in php.ini — the dangerous direction docs/runtime.md names, where code
+# works live and fails every test. Asked by using it: a German thousand has to come back with a
+# German separator, which a PHP built with intl but without its ICU locale data would not do.
+if php -r 'exit(class_exists("MessageFormatter") && (new MessageFormatter("de", "{n, number}"))->format(["n" => 1000]) === "1.000" ? 0 : 1);'; then
+    pass "ext/intl is present — MessageFormatter writes a German thousand as 1.000"
+else
+    fail "ext/intl is missing or has no locale data; every translated string needs MessageFormatter"
+fi
+
 # ext/openssl verifies the update signature and ext/zlib unpacks the payload, so between them they
 # are the whole of what /api needs beyond core. Both are in composer.json, and composer never
 # runs on the server — vendor/ is not deployed — so this is the only place the question gets asked

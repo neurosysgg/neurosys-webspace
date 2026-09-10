@@ -16,7 +16,7 @@ Plain PHP 8.5 / HTML / CSS, no framework, **no runtime dependencies**. PHP ≥ 8
 three times: the pipe operator in `autoload.php`, `#[\NoDiscard]` on the copy-returning builders, and
 `ext/uri`, the WHATWG and RFC 3986 parsers `Element` and `Request` put their URL questions to.
 
-Four extensions are named in `composer.json` and asked for by name in the verify script's
+Five extensions are named in `composer.json` and asked for by name in the verify script's
 Environment block — the only place the question is asked where it matters, because composer never
 runs on the server (`vendor/` is not deployed):
 
@@ -24,6 +24,7 @@ runs on the server (`vendor/` is not deployed):
 |---|---|---|
 | `ext/uri` | `Element`, `Request` | every page |
 | `ext/dom` | `MarkupParser` (`Dom\HTMLDocument`) | a fatal on `/privacy` alone |
+| `ext/intl` | the text layer's `MessageFormatter` | a fatal on every translated page |
 | `ext/openssl` | `PublicKey` — the API's signature check | a fatal on a signed call |
 | `ext/zlib` | `UpdateApplier`'s `gzdecode()` | a fatal on a push |
 

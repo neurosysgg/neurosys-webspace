@@ -136,7 +136,7 @@ php tools/api.php capability v1 runtime     # what it is; also extensions, setti
 
 Two more services on the same endpoint, signed with the same key and reached by the same command.
 
-- **`health` checks every requirement the site declares**: PHP 8.5, the four extensions the site is
+- **`health` checks every requirement the site declares**: PHP 8.5, the five extensions the site is
   a fatal without, the php.ini floors a push needs, the webroot and the tracked `data/` files.
   **It answers 503 when a required one is unmet**, with the whole report in the body, so
   `tools/api.php` exits 1 and a script can stop on it.
