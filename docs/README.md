@@ -13,7 +13,7 @@ how to run it, and what the licence does and does not cover. This file is the ma
 neurosys/
 ├── public/              ← webroot (maps to htdocs/ on Strato)
 │   ├── .htaccess        ← rewrites all requests to index.php
-│   ├── index.php        ← front controller (5 statements)
+│   ├── index.php        ← front controller (6 statements)
 │   └── assets/
 │       ├── css/style.css
 │       ├── js/           ← GENERATED from assets/ts/ — never hand-edit
@@ -28,7 +28,7 @@ neurosys/
 │
 ├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
 │   ├── Controller/      ← one class per route group
-│   ├── Exception/       ← ReleaseVerification, Markup, MimeType, SecurityPolicy
+│   ├── Exception/       ← SiteException and the twelve conditions under it (see architecture.md)
 │   ├── Http/            ← Request, Response types, HttpStatusCode, Header/MimeType
 │   │   └── Security/    ← CSP, Permissions-Policy, HSTS — as typed objects
 │   ├── Model/           ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform
@@ -58,6 +58,7 @@ neurosys/
 │   └── js/              ← node --test: the elements, and the enum mirrors
 │
 └── docs/                ← you are here
+    └── history/         ← how it got this way; nothing here is needed to change the code
 ```
 
 ## URL structure
@@ -107,6 +108,10 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
   type discipline, and the recipes for adding a route, a page, a file host or an embed provider
 - [frontend.md](frontend.md) — the TypeScript and CSS: the build, the three kinds of custom element,
   the SPA router, and the no-JS cost
+- [collections.md](collections.md) — `Collection` and `SearchableCollection`: immutable, lazy, what
+  they may hold, and what deliberately stays an array
+- [guidelines.md](guidelines.md) — the five habits `GuidelineTest` watches for, and the three
+  attributes that excuse an exception to them
 - [contracts.md](contracts.md) — the PHP↔TypeScript seam: every fact stated twice, what guards it,
   and the checklist for renaming one
 
@@ -119,8 +124,17 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 - [authoring.md](authoring.md) — `tools/stage-release.php` and `tools/release-track.php`: generating
   a release entry from its prepared folder, what the folder knows, what it cannot, what the preflight
   checks before upload, and the SoundCloud client that fills in the last three ids
+- [tooling.md](tooling.md) — `tools/`: the CLI layer, each command's decisions, the DSP port, the
+  MIDI extractor, and why the tooling has an autoloader of its own
 - [testing.md](testing.md) — the two test suites and the invariants they protect
 - [performance.md](performance.md) — what a request costs and where it goes: cold against warm, the
   phase breakdown, compression, and the payload the front end actually ships
 - [branding.md](branding.md) — vendored brand assets and profile links
-- [security.md](security.md) — the security posture, hardenings, and assessment findings
+- [security.md](security.md) — the security posture, the hardenings, and what is known and accepted
+
+**How it got this way**
+
+- [history/](history/README.md) — the stories the documents above used to carry: the dated security
+  reviews, the coverage count and every pass that moved it, the arguments that were reversed, and
+  the checklists of releases that have shipped. Each current rule that exists because of one of
+  them says so in a sentence and links here.

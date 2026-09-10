@@ -19,6 +19,9 @@ npm run coverage   # node --test with coverage, held at 100%
 npm run check      # tsc over assets/ts/, tools/*.mjs and test/js/*.mjs
 ```
 
+How the count moved, and what each checker found on its first run, is in
+[history/coverage.md](history/coverage.md).
+
 ## The split
 
 | | `test/unit/` (PHPUnit) | `test/js/` (node --test) | `test/basic_test.sh` (verify) |
@@ -27,10 +30,12 @@ npm run check      # tsc over assets/ts/, tools/*.mjs and test/js/*.mjs
 | **Good at** | branches, edge cases, escaping, error paths | what the elements build, and the enum mirrors | integration, `exit`-ing code, the deployed shape |
 | **Blind to** | anything that calls `exit`, `header()`, or needs a server | real layout, real CSS, real network | anything with no observable output |
 
-`test/js/` runs the *built* files rather than the TypeScript, so a stale build fails there as well as
-in the drift check. It loads them through `main.js`, the same entry point the browser uses, so the
-elements under test are registered the same way and by the same list. Two of its cases reach back into PHP through `php -r` — the enum parity ones, and
-the Permissions-Policy check — because the fact they guard spans both sides.
+`test/js/` runs the *built* files rather than the TypeScript, so a build that never ran is a failing
+test rather than a passing one, as well as a failure in the drift check. It loads them through
+`main.js`, the same entry point the browser uses, so the elements under test are registered the same
+way and by the same list. Two of its cases reach back into PHP through `php -r` — the enum parity
+ones, and the Permissions-Policy check — because the fact they guard spans both sides. `node --test`
+is built in and `jsdom` supplies the DOM; both are dev-only.
 
 The division matters in a few concrete places:
 
@@ -38,7 +43,9 @@ The division matters in a few concrete places:
   without process isolation, so the verify script asserts `/admin/stats` really returns 401 over HTTP.
   The *decision* is a different matter and is unit-tested: `Auth::accepts()` is public and returns a
   bool, so `AdminTest` can ask it about a wrong password without the answer ending the process. That
-  split is the same one `SecurityHeaders` makes between `headers()` and `send()`, for the same reason.
+  split is the same one `SecurityHeaders` makes between `headers()` and `send()`, for the same reason:
+  a method that ends the request cannot be asserted against, so everything worth asserting lives
+  beside it rather than inside it.
 - **The demo gate is the same split, twice over.** `Auth::requireDemoAuth()` calls `exit`, so the
   `401` is the verify script's — and so is everything about the audio route, because `header()` is a
   no-op under CLI and that route's whole answer is a status code and four headers. The decision half
@@ -73,12 +80,14 @@ The division matters in a few concrete places:
   command's uploading branch needs a folder whose audio `metaflac` and `ffprobe` can read, so what
   is covered there is every path that *refuses*.
 - **The front end is compiled**, so PHPUnit never sees `assets/ts/`: `test/js/` covers what the
-  elements build, and the verify script runs it. The front-end checks are skipped with a printed NOTE
-  when `node_modules/` is absent, so `composer test` still runs end to end on a clone that has only
-  ever seen `composer install`.
-- **The embed's markup is built client-side**, so the cases that asserted on it moved with it. What
-  stays in `EmbedTest` is the contract the server still has — the element and its attributes; what
-  moved to `test/js/soundcloud-player.test.mjs` is the widget URL, the attribution and the
+  elements build, and the verify script runs it, type-checks all three JavaScript trees and asserts
+  the committed JS is current. Those three checks are skipped with a printed NOTE when
+  `node_modules/` is absent, so `composer test` still runs end to end on a clone that has only ever
+  seen `composer install`. The `style.css` drift check needs only `node`, so it runs on a bare clone
+  rather than skipping.
+- **The embed's markup is built client-side**, so its assertions are split by where the markup is
+  made. `EmbedTest` holds the contract the server has — the element and its attributes;
+  `test/js/soundcloud-player.test.mjs` holds the widget URL, the attribution and the
   SoundCloud-hosts-only rule. `test/js/soundcloud-profile.test.mjs` is the same split for the home
   page's profile player, and asserts only what differs: the resource the widget resolves, and the
   attribution crediting the artist once with no dangling separator after it. Everything the two
@@ -89,14 +98,21 @@ The division matters in a few concrete places:
 Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_ROOT` is defined by
 `test/bootstrap.php` if you need the real data files.
 
-Files are grouped by layer, not one-per-class: `ModelTest`, `EmbedTest`, `HtmlTest`, `ViewTest`,
-`PageTest`, `ServiceTest`, `SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `ConfigTest`,
-`SecurityTest`, `SecurityPolicyTest`, `AdminTest`, `NoDiscardTest`.
+Files are grouped by layer or by feature, not one-per-class. The site's are `ModelTest`,
+`ProductionTest`, `WaveformTest`, `EmbedTest`, `HtmlTest`, `ViewTest`, `PageTest`, `ServiceTest`,
+`SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `ConfigTest`, `SecurityTest`,
+`SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `UpdateTest`, `HealthTest`,
+`NoDiscardTest` and `GuidelineTest`; `PhpInputStream` and `UpdateFixture` are helpers rather than
+suites. The tooling's are listed under [The development tooling](#the-development-tooling).
 
-Three of those are named for something other than a layer, because that is what they are about:
-`PageTest` covers the pages that are only content — the home hero, the imprint, the privacy policy —
-`AdminTest` covers the gate and the log it protects, and `NoDiscardTest` is named for a fact that
-spans four namespaces at once and belongs to none of them.
+Several are named for something other than a layer, because that is what they are about: `PageTest`
+covers the pages that are only content — the home hero, the imprint, the privacy policy —
+`AdminTest` covers the gate and the log it protects, and `NoDiscardTest` and `GuidelineTest` are
+named for facts that span every namespace at once and belong to none of them. Those last two read
+the codebase rather than running it.
+
+**A new class needs its `#[CoversClass]` line**, and so does a class a test exercises that is not
+its subject — see [A number is not a measurement](#a-number-is-not-a-measurement).
 
 ## Adding a front-end test
 
@@ -111,16 +127,27 @@ it silently tests the SPA switched off — the one state no real page is ever in
 `Element`, `HTMLAnchorElement`, `history` and `location`, which Node does not define and Navigation
 needs the moment a link is clicked.
 
-The files are `soundcloud-player`, `terminal-window`, `cover-art`, `nesting`, `navigation`,
-`vocabulary` and `enum-parity`.
+It also carries a **recording 2D context** and a `ResizeObserver`, because jsdom implements neither
+and the real `canvas` package is a native build against cairo. Recording is the better test rather
+than merely the cheaper one — what is worth asserting about a waveform is which bar was drawn where,
+in which colour, at which opacity, and a real canvas would answer that only by being read back as an
+image.
+
+The suites are `soundcloud-player`, `soundcloud-profile`, `terminal-window`, `cover-art`,
+`demo-waveform`, `nesting`, `navigation`, `vocabulary` and `enum-parity`.
+
+**Both test commands name their files.** `node --test` with no argument matches
+`**/test/**/*.?(c|m)js` among its default patterns, which is everything under `test/` — `dom.mjs`
+included, which would run as a suite with no tests in it. `npm test` and `npm run coverage` pass
+`'test/js/*.test.mjs'`, quoted so node expands it rather than the shell, and the verify script's two
+invocations pass the same glob. (history: [history/coverage.md](history/coverage.md))
 
 ## Fixtures on disk
 
 Several suites need real files: a credentials file for the gates, a data file for a repository, a
-folder that reads as a release. They all build them the same way now —
+folder that reads as a release. They all build them the same way —
 `Directory::temporary('neurosys-admin-')` in `setUp()`, `->file('x.php')->write(…)` for each fixture,
-`->remove()` in `tearDown()` — rather than each opening with its own three lines of `sys_get_temp_dir()`,
-`mkdir()`, `glob()`, `unlink()`, `rmdir()`.
+`->remove()` in `tearDown()`.
 
 The directory is random per call, so two suites running at once cannot collide, and prefixed, so
 anything left behind by a test that died says which suite left it. `remove()` refuses to recurse: a
@@ -155,25 +182,24 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   for something that is no longer one — an attribute left behind after the array became a collection
   is a sentence about code that is not there, and it reads as true because it used to be. A variadic
   is not a bare array and never will be; punctuation is not a name; and an attribute's own arguments
-  are prose, not code. See CLAUDE.md for the four kinds of array and three kinds of literal that are
-  on the lists, and for the one entry — a regex in two files — that is a real duplication kept on
-  purpose. The third rule is table-driven: only the array functions a collection has a member for
-  are asked about, so the table is both the rule and the answer to "which member should I have
-  used", and writing a member is what adds a row.
-- **The `@` operator does not appear.** All twenty-one sites are
-  `Support\Diagnostics::muted(…)`, which installs an error handler for one closure and takes it down
-  in a `finally`. This is the one rule with no excuse mechanism and the one that walks `tools/lib/`
-  as well: `@` silences every diagnostic in the expression at any severity, including one nobody
-  anticipated, and it cannot answer "did *this* call warn" because `error_get_last()` is
-  process-global. `SupportTest` covers both members; the rule itself is a tokenizer walk in
-  `GuidelineTest` that names the file and line.
+  are prose, not code. See [guidelines.md](guidelines.md) for the four kinds of array and three kinds
+  of literal that are on the lists, and for the one entry — a regex in two files — that is a real
+  duplication kept on purpose. The third rule is table-driven: only the array functions a collection
+  has a member for are asked about, so the table is both the rule and the answer to "which member
+  should I have used", and writing a member is what adds a row.
+- **The `@` operator does not appear.** Every suppression is `Support\Diagnostics::muted(…)`, which
+  installs an error handler for one closure and takes it down in a `finally`. This is the one rule
+  with no excuse mechanism and the one that walks `tools/lib/` as well: `@` silences every
+  diagnostic in the expression at any severity, including one nobody anticipated, and it cannot
+  answer "did *this* call warn" because `error_get_last()` is process-global. `SupportTest` covers
+  both members; the rule itself is a tokenizer walk in `GuidelineTest` that names the file and line.
 - **Every exception is one of ours, declared, and caught by name.** Four questions in one place:
   a `throw new` names a class in `NeuroSYS\Exception`; a method that throws declares it; a `catch`
   names a concrete class rather than `Throwable` or `Exception`; and a `catch` that binds a variable
   and then throws hands that variable on, or the trace stops at the wrap and the real failure is
   gone. `CollectionException extends TypeError` and `GuidelineException extends
-  InvalidArgumentException`, so the suite's existing `expectException` calls were unaffected by the
-  rule arriving — which is the point of extending an SPL class rather than replacing it.
+  InvalidArgumentException`, so an `expectException` naming the SPL class still matches — which is
+  the point of extending an SPL class rather than replacing it.
 - **Nothing reaches a visitor as a PHP fatal.** `public/index.php` installs a
   `set_exception_handler` before anything else can need one: it logs the fault with its class, its
   provenance (`SiteException` or not), its file and its line, then sends a 500 with a body of
@@ -197,16 +223,16 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   `data/demos.php` rather than for anything a visitor can send.
 - **A path-shaped URL really is a path on this site.** `HtmlTest` walks every spelling of a bare
   authority past `Element` — `//host`, `/\host`, and the two that hide one behind a tab or a
-  newline, which the enumerated prefix list this replaced let through. `Element` puts the question
-  to PHP 8.5's WHATWG parser now, so the answer covers spellings nobody wrote down.
+  newline, which no list of prefixes catches. `Element` puts the question to PHP 8.5's WHATWG
+  parser, so the answer covers spellings nobody wrote down. (history: [history/markup.md](history/markup.md))
 - **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
-- **A wrong admin password is refused.** This one had never run. `data/admin.php` ships with an empty
-  `pass_hash`, so `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()`
-  nor `password_verify()` is reached — which means the verify script's two `/admin/stats → 401`
-  checks prove the route is gated without ever comparing a credential. `AdminTest` supplies a real
-  bcrypt hash (cost 4, so the suite stays fast) and walks a dozen near-misses past it: wrong case,
-  a prefix of the right password, the right password with a character appended.
+- **A wrong admin password is refused.** `data/admin.php` ships with an empty `pass_hash`, so
+  `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()` nor
+  `password_verify()` is reached — the verify script's two `/admin/stats → 401` checks prove the
+  route is gated without ever comparing a credential. `AdminTest` is what compares one: it supplies a
+  real bcrypt hash (cost 4, so the suite stays fast) and walks a dozen near-misses past it: wrong
+  case, a prefix of the right password, the right password with a character appended.
 - **An unconfigured gate is closed, not open.** An empty `pass_hash` accepts nobody, including
   somebody sending an empty password. `password_verify()` against an empty hash is false anyway, so
   the explicit guard is documentation rather than behaviour — and the test asserts the behaviour, so
@@ -215,6 +241,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   crash can cut it mid-write, so `DownloadStats::fromLines()` skips what
   `DownloadLogEntry::fromJson()` rejects rather than failing the page that reads it — the only place
   anyone would find out.
+- **A falsy setting is still an answer.** `max_execution_time` is `'0'` on a runtime with no limit,
+  and `'0'` is falsy, so `?:` would print the most interesting answer that directive has as "nothing
+  to say". `HealthFact` asks `=== ''`, and `HealthTest` has the row.
 - **The imprint states one address, four times.** It is a legal document, and one built from four
   copies of an address is one with a wrong address eventually. `PageTest` asserts the four rendered
   blocks are byte-identical, not merely present.
@@ -231,9 +260,10 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   registers appears in the served markup. The two together catch a rename on either side.
 - **The consent gate reserves the player's height.** `Embed::height()` feeds `--player-height`, so the
   placeholder and the real iframe are the same size and the page doesn't jump.
-- **No view emits an inline style or event handler, and `style-src` has no `'unsafe-inline'`.** The
-  allowance existed only for SoundCloud's attribution markup; that block is built through the CSSOM
-  now, so it went away. Two assertions keep it away — one on the policy, one on the views.
+- **No view emits an inline style or event handler, and `style-src` has no `'unsafe-inline'`.**
+  SoundCloud's attribution block is styled through the CSSOM, so nothing needs the allowance. Two
+  assertions keep it away — one on the policy, one on the views.
+  (history: [history/security.md](history/security.md))
 - **Every custom tag served is registered.** Checked in that direction, not the reverse: the
   terminal's own tags are registered but built by `<terminal-window>`, so no view emits one and
   asking for them in the markup would fail for the wrong reason.
@@ -244,12 +274,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   registered once the real `main.js` has loaded. It also pins the file layout: one
   `customElements.define` per module, and a module named for the class it exports.
 - **A tag outside the element it belongs inside says so — every one of them.** `NestedElement` is
-  what the otherwise behaviourless classes do, so `nesting.test.mjs` checks it for all eleven rather
-  than the two that happened to have a test. The pairings are not restated there: each tag is asked
-  where it belongs by being put somewhere it is not, and the answer is read off the error message,
-  so adding a nested element covers it automatically. It also asserts the guard looks through the
-  card anchors rather than only at the direct parent, and that the message names tags rather than
-  class names on both sides.
+  what the otherwise behaviourless classes do, so `nesting.test.mjs` checks it for all twelve. The
+  pairings are not restated there: each tag is asked where it belongs by being put somewhere it is
+  not, and the answer is read off the error message, so adding a nested element covers it
+  automatically. It also asserts the guard looks through the card anchors rather than only at the
+  direct parent, and that the message names tags rather than class names on both sides.
 - **A download link is left to the browser.** The `data-no-spa` half of the same invariant
   `ViewTest` asserts about the markup: without it `Navigation` fetches the download route, gets the
   303 and swallows it, and downloads stop working while every page still looks right.
@@ -270,13 +299,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   script fails on a heredoc or a `'<tag'` literal anywhere under `src/` outside `Element` and
   `Doctype` — the two files whose job is turning a tree into text. Proved by putting `<b>` in a
   view's text and watching it fail.
-- **Markup this codebase did not write is parsed in exactly one place.** `RawHtml` used to emit the
-  privacy policy verbatim and its call sites were pinned because it escaped nothing;
-  `Element::containingHtml()` parses instead, and the pin survives for a different reason — it is
-  still the one door a document from outside PHP comes through, and the standing rule that nothing a
+- **Markup this codebase did not write is parsed in exactly one place.** `Element::containingHtml()`
+  is the one door a document from outside PHP comes through, and the standing rule that nothing a
   request can influence goes near it is only worth having if the next caller has to be argued for.
   `HtmlTest` scans `src/` and asserts both halves: `['PrivacyView.php']` calls `containingHtml(`, and
-  `['Element.php']` calls `MarkupParser::parse(`.
+  `['Element.php']` calls `MarkupParser::parse(`. (history: [history/markup.md](history/markup.md))
 - **The real privacy policy parses.** Not a fixture — `HtmlTest` reads `data/privacy.de.html` and
   `data/privacy.en.html` themselves, so an e-recht24 re-export that brings an element or an attribute
   the enums do not have fails here rather than reaching a page. It also asserts the document says the
@@ -317,18 +344,17 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   the two with no PHP side, read only by the stylesheet, and no test can follow them.
 - **The origins the client uses are the origins the CSP allows.** `Config::PLAYER_HOST` is both the
   widget URL `SoundCloudPlayer.ts` builds and the whole of the CSP's `frame-src`; the parity test
-  compares the two sides. Before `Config` they were separate literals in separate languages, and a
-  drift would have shown up only as a blocked frame in the console.
+  compares the two sides. A drift would show up only as a blocked frame in the console.
 - **Every class name is styled, and every styled class is named.** `HtmlTest` parses `style.css`
   with comments stripped and compares its class selectors against `CssClass::cases()`. Both
   directions fail, and differently: a case the stylesheet never mentions is an element styled by
   nothing, and a selector no case names is dead CSS. This is the only mirror in the codebase whose
   actual reader can be tested.
 - **Every tag is styled, and every styled tag is a `Tag` case.** The same check for the custom
-  elements, and until `assets/css/` existed there was none: a tag name in the stylesheet was a bare
-  string with nothing on the other end of it, so renaming a case left the CSS quietly not matching.
-  Unlike a misspelled tag in markup — which at least renders visibly wrong — an unstyled element on
-  a dark page reads as a layout bug rather than a typo, and reaches no console.
+  elements: without it a tag name in the stylesheet is a bare string with nothing on the other end,
+  so renaming a case leaves the CSS quietly not matching. Unlike a misspelled tag in markup — which
+  at least renders visibly wrong — an unstyled element on a dark page reads as a layout bug rather
+  than a typo, and reaches no console.
 - **Every tag is styled by exactly one part.** `assets/css/elements/` mirrors `assets/ts/elements/`
   at the component level, so "where is `<terminal-key>` styled?" has one mechanical answer. Two parts
   naming a tag is the failure worth naming: whichever `main.css` imports later wins, silently, and
@@ -339,11 +365,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   the exception is pinned rather than trusted, and a second one has to be argued for by editing the
   assertion. Proved by adding a stray part and watching it fail.
 - **The committed stylesheet is current with `assets/css/`.** The CSS half of the JS drift check
-  below, and for the same reason — `deploy.sh` rsyncs `public/`, so a part edited without a rebuild
-  would ship a stale stylesheet nothing else notices. `tools/build-css.mjs` has no dependencies, so
-  unlike the TypeScript checks this one runs on a clone that has never seen `npm install`. The build
-  itself refuses a part imported twice, an import that does not resolve, an absolute import, and a
-  rule sitting in a manifest.
+  below, and for the same reason — `deploy.sh` builds what it ships out of `public/`, so a part
+  edited without a rebuild would ship a stale stylesheet nothing else notices. `tools/build-css.mjs`
+  has no dependencies, so unlike the TypeScript checks this one runs on a clone that has never seen
+  `npm install`. The build itself refuses a part imported twice, an import that does not resolve, an
+  absolute import, and a rule sitting in a manifest.
 - **The asset manifest is current with the built assets.** `src/NeuroSYS/AssetManifest.php` is walked
   out of the compiled JS and read by `Layout` for the stylesheet href, the script src and the whole
   `<link rel="modulepreload">` list. Stale, it is the quiet kind of wrong — it names a build stamp
@@ -352,10 +378,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   reads only committed files, so it runs on a clone that has never seen `npm install`.
 - **Every preloaded module resolves.** The drift check proves the manifest matches the graph; it
   cannot prove it points at anything, because the href is a graph path under a URL base written by
-  hand in `tools/build-assets.mjs`. So the verify script asks the dev server for all 41, and
-  `ViewTest` asks the filesystem the same question — which fails in the fast suite, without a server.
-  A preload that 404s is the quietest failure here: the module is simply fetched late, the slow way,
-  and the console offers at most an unused-preload notice.
+  hand in `tools/build-assets.mjs`. So the verify script asks the dev server for every one of
+  `AssetManifest::MODULES` (46 in the debug tree), and `ViewTest` asks the filesystem the same
+  question — which fails in the fast suite, without a server. A preload that 404s is the quietest
+  failure here: the module is simply fetched late, the slow way, and the console offers at most an
+  unused-preload notice.
 - **The entry point is not also preloaded.** `main.js` is the `<script src>` already in flight, so
   hinting it too is a second instruction to fetch a file the browser is on its way to fetching.
   Asserted in both suites, on the generated list and on the served page.
@@ -366,8 +393,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   under the older one would go on importing each other.
 - **`.htaccess` and the dev router strip the same version segment.** One rule in two languages, with
   nothing but this check between them: drift, and the dev server 404s a URL that works live. A
-  second check asserts *both* `php -S` invocations in the verify script load the router — added
-  after they diverged, when `composer test` was green and `composer coverage` was not.
+  second check asserts *both* `php -S` invocations in the verify script load the router, because
+  `composer test` and `composer coverage` each start their own. (history:
+  [history/frontend.md](history/frontend.md))
 - **The mirrored enums match their PHP originals.** `assets/ts/model/` is a second copy of facts from
   `src/NeuroSYS/Model/`, compared case by case and in declaration order — the order is the order the
   widget query string is built in, so a reorder is a real bug and fails like one.
@@ -383,8 +411,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   checks the policy against it, so the two can't drift apart silently.
 - **The `Allow` header says what the gate does.** It is derived from `HttpMethod::isReadOnly()`
   rather than written out, and `SecurityTest` asserts both halves — that the read-only cases are
-  exactly GET and HEAD, and that a refused request's header matches. Marking a method read-only used
-  to mean remembering to edit a string in `Router` too.
+  exactly GET and HEAD, and that a refused request's header matches.
 - **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
   into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
 - **The committed JS is current with `assets/ts/`.** `deploy.sh` builds what it ships out of
@@ -394,14 +421,16 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   every source map's `sources` path differs and the diff fails for a reason that has nothing to do
   with staleness.
 - **The prod tree builds, ships no source map, and still passes.** `public/` is the debug tree;
-  `build/dist/` is what deploy uploads — minified, maps deleted, its own manifest. Every failure
-  here is invisible in a browser until it is live, so there are four checks: the tree builds, it
-  carries no `.map` and no `sourceMappingURL`, its manifest names the same modules as the committed
-  one once the stamp is normalised away, and **the whole client-side suite re-runs against the
-  minified bytes**. That last is the one worth the most — `test/js/dom.mjs` takes its tree from
-  `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s subtree, both embeds and `Navigation`
-  execute what the server will send. `npm test` and `npm run coverage` take the default and are
-  unchanged; the 100% gate is still measured against `public/assets/js/**`, which is why the debug
+  `build/dist/` is what deploy uploads — bundled, minified, maps deleted, its own manifest. Every
+  failure here is invisible in a browser until it is live, so there are six checks: the tree builds;
+  it carries no `.map` and no `sourceMappingURL`; its manifest points at the same entry and
+  stylesheet as the committed one; it preloads nothing, as a bundled tree should; the entry URL it
+  names has bytes behind it; and **the whole client-side suite re-runs against the shipped bytes**.
+  The manifests are deliberately not diffed against each other — the debug one lists every preload
+  and the prod one none. The re-run is the check worth the most — `test/js/dom.mjs` takes its tree
+  from `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s subtree, both embeds and
+  `Navigation` execute what the server will send. `npm test` and `npm run coverage` use the debug
+  tree by default; the 100% gate is measured against `public/assets/js/**`, which is why the debug
   tree stays readable rather than being minified in place.
 - **All three JavaScript trees type-check.** `assets/ts/` with the config the build uses —
   `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes` — which is the front end's
@@ -410,26 +439,25 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 
   `tools/*.mjs` and `test/js/*.mjs` are checked in place through `tsconfig.tools.json` and
   `tsconfig.test.json`, both `checkJs` and both emitting nothing. The tools are the ones worth
-  having: they write the three committed artefacts this script then diffs, so a wrong *output* was
-  already caught and a crash on an untaken path was not. The first run found two in
-  `build-prod.mjs` — an unchecked `graph.outputFiles[0]`, and a failure message quoting
-  `result.error`, a property terser dropped in version 5, which had therefore been printing the
-  fallback half of a `??` since the line was written.
+  having: they write the three committed artefacts this script then diffs, so a wrong *output* is
+  caught by the diff and a crash on a path the build has never taken is caught only by the checker.
+  The tools match `tsconfig.json` exactly, `noUncheckedIndexedAccess` included.
 
   The tests are checked less strictly, and the two settings that are off are off for a reason
   stated in the config: `strictNullChecks`, because a test asserting on `el.querySelector('canvas')`
-  wants that null to throw — the throw *is* the failing assertion — and `noImplicitAny`, because
-  annotating 52 assertion callbacks would bury the three shapes worth stating. What is left is
-  helper-to-caller drift, which is what it found: `card()` in the waveform suite drops every
-  property without a default of its own from its inferred parameter type, so twenty-six call sites
-  passing `peaks` were checking nothing.
+  wants that null to throw — the throw *is* the failing assertion, and guarding 83 of them would
+  trade loud failures for silent skips — and `noImplicitAny`, because annotating 52 assertion
+  callbacks would bury the three shapes worth stating. What is left is drift between a helper and
+  its callers: don't give a test helper a destructured parameter with a `= {}` default, because it
+  drops every property without a default of its own from the inferred type, and the call sites
+  passing it check nothing. (history: [history/coverage.md](history/coverage.md))
 
 ## Coverage
 
 Two commands, because they measure two languages:
 
 ```bash
-composer coverage   # PHP  — 98.83% of lines, and what is left is named below
+composer coverage   # PHP — both suites merged; the figure is below
 npm run coverage    # front end — 100% of lines, branches and functions, enforced
 ```
 
@@ -437,8 +465,10 @@ npm run coverage    # front end — 100% of lines, branches and functions, enfor
 
 `node --test` has coverage built in. The thresholds in the `coverage` script are set to 100 across
 lines, branches and functions, so this is a gate rather than a report: a new branch nothing
-exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is forty small
-files with one job each.
+exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is forty-nine
+small files with one job each. It has teeth the other way too: an unreachable fallback such as
+`?? 0` on an index that cannot miss is refused, which is why `DemoWaveform` reads its bytes with a
+`charCodeAt` that needs no fallback at all.
 
 It runs with `--test-coverage-include-all`, which is the front end's version of the `#[CoversClass]`
 trap below: without it a module nothing imports is not reported as uncovered, it is not reported at
@@ -452,7 +482,9 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. Currently **98.83% of lines** (2204/2230).
+clover XML and a browsable HTML report. **98.92% of lines** (2391/2417), derived on 2026-09-10
+(`8f766f0`). This is the one place the figure is written: CLAUDE.md points here rather than
+carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
 verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
@@ -469,15 +501,16 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Twenty-six lines, in eight groups. Ten are deliberate and the rest are a gap rather than a decision
-— see CLAUDE.md's coverage paragraph, which is the copy kept in step with the clover output:
+Twenty-six lines, in eight groups. Sixteen are deliberate — behind a switch that is off on purpose,
+behind a credential the repository does not hold, or on a failure no test can arrange — and ten are
+a gap rather than a decision:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
   the switch injectable, which is exactly the guarantee that assertion exists to make — so the lines
-  stay uncovered and the switch stays a constant. It used to be thirteen: the locked append moved
-  into `Support\File::append()`, which is tested directly, so what is left behind the switch is the
-  switch and the entry it does not build.
+  stay uncovered and the switch stays a constant. The locked append lives in
+  `Support\File::append()`, which is tested directly, so what is behind the switch is the switch and
+  the entry it does not build.
 - **`StatsController::handle()`'s body (3 lines)** needs an admin login to succeed, and
   `data/admin.php` in the repository is a placeholder with an empty `pass_hash` — the real
   credentials are uploaded by hand and `deploy.sh` excludes the file. The counting is all in
@@ -502,38 +535,51 @@ Twenty-six lines, in eight groups. Ten are deliberate and the rest are a gap rat
 
 #### Ten more, which are a gap rather than a decision
 
-These arrived with the header-value classes in `867372f` and nothing has exercised them since, so
-they are listed here to be closed rather than justified:
+These are listed to be closed rather than justified:
 
 - **`CacheControl::of()` (3)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — guard clauses
   that throw `SecurityPolicyException` on an empty or malformed value. `HiDriveLink`'s equivalent
   throw is tested by `badShareIdProvider` in `ModelTest`, which is the shape these want, and
-  `DemoTest` closed the two of the same kind that the demo work added — `ContentLength`'s negative
-  length and `RobotsPolicy::of()`'s empty list — so the pattern is now written down twice.
+  `DemoTest` closes two of the same kind — `ContentLength`'s negative length and
+  `RobotsPolicy::of()`'s empty list — so the pattern is written down twice.
 
-  `CacheControl::doNotStore()` used to be listed here as *"a factory no call site uses yet"*, which
-  was already wrong when it was written (`StatsController` calls it) and is now doubly so: it is what
-  every demo response says.
+Three small tests in `ResponseTest` would close all ten.
 
-The rest of this document's claim — that every uncovered line is deliberate — held when it was
-written and does not now. Three small tests in `ResponseTest` would restore it.
+#### Keeping the count honest
 
-**The figures above had drifted and were corrected in the three-guidelines pass**, which is worth a
-sentence because it is this document's own subject. Two of them disagreed with CLAUDE.md *and with
-each other* — 97.84% in the code block, 98.75% and "sixteen lines" further down — while the clover
-XML said neither. Nobody had written anything false; each number had been true when it was typed,
-and a figure quoted in three places is a figure that only stays right by accident.
+The twenty-six are a property of what is *deliberately* untested, not a budget that grows with the
+code. Every pass since the figure was first written has held it there, and the way it did is the
+rule:
+
+- **A change that adds guard branches covers them in the same commit.** A class made of refusals is
+  tested as one data-provider row per refusal — `MarkupParser`'s seventy lines are all covered that
+  way.
+- **A branch a test cannot reach is deleted, not covered.** An unreachable guard is usually saying
+  something about the code rather than the test: `UpdateApplier::check()` returns the `UpdateRoot` so
+  nothing asks `UpdateRoot::of()` for a null that cannot happen; `Diagnostics::handles()` is the one
+  decision both handlers call, so there is no early return to excuse; a static class carries no
+  private constructor for a reflection call to "cover". Dead defensive code is worse than none,
+  because a reader cannot tell it apart from live code.
+- **A guard for a case that cannot happen is not written.** `PhpSetting::configured()` casts
+  `ini_get()`'s `string|false` because every directive it names exists; `HealthReport` shows a data
+  file's presence and whether git tracks it as two columns rather than a verdict with an arm no real
+  checkout reaches.
+- **`?:` on one line where both arms are exercised**, rather than `if` on four — a statement rather
+  than a branch under line coverage, and not a trick as long as both arms run.
+
+(history: [history/coverage.md](history/coverage.md))
 
 ### The development tooling
 
-`tools/lib/` has nine test files and is **deliberately outside the coverage source**. The figure
-above is a claim about the shipped site; folding in code whose job is to shell out to `metaflac` and
-`ffprobe` would either drop the number or invite contrived tests to prop it up.
+`tools/lib/` has twelve test files and is **deliberately outside the coverage source**, so none of
+them carries `#[CoversClass]`. The figure above is a claim about the shipped site; folding in code
+whose job is to shell out to `metaflac` and `ffprobe` would either drop the number or invite
+contrived tests to prop it up.
 
-- `test/unit/CliTest.php` — the `Cli/` layer. Argument parsing is the part worth pinning, because
-  the two hand-rolled parsers it replaced agreed on the one thing that was wrong: an unrecognised
-  flag was dropped in silence. It also covers the case `getopt()` gets wrong, flags written after
-  operands, which is exactly how `composer coverage` invokes `merge-coverage`.
+- `test/unit/CliTest.php` — the `Cli/` layer. Argument parsing is the part worth pinning: an
+  unrecognised flag is refused rather than dropped in silence. It also covers the case `getopt()`
+  gets wrong, flags written after operands, which is exactly how `composer coverage` invokes
+  `merge-coverage`.
 - `test/unit/ReleaseFolderTest.php` — the parts of `Release/` that need no folder on disk: the
   enharmonic key parser, slug derivation, format ordering, and the shape of the emitted entry. The
   last of these `eval`s the generated block and asserts it produces a renderable `Release`, so a
@@ -548,8 +594,11 @@ above is a claim about the shipped site; folding in code whose job is to shell o
 - `test/unit/FlpTest.php` — the `.flp` reader, against projects assembled byte by byte rather than
   against a committed multi-megabyte fixture. The events worth pinning are the ones a real file
   would never show you: an event that overruns the chunk, a length prefix that runs past it, and
-  one long enough to overflow into a *negative* size — which used to sail through the overrun
-  check, because a negative size is always within bounds.
+  one long enough to overflow into a *negative* size — which must be refused explicitly, because a
+  negative size is always within bounds.
+- `test/unit/MidiTest.php` — `Flp/` reading notes and `Midi/` writing them, again from projects
+  assembled byte by byte. What is pinned is chosen for how it fails, which here is almost always in
+  silence: both known playlist-clip widths and the refusal when neither holds.
 - `test/unit/PluginsTest.php` — the length-prefixed-string scan, which produces candidates rather
   than facts and has to keep producing exactly the ones it did.
 - `test/unit/PreflightTest.php` — every finding, against fixtures on disk. This is where the stems
@@ -557,6 +606,12 @@ above is a claim about the shipped site; folding in code whose job is to shell o
   nothing.
 - `test/unit/ProjectFileTest.php` — finding the project: loose, inside a zip, or named outright by
   `--project`, and what happens when it will not parse.
+- `test/unit/DspTest.php` — the `Dsp/` port, carrying `c-µdsp`'s own tests beside it: known input,
+  known output, exact values pinned, with a tolerance chosen for doubles where the C compares floats.
+- `test/unit/ApiClientTest.php` — the two halves of the signed handshake checked against each
+  other: `SignedRequest` builds the request and the real `ApiGate`, over a real generated keypair,
+  verifies it. A disagreement between them fails closed and in silence, so the assertion is that
+  they agree, with nothing in between restating the format.
 - `test/unit/StageDemoTest.php` — `stage-demo`, which is the only command here that mints a
   credential. The tests that matter are not about the entry it prints: that a password verifies
   against its own hash and nothing else does, that two hundred draws are two hundred different
@@ -577,11 +632,22 @@ disagrees with its path fails the first time somebody runs the command, and not 
 
 #### A number is not a measurement
 
-PHPUnit restricts recorded coverage to what `#[CoversClass]` names, so a class no test file declares
-reads as 0% however thoroughly the suite exercises it. Before this was noticed, 53 of the 161
-uncovered statements were in that state — covered, unattributed. The fix is to write the assertion
-the class deserves and then declare it, never to add the attribute on its own: an attribute with no
-test behind it moves the number and nothing else.
+PHPUnit restricts recorded coverage to what `#[CoversClass]` names: a test class that declares any
+`#[CoversClass]` records coverage for *only* those classes, so a class no test file names reads as
+0% however thoroughly the suite exercises it. PHP has no `--test-coverage-include-all` to report it
+the other way. The trap has three shapes, and each has fired:
+
+- **a new class nobody added** to any test's list;
+- **an existing class a test forgot** — `SecurityPolicyTest` has to name `BasicChallenge` for its
+  data rows to count;
+- **a method whose only caller lives in a test that covers something else** — `ApiTest` names
+  `UpdatePatch` and `Allow`, with a sentence saying why a file names classes that are not its subject.
+
+So a new class needs its line, and so does a class a test exercises without being about it. The fix
+is to write the assertion the class deserves and then declare it, never to add the attribute on its
+own: an attribute with no test behind it moves the number and nothing else. `GuidelineTest` declares
+`BareArray` and `BareString` because it constructs them; `NoDiscardTest` declares nothing because it
+only reads code. (history: [history/coverage.md](history/coverage.md))
 
 ## Linting
 
@@ -591,20 +657,18 @@ house style:
 
 - **column-aligned parameters and call arguments** — `public string                $permalink,` in
   `SoundCloudEmbed`, `new Format(ReleaseFormat::FLAC,  new HiDriveLink(…))` in `data/releases.php`
-- **one-line accessors** — `public function all(): array { return $this->items; }`
+- **one-line accessors** — `public function authPassword(): string { return $this->authPassword; }`
 
-`phpcs` reports no warnings either, as of the markup tree — the last one was a 193-character line in
-`Layout.php`, HTML inside a heredoc that couldn't wrap without changing the output. There is no
-heredoc left to be long.
+`phpcs` reports no warnings either.
 
 Editor note: nvim's stock `nvim-lint` phpcs resolves `vendor/bin/phpcs` and its ruleset against *Neovim's*
 cwd, so opening a file from outside the project silently lints it as bare PSR-12 and flags both exemptions
 above. `~/.config/nvim/lua/plugins/php.lua` overrides that to resolve from the buffer's own project root.
 
 `vendor/` and `node_modules/` are gitignored and never deployed — `deploy.sh` only ships `public/`,
-`src/`, `autoload.php` and `data/`. The "no package manager" rule in `CLAUDE.md` is about what runs on
-the server, and that is still true: TypeScript compiles here, and the server receives the plain `.js`
-it produced.
+`src/`, `autoload.php` and `data/`. The no-runtime-dependencies rule in `CLAUDE.md` is about what
+runs on the server, and that holds: TypeScript compiles here, and the server receives the plain
+`.js` it produced.
 
 There is no linter for the TypeScript — `tsc` under `strict` is the whole check. Adding ESLint would
 mean a second toolchain for a handful of small files.

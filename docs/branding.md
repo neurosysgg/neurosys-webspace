@@ -7,8 +7,8 @@ SoundCloud, Spotify, Apple, YouTube, X or GitHub until a visitor actually clicks
 
 Hot-linking an icon from a platform's own CDN (`<img src="https://…spotify.com/icon.svg">`) fires a request to that
 platform **on page load**, before any interaction. Under CJEU C-40/17 (*Fashion ID*) that makes the site operator a joint
-controller for the resulting data transfer and requires a consent gate — the same treatment the SoundCloud embed gets in
-`ReleaseView::playerHtml()`.
+controller for the resulting data transfer and requires a consent gate — the same treatment the SoundCloud player gets from
+`<soundcloud-player>`, which loads nothing until the visitor clicks (see [frontend.md](frontend.md)).
 
 Serving the file from our own origin removes the transfer entirely. Plain profile links then need no consent, no banner,
 and no entry in the Datenschutzerklärung.
@@ -62,7 +62,7 @@ them. Don't "fix" this by trimming the transparent margin — that's the clear s
 
 - **SoundCloud** — the primary presence, so it renders first in the footer. Use the official mark from SoundCloud's press
   resources, unmodified; take a monochrome/white variant for our dark background. Note this is a *profile* link and is
-  unrelated to the embedded player, which stays behind its own consent gate in `ReleaseView::playerHtml()`.
+  unrelated to the embedded player, which stays behind its own consent gate in `<soundcloud-player>`.
 - **Spotify** — icon never below 21px (full logo never below 70px). The green mark is permitted **only** on black or
   white; on any other background use monochrome, white on dark. Our `--bg` is `#0b0c10`, not black, so the **white**
   variant is the correct one. Rendered at 24px.
@@ -79,7 +79,7 @@ them. Don't "fix" this by trimming the transparent margin — that's the clear s
 Spotify is still waiting on DistroKid delivery — the icon is vendored, but `data/profiles.php` has no URL for it yet, so
 `ProfileRepository::all()` skips it. Paste the profile URL once the profile exists and it appears.
 
-Apple Music landed on 04.09.2026 as artist id `6808396360`. It is stored as `https://music.apple.com/artist/6808396360`
+Apple Music is artist id `6808396360`, stored as `https://music.apple.com/artist/6808396360`
 — **no storefront segment and no name slug**. Apple redirects that to the visitor's own store, and it keeps working
 through an artist rename, which `…/us/artist/neuro-sys/6808396360` would not.
 

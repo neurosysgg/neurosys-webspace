@@ -1,19 +1,23 @@
-# Deployment — Strato + PHPStorm
+# Deployment — Strato
 
-## Strato folder layout
+## The layout on the server
 
-Strato gives you an FTP root with (at least) one web-exposed folder. The mapping is:
+The deployment sits in `cgi-bin/` on Strato, and the webroot is a directory inside it. That is what
+`Config::above()` resolves to — the repository root locally, `cgi-bin/` on the server — and every
+other path hangs off it, so `data/` is a sibling of the webroot rather than inside it:
 
 ```
-/                    ← FTP root
-├── htdocs/          ← web-exposed → upload public/* here
-└── data/            ← NOT web-exposed → upload data/* here
-    └── logs/        ← must be writable by PHP
+cgi-bin/                 ← Config::above()
+├── neurosys/            ← the webroot (DOCUMENT_ROOT) ← build/dist/public/
+├── src/                 ← src/, with the prod AssetManifest.php laid over it
+├── autoload.php
+├── data/                ← NOT web-exposed; releases, profiles, credentials, demos
+└── .update-serial       ← the API's replay counter; in no mirrored or rsynced tree
 ```
 
-The `public/` and `data/` directories are siblings on the server, which matches how `ReleaseRepository`, `Auth`, and `DownloadLogger` resolve `dirname(__DIR__, 3) . '/data/...'` from inside `src/NeuroSYS/Service/`.
-
-If your account only has one folder and there's no "outside webroot" option, `data/.htaccess` (`Require all denied`) is there as a fallback — just ensure it actually uploads (some FTP clients hide dotfiles).
+`data/.htaccess` (`Require all denied`) goes up with `data/` as a fallback for a host where the
+directory would be reachable — it is not load-bearing here, since nothing under `cgi-bin/` outside
+the webroot is served.
 
 ## First-time setup
 
@@ -38,26 +42,25 @@ git push -u origin main
 
 Or: `gh repo create neurosys --private --source=. --push`
 
-### 3. Configure FTP deployment
+### 3. Mount the host, and `deploy.sh`
 
+`./deploy.sh` rsyncs over the host mounted as SFTP (GVFS). It is gitignored — it holds the host and
+account name — so it exists only on the machine that deploys; the mount point and account are its
+`SFTP_MOUNT` and `SFTP_USER`. It uploads everything in [The layout on the server](#the-layout-on-the-server)
+except three files under `data/`, which are uploaded by hand (steps 4 and 5, and the keypair below).
+
+### 4. Configure PHPStorm deployment (optional)
+
+For pushing one file in a hurry — see [Full deploy](#full-deploy) for what it skips.
 **Settings → Build, Execution, Deployment → Deployment → +**
 
-1. Type: **FTP** or **SFTP** (prefer SFTP if Strato offers it — check your hosting panel).
+1. Type: **SFTP**.
 2. Name: `Strato (neurosys.gg)`
 3. Fill in host, port, username, password (save to system keychain, not the project).
 4. **Mappings tab**:
    - Local path: `public`
-   - Deployment path: `/htdocs` (or whatever Strato calls the webroot)
+   - Deployment path: `cgi-bin/neurosys` (the webroot)
    - Web path: `/`
-
-### 4. Upload `data/` manually (one-time)
-
-`data/` is intentionally outside the deployment mapping. Do this once:
-
-1. Open the **Remote Host** tool window in PHPStorm (or any FTP client).
-2. Create a `data/` folder next to `htdocs/` on the server.
-3. Upload `data/.htaccess`, `data/admin.php`, and `data/releases.php` into it.
-4. Create `data/logs/` inside it, ensure it's writable (`chmod 755` if needed).
 
 ### 5. Set stats password
 
@@ -67,7 +70,12 @@ On your local machine, generate a bcrypt hash:
 php -r "echo password_hash('yourpassword', PASSWORD_BCRYPT) . PHP_EOL;"
 ```
 
-Paste the output into `data/admin.php` as `pass_hash`, then upload that file.
+Paste the output into `data/admin.php` as `pass_hash`, then upload that file by hand — `deploy.sh`
+excludes it, because the repo copy is a placeholder.
+
+`data/logs/` is only needed if download logging is ever switched on, and it has to be created on the
+server by hand then: `deploy.sh` excludes it, and `fopen(…, 'ab')` creates the file but not its
+directory.
 
 ### 6. Check the HTTPS redirect on the first deploy
 
@@ -130,14 +138,13 @@ present **and working**, where a PHP diagnostic goes on this host and the last o
 the server's own software, kernel and clock, and whether every file under `data/` is where the site
 expects it.
 
-**Its reason for existing is that none of that had ever been asked of the live host.** The
-extensions are declared in `composer.json`, which never runs there because `vendor/` is not
-deployed, and asked for in `test/basic_test.sh`, which runs `php` from `$PATH` on whichever machine
-runs the suite. The error configuration this repository quotes as measured fact — `display_errors`
-off, `error_log` empty — was measured by hand, once, and copied into five docblocks. This is the
-first thing that asks the runtime actually answering requests.
+**It is the one source for what the live runtime is.** The extensions are declared in
+`composer.json`, which never runs there because `vendor/` is not deployed, and asked for in
+`test/basic_test.sh`, which runs whichever `php` is on `$PATH` locally; the error configuration
+docblocks quote (`display_errors` off, `error_log` empty) is a copy of a reading this report
+re-takes. When a docblock and the report disagree, the report is right. ([history](history/api.md))
 
-Two lines are worth reading before the rest of it:
+Five lines are worth reading before the rest of it:
 
 - **`clock`.** A credential whose serial sits more than five minutes from the server's clock is
   refused, and that is cause number two in the list a refused call prints. There is a chicken and
@@ -145,10 +152,30 @@ Two lines are worth reading before the rest of it:
   *drifting* is caught here well before it costs a deploy.
 - **`update.pub`.** It can never read `absent`: a report you are reading verified against it. The
   size beside it is what tells a whole key from a truncated paste.
+- **Each extension is asked by being used**, not by `extension_loaded()` — registered and working
+  are two questions, the standard `test/basic_test.sh` already states for `ext/dom`.
+- **A file's presence and whether the repository tracks it are two columns, not a verdict.**
+  `absent  (tracked)` reads as the fault it is without the report inventing a severity word.
+- **The `errors` section reads `error_get_last()`**, deliberately process-global. A diagnostic a
+  userland handler takes never populates that function, and every suppression here goes through
+  `Diagnostics::muted()` — so what the line reports is precisely the diagnostics **nothing in this
+  repository handled**.
 
-Nothing about the answer is public. `/api/health/v1/report` is as invisible as
-`/api/update/v1/patch` — unsigned, it is the same 404 an address that does not exist gets — which
-is the only reason a report this detailed is safe to produce at all.
+It reports **no replay serial**; `update version` does, and the two handlers overlap on
+`PHP_VERSION` and nothing else. Nothing about the answer is public. `/api/health/v1/report` is as
+invisible as `/api/update/v1/patch` — unsigned, it is the same 404 an address that does not exist
+gets — which is the only reason a report this detailed is safe to produce at all.
+
+### Probing the live host
+
+When the question is one the report does not answer — whether an extension actually does the thing
+about to be relied on, say — put a probe up with a push and take it down with another, **from a
+detached worktree at `HEAD`** rather than from the working tree. The endpoint mirrors the whole tree,
+so a push from a dirty working tree would ship the change being checked *for* alongside the check.
+That is how `ext/dom` was checked by parsing before `MarkupParser` relied on it
+([history](history/hosting.md)).
+
+### The flags
 
 `--dry-run` sends a real signed payload and has the server validate every member, report exactly
 what it would write and delete, and **write nothing** — it does not even advance the replay serial,
@@ -159,10 +186,10 @@ so the same payload can then be sent for real. Use it whenever you are unsure; i
 server.
 
 `--url` points somewhere else and `--key` names a different private key. Both default sensibly:
-`https://neurosys.gg` and `~/.config/neurosys/update.key`. Note that `--url` is an **origin** now
-rather than a full endpoint — the path is derived from the action, so there is one place that knows
-what the address is and it is the same `SitePath` case the router matches with. It must be `https`;
-`Url` refuses anything else, on the one request that carries a signature.
+`https://neurosys.gg` and `~/.config/neurosys/update.key`. `--url` is an **origin**, not a full
+endpoint — the path is derived from the action, so there is one place that knows what the address is
+and it is the same `SitePath` case the router matches with. It must be `https`; `Url` refuses
+anything else, on the one request that carries a signature.
 
 ### First-time setup: the keypair
 
@@ -186,10 +213,9 @@ answers exactly like an address that does not exist, for everyone, forever. That
 polarity to `data/site_auth.php`, whose absence stands its gate *down* — worth reading twice,
 because the two files look alike.
 
-Note the file keeps its name. `data/update.pub` and `cgi-bin/.update-serial` now cover every service
-rather than only the push; renaming either would mean a file uploaded by hand on the server and a
-replay counter starting again from zero, which is a migration to buy a tidier name. They are named
-for the service that first needed them.
+`data/update.pub` and `cgi-bin/.update-serial` cover every service, not only the push; they are
+named for the service that first needed them. Renaming either would mean a file uploaded by hand on
+the server and a replay counter starting again from zero, so they keep their names.
 
 ### When a push is refused
 
@@ -203,15 +229,11 @@ check these in order:
 3. **A replay.** The same payload cannot be applied twice; rebuild it (any rebuild mints a new
    serial). Note that a push which *failed* has still spent its serial — the replay guard is armed
    before the archive is touched, so bytes that produced a failure can never be sent again either.
-4. **An old server.** One that has not yet had this code pushed to it is still answering on
-   `/update` and has never heard of `/api`, so it refuses with a `405` — the same refusal a bad
-   signature gets, which is why this is on the list.
 
-   **The way out is `./deploy.sh`, and `--url` will not do it.** That flag now takes an *origin* and
-   the path is appended, so `--url https://neurosys.gg/update` asks for
-   `https://neurosys.gg/update/api/update/v1/patch`. This is the bootstrap the endpoint cannot do
-   for itself, and it is the case `deploy.sh` is kept for: **the first deploy of the commit that
-   creates `/api` has to go over the mount.** Every push after it is one request again.
+A server that is not running the `/api` code at all — a fresh host, or one a push has broken —
+refuses exactly the same way, and the endpoint cannot fix that for itself. **The way back is
+`./deploy.sh`, over the mount.** `--url` will not reach anything else: it takes an origin and
+appends the action's path. ([history](history/api.md))
 
 A refusal *after* the signature verifies is a **422** with a full sentence saying which member of
 the archive was wrong — by then you have proved you hold the key, so there is nothing left to hide.
@@ -251,11 +273,15 @@ because the handle keeping it alive belongs to the process trying to delete it. 
 ! public/.nfs00000000bd2dac2512228f60 — could not be removed
 ```
 
-This is why a push leaves an unchanged file strictly alone. **It was never the endpoint's bug** —
-`deploy.sh` strands the same inode every time it rsyncs `index.php`; the endpoint is just the first
-thing here that mirrors, and so the first thing that ever looked. If you find one, it is harmless
-(Apache answers 500 for it, having no `SetHandler` for the extension, so it is not served) and it
-clears itself when the worker holding it recycles.
+This is why a push leaves an unchanged file strictly alone: `UpdateApplier::isCurrent()` skips a
+file whose bytes are already there — not rewritten, not touched, not chmodded — so an unchanged
+`index.php` is never renamed over. Permissions are deliberately not reconciled, which is the trade
+`rsync` without `-p` makes for the same reason.
+
+`deploy.sh` strands the same inode every time it rsyncs `index.php`, so a stray can predate any
+push. If you find one, it is harmless (Apache answers 500 for it, having no `SetHandler` for the
+extension, so it is not served) and it clears itself when the worker holding it recycles.
+([history](history/api.md))
 
 To remove one now, do it **over the mount** rather than through the endpoint. The delete has to come
 from a different NFS client than the one holding the handle, and the web process is that client, so
@@ -279,18 +305,17 @@ that would fix it; the way back is the mount. Every previous tree is in git, so 
 
 ## Full deploy
 
-
-
-`./deploy.sh` is the current path — it rsyncs `build/dist/public/`, `src/`, `autoload.php` and
-`data/` over the mounted SFTP in one go, so `data/releases.php` no longer needs a separate manual
-upload. The script is gitignored (it holds the host and account name), so it exists only on the local
+`./deploy.sh` is the full deploy and the recovery path — it rsyncs `build/dist/public/`, `src/`,
+`autoload.php` and `data/` over the mounted SFTP in one go, so `data/` goes up with everything else.
+The script is gitignored (it holds the host and account name), so it exists only on the local
 machine.
 
 **It runs `npm run build:prod` first, so you do not have to.** `build/dist/` is the shipped tree:
-`public/` minified, with all 42 source maps deleted, and a manifest of its own. Building it inside
-the deploy is deliberate — the alternative is a staleness check that is wrong once and then silently
-ships whatever `build/dist/` happened to hold. It also means a forgotten `npm run build` is caught
-before anything is uploaded rather than after. See CLAUDE.md's *Debug and prod builds*.
+`public/` bundled and minified, with every source map deleted, and a manifest of its own. Building
+it inside the deploy is deliberate — the alternative is a staleness check that is wrong once and
+then silently ships whatever `build/dist/` happened to hold. It also means a forgotten
+`npm run build` is caught before anything is uploaded rather than after. See
+[frontend.md](frontend.md) for the two trees.
 
 That is why there is a third rsync: `build/dist/src/NeuroSYS/AssetManifest.php` goes up **after**
 `src/`, over the one file that differs between the two trees. Its stamp is a hash of the minified
@@ -298,9 +323,17 @@ bytes rather than the readable ones, which is correct — a stamp is a claim abo
 safe: the assets land before the manifest naming them, and `.htaccess` *strips* the version segment
 rather than resolving it, so a document cached with the previous stamp still finds the new files.
 
-**It deliberately excludes `data/admin.php` and `data/site_auth.php`.** The copies in the repo are
-placeholders — `admin.php` ships an empty `pass_hash` — so syncing them would overwrite the live hashes
-and lock `/admin/stats` out. Upload those two by hand when they actually change.
+**It deliberately excludes `data/admin.php`, `data/site_auth.php` and `data/update.pub`**, and
+`data/logs/`. The copies of the first two in the repo are placeholders — `admin.php` ships an empty
+`pass_hash` — so syncing them would overwrite the live hashes and lock `/admin/stats` out; the third
+has no repo copy at all. Upload those by hand when they actually change.
+
+**`--delete` is on for `public/` and `src/` and off for `data/`.** The two trees it deletes from are
+wholly generated or wholly committed, so the working tree is authoritative about what should be
+there. `data/` is not: `demos.php` and `demos/` are gitignored, so a deploy from a clone that has
+never staged a demo would take every demo off the live server. The price is that **a data file
+renamed or removed locally stays on the server** until somebody deletes it over the mount — a
+deleted demo's MP3s, for instance. See [demos.md](demos.md).
 
 The PHPStorm route still works if the mount isn't up: right-click `public/` → **Deployment → Upload to
 Strato (neurosys.gg)**, then upload `data/releases.php` manually via the Remote Host panel. Note what
@@ -315,3 +348,68 @@ catches it — it fails when the committed output has drifted.
 
 `vendor/` and `node_modules/` are dev-only tooling and are not in the list above — nothing Composer or
 npm installs ever reaches the server.
+
+## What `.htaccess` does to a response
+
+Beyond the `SetHandler` allow-list and the HTTPS redirect, `public/.htaccess` shapes every static
+response.
+
+**Last measured on the live host 2026-09-06.** A stamped module comes back `content-encoding: gzip`
+with `cache-control: public, max-age=31536000, immutable`, and a bare `/assets/js/main.js` comes back
+gzipped with `max-age=3600` — so `mod_deflate` is present and the two cache tiers are genuinely
+mutually exclusive rather than merely written to be. Strato adds a `Vary: X-Forwarded-For` of its
+own, which `Accept-Encoding` is appended to.
+
+**A shared host can gain or lose a module without telling anybody**, and behind the
+`<IfModule>` guards the failure is silent in both directions — the day before that reading, nothing
+was compressed and no `Cache-Control` came back, with nothing in this repository changed between
+the two. ([history](history/hosting.md))
+
+**Note what that block does and does not reach.** Every `Header set` here sits inside a
+`<FilesMatch>` keyed on a file extension, so it applies to what Apache serves and never to a
+document, which `index.php` produces. Documents answer for themselves — `ViewResponse` sends
+`Cache-Control: no-cache`, an `ETag` over the rendered body and `Vary: X-Requested-With`, so a
+returning visitor revalidates and usually gets a 304. The two halves fit together deliberately: a
+document embeds the versioned asset URLs, so a cached document naming *last* build's URLs would be
+served last build's JS out of the year-long immutable cache below. `no-cache` means there is no
+window in which that can happen, rather than a bounded one. Both blocks are `<IfModule>`-guarded,
+which means an absent module is silence rather than a 500, and equally means a missing `mod_deflate`
+would leave the block doing nothing with no sign. **Re-check after deploying**, since this is not
+something either test suite can see:
+
+```bash
+curl -sI -H 'Accept-Encoding: gzip, br' https://neurosys.gg/assets/js/main.js | grep -i 'encoding\|cache'
+```
+
+That URL is the calendar tier and nothing the site emits asks for it. The one a page actually loads
+carries the build stamp, so check that tier too — it is the one the year-long `immutable` is on:
+
+```bash
+curl -s https://neurosys.gg/ | grep -oE '/assets/js/v-[^"]+/main\.js' | head -1 \
+  | xargs -I{} curl -sI -H 'Accept-Encoding: gzip' "https://neurosys.gg{}" | grep -i 'encoding\|cache'
+```
+
+**The version-segment rewrite is the highest-risk line in the file.** Compression failing costs
+bytes; that rewrite failing costs every stylesheet and every module, because the manifest names URLs
+only it can resolve — an unstyled page with no JS at all. It is verified against real Apache locally
+and against the live host on each deploy, and it is the first thing to check if a deploy goes wrong:
+
+```bash
+curl -s https://neurosys.gg/ | grep -oE 'href="/assets/css/v-[^"]+"' | head -1
+```
+
+Take that path, request it, and expect a 200 with `immutable` in `Cache-Control`. A 404 means the
+`RewriteRule` did not fire and the fix is to revert the manifest to unversioned URLs, not to debug
+it live.
+
+Cache lifetimes come in two tiers, split by whether the URL names its own content. Built assets are
+served under a build-stamp segment and get `immutable` for a year; see [frontend.md](frontend.md)
+for cache versioning. Everything else keeps a calendar TTL — an hour for a bare `.css`/`.js`
+(nothing the site emits asks for one, so this is only ever a URL somebody typed), thirty days for
+images and fonts. The two are made mutually exclusive by document order rather than by an `env=!`
+condition, because the rewrite is an internal redirect and the variable then arrives named
+`REDIRECT_VERSIONED`; both spellings are set, and only one is ever defined. Verified against real
+Apache, not reasoned about.
+
+As read on the live host 2026-09-05, it serves **HTTP/2** (no HTTP/3 — no `Alt-Svc`) from
+Apache 2.4.68.

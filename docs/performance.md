@@ -7,12 +7,18 @@ actually are rather than to argue that any of it is too much.
 
 The front end's build decisions are argued in [frontend.md](frontend.md); this is the measurement
 behind them. The two test suites are in [testing.md](testing.md), and the server the numbers were
-taken against is in [deployment.md](deployment.md).
+taken against is in [deployment.md](deployment.md). Figures of past changes, before and after, are
+in [history/performance.md](history/performance.md).
 
 **Everything below was measured on 2026-09-08**, on the development machine — Apache 2.4.68 with
 `mod_proxy_fcgi` to php-fpm 8.5.10, opcache on with the default optimizer, Xdebug 3.5.3 loaded in
 `develop` mode. That is the same arrangement Strato runs except that Strato executes PHP as CGI, so
 the shape holds and the absolute figures do not transfer.
+
+**The request timings and the compression table were taken against the debug tree** — the one
+`npm run dev` serves, whose documents carry a 46-link `modulepreload` block. What deploys is the
+prod tree, which has none; its document sizes are under [the front-end payload](#the-front-end-payload).
+None of the tables has been re-measured against the prod tree.
 
 ---
 
@@ -28,11 +34,10 @@ Time to first byte, median. **Cold** means opcache had to compile; **warm** is e
 | `/privacy` | 14.0 ms | 6.00 ms |
 | 404 | 9.8 ms | 2.55 ms |
 
-**The `/privacy` row is the only one re-measured on 2026-09-09**, and it moved because that page
-stopped being a pass-through: `MarkupParser` reads both halves of the policy into the markup tree
-instead of `RawHtml` emitting them verbatim. It is the largest single cost this site has taken for a
-guarantee, and the split is [below](#the-price-of-parsing-the-policy). Spot checks of the other four
-rows on the same day agreed with them inside noise.
+**The `/privacy` row was measured on 2026-09-09** and includes the cost of parsing the policy into
+the markup tree on every request — the largest single cost this site pays for a guarantee, split out
+[below](#the-price-of-parsing-the-policy). Spot checks of the other four rows on the same day agreed
+with them inside noise.
 
 Cold is paid once per deploy — or once per edit to any file the request touches, since
 `opcache.validate_timestamps` is on. Everything else is warm.
@@ -78,7 +83,8 @@ Splitting a warm `/releases/ill` by preloading every class before the clock star
 **A warm request still includes every file.** opcache caches the compiled form, not the inclusion,
 so the 1.4 ms is irreducible short of preloading — which shared hosting does not offer.
 
-And that 2.83 ms of work, by phase:
+And that 2.83 ms of work, by phase — on the debug tree, so `Layout::wrap` includes the 0.23 ms the
+preload block costs ([below](#inside-the-tree)):
 
 | phase | ms | share |
 |---|---|---|
@@ -114,24 +120,24 @@ and the counts are not:
 `137 + 223 + 81 = 441`. **Every builder call constructs a copy**, so a document of 137 rendered
 elements costs 3.2 element objects each. That is the immutable-builder design showing up as a
 number, it is about 0.35 ms, and it is the price of the guarantee `#[\NoDiscard]` and `readonly`
-are there to make — see the collections section of `CLAUDE.md`. Nothing here suggests changing it.
+are there to make — see [collections.md](collections.md). Nothing here suggests changing it.
 
 The one part of the tree that was worth measuring separately is the preload block, because it is
 generated rather than authored:
 
 | | |
 |---|---|
-| `Layout::modulePreloads()`, 46 links | 0.23 ms |
+| `Layout::modulePreloads()`, 46 links (debug tree) | 0.23 ms |
 | as a share of the whole tree build | 23% |
 
-That was a real cost and it is now zero on the tree that ships — see
+The prod tree has no preload list, so what ships pays none of it — see
 [the front-end payload](#the-front-end-payload) below.
 
 ### The price of parsing the policy
 
-`/privacy` is the one route that builds its tree out of a *document* rather than out of code, and
-since `MarkupParser` replaced `RawHtml` that document is parsed and re-rendered on every request
-rather than passed through. Measured over `data/privacy.de.html`, per half:
+`/privacy` is the one route that builds its tree out of a *document* rather than out of code:
+`MarkupParser` parses and re-renders both halves of the policy on every request rather than passing
+them through. Measured over `data/privacy.de.html`, per half:
 
 | | with Xdebug | without |
 |---|---|---|
@@ -141,14 +147,14 @@ rather than passed through. Measured over `data/privacy.de.html`, per half:
 | **one half** | **1.74 ms** | **0.58 ms** |
 | **what `/privacy` pays, both halves** | **+3.47 ms** | **+1.14 ms** |
 
-`RawHtml::render()` was 0.004 ms, so effectively all of it is new. The route figure above is the
-Xdebug column, because that is what this document measures in; **Strato has no Xdebug**, so the
-number that lands in production is the right-hand one. The parse itself barely moves between the
-two — it happens in C — and everything that does is the userland walk and render, which is the
-answer to which half to look at if this ever needs to be cheaper.
+The route figure above is the Xdebug column, because that is what this document measures in;
+**Strato has no Xdebug**, so the number that lands in production is the right-hand one. The parse
+itself barely moves between the two — it happens in C — and everything that does is the userland
+walk and render, which is the answer to which half to look at if this ever needs to be cheaper.
 
-Whether it is worth 1.14 ms is argued in `CLAUDE.md`, not here. What is worth recording is that it
-is confined: no other route reads a document, and the tree build for every other page is unchanged.
+Whether it is worth 1.14 ms is argued in [architecture.md](architecture.md), not here. What is worth
+recording is that it is confined: no other route reads a document, and the tree build for every
+other page is unchanged.
 
 ---
 
@@ -158,6 +164,8 @@ is confined: no other route reads a document, and the tree build for every other
 `public/.htaccess`, keyed on content type rather than on a file extension, so it reaches
 `index.php`'s output as well as Apache's own static files.
 
+Documents as the debug tree serves them, preload block included:
+
 | route | raw | gzip | saved |
 |---|---|---|---|
 | `/` | 7,050 | 1,350 | 80.9% |
@@ -166,12 +174,10 @@ is confined: no other route reads a document, and the tree build for every other
 | `/imprint` | 7,656 | 1,445 | 81.1% |
 | `/privacy` | 42,528 | 13,378 | 68.5% |
 
-**`/privacy` is smaller on disk and bigger on the wire than it was, which is the opposite of what
-anyone would guess.** Parsing decodes character references, so the 44,404 bytes `RawHtml` used to
-emit are 42,528 now — and the gzipped body went *up*, 12,399 → 13,378. `&auml;` is six bytes that
-repeat 69 times in the German half and compress almost to nothing; the `ä` that replaces it is two
-bytes that do not. Fewer bytes, less redundancy, worse ratio. Still 29 KB saved and still not a
-close call, but it is a reminder that raw size is not the thing being compressed.
+**`/privacy` compresses worst, and the reason is the parse.** Parsing decodes character references,
+so `&auml;` — six bytes that repeat through the German half and gzip almost to nothing — becomes
+`ä`, two bytes that do not. Fewer raw bytes, less redundancy, a lower ratio: raw size is not the
+thing being compressed. It still saves 29 KB and is not a close call.
 
 It costs server time, and the cost scales with the body rather than being flat:
 
@@ -183,7 +189,7 @@ It costs server time, and the cost scales with the body rather than being flat:
 
 The privacy policy spends over a millisecond to save 29 KB, which at 10 Mbit/s is twenty-three
 milliseconds it does not spend. Not a close call in either direction. (Both `/privacy` figures are
-from 2026-09-09 and carry the parse cost above; the other two rows are the original run.)
+from 2026-09-09 and carry the parse cost above; the other two rows are from 2026-09-08.)
 
 **Non-2xx responses are not compressed, and this is Apache's behaviour rather than the site's.**
 The 404 comes back at its full 6,902 bytes with the same `Content-Type: text/html; charset=utf-8`
@@ -208,30 +214,28 @@ curl -sI -H 'Accept-Encoding: gzip' https://neurosys.gg/assets/js/main.js | grep
 
 ## The front-end payload
 
-The debug tree in `public/` ships 49 separate modules; the tree that deploys bundles them into one.
+The debug tree in `public/` has 49 separate modules; the tree that deploys bundles them into one.
 Both are gzipped at level 6, which is what `mod_deflate` uses.
 
 | | files | raw | gzip |
 |---|---|---|---|
 | debug tree, as committed | 49 | 35,527 | 15,681 |
-| minified per file — what shipped before | 49 | 21,796 | 12,798 |
 | **bundled and minified — what ships** | **1** | **15,557** | **5,801** |
 
-**6,997 gzipped bytes, 54.7%**, and 48 fewer HTTP responses. The reason it is so much larger than
-minification alone was ever worth is that gzip's window then spans the whole graph instead of
-restarting at every small module — a per-file measurement and a concatenated one are answering
-different questions, and this codebase has been careful about that distinction in both directions.
+**The shipped tree is one bundle because gzip's window then spans the whole graph** instead of
+restarting at every small module. A per-file measurement and a concatenated one answer different
+questions, and minifying files one at a time is worth much less than it looks from a concatenated
+stream.
 
-Bundling also empties the preload list, which takes the block out of every document:
+With no preload list, a shipped document is correspondingly smaller than the debug-tree figures in
+the compression table:
 
 | | raw | gzip |
 |---|---|---|
-| `/` before | 7,050 | 1,350 |
-| `/` after | 2,979 | 963 |
-| `/releases/ill` before | 11,113 | 2,088 |
-| `/releases/ill` after | 7,042 | 1,705 |
+| `/`, shipped | 2,979 | 963 |
+| `/releases/ill`, shipped | 7,042 | 1,705 |
 
-About **385 gzipped bytes off every page**, plus the 0.23 ms of render time the 46 elements cost.
+About **385 gzipped bytes** of every debug-tree document is the preload block.
 
 ---
 
@@ -260,6 +264,8 @@ About **385 gzipped bytes off every page**, plus the 0.23 ms of render time the 
   under five bytes across the whole tree and is not worth distinguishing.
 - **These are development-machine numbers.** Strato runs PHP as CGI rather than through
   `mod_proxy_fcgi`, so cold and warm both differ there. The ratios hold; the milliseconds do not.
+- **The request and compression tables are debug-tree numbers** (see the note at the top). The
+  shape transfers to the prod tree; the document sizes do not.
 
 ---
 
@@ -271,3 +277,4 @@ About **385 gzipped bytes off every page**, plus the 0.23 ms of render time the 
 - [deployment.md](deployment.md) — the live host, and what `.htaccess` does to a response
 - [architecture.md](architecture.md) — the request traced end to end, which is what the phase table
   is a clock on
+- [history/performance.md](history/performance.md) — before-and-after figures of past changes

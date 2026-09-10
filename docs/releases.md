@@ -113,7 +113,7 @@ Recommended: 1400×1400 px minimum, square, JPEG.
 ## SoundCloud embed
 
 The embed HTML is **generated**, not pasted — `SoundCloudEmbed` builds it from three ids. There are two ways to
-get them, and the second one is new.
+get them.
 
 ### The tool, once an app is registered
 
@@ -126,7 +126,7 @@ It uploads the track **private** and prints the whole `data/releases.php` entry 
 there is no flag that can make a track public: that stays the step below, taken on the day. `--authorize` does
 the one browser round trip it needs, once per machine. It wants three environment variables and no SoundCloud
 app is registered yet, so until one is, the path below is the one that works. See
-[authoring.md](authoring.md#phase-4--the-track-itself).
+[authoring.md](authoring.md#uploading-the-track).
 
 ### By hand, from the embed snippet
 
@@ -145,7 +145,7 @@ You only need to dig them out of SoundCloud's embed snippet once, then throw the
 
 `secretToken` only exists while a track is **private or scheduled**. Leave it off for a track that was public from
 the start. A token grabbed before release keeps working after the track goes public, so there's no need to re-grab
-it on release day — `ill.` went public on 04.09.2026 on its original token.
+it on release day — verified with `ill.`, which went public on 04.09.2026 on its pre-release token.
 
 The player is deliberately **not** loaded until the visitor clicks the consent gate — nothing is requested from
 SoundCloud on page load (see `docs/branding.md` for why). Autoplay is on, because clicking *Load player* is the
@@ -187,7 +187,7 @@ its own.
 ## MIDI for the remix package
 
 `php tools/extract-midi.php <folder|.flp|.zip>` writes the project's notes as a standard MIDI file,
-so a remix package no longer needs FL's own export dialog in the Windows VM.
+so a remix package does not need FL's own export dialog in the Windows VM.
 
 ```bash
 php tools/extract-midi.php ~/"neuro.SYS PROJECTS/who are u EP/ill (140 d#min skrillie dubstep).zip" --out "ill MIDI.mid"
@@ -206,57 +206,51 @@ Two things to expect, both of them properties of the project rather than of the 
   renamed. Renaming them in the rack and re-running is the fix, and it is worth doing before
   shipping a package — the names are the only labelling a remixer gets.
 - **It is checked against FL's own export, not assumed to match it.** Where the two differ it is
-  written down rather than smoothed over; see the `extract-midi` section of `CLAUDE.md` for the
+  written down rather than smoothed over; see [tooling.md](tooling.md#extract-midi) for the
   one-tick question and the two extra tracks, and `ExtractMidi::DIVERGENCE` for the decision.
 
 ## After editing releases.php
 
-Upload it manually to `data/` on the server via the PHPStorm Remote Host panel (it's outside the standard deployment mapping — see `docs/deployment.md`).
+Deploy with `./deploy.sh`, which rsyncs `data/` along with everything else (skipping only `logs/` and
+the credential files). `php tools/push-update.php` does **not** carry it: a push writes only
+`public/`, `src/` and `autoload.php`, and `data/` is deliberately not one of its roots. See
+[deployment.md](deployment.md).
 
-## Checklist (ill. — releases 04.09.2026, 20:00 CEST)
+## Release checklist
 
-The SoundCloud track is **unscheduled/private** for now — it stays that way until the live site is verified, then gets published
-by hand. Source files live in `~/Music/neuro.SYS/releases/ill/`; they are uploaded to HiDrive at
-`neuro.SYS tertiary backup/Releases/ill/`. `data/releases.php` is fully populated — cover, embed and all four share links — so
-`/releases/ill` renders the player and every download card 303s to HiDrive.
+Built from the ones `ill.` and `hello world!` shipped with — both are kept in
+[history/releases.md](history/releases.md).
 
-- [x] Master + export FLAC / WAV / MP3 (24-bit/48kHz)
-- [x] Build stems package → `140 D#Min ill remix package.zip` (`REMIX PACKAGE/stems/`, 143 MiB)
-- [x] Prepare web covers → `web/ill. cover.png` (2048², 8-bit, 5.2 MB) and `web/ill. cover.jpg` (1400², 698 KB)
-- [x] Upload all six files to HiDrive via SFTP (verified byte-for-byte; mp3 round-tripped by SHA-256)
-- [~] Drop a MIDI into `REMIX PACKAGE/` and rebuild the zip — **closed for this release**: the zip is uploaded and its share
-      link is live, so changing it now means a re-upload and a new link. Carry to the next release.
-- [x] **Create share links in the HiDrive web UI** for cover + FLAC + WAV + MP3 + stems zip → `cover` and `formats`
-- [x] Grab the SoundCloud track id / permalink / secret token → `embed` (a scheduled track has a secret-token embed before it goes public — `hello world!` uses one)
-- [x] `bash test/basic_test.sh` — flipped `/releases/ill/flac` to 303; all checks pass
-- [x] Deploy `public/` + `src/` + updated `data/releases.php` to Strato — `./deploy.sh`, 2026-09-04
-- [x] Test all four download links live — all four 303 to the right HiDrive ids (logging stays off by design, see CLAUDE.md)
-- [~] Mobile check — no horizontal overflow at 375px on `/`, `/releases/ill` or `/privacy`, and the consent gate swaps
-      in the real iframe correctly. Not visually eyeballed; give it one look on an actual phone.
-- [x] SoundCloud published 04.09.2026 — the secret-token embed still resolves after going public, no re-grab needed
-- [ ] **Re-upload `ill..wav`** — it was 16-bit/44.1kHz beside a 24-bit/48kHz FLAC, and carried no tags, which
-      is what `tools/stage-release.php`'s preflight was written to catch. Corrected locally on 05.09.2026 by
-      re-deriving it from the FLAC master (bit-identical audio, verified), so the folder is right and the
-      HiDrive copy is not — `/releases/ill/wav` still serves the 16-bit file. Check whether the share link
-      survives an overwrite at the same path, or whether it has to be re-minted and `RVg8LBS4A` updated.
-- [x] `ill/STEMS/` moved to `ill/REMIX PACKAGE/stems/`, matching the zip that ships and the `hello world!`
-      folder — a layout difference only, nothing uploaded changed
-
-## Checklist (hello world! — target 01.07.2026)
-
-Cover, all four HiDrive links and the SoundCloud embed are populated in `data/releases.php`, and the file is deployed — so everything down to the deploy step is done. The last three are left unticked because they can't be confirmed from the repo.
-
-- [x] Finish cover art + logo
-- [x] Upload cover to HiDrive, grab direct-download link → `cover`
-- [x] Export final FLAC + MP3 + stems ZIP
-- [x] Upload audio files to HiDrive, grab direct-download links → `formats`
-- [x] Set up SoundCloud profile, upload track, grab the embed ids → `embed`
-- [x] Deploy `public/` + updated `data/releases.php` to Strato
-- [x] Test all four download links live — verified 2026-09-04, each 303 resolves to the right file on HiDrive
-- [ ] Mobile check
+- [ ] Master, and export FLAC / WAV / MP3 from FL — the preflight checks they agree with the FLAC's rate
+      and depth, and with each other's duration
+- [ ] `php tools/extract-midi.php` into `REMIX PACKAGE/` **before** zipping it — once the zip's share link is
+      live, adding a file means a re-upload and possibly a new link
+- [ ] Build the stems package → `<bpm> <key> <title> remix package.zip` (`REMIX PACKAGE/stems/` + the MIDI)
+- [ ] Export web covers → `web/<title> cover.png` (2048²) and `web/<title> cover.jpg` (1400²)
+- [ ] `php tools/stage-release.php <folder> --check` — clean before anything is uploaded
+- [ ] Upload the folder to HiDrive over SFTP (see [Uploading to HiDrive](#uploading-to-hidrive)), verified
+      byte-for-byte
+- [ ] **Create share links in the HiDrive web UI** for the cover and every format → `cover` and `formats`
+- [ ] SoundCloud: upload private (`release-track --upload`, or by hand) and take the three ids → `embed`
+- [ ] Paste the entry into `data/releases.php`, newest first, with any `use` lines `stage-release` says are missing
+- [ ] `composer verify`
+- [ ] Deploy — `./deploy.sh`, because it ships `data/`
+- [ ] Test every download link live — each 303s to the right HiDrive id
+- [ ] Mobile check on an actual phone — no horizontal overflow at 375px, and the consent gate swaps in the
+      real iframe
+- [ ] Publish the track in SoundCloud's own interface on release day — the secret-token embed keeps working
 - [ ] Post the release
-- [ ] **Re-upload `hello world!.flac`** — it carried no `BPM` or `INITIALKEY`, so the filename was the only
-      record of either. Both written locally on 05.09.2026 (audio verified untouched), along with the cover
-      block being re-typed `image/png` from `image/apng`. Same share-link question as `ill.`'s WAV above.
-- [x] Web covers exported to `hello world!/web/` — there were none; the only art was the picture embedded in
-      the FLAC. Now a 2048² PNG and a 1400² JPEG at the same settings as `ill.`'s
+
+## Outstanding
+
+Carried over from the shipped releases' checklists, still open:
+
+- **`ill.` — re-upload `ill..wav`.** The HiDrive copy is the old 16-bit/44.1kHz, untagged file; the folder
+  holds the corrected 24/48 one, re-derived from the FLAC master (bit-identical audio). Check whether the share
+  link survives an overwrite at the same path, or whether it has to be re-minted and `RVg8LBS4A` updated.
+- **`ill.` — mobile check on a real phone.** 375px overflow and the consent-gate swap were checked, but never
+  looked at on an actual device.
+- **`hello world!` — re-upload `hello world!.flac`.** The HiDrive copy carries no `BPM` or `INITIALKEY`, and
+  its cover block is still typed `image/apng`; the local file is corrected. Same share-link question as above.
+- **`hello world!` — mobile check, and posting the release.** Both unticked because neither can be confirmed
+  from the repo.

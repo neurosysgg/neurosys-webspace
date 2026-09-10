@@ -37,8 +37,8 @@ The kind of drift decides how loudly it fails, and neither kind reaches a consol
 
 **The worst one is `X-Requested-With`.** Drift on either side and the server answers a SPA fetch with
 a whole document, which `Navigation` writes into `<main>` — `<!DOCTYPE html><html>…` nested inside
-the page. Broken in a way nothing reports, from two strings that used to sit in different languages
-with nothing between them.
+the page. Broken in a way nothing reports, from two strings in two languages that only the parity
+test keeps in step.
 
 ---
 
@@ -56,6 +56,7 @@ original **by name, backing value and declaration order** — declaration order 
 | `model/SoundCloudOption.ts` | `Model\Embed\SoundCloudOption` | — (order is the query string) |
 | `model/SoundCloudPlayerStyle.ts` | `Model\Embed\SoundCloudPlayerStyle` | `isVisual()` |
 | `model/TerminalTone.ts` | `View\Terminal\TerminalTone` | — |
+| `model/WaveformBand.ts` | `Model\WaveformBand` | the byte offsets and `stride()` — the one **numeric** mirror, because the values are positions in a waveform column rather than names |
 
 ### Mirrors compared case for case
 
@@ -70,9 +71,12 @@ original **by name, backing value and declaration order** — declaration order 
 | `model/CoverArtAttribute.ts` | `View\Html\CoverArtAttribute` | `src`, `fallback`, `alt` |
 | `model/LinkAttribute.ts` | `View\Html\LinkAttribute` | `data-no-spa` |
 | `model/TerminalFieldKey.ts` | `View\Terminal\TerminalFieldKey` | the JSON keys a row arrives under |
+| `model/WaveformAttribute.ts` | `View\Html\WaveformAttribute` | `peaks`, `duration` — what `<demo-waveform>` reads |
+| `model/SectionKind.ts` | `Model\Production\SectionKind` | the `kind` values `arrangement.css` selects on |
+| `model/ArrangementAttribute.ts` | `View\Html\ArrangementAttribute` | `kind` |
 | `model/CssClass.ts` | `View\Html\CssClass` | what the stylesheet selects on |
 | `model/ElementId.ts` | `View\Html\ElementId` | `content` — what the SPA router swaps |
-| `model/RequestHeader.ts` | `Http\RequestHeader` | `X-Requested-With` |
+| `model/RequestHeader.ts` | `Http\RequestHeader` | `X-Requested-With`, `If-None-Match`, `Range`, `Accept-Language` — only the first is written by client code; see below |
 | `model/RequestedWith.ts` | `Http\RequestedWith` | `XMLHttpRequest` |
 
 ### Not an enum, same problem
@@ -88,7 +92,7 @@ player is blocked by our own policy — in the console, with nothing in the page
 
 ## Names with only one side
 
-Three names have no counterpart, and each absence is deliberate.
+Six names are written or read on one side only, and each arrangement is deliberate.
 
 | Name | Written by | Read by | Why no mirror |
 |---|---|---|---|
@@ -96,6 +100,8 @@ Three names have no counterpart, and each absence is deliberate.
 | `--player-height` (`CustomProperty`) | `ConsentGatedEmbed.ts` | the stylesheet | a custom property the gate sets on itself |
 | `loaded` (`EmbedAttribute::Loaded`) | `ConsentGatedEmbed.ts` | the stylesheet | client-written, but it *does* have a PHP case — see below |
 | `If-None-Match` (`RequestHeader::IfNoneMatch`) | the browser | `ViewResponse` | the mirror image of `loaded`: server-read, mirrored client-side so the enum stays comparable case for case. No client code writes it |
+| `Range` (`RequestHeader::Range`) | the browser, when an `<audio>` is seeked | `Request`, for `FileResponse` | as `If-None-Match` |
+| `Accept-Language` (`RequestHeader::AcceptLanguage`) | the browser | `AcceptedLanguages`, for the imprint and privacy pages | as `If-None-Match` |
 
 The first two are named in TypeScript anyway, even though no test can follow them, because **the
 stylesheet is exactly the kind of reader that fails in silence**: get `--player-height` wrong and the
@@ -192,9 +198,10 @@ ViewResponse::send()    →  <title>…</title> + the content fragment, not a Do
 **That header is part of the contract, not decoration.** One URL answers with two different bodies
 depending on this request header, so a cache that did not know which one it stored would be free to
 hand a fragment to a full navigation — `<title>…</title><section>…</section>` as the whole document.
-It was harmless while nothing cached; it stopped being harmless the moment `ViewResponse` started
-sending an `ETag`. The validators differ too, since they are hashes of the two bodies, which is the
-same guarantee again for a cache that ignores `Vary`.
+`ViewResponse` sends an `ETag` and `Cache-Control: no-cache`, so documents are cached and
+revalidated, and the `Vary` is what keeps the two bodies apart. The validators differ too, since
+they are hashes of the two bodies, which is the same guarantee again for a cache that ignores
+`Vary`.
 
 The server derives the `$_SERVER` key from the enum case rather than retyping it —
 `'HTTP_' . str_replace('-', '_', strtoupper(RequestHeader::RequestedWith->value))` — so PHP's
@@ -257,4 +264,5 @@ the four that already have one.
 - [architecture.md](architecture.md) — the PHP side and what each layer knows
 - [frontend.md](frontend.md) — the element model, the build, and the SPA router
 - [testing.md](testing.md) — the two suites, the invariants, and what each one can and cannot see
-- `CLAUDE.md` — the long-form rationale behind the split
+- [history/frontend.md](history/frontend.md) — how the embed attributes and the stylesheet pins
+  got the way they are

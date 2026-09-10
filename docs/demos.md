@@ -106,8 +106,8 @@ Three things worth knowing before touching it:
 - **The three bands are not a choice anyone made.** `Spectrum::bars()` places its edges
   logarithmically between 20 Hz and Nyquist, and at three bands that lands on 20–207 Hz,
   207–2134 Hz and 2134–22050 Hz — near enough a CDJ's low/mid/high, out of the library as it stood.
-- **A missing sidecar is a card without a picture, not an error.** Every demo staged before this
-  existed is in that state, and so is a mix whose audio will not decode. The card, the label, the
+- **A missing sidecar is a card without a picture, not an error.** That is the state of a demo
+  staged without one — `--waveforms` backfills it — and of a mix whose audio will not decode. The card, the label, the
   duration and the player are all exactly what they were — which is also what a visitor with
   JavaScript off gets, and why the waveform does not spend the exception that keeps the player
   native.
@@ -159,9 +159,13 @@ such URL.
 **Does not:** the file once it has been downloaded, or a recording of it playing. The staged MP3
 carries no metadata, which is the most that can be done about a file that has left.
 
-Three smaller things it also does, each attached to the gate rather than to what happens to be
+Four smaller things it also does, each attached to the gate rather than to what happens to be
 behind it right now:
 
+- **Nothing builds a path out of a request.** The URL's last segment is matched against the labels
+  the demo declares, and a segment naming none is a `404`. `DemoTrack`'s own check on its file name
+  is the *second* guard on that hazard — for a typo in `data/demos.php`, not for anything a visitor
+  can send.
 - `Cache-Control: no-store, private` on the page **and** on the audio, so a borrowed machine's cache
   keeps neither.
 - No `ETag`, and therefore no `304` — a gated page cannot be handed back on a guessed validator.
