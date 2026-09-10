@@ -30,8 +30,12 @@ Everything an attacker can reach:
 - **The tenth is `/api/{service}/{version}/{action}`**, which accepts a `POST` and answers every
   method exactly as an address that does not exist, unless the request carries an ECDSA signature
   this deployment's public key verifies. It is unreachable without the private key and invisible
-  without it — at every depth: `/api`, `/api/update` and `/api/update/v1` match no route at all,
-  because the pattern is four segments.
+  without it — at every depth: `/api`, `/api/update`, `/api/update/v1`, `/api/health` and
+  `/api/health/v1` match no route at all, because the pattern is four segments. **Two services now
+  answer under it** — `update`, which writes, and `health`, which only reads — and that difference
+  is deliberately not observable: `ApiController` hands anything it will not verify to
+  `UnroutedController` *before* it has resolved a service at all, so a read-only service is exactly
+  as invisible as the writing one. Both suites sweep both.
 - **Static assets** under `/assets/`, served by the web server, never by PHP. The one exception is a
   demo's audio, which PHP serves itself precisely so that it is *not* static — see below.
 - Everything else answers `404` or `405`.
@@ -343,6 +347,15 @@ endpoint beside it: every property below would have had to hold for the next own
 and the choice was to arrange them once more or to arrange them once. `/update` is gone rather than
 aliased — an endpoint whose design is to be unfindable does not want two doors.
 
+**The next owner-only tool has since arrived and cost none of it.** `health` is an `ApiService`
+case, an action enum and a handler; it inherits the silence, the method policy, the key, the serial
+rule and the indistinguishability sweep without a line arranging any of them, and `tools/api.php`
+reached it with no change at all. What it reports — the SAPI, the ini limits, whether each declared
+extension is present *and working*, where a PHP diagnostic goes and the last one that got there, the
+host's own software and clock, and whether every `data/` file is in place — is reconnaissance in
+anyone else's hands, which is exactly why it is a service behind this signature rather than the
+public `/health` a monitor would ping. See [deployment.md](deployment.md).
+
 It is also the one place this document's other claims had to be re-argued rather than restated, so
 the argument is here in full.
 
@@ -431,7 +444,9 @@ discovered rather than read:
 - The **query string is not covered**, because nothing under `src/` reads one — no code touches
   `$_GET` or `QUERY_STRING`. An API action must therefore never read a query parameter: it would be
   the one input reaching a verified caller's handler unsigned. A parameter belongs in the manifest
-  or in the body.
+  or in the body. `health` is the first action with an obvious temptation here — a `?verbose` or a
+  `?section` — and it takes none: it reports everything it reports, always, and the note saying so
+  is on `HealthReport` itself rather than only here.
 
 **Cross-deployment replay is closed by key separation rather than by an audience field.**
 `data/update.pub` is gitignored, per-deployment and uploaded by hand, so no two deployments hold the

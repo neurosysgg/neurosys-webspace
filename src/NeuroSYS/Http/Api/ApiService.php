@@ -7,7 +7,7 @@ namespace NeuroSYS\Http\Api;
 /**
  * The ApiService enum. What `/api` has to offer.
  *
- * One case today, and the enum is worth having at one case for {@link ApiVersion}'s reason: the
+ * Two cases, and the enum would be worth having at one for {@link ApiVersion}'s reason: the
  * segment is matched by the router as `([^/]+)` and could otherwise be any string at all, so
  * without a vocabulary there is nothing that can say a service does not exist — only a `match` with
  * a default, written wherever somebody happened to need one.
@@ -17,6 +17,11 @@ namespace NeuroSYS\Http\Api;
  * endpoint: {@link \NeuroSYS\Support\SitePath::Api} already matches every one of them, so a new
  * service inherits the gate, the silence and the method policy without anybody remembering to
  * arrange them again.
+ *
+ * **{@link self::Health} is what cashed that claim**, and it cost what the paragraph above said it
+ * would: a case here, one arm of the `match` below, an action enum and a handler. No route, no
+ * policy, no second arrangement of anything. A claim about an extension point made while only one
+ * thing had ever used it is worth checking rather than trusting, and this one held.
  *
  * Server-only, and no TypeScript mirror is wanted — see {@link ApiVersion}.
  */
@@ -31,6 +36,23 @@ enum ApiService: string
      * properties.
      */
     case Update = 'update';
+
+    /**
+     * Asking this deployment what it is.
+     *
+     * The read-only counterpart to {@link self::Update}, and it exists because every fact it
+     * reports was already asserted somewhere and checked nowhere — the four extensions the site is
+     * a fatal without are named in `composer.json`, which never runs on the server, and in
+     * `test/basic_test.sh`, which runs a developer's PHP. See
+     * {@link \NeuroSYS\Service\Api\HealthReport}.
+     *
+     * **It is a service rather than a third `update` action**, because it is not about deploying.
+     * `update version` answers "did my push land" and is what a deploy ends with; this answers "is
+     * this host still what I think it is", which is asked when something is wrong and nothing else
+     * will say what. Two questions, two vocabularies, and an action enum each — which is exactly
+     * the split {@link ApiAction} exists to make expressible.
+     */
+    case Health = 'health';
 
     /**
      * The action $action names on this service at $version, or null where it names none.
@@ -53,6 +75,7 @@ enum ApiService: string
     {
         return match (true) {
             $this === self::Update && $version === ApiVersion::V1 => UpdateAction::tryFrom($action),
+            $this === self::Health && $version === ApiVersion::V1 => HealthAction::tryFrom($action),
 
             // A pair nothing has wired yet, which is only reachable once a second version exists.
             // It is null rather than an unhandled match for the same reason the typo above is: a

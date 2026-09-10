@@ -90,8 +90,8 @@ the split and for the invariants that exist to stop specific mistakes recurring.
 untested when they are among the most exercised paths on the site. With `NEUROSYS_COVERAGE_DIR` set,
 the verify script's dev server runs under Xdebug with `tools/coverage-prepend.php` loaded and dumps
 its coverage from a shutdown function — which still runs when a request ends in `exit`, and every
-response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.87% of
-lines** (2282/2308); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
+response here does. `tools/merge-coverage.php` unions the two into `build/coverage/`. **98.92% of
+lines** (2391/2417); of the twenty-six that are left, ten are deliberate — the `DOWNLOAD_LOGGING`
 switch in `StatsController` and `DownloadLogger` — and ten are a gap rather than a decision:
 guard-clause `throw`s on the header-value classes `867372f` added (`CacheControl`, `Vary`,
 `Location`), which nothing has exercised yet. The demo work added two of the same kind and closed
@@ -126,6 +126,31 @@ them by some way — `MarkupParser` is 70 lines and every one of them is covered
 of refusals is a class where each refusal is a row in a data provider. It moved the denominator from
 2110 to 2179 and left the numerator's gap exactly where it was. The twenty-six are a property of what
 is *deliberately* untested, not a budget that grows with the code.
+
+**So is the health work**, which moved the denominator 2308 → 2417 — the largest single jump since
+the markup parser — and added none of its own. Worth reading for *how* it managed it, because two
+of the three ways it could have failed were decided in the code rather than in the test:
+
+- **A guard for a case that cannot happen was not written.** `ini_get()` answers `string|false`, and
+  for every directive `PhpSetting` names the `false` cannot occur — the names are real, which is
+  what the enum is for — so `configured()` is a **cast** rather than a branch. A guard there would
+  have been a line no test could reach, which is the thing the three-guidelines work already
+  established is usually saying something about the code.
+- **A verdict that needed an unreachable arm became two columns instead.** A data file's line was
+  going to be `present` / `MISSING` / `absent`, and `MISSING` — tracked but not there — is a state
+  no real checkout is in, so its arm would have sat uncovered forever. Reporting presence and
+  tracking side by side removed the arm *and* produced the better report: `absent  (tracked)` reads
+  as the fault it is without the class inventing a severity word.
+- **The rest is `?:` on one line rather than `if` on four**, which is the difference between a
+  branch and a statement under line coverage — the same shape `UpdateVersion`'s `?: '-'` already
+  had. It is not a trick: both arms of every one of them are exercised, and the one place it would
+  have been a trick — `error_get_last()`, whose null branch is hard to force under PHPUnit's own
+  handler — is a genuine two-liner where both lines run whichever way it goes.
+
+The first run of the report found a bug none of that would have caught, and it is the one to
+remember: `max_execution_time` is **`'0'`** on a runtime with no limit, `'0'` is falsy, and `?:`
+printed the most interesting answer that directive has as "nothing to say". `HealthFact` asks
+`=== ''` now, and `HealthTest` has the row.
 
 **So is the API work**, which moved the denominator 2230 → 2308 and added none of its own — but it
 is worth reading for *how* it nearly did, because the `#[CoversClass]` trap fired for the third
@@ -254,7 +279,8 @@ src/NeuroSYS/
 │                     and the two header-name enums, AuthScheme, AcceptedLanguages,
 │                     ServerVariable
 │   ├── Api/        ← what an address under /api is made of: ApiService, ApiVersion, UpdateAction
-│   │                 behind an ApiAction interface, and the ApiHandler one action answers through
+│   │                 and HealthAction behind an ApiAction interface, and the ApiHandler one
+│   │                 action answers through
 │   └── Security/   ← ContentSecurityPolicy + CspSourceList, PermissionsPolicy + the enums they
 │                     compose
 ├── Model/          ← Release, Format, Demo, DemoTrack, Profile, MusicalKey, Genre, ReleaseFormat,
@@ -266,14 +292,18 @@ src/NeuroSYS/
 │   ├── Link/       ← FileLink interface + HiDriveLink; generates share URLs from a share id
 │   ├── Api/        ← what a signed call is made of: ApiCredential (the Authorization frame),
 │   │                 ApiEnvelope (method, path, digest, size, serial), VerifiedRequest
-│   └── Update/     ← what a push adds to that: UpdateManifest (apply, mirror),
-│                     UpdateRoot + Deployment (the vocabulary and the environment, split apart after
-│                     one class answering both emptied this repository), UpdateFile, UpdateReport
+│   ├── Update/     ← what a push adds to that: UpdateManifest (apply, mirror),
+│   │                 UpdateRoot + Deployment (the vocabulary and the environment, split apart after
+│   │                 one class answering both emptied this repository), UpdateFile, UpdateReport
+│   └── Health/     ← what a deployment can say about itself: HealthSection + HealthFact (the
+│                     report's one column), PhpExtension + PhpSetting (the two vocabularies it
+│                     reads the runtime in)
 ├── Service/        ← Auth, DownloadLogger, DownloadLogEntry, DownloadStats, ReleaseRepository,
 │                     ProfileRepository, DemoRepository, WaveformRepository,
 │                     ApiGate (every check a signed call passes) + UpdateApplier (the writing
 │                     and the mirror)
-│   └── Api/        ← one class per action, each an ApiHandler: UpdatePatch, UpdateVersion
+│   └── Api/        ← one class per action, each an ApiHandler: UpdatePatch, UpdateVersion,
+│                     HealthReport
 ├── Support/        ← Collection<T>, SearchableCollection<T> (both immutable and lazy, objects or
 │                     scalars)
 │                     + the TypedItems trait they share, File + Directory, Route + SitePath
@@ -1944,6 +1974,7 @@ payload that fits in one request.
 npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
 npm run build:prod && php tools/push-update.php             # public/ + src/ + autoload.php
 php tools/api.php update v1 version                         # what is actually deployed
+php tools/api.php health v1 report                          # what this host actually is
 ```
 
 **It was `/update`, one address with one verb, and generalising it cost less than adding a second
@@ -1952,6 +1983,51 @@ serial — had to hold for the next owner-only tool too, and the choice was to a
 or to arrange them once. One `SitePath` case matches the whole family, so a new service is an
 `ApiService` case and its handlers, with no route to register and nothing to remember. `/update` is
 gone rather than aliased: an endpoint whose design is to be unfindable does not want two doors.
+
+**`health` is that claim cashed, and it came to exactly what the paragraph above says it would**: an
+`ApiService` case, one arm of one `match`, an action enum and a handler. No route, no method policy,
+no second arrangement of the gate, the silence or the serial — and `tools/api.php` reached it with
+**no change at all**, because that command resolves an address through the site's own `ApiService`
+and `ApiAction` rather than through a copy. A claim about an extension point made while one thing
+had ever used it is worth checking rather than trusting, and this one held.
+
+**What it reports is the set of facts this repository asserts and has never checked.** The four
+extensions the site is a fatal without are declared in `composer.json`, which never runs on the
+server because `vendor/` is not deployed, and asked for by name in `test/basic_test.sh`, which runs
+`php` from `$PATH` on a developer's machine. The live host's error configuration — `display_errors`
+off, `error_log` empty — is stated as measured fact in **five** docblocks, every one of them a copy
+of one measurement taken by hand. Two statements of one fact with nothing keeping them in step is
+the failure this whole file is arranged against, and neither statement could speak for the runtime
+that actually answers a request. `/api/health/v1/report` asks it: the SAPI and the ini limits, each
+extension asked **by being used** rather than by `extension_loaded()` (`test/basic_test.sh` already
+states that standard for `ext/dom` — registered and working are two questions), where a diagnostic
+goes and the last one that got there, the server's software, kernel and clock, and whether every
+`DataFile` is where the site expects it.
+
+Four details are worth knowing before touching it:
+
+- **It reports no replay serial, though a `deployment` section is exactly where one would sit.**
+  `update version` reports it, and `GuidelineTest`'s two-files clause is what said so out loud: the
+  word `serial` exists in `ApiEnvelope` because it is a key of the signed manifest, and writing it
+  again as a caption here would have forced a `#[BareString]` onto *that* class for a word of this
+  one's. The rule is symmetric, which is what made the duplication visible rather than arguable.
+  The two handlers now overlap on `PHP_VERSION` and nothing else, and even that is one constant.
+- **`update.pub` can never read `absent`** — a report you are reading verified against it. The size
+  beside it is what tells a whole key from a truncated paste.
+- **A file's presence and whether the repository tracks it are two columns, not a verdict.**
+  `absent  (tracked)` reads as the fault it is without the report inventing a severity word, and it
+  means neither half is a branch a real deployment never takes — which is the same instinct as
+  `Diagnostics::handles()`, where a shape with no unreachable line turned out to be the better code.
+- **The `errors` section reads `error_get_last()`, which `Diagnostics` argues against.** That
+  objection is about attributing a diagnostic to one call, and this asks the process-global question
+  on purpose. It is also *stronger* than it looks: a diagnostic a userland handler takes never
+  populates that function at all, and every `@` here is now a `Diagnostics::muted()` — so what the
+  line reports is precisely the diagnostics **nothing in this repository handled**.
+
+Nothing about it is public, and that is what makes a report this detailed safe to produce: a PHP
+version, a SAPI, an extension list and a server's uname are reconnaissance, and behind the signature
+they are a report to the one person holding the private key. A read of `/api/health/v1/report`
+without one is the same 404 as `/no-such-page`, swept by both suites at every depth.
 
 **Which leaves one bootstrap the endpoint cannot do for itself**, and it is worth knowing before
 deploying: a server still running the old code answers `/api/…` with the 405 it gives any absent

@@ -7,6 +7,7 @@ namespace NeuroSYS\Test\Unit;
 use ArrayObject;
 use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
+use NeuroSYS\Http\Api\HealthAction;
 use NeuroSYS\Http\Api\UpdateAction;
 use NeuroSYS\Http\AuthScheme;
 use NeuroSYS\Http\HttpMethod;
@@ -139,6 +140,40 @@ final class ApiClientTest extends TestCase
             '/api/update/v1/version',
             $this->verify($request)?->envelope->path,
         );
+    }
+
+    /**
+     * A second service needs nothing of this client, which is the claim the client makes.
+     *
+     * {@link SignedRequest} takes an {@link \NeuroSYS\Http\Api\ApiService}, an
+     * {@link \NeuroSYS\Http\Api\ApiVersion} and an `ApiAction&BackedEnum`, and derives the path,
+     * the method and the scheme from them — so `health` is signed and addressed by the same code
+     * that signs a push, with no branch anywhere naming either service. That is easy to believe
+     * and was worth one row: `ApiCall` also refuses an action it cannot resolve *before* sending,
+     * because `/api` answers a typo exactly as it answers a bad key, and a client that could not
+     * see a new service would send somebody looking at their key.
+     *
+     * @return void
+     */
+    public function testASecondServiceIsSignedByTheSameClient(): void
+    {
+        $request = SignedRequest::build(
+            new Url('https://example.test'),
+            ApiService::Health,
+            ApiVersion::V1,
+            HealthAction::Report,
+            '',
+            [],
+            PrivateKey::fromFile($this->keyFile),
+        );
+
+        $verified = $this->verify($request);
+
+        self::assertSame('https://example.test/api/health/v1/report', $request->url->render());
+        self::assertInstanceOf(VerifiedRequest::class, $verified);
+        self::assertSame('/api/health/v1/report', $verified->envelope->path);
+        self::assertSame('GET', $verified->envelope->method);
+        self::assertSame('', $verified->body);
     }
 
     /**

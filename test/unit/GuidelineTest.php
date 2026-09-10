@@ -273,6 +273,7 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Http\Location #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
                 'NeuroSYS\Layout releases',
                 'NeuroSYS\Model\DemoTrack %d:%02d',
+                'NeuroSYS\Model\Health\HealthSection string',
                 'NeuroSYS\Model\Production\Section %d:%02d',
                 'NeuroSYS\Model\Profile #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
                 'NeuroSYS\Model\Update\UpdateReport string',

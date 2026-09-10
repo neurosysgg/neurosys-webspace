@@ -276,6 +276,13 @@ final class RoutingTest extends TestCase
         yield ['/api/update'];
         yield ['/api/update/v1'];
         yield ['/api/update/v1/patch/extra'];
+
+        // The same depths under the second service, which cost nothing to keep in line: the
+        // pattern is four segments whatever the first of them says, so `health` is short and long
+        // in exactly the same places `update` is.
+        yield ['/api/health'];
+        yield ['/api/health/v1'];
+        yield ['/api/health/v1/report/extra'];
     }
 
     /**

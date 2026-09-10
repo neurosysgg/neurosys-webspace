@@ -85,6 +85,31 @@ enum ServerVariable: string
     case Referer = 'HTTP_REFERER';
 
     /**
+     * What the web server calls itself, and the first of two cases read by something with no
+     * request in its hand.
+     *
+     * A name of CGI's rather than of HTTP's, so the `HTTP_` derivation cannot reach it — the first
+     * clause of the membership rule above. {@link \NeuroSYS\Service\Api\HealthReport} is the
+     * reader, and it satisfies the second clause as well: an {@link \NeuroSYS\Http\Api\ApiHandler}
+     * takes no {@link Request} by construction, because everything a handler may act on is signed
+     * and reaching back for the unsigned request would be reaching around the gate.
+     *
+     * Absent on CLI, like {@link self::ServerProtocol} and {@link self::DocumentRoot} — which is
+     * what the health report's `?? ''` is for, and why a dash there means "not served by a web
+     * server" rather than "misread".
+     */
+    case ServerSoftware = 'SERVER_SOFTWARE';
+
+    /**
+     * Which HTTP version the request arrived on, and the second of that pair.
+     *
+     * Worth reporting for the reason CLAUDE.md records the live host serves HTTP/2 and no HTTP/3:
+     * it is a fact about a shared host that can change without anybody being told, exactly as the
+     * `mod_deflate` measurement did between two consecutive days.
+     */
+    case ServerProtocol = 'SERVER_PROTOCOL';
+
+    /**
      * The webroot's absolute path, and the only fact here that no derivation can reach.
      *
      * {@link \NeuroSYS\Config::webroot()} needs the webroot's directory *name* — `public/` in the

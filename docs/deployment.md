@@ -117,6 +117,39 @@ It answers three lines: the last serial accepted, the versioned entry-script URL
 build stamp, and is the one fact that tells a deploy that wrote from one that found every file
 already current), and the PHP version.
 
+### When you need more than three lines
+
+```bash
+php tools/api.php health v1 report
+```
+
+The second service on the same endpoint, signed with the same key and reached by the same command —
+`/api/health/v1/report`. It answers what `update version` deliberately does not: the SAPI and the
+ini limits a request runs under, whether each of the four extensions the site is a fatal without is
+present **and working**, where a PHP diagnostic goes on this host and the last one that got there,
+the server's own software, kernel and clock, and whether every file under `data/` is where the site
+expects it.
+
+**Its reason for existing is that none of that had ever been asked of the live host.** The
+extensions are declared in `composer.json`, which never runs there because `vendor/` is not
+deployed, and asked for in `test/basic_test.sh`, which runs `php` from `$PATH` on whichever machine
+runs the suite. The error configuration this repository quotes as measured fact — `display_errors`
+off, `error_log` empty — was measured by hand, once, and copied into five docblocks. This is the
+first thing that asks the runtime actually answering requests.
+
+Two lines are worth reading before the rest of it:
+
+- **`clock`.** A credential whose serial sits more than five minutes from the server's clock is
+  refused, and that is cause number two in the list a refused call prints. There is a chicken and
+  an egg — a clock far enough out refuses the call that would report it — but a clock that is
+  *drifting* is caught here well before it costs a deploy.
+- **`update.pub`.** It can never read `absent`: a report you are reading verified against it. The
+  size beside it is what tells a whole key from a truncated paste.
+
+Nothing about the answer is public. `/api/health/v1/report` is as invisible as
+`/api/update/v1/patch` — unsigned, it is the same 404 an address that does not exist gets — which
+is the only reason a report this detailed is safe to produce at all.
+
 `--dry-run` sends a real signed payload and has the server validate every member, report exactly
 what it would write and delete, and **write nothing** — it does not even advance the replay serial,
 so the same payload can then be sent for real. Use it whenever you are unsure; it costs one request.

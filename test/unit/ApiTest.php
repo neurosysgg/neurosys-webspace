@@ -79,6 +79,7 @@ final class ApiTest extends TestCase
 {
     private const string PATCH   = '/api/update/v1/patch';
     private const string VERSION = '/api/update/v1/version';
+    private const string HEALTH  = '/api/health/v1/report';
 
     private string $sandbox = '';
     private OpenSSLAsymmetricKey $privateKey;
@@ -141,7 +142,23 @@ final class ApiTest extends TestCase
         $router = new Router(RouteInitialization::routes());
         $absent = $router->dispatch(self::request($method, '/no-such-page'));
 
-        foreach (['/api', '/api/update', '/api/update/v1', self::PATCH, '/api/update/v1/nope'] as $path) {
+        $depths = [
+            '/api',
+            '/api/update',
+            '/api/update/v1',
+            self::PATCH,
+            '/api/update/v1/nope',
+            // The second service, swept to the same depths as the first. A service that writes and
+            // one that only reads have to be equally invisible, and they are for the same reason —
+            // ApiController hands both to UnroutedController — but "for the same reason" is what a
+            // test is for when a third service arrives.
+            '/api/health',
+            '/api/health/v1',
+            self::HEALTH,
+            '/api/health/v1/nope',
+        ];
+
+        foreach ($depths as $path) {
             $answer = $router->dispatch(self::request($method, $path));
 
             self::assertSame($absent::class, $answer::class, "$method $path answered a different class");
@@ -551,6 +568,14 @@ final class ApiTest extends TestCase
 
         self::assertSame(HttpStatusCode::Ok, self::statusOf($version));
         self::assertStringContainsString(PHP_VERSION, self::bodyOf($version));
+
+        // The second service through the same controller, which is what says the delegation is the
+        // address's rather than the update service's. What HealthReport says is HealthTest's
+        // subject; that this path reaches it at all is this one's.
+        $health = $this->respond(self::HEALTH, HttpMethod::Get, '');
+
+        self::assertSame(HttpStatusCode::Ok, self::statusOf($health));
+        self::assertStringContainsString('extensions', self::bodyOf($health));
     }
 
     /**
@@ -667,9 +692,16 @@ final class ApiTest extends TestCase
      */
     public static function unknownAddressProvider(): iterable
     {
-        yield 'no such service' => ['/api/nope/v1/version'];
-        yield 'no such version' => ['/api/update/v9/version'];
-        yield 'no such action'  => ['/api/update/v1/nope'];
+        yield 'no such service'          => ['/api/nope/v1/version'];
+        yield 'no such version'          => ['/api/update/v9/version'];
+        yield 'no such action'           => ['/api/update/v1/nope'];
+        yield 'no such version, health'  => ['/api/health/v9/report'];
+        yield 'no such action, health'   => ['/api/health/v1/nope'];
+
+        // An action of the *other* service, which is the row a flat enum of every action on the
+        // site would have passed: `patch` names something real, and it names nothing under
+        // `health`. See ApiAction, where the argument for an enum per service is made.
+        yield 'another service\'s action' => ['/api/health/v1/patch'];
     }
 
     /**

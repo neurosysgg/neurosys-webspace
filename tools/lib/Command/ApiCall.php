@@ -26,9 +26,15 @@ use NeuroSYS\Tool\Http\Url;
 /**
  * The ApiCall command. One signed call to `/api`, named on the command line.
  *
- * `php tools/api.php update v1 version` is the whole of it. It is the client for every action that
- * carries **no body** — which today is every action but `patch`, and that one has
- * {@link PushUpdate} because building the tree it sends is most of what that command does.
+ * `php tools/api.php update v1 version` is the whole of it, and `php tools/api.php health v1 report`
+ * is the other thing it does today. It is the client for every action that carries **no body** —
+ * which is every action but `patch`, and that one has {@link PushUpdate} because building the tree
+ * it sends is most of what that command does.
+ *
+ * **A second service cost this file nothing**, which is the property worth stating rather than
+ * assuming: the vocabulary below is the server's own {@link ApiService} and {@link ApiVersion}, and
+ * the address, method and scheme all come off the action, so `health` became reachable here the day
+ * its enum existed and not a line later.
  *
  * **It refuses an action it does not recognise before sending anything**, which is not politeness:
  * `/api` answers an unrecognised address exactly as it answers a wrong signature, so a typo here

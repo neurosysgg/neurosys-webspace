@@ -356,6 +356,12 @@ final class RequestTest extends TestCase
      * about this deployment that {@link \NeuroSYS\Config} cannot derive — what the webroot
      * directory is called.
      *
+     * {@link ServerVariable::ServerSoftware} and {@link ServerVariable::ServerProtocol} are two
+     * more of that kind — CGI's names rather than HTTP's — and they are read by something with no
+     * {@link \NeuroSYS\Http\Request} to ask, which is the enum's other membership clause. Both
+     * are absent on CLI, so this asserts the spelling and nothing about the value; what a real
+     * server puts in them is `test/basic_test.sh`'s to see.
+     *
      * @return void
      */
     public function testTheServerVariablesAreNamedAsTheEnvironmentSpellsThem(): void
@@ -368,6 +374,8 @@ final class RequestTest extends TestCase
             'HTTP_AUTHORIZATION',
             'REDIRECT_HTTP_AUTHORIZATION',
             'HTTP_REFERER',
+            'SERVER_SOFTWARE',
+            'SERVER_PROTOCOL',
             'DOCUMENT_ROOT',
         ], array_column(ServerVariable::cases(), 'value'));
     }
