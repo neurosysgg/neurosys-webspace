@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Html;
 
 use NeuroSYS\Support\Charset;
+use NeuroSYS\Text\Language;
 
 /**
  * The Text class. A run of text, escaped on the way out.
@@ -56,10 +57,11 @@ final readonly class Text implements Node
      * whole document's safety rests on, and a second name for the encoding is a second thing that
      * can be changed alone.
      *
-     * @param int $depth
+     * @param int           $depth
+     * @param Language|null $language Unread: a string is already in whatever language it is in.
      * @return string
      */
-    public function render(int $depth = 0): string
+    public function render(int $depth = 0, ?Language $language = null): string
     {
         return htmlspecialchars($this->text, self::FLAGS, Charset::Utf8->canonical());
     }

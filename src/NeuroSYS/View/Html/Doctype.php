@@ -18,10 +18,11 @@ enum Doctype: string implements Node
     case Html5 = 'html';
 
     /**
-     * @param int $depth
+     * @param int                           $depth
+     * @param \NeuroSYS\Text\Language|null $language Unread: a doctype has no words.
      * @return string
      */
-    public function render(int $depth = 0): string
+    public function render(int $depth = 0, ?\NeuroSYS\Text\Language $language = null): string
     {
         return '<!DOCTYPE ' . $this->value . '>';
     }

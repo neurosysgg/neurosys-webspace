@@ -26,15 +26,18 @@ final readonly class Attribute
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param AttributeName $name  The attribute, as the enum case it was set with.
-     * @param string|null   $value The **raw, unescaped** value, or null for a boolean attribute.
-     *                             `null` and `''` are different on purpose: `narrow` is a bare
-     *                             attribute and `options=""` is a real empty value, and the client
-     *                             reads those differently.
+     * @param AttributeName                                $name  The attribute, as the enum case it
+     *                                                            was set with.
+     * @param string|\NeuroSYS\Text\Translatable|null $value The **raw, unescaped** value, or null
+     *                             for a boolean attribute. `null` and `''` are different on purpose:
+     *                             `narrow` is a bare attribute and `options=""` is a real empty
+     *                             value, and the client reads those differently. A translatable is
+     *                             kept unresolved, because which language it is in is not known
+     *                             until the element renders.
      */
     public function __construct(
         public AttributeName $name,
-        public ?string       $value,
+        public string|\NeuroSYS\Text\Translatable|null $value,
     ) {}
 
     /**

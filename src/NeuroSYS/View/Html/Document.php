@@ -22,13 +22,15 @@ final readonly class Document implements Node
     public function __construct(private Element $html) {}
 
     /**
-     * @param int $depth
+     * @param int                           $depth
+     * @param \NeuroSYS\Text\Language|null $language Passed to `<html>`, whose own `lang` normally
+     *                                                replaces it.
      * @return string
      */
-    public function render(int $depth = 0): string
+    public function render(int $depth = 0, ?\NeuroSYS\Text\Language $language = null): string
     {
         return Doctype::Html5->render($depth)
             . "\n" . str_repeat('  ', $depth)
-            . $this->html->render($depth);
+            . $this->html->render($depth, $language);
     }
 }

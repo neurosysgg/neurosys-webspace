@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\View\Html;
 
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Text\Language;
 
 /**
  * The Fragment class. Several nodes with no element around them.
@@ -48,13 +49,14 @@ final readonly class Fragment implements Node
     }
 
     /**
-     * @param int $depth
+     * @param int           $depth
+     * @param Language|null $language
      * @return string
      */
-    public function render(int $depth = 0): string
+    public function render(int $depth = 0, ?Language $language = null): string
     {
         return $this->nodes
-            ->map(static fn(Node $node): string => $node->render($depth))
+            ->map(static fn(Node $node): string => $node->render($depth, $language))
             ->join("\n" . str_repeat('  ', $depth));
     }
 }

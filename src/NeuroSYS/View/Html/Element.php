@@ -11,6 +11,8 @@ use NeuroSYS\Support\BareCall;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\UrlScheme;
+use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Translatable;
 use NoDiscard;
 use Uri\WhatWg\Url;
 
@@ -140,6 +142,7 @@ final readonly class Element implements Node
      * | `'visual'`, 5 | `player-style="visual"`, `height="5"` |
      * | `CssClass::Hero`, any backed enum | its value — `class="hero"` |
      * | `new ViewportContent(…)`, any {@link AttributeValue} | what it renders |
+     * | `Texts::Releases::CoverArt`, any {@link Translatable} | its text, in the element's language, at render |
      * | `''`          | `options=""` — an empty value, which is not the same as no attribute |
      * | `true`        | `narrow` — a bare boolean attribute |
      * | `false`, null | nothing at all        |
@@ -152,13 +155,13 @@ final readonly class Element implements Node
      * {@link self::render()}, so neither can be got around by building an element another way.
      *
      * @param AttributeName $attribute
-     * @param string|int|bool|BackedEnum|AttributeValue|null $value
+     * @param string|int|bool|BackedEnum|AttributeValue|Translatable|null $value
      * @return self
      */
     #[NoDiscard('attr() returns a copy carrying the attribute; the element it was called on is unchanged')]
     public function attr(
         AttributeName $attribute,
-        string|int|bool|BackedEnum|AttributeValue|null $value = true,
+        string|int|bool|BackedEnum|AttributeValue|Translatable|null $value = true,
     ): self {
         if ($value === false || $value === null) {
             return $this;
@@ -173,6 +176,18 @@ final readonly class Element implements Node
         // call — see AttributeValue.
         if ($value instanceof AttributeValue) {
             $value = $value->render();
+        }
+
+        // Ahead of the backed-enum arm below, and the order is the point: a catalog case is a
+        // backed enum too, and read as one it would render its key — `cover-art` in an alt text —
+        // rather than its words. It stays unresolved until render(), the one place that knows which
+        // language it is in.
+        if ($value instanceof Translatable) {
+            return new self(
+                $this->tag,
+                $this->attributes->with($attribute->attribute(), new Attribute($attribute, $value)),
+                $this->children,
+            );
         }
 
         // A backed enum stands for its value, so a call site passes CssClass::Hero rather than
@@ -199,7 +214,10 @@ final readonly class Element implements Node
      * rather than as markup — and getting real markup in takes {@link self::containingHtml()},
      * which parses it rather than trusting it.
      *
-     * @param Node|string ...$children
+     * A {@link Translatable} becomes a {@link TranslatedText}: escaped the same way, and put into
+     * the language of whichever `lang` it ends up under when the tree is rendered.
+     *
+     * @param Node|string|Translatable ...$children
      * @return self
      * @throws ElementException if the element is void; `<img>` cannot contain anything.
      */
@@ -212,7 +230,7 @@ final readonly class Element implements Node
         . "docs/collections.md's note that renderChildren() is the one place to spend a foreach is about "
         . 'these two lines.',
     )]
-    public function containing(Node|string ...$children): self
+    public function containing(Node|string|Translatable ...$children): self
     {
         if ($this->tag->isVoid() && $children !== []) {
             throw new ElementException(sprintf(
@@ -223,7 +241,11 @@ final readonly class Element implements Node
 
         return new self($this->tag, $this->attributes, $this->children->with(
             ...array_map(
-                static fn(Node|string $child): Node => $child instanceof Node ? $child : new Text($child),
+                static fn(Node|string|Translatable $child): Node => match (true) {
+                    $child instanceof Node         => $child,
+                    $child instanceof Translatable => new TranslatedText($child),
+                    default                        => new Text($child),
+                },
                 $children,
             ),
         ));
@@ -265,16 +287,22 @@ final readonly class Element implements Node
     /**
      * Renders this element as markup.
      *
-     * @param int $depth
+     * @param int           $depth
+     * @param Language|null $language The language in scope above this element. Its own `lang`, where
+     *                                it names one of ours, replaces it for this element and
+     *                                everything under it — the attribute's meaning in HTML, applied
+     *                                to the text this tree translates.
      * @return string
      * @throws ElementException if a URL attribute names a scheme {@link self::URL_SCHEMES} does not
      *                         allow. Loud on purpose, and at the boundary on purpose: a link the
      *                         site refuses to draw is a missing link, which somebody notices, and a
      *                         `javascript:` href that renders is one nobody does.
      */
-    public function render(int $depth = 0): string
+    public function render(int $depth = 0, ?Language $language = null): string
     {
-        $open = '<' . $this->tag->tagName() . $this->renderAttributes() . '>';
+        $language = $this->ownLanguage() ?? $language;
+
+        $open = '<' . $this->tag->tagName() . $this->renderAttributes($language) . '>';
 
         if ($this->tag->isVoid()) {
             return $open;
@@ -286,15 +314,31 @@ final readonly class Element implements Node
             return $open . $close;
         }
 
-        return $open . $this->renderChildren($depth) . $close;
+        return $open . $this->renderChildren($depth, $language) . $close;
+    }
+
+    /**
+     * The language this element's own `lang` names, or null where it names none of ours.
+     *
+     * A `lang` this site is not written in — `fr` on a quotation, say — leaves the language in scope
+     * as it was, rather than taking every translation under it away.
+     *
+     * @return Language|null
+     */
+    private function ownLanguage(): ?Language
+    {
+        $lang = $this->attributes->find(HtmlAttribute::Lang->attribute())?->value;
+
+        return is_string($lang) ? Language::tryFrom($lang) : null;
     }
 
     /**
      *
+     * @param Language|null $language
      * @return string
      * @throws ElementException if a URL attribute carries a scheme that is not allowed.
      */
-    private function renderAttributes(): string
+    private function renderAttributes(?Language $language): string
     {
         $rendered = '';
 
@@ -304,7 +348,9 @@ final readonly class Element implements Node
                 continue;
             }
 
-            $value = (string) $attribute->value;
+            $value = $attribute->value instanceof Translatable
+                ? TranslatedText::resolve($attribute->value, $language)
+                : (string) $attribute->value;
 
             if ($attribute->isUrl()) {
                 $this->verifyUrl($name, $value);
@@ -402,24 +448,29 @@ final readonly class Element implements Node
      *
      * Any {@link Text} among them forces one line: a newline before or after inline content is a
      * space the browser renders, so breaking `<p>E-Mail: <a>…</a></p>` across lines would change
-     * the page rather than just its source.
+     * the page rather than just its source. A {@link TranslatedText} is text too, and counts.
      *
-     * @param int $depth
+     * @param int           $depth
+     * @param Language|null $language
      * @return string
      */
-    private function renderChildren(int $depth): string
+    private function renderChildren(int $depth, ?Language $language): string
     {
-        $inline = $this->children->first(static fn(Node $child): bool => $child instanceof Text);
+        $inline = $this->children->first(
+            static fn(Node $child): bool => $child instanceof Text || $child instanceof TranslatedText,
+        );
 
         if ($inline !== null) {
-            return $this->children->map(static fn(Node $child): string => $child->render($depth))->join('');
+            return $this->children
+                ->map(static fn(Node $child): string => $child->render($depth, $language))
+                ->join('');
         }
 
         $pad      = str_repeat('  ', $depth);
         $rendered = '';
 
         foreach ($this->children as $child) {
-            $rendered .= "\n" . $pad . '  ' . $child->render($depth + 1);
+            $rendered .= "\n" . $pad . '  ' . $child->render($depth + 1, $language);
         }
 
         return $rendered . "\n" . $pad;

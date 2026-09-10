@@ -198,6 +198,8 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Support\TypedItems::toArray()',
                 'NeuroSYS\Support\TypedItems::toKeys()',
                 'NeuroSYS\Support\TypedItems::toValues()',
+                'NeuroSYS\Text\Phrase::$arguments',
+                'NeuroSYS\Text\Phrase::__construct()',
                 'NeuroSYS\View\ImprintView::varyOn()',
                 'NeuroSYS\View\PrivacyView::varyOn()',
                 'NeuroSYS\View\ReleaseView::terminalFields()',

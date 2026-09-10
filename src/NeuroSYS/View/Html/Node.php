@@ -4,13 +4,24 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use NeuroSYS\Text\Language;
+
 /**
  * The Node interface. Anything that can render itself as markup.
  *
  * The point of the interface is that {@link Element} takes children of this type and nothing else,
  * so a document is a tree of objects rather than a string built by concatenation. Everything that
- * reaches the page is one of three things: an {@link Element}, escaped {@link Text}, or a
- * {@link Fragment} of those.
+ * reaches the page is one of four things: an {@link Element}, escaped {@link Text}, a
+ * {@link TranslatedText} — text put into a language when it is rendered — or a {@link Fragment} of
+ * those.
+ *
+ * **The language travels down the tree the way the depth does.** A view never says which language
+ * its text is in; an element that carries a `lang` names it for everything under it, and passes it
+ * on through {@link self::render()}. On a page that element is `<html lang>`, which the request
+ * decided; on the German half of a legal document it is that half, `<section lang="de">`, which
+ * is what keeps it German on an English page. It is HTML's own meaning of the attribute, applied
+ * to the text this tree translates — and above the first `lang` there is no language at all, where
+ * a {@link TranslatedText} refuses to render rather than guessing.
  *
  * **Hand-authored markup is not a fourth.** The privacy policy is read *into* these three by
  * {@link MarkupParser}, so markup authored outside PHP is a thing the tree can be built from rather
@@ -39,8 +50,11 @@ interface Node
      *                   unindented — whoever places it already put it at that column — and every
      *                   line after it is indented to $depth. Same contract at every level, which is
      *                   what makes the tree pretty-print without any node knowing where it is.
+     * @param Language|null $language The language in scope: the nearest `lang` above this node,
+     *                   handed down by the element that carries it. Null above the first one. A node
+     *                   with nothing to translate ignores it and passes it on.
      *
      * @return string
      */
-    public function render(int $depth = 0): string;
+    public function render(int $depth = 0, ?Language $language = null): string;
 }

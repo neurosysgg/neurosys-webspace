@@ -9,11 +9,13 @@ use FilesystemIterator;
 use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Exception\MarkupException;
+use NeuroSYS\Exception\TranslationException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Model\Production\SectionKind;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\UrlScheme;
+use NeuroSYS\Text\Language;
 use NeuroSYS\View\Html\ArrangementAttribute;
 use NeuroSYS\View\Html\Attribute;
 use NeuroSYS\View\Html\AttributeName;
@@ -38,6 +40,7 @@ use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Html\TagName;
 use NeuroSYS\View\Html\Text;
+use NeuroSYS\View\Html\TranslatedText;
 use NeuroSYS\View\Html\ViewportContent;
 use NeuroSYS\View\Html\ViewportWidth;
 use NeuroSYS\View\Terminal\TerminalAttribute;
@@ -58,6 +61,7 @@ use TypeError;
 #[CoversClass(ViewportContent::class)]
 #[CoversClass(UrlScheme::class)]
 #[CoversClass(Text::class)]
+#[CoversClass(TranslatedText::class)]
 #[CoversClass(MarkupParser::class)]
 #[CoversClass(Fragment::class)]
 #[CoversClass(Document::class)]
@@ -75,6 +79,125 @@ use TypeError;
 #[CoversClass(MediaPreload::class)]
 final class HtmlTest extends TestCase
 {
+    // ───────────────────────────── translated text ─────────────────────────────
+
+    /**
+     * A translatable child is put into the language in scope, and escaped like any other text.
+     *
+     * @return void
+     */
+    public function testATranslatableChildRendersInTheLanguageInScope(): void
+    {
+        $paragraph = new Element(HtmlTag::P)->containing(TextFixture::Plain);
+
+        self::assertSame('<p>downloads</p>', $paragraph->render(0, Language::English));
+        self::assertSame('<p>Downloads</p>', $paragraph->render(0, Language::German));
+        self::assertSame(
+            '<p>&lt;b&gt;fett&lt;/b&gt; &amp; „zitiert“</p>',
+            new Element(HtmlTag::P)->containing(TextFixture::Markup)->render(0, Language::German),
+        );
+    }
+
+    /**
+     * An element's own `lang` is the language for everything under it. That is how `<html lang>`
+     * sets a page's, with no language passed at all, and how a legal document's German half stays
+     * German on an English page.
+     *
+     * @return void
+     */
+    public function testAnElementsOwnLangIsTheLanguageUnderIt(): void
+    {
+        $german = new Element(HtmlTag::Section)
+            ->attr(HtmlAttribute::Lang, Language::German)
+            ->containing(new Element(HtmlTag::P)->containing(TextFixture::Plain));
+
+        self::assertStringContainsString('<p>Downloads</p>', $german->render(0, Language::English));
+
+        $document = new Document(
+            new Element(HtmlTag::Html)
+                ->attr(HtmlAttribute::Lang, Language::German)
+                ->containing(new Element(HtmlTag::Body)->containing(
+                    new Fragment(new Element(HtmlTag::P)->containing(TextFixture::Plain)),
+                )),
+        );
+
+        self::assertStringContainsString('<p>Downloads</p>', $document->render());
+    }
+
+    /**
+     * A `lang` this site is not written in leaves the language in scope as it was, rather than
+     * taking every translation under it away.
+     *
+     * @return void
+     */
+    public function testALangThatIsNotOneOfOursKeepsTheLanguageInScope(): void
+    {
+        $quotation = new Element(HtmlTag::P)->attr(HtmlAttribute::Lang, 'fr')->containing(TextFixture::Plain);
+
+        self::assertSame('<p lang="fr">Downloads</p>', $quotation->render(0, Language::German));
+    }
+
+    /**
+     * An attribute takes a translatable too, resolved in its own element's language — and a
+     * catalog case is never read as the backed enum it also is, which would render its key.
+     *
+     * @return void
+     */
+    public function testATranslatableAttributeRendersItsWordsAndNotItsKey(): void
+    {
+        self::assertSame(
+            '<img alt="Downloads">',
+            new Element(HtmlTag::Img)->attr(HtmlAttribute::Alt, TextFixture::Plain)->render(0, Language::German),
+        );
+        self::assertSame(
+            '<img alt="1.000 Downloads" lang="de">',
+            new Element(HtmlTag::Img)
+                ->attr(HtmlAttribute::Alt, TextFixture::Counted->with(count: 1000))
+                ->attr(HtmlAttribute::Lang, Language::German)
+                ->render(),
+        );
+    }
+
+    /**
+     * A translated child is text, so the element holding it stays on one line.
+     *
+     * @return void
+     */
+    public function testATranslatedChildKeepsItsElementOnOneLine(): void
+    {
+        self::assertSame(
+            '<p>downloads<span>!</span></p>',
+            new Element(HtmlTag::P)
+                ->containing(TextFixture::Plain, new Element(HtmlTag::Span)->containing('!'))
+                ->render(0, Language::English),
+        );
+    }
+
+    /**
+     * Nothing said which language: a refusal, never a default — the default would be an English
+     * word on a German page, with nothing anywhere to say so.
+     *
+     * @return void
+     */
+    public function testATranslatableChildWithNoLanguageInScopeIsLoud(): void
+    {
+        $this->expectException(TranslationException::class);
+        $this->expectExceptionMessage('TextFixture::Plain was rendered with no language in scope');
+
+        new Element(HtmlTag::P)->containing(TextFixture::Plain)->render();
+    }
+
+    /**
+     * @return void
+     */
+    public function testATranslatableAttributeWithNoLanguageInScopeIsLoudToo(): void
+    {
+        $this->expectException(TranslationException::class);
+        $this->expectExceptionMessage('Phrase was rendered with no language in scope');
+
+        new Element(HtmlTag::Img)->attr(HtmlAttribute::Alt, TextFixture::Counted->with(count: 1))->render();
+    }
+
     // ───────────────────────────── attributes ─────────────────────────────
 
     /**

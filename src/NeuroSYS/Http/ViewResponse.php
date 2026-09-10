@@ -70,7 +70,9 @@ readonly class ViewResponse implements Response
             )
             : Layout::wrap($this->view);
 
-        $markup = $body->render();
+        // The language is passed in as well as stated on <html lang>, because a fragment has no
+        // <html>: without it, the first translated text in the fragment would have no scope.
+        $markup = $body->render(0, $this->view->language());
 
         // Hashed once and passed down, rather than built here and built again inside
         // cacheHeaders(): the validator sent and the validator compared have to be the same value,
