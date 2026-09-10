@@ -148,7 +148,8 @@ the code looks the way it does; follow them in new code without being asked.
   this site's own vocabulary and refuses the rest. Never parse anything a request can influence.
 - **Visible text is a `Translatable`, and a view never names a language.** It writes
   `Texts::Releases::Downloads`; the tree puts it into the nearest `lang` when it renders, and
-  `TranslationTest` fails a catalog case without its German. [language.md](docs/language.md)
+  `TranslationTest` fails a catalog case without its German, and a word a view writes as a literal.
+  [language.md](docs/language.md)
 - **Names and values are typed.** A header is a `HeaderName` case and a `HeaderValue`; an attribute
   is an `AttributeName` case and an enum case or `AttributeValue` class for its value. A value with
   a grammar is a class, a fixed vocabulary is an enum. [architecture.md](docs/architecture.md#http--the-wire)

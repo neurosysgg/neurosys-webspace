@@ -127,7 +127,9 @@ gains without its words there is a compile error rather than an English gate on 
 - **`TranslationTest`** reads the index, and every catalog a catalog names in turn: every case has a
   `#[Translation]`, both languages parse as ICU messages and name the same arguments, and German is
   written. It also walks `src/` for every enum that uses `Translated` and fails on one the index
-  cannot reach, so a catalog cannot be left out of the index and go unchecked.
+  cannot reach, so a catalog cannot be left out of the index and go unchecked. And it reads every
+  view's tokens for a word written as a literal — a string with a letter in it, passed straight to
+  `containing()` or as an `alt`, `title` or `aria-label` — so a word nobody translated fails here.
 - **`HtmlTest`** pins the scope: inheritance, a `lang` narrowing it, a foreign `lang` keeping it, a
   translated attribute, a translated child keeping its element on one line, and the refusal.
 - **`TextTest`** pins `Translation`, `Phrase` (plurals, `1.000`), `Verbatim` and `Joined`.

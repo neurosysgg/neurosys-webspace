@@ -30,6 +30,16 @@ use NeuroSYS\View\Html\Node;
  */
 class ImprintView extends View
 {
+    /**
+     * The contact line's label, the same in both halves — `E-Mail:` is what a German imprint says,
+     * and close enough to the English that the two share it rather than pretend to differ.
+     *
+     * A constant rather than a literal at the call, because a word a view writes as a literal is
+     * what `TranslationTest` refuses — and this one belongs in neither catalog: the legal pages are
+     * written in each language, not translated.
+     */
+    private const string CONTACT = 'E-Mail: ';
+
     /** @var list<string> The postal address, one line per element. */
     private const array ADDRESS = [
         'Niclas Ahl',
@@ -164,16 +174,14 @@ class ImprintView extends View
     }
 
     /**
-     * The contact line, which is the same in both languages — `E-Mail:` is what a German imprint
-     * says, and it is close enough to the English that the two halves share it rather than pretend
-     * to differ.
+     * The contact line, which is the same in both languages — see {@link self::CONTACT}.
      *
      * @return Element
      */
     private static function contact(): Element
     {
         return new Element(HtmlTag::P)->containing(
-            'E-Mail: ',
+            self::CONTACT,
             new Element(HtmlTag::A)
                 ->attr(HtmlAttribute::Href, UrlScheme::Mailto->url(Config::EMAIL))
                 ->containing(Config::EMAIL),
