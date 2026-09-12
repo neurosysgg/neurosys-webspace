@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Demo;
 
-use NeuroSYS\Config;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
@@ -75,7 +75,7 @@ final readonly class DemoStage
     /**
      * Where this demo's audio is staged — `data/demos/{slug}/`.
      *
-     * Read off {@link Config} rather than derived here, because the site reads the same path to
+     * Read off {@link Site} rather than derived here, because the site reads the same path to
      * serve it: a tool that staged somewhere else would produce a page of missing audio and no
      * error anywhere.
      *
@@ -83,7 +83,7 @@ final readonly class DemoStage
      */
     public function directory(): Directory
     {
-        return Config::demoDir($this->slug);
+        return Site::current()->demoDir($this->slug);
     }
 
     /**

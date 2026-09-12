@@ -94,7 +94,7 @@ class Layout
     {
         return new Joined(
             ' — ',
-            new Verbatim(Config::NAME),
+            new Verbatim(Site::NAME),
             new Joined('', Texts::Layout::Tagline, new Verbatim('.')),
         );
     }
@@ -218,10 +218,10 @@ class Layout
 
         return $footer->containing(
             new Element(HtmlTag::P)->containing(
-                Config::NAME . ' · ',
+                Site::NAME . ' · ',
                 new Element(HtmlTag::A)
-                    ->attr(HtmlAttribute::Href, UrlScheme::Mailto->url(Config::EMAIL))
-                    ->containing(Config::EMAIL),
+                    ->attr(HtmlAttribute::Href, UrlScheme::Mailto->url(Site::EMAIL))
+                    ->containing(Site::EMAIL),
                 ' · ',
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::Href, SitePath::Imprint->to())

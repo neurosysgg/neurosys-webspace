@@ -42,7 +42,7 @@ enum UrlScheme: string
      * The scheme followed by $target — `mailto:neuro.sys@neurosys.gg`.
      *
      * A method rather than a concatenation at each call site, for the reason every other builder
-     * here is one: `'mailto:' . Config::EMAIL` was written in two files, and two spellings of one
+     * here is one: `'mailto:' . Site::EMAIL` was written in two files, and two spellings of one
      * prefix is how one of them loses a colon.
      *
      * $target is not validated and deliberately not: what a scheme may be followed by differs per

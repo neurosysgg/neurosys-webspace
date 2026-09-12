@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Text\Language;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\ImprintView;
@@ -63,7 +63,7 @@ final class PageTest extends TestCase
 
         implode('', $rendered)
             |> strip_tags(...)
-            |> (fn($x) => self::assertSame(Config::NAME, $x));
+            |> (fn($x) => self::assertSame(Site::NAME, $x));
     }
 
     /**
@@ -85,7 +85,7 @@ final class PageTest extends TestCase
      */
     public function testTheHomePageTitleIsTheBareSiteName(): void
     {
-        self::assertSame(Config::NAME, new HomeView()->pageTitle()->in(Language::English));
+        self::assertSame(Site::NAME, new HomeView()->pageTitle()->in(Language::English));
         self::assertStringNotContainsString('—', new HomeView()->pageTitle()->in(Language::English));
     }
 
@@ -171,7 +171,7 @@ final class PageTest extends TestCase
     {
         $html = new ImprintView()->content()->render(0, Language::English);
 
-        self::assertSame(2, substr_count($html, 'href="mailto:' . Config::EMAIL . '">' . Config::EMAIL . '</a>'));
+        self::assertSame(2, substr_count($html, 'href="mailto:' . Site::EMAIL . '">' . Site::EMAIL . '</a>'));
     }
 
     /**
@@ -239,8 +239,8 @@ final class PageTest extends TestCase
     public function testTheRealPolicyRendersInsideThePageSection(): void
     {
         $html = new PrivacyView(
-            (string) Config::dataFile(DataFile::PrivacyGerman)->read(),
-            (string) Config::dataFile(DataFile::PrivacyEnglish)->read(),
+            (string) Site::current()->dataFile(DataFile::PrivacyGerman)->read(),
+            (string) Site::current()->dataFile(DataFile::PrivacyEnglish)->read(),
         )->content()->render(0, Language::English);
 
         self::assertStringStartsWith('<section class="page-section">', $html);
@@ -308,7 +308,7 @@ final class PageTest extends TestCase
     #[DataProvider('titledViewProvider')]
     public function testEveryPageTitleEndsWithTheSiteName(View $view): void
     {
-        self::assertStringEndsWith(Config::NAME, $view->pageTitle()->in(Language::English));
+        self::assertStringEndsWith(Site::NAME, $view->pageTitle()->in(Language::English));
     }
 
     /**

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Config;
 use NeuroSYS\Http\CacheControl;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
@@ -13,6 +12,7 @@ use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\File;
 use NeuroSYS\View\StatsView;
@@ -39,7 +39,7 @@ class StatsController implements Controller
      */
     public function __construct(?File $logFile = null)
     {
-        $this->logFile = $logFile ?? Config::downloadLog();
+        $this->logFile = $logFile ?? Site::current()->downloadLog();
     }
 
     /**
@@ -54,7 +54,7 @@ class StatsController implements Controller
         // previous machine — and the view is handed null rather than an empty tally, because
         // "switched off" and "on, and nothing yet" are different sentences on that page.
         return self::response(new StatsView(
-            Config::DOWNLOAD_LOGGING ? DownloadStats::fromLines($this->logFile->lines()) : null,
+            Site::DOWNLOAD_LOGGING ? DownloadStats::fromLines($this->logFile->lines()) : null,
         ));
     }
 

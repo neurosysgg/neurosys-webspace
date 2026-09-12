@@ -6,12 +6,12 @@ namespace NeuroSYS\Test\Unit;
 
 use BackedEnum;
 use FilesystemIterator;
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Exception\MarkupException;
 use NeuroSYS\Exception\TranslationException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Model\Production\SectionKind;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\UrlScheme;
@@ -1641,7 +1641,7 @@ final class HtmlTest extends TestCase
      */
     private static function policy(DataFile $file): string
     {
-        return Config::dataFile($file)->read() ?? '';
+        return Site::current()->dataFile($file)->read() ?? '';
     }
 
     /**

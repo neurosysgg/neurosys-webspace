@@ -322,7 +322,7 @@ trait TypedItems
      * **The element type is read off $callback's own return declaration**, which is why this takes
      * no type argument. A `class-string` parameter beside a callback that already declares
      * `: string` would be the same fact written twice, and the second copy is the one that goes
-     * stale — the drift {@link \NeuroSYS\Config} exists to stop. Stating it once also puts it where
+     * stale — the drift {@link \NeuroSYS\Site} exists to stop. Stating it once also puts it where
      * PHP itself enforces it, which is the stronger of the two checks: a callback that returns the
      * wrong thing is a `TypeError` at the `return`, naming the function, before this class sees the
      * value at all.

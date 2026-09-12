@@ -7,7 +7,7 @@ namespace NeuroSYS\Support;
 /**
  * The Directory class. The other half of {@link File}: a path that holds files.
  *
- * The site asks it for exactly one thing — {@link \NeuroSYS\Config::dataFile()} resolves a file
+ * The site asks it for exactly one thing — {@link \NeuroSYS\App::dataFile()} resolves a file
  * inside `data/` through {@link self::file()}, so the one derivation of that path stays one
  * derivation and now hands back something typed. Everything else here is read by the tooling, which
  * lists and creates directories, and by the tests, which build fixtures out of them.

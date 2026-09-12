@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service\Health;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Health\Area;
 use NeuroSYS\Model\Health\Finding;
@@ -72,7 +72,7 @@ final readonly class DataFileRequirement implements Requirement
      */
     public function check(): Finding
     {
-        $handle = Config::dataFile($this->file);
+        $handle = App::current()->dataFile($this->file);
 
         return $handle->exists()
             ? new Finding(sprintf('%d bytes', $handle->size()), true)

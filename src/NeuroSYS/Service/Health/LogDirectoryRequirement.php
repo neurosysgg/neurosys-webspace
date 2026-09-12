@@ -22,7 +22,7 @@ use NeuroSYS\Support\Directory;
  * **Optional**, because the site is correct without it and only harder to diagnose: a `warn`, never
  * a 503.
  *
- * The directory comes in by constructor rather than from {@link \NeuroSYS\Config}, so a test can
+ * The directory comes in by constructor rather than from {@link \NeuroSYS\Site}, so a test can
  * hand it one that is missing, or one it cannot write, without touching the repository's own.
  */
 final readonly class LogDirectoryRequirement implements Requirement
@@ -30,7 +30,7 @@ final readonly class LogDirectoryRequirement implements Requirement
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param Directory $directory The log directory — `Config::logs()`.
+     * @param Directory $directory The log directory — `App::logs()`.
      */
     public function __construct(private Directory $directory) {}
 

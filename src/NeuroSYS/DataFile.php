@@ -7,7 +7,7 @@ namespace NeuroSYS;
 /**
  * The DataFile enum. Every file this site reads out of `data/`.
  *
- * **A misspelled name here is a working site with nothing in it.** {@link Config::dataFile()} hands
+ * **A misspelled name here is a working site with nothing in it.** {@link App::dataFile()} hands
  * back a {@link Support\File} for any path at all, `read()` answers null for one that is not there,
  * and each repository turns that null into an empty collection on purpose — because a clone that
  * has never staged a demo has to be a site rather than a fatal. So the guard that makes a fresh
@@ -71,7 +71,7 @@ enum DataFile: string
     /**
      * The downloads log, and the only case that is written rather than read.
      *
-     * Nothing writes it today: {@link Config::DOWNLOAD_LOGGING} is off for legal reasons and
+     * Nothing writes it today: {@link Site::DOWNLOAD_LOGGING} is off for legal reasons and
      * {@link Service\DownloadLogger::log()} returns on that switch before an entry is built. Its
      * directory is excluded from `deploy.sh` and {@link Support\File} will not create one, so a
      * logger switched on later writes nothing on the server until `data/logs/` exists by hand.
@@ -105,7 +105,7 @@ enum DataFile: string
      * each have their own reason to be absent — two are gitignored so that a public repository
      * cannot publish what they hold, one is gitignored because it exists per deployment, and the
      * fourth does not exist until something logs a download. The test asserting these files are
-     * where {@link Config::dataFile()} says asks this rather than listing names.
+     * where {@link App::dataFile()} says asks this rather than listing names.
      *
      * @return bool
      */

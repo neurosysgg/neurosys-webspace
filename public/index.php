@@ -2,14 +2,8 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Config;
 use NeuroSYS\Exception\SiteException;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\SecurityHeaders;
-use NeuroSYS\Router;
-use NeuroSYS\Service\Auth;
-use NeuroSYS\Support\ErrorLog;
-use NeuroSYS\Support\RouteInitialization;
+use NeuroSYS\Site;
 
 require __DIR__ . '/../autoload.php';
 
@@ -60,16 +54,8 @@ set_exception_handler(static function (Throwable $fault): void {
 });
 
 /*
- * Every diagnostic from here on, the handler's own line above included — it is written when a fault
- * happens, not when the handler is installed — goes to this month's file under data/logs/, at
- * E_ALL. Neither host's php.ini sends one anywhere this repository can read; see ErrorLog.
+ * Everything else is the app's: the error log (so every diagnostic from here on, the handler's own
+ * line above included, goes to this month's file under data/logs/), the security headers, the
+ * request, the site gate and the route. autoload.php has already booted it. See App::run().
  */
-ErrorLog::install(Config::errorLog());
-
-SecurityHeaders::send();
-
-$request = Request::fromGlobals();
-
-Auth::requireSiteAuth($request);
-
-new Router(RouteInitialization::routes())->dispatch($request)->send($request);
+Site::current()->run();

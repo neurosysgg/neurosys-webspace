@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\DataFile;
 use NeuroSYS\Exception\ApiException;
 use NeuroSYS\Http\AuthScheme;
@@ -193,7 +193,7 @@ final readonly class ApiGate
     #[NoDiscard('a serial that failed to store is replay protection silently switched off')]
     public function accept(int $serial): bool
     {
-        return ($this->serial ?? Config::updateSerial())->write((string) $serial . "\n", 0o600);
+        return ($this->serial ?? App::current()->updateSerial())->write((string) $serial . "\n", 0o600);
     }
 
     /**
@@ -213,7 +213,7 @@ final readonly class ApiGate
      */
     private function key(): ?PublicKey
     {
-        $pem = ($this->key ?? Config::dataFile(DataFile::UpdateKey))->read();
+        $pem = ($this->key ?? App::current()->dataFile(DataFile::UpdateKey))->read();
 
         if ($pem === null) {
             return null;
@@ -250,7 +250,7 @@ final readonly class ApiGate
             return false;
         }
 
-        $recorded = ($this->serial ?? Config::updateSerial())->read();
+        $recorded = ($this->serial ?? App::current()->updateSerial())->read();
 
         // (int) '' is 0, so an absent or unreadable record needs no sentinel of its own.
         return $serial > (int) trim($recorded ?? '');

@@ -29,7 +29,7 @@ use NeuroSYS\Support\File;
  * **Four of these are read by nothing but the tests**, and they are named all the same, on the
  * grounds {@link \NeuroSYS\Tool\Release\FlacTag::Artist} is: this class is what a `.flp` says
  * about the music in it, and a description with holes where nothing happens to be asking is a
- * worse description. {@link self::$artists} has one answer for this account and `Config::NAME`
+ * worse description. {@link self::$artists} has one answer for this account and `Site::NAME`
  * already gives it; {@link self::$mixerTracks} and {@link self::$patterns} are the closest thing
  * the format has to a stem list; {@link self::$channelCount} comes off the header rather than
  * being counted. None of them is a {@link \NeuroSYS\Tool\Release\Fact}, and none should become

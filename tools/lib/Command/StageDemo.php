@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
-use NeuroSYS\Config;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Service\DemoRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
@@ -264,7 +264,7 @@ final readonly class StageDemo implements Command
         $written = 0;
 
         foreach ($demos as $slug => $demo) {
-            $directory = Config::demoDir($slug);
+            $directory = Site::current()->demoDir($slug);
 
             foreach ($demo->tracks as $track) {
                 $written += self::analyse($directory, $track->file, $track->label, $output) ? 1 : 0;
@@ -377,7 +377,7 @@ final readonly class StageDemo implements Command
             . "  shown once. Only the hash is stored, so this cannot be looked up later —\n"
             . "  losing it means `php tools/stage-demo.php --rotate`.\n\n",
             $slug === null ? 'https://neurosys.gg/demos/<slug>' : 'https://neurosys.gg/demos/' . $slug,
-            Config::DEMO_USER,
+            Site::DEMO_USER,
             $password->plaintext,
         ));
     }

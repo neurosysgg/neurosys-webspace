@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service\Api;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\DataFile;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\Api\ApiHandler;
@@ -84,7 +84,7 @@ final readonly class CapabilityDeployment implements ApiHandler
     private static function webroot(): string
     {
         try {
-            return Config::webroot()->path;
+            return App::current()->webroot()->path;
         } catch (UpdateException $refusal) {
             return $refusal->getMessage();
         }
@@ -98,7 +98,7 @@ final readonly class CapabilityDeployment implements ApiHandler
      */
     private static function state(DataFile $file): string
     {
-        $handle = Config::dataFile($file);
+        $handle = App::current()->dataFile($file);
         $state  = $handle->exists() ? self::PRESENT . '  ' . $handle->size() : self::ABSENT;
 
         return $state . ($file->isTracked() ? self::TRACKED : self::UNTRACKED);

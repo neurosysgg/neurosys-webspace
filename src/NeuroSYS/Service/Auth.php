@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\DataFile;
 use NeuroSYS\Http\BasicChallenge;
 use NeuroSYS\Http\Header;
@@ -12,6 +12,7 @@ use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Model\Demo;
+use NeuroSYS\Site;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\PasswordHash;
 use NoDiscard;
@@ -50,7 +51,7 @@ class Auth
      */
     private static function challengeValue(): BasicChallenge
     {
-        return new BasicChallenge(Config::NAME);
+        return new BasicChallenge(App::current()->name());
     }
 
     /**
@@ -80,7 +81,7 @@ class Auth
      */
     private static function demoRealm(string $slug): BasicChallenge
     {
-        return new BasicChallenge(Config::NAME . ' demo: ' . rawurlencode($slug));
+        return new BasicChallenge(App::current()->name() . ' demo: ' . rawurlencode($slug));
     }
 
     /**
@@ -117,7 +118,7 @@ class Auth
      * The decision half of the demo gate, public for the reason {@link self::accepts()} is: it is
      * the only part a test can assert, because {@link self::requireDemoAuth()} ends the request.
      *
-     * The user name is {@link Config::DEMO_USER} for every demo and is not a secret — the password
+     * The user name is {@link Site::DEMO_USER} for every demo and is not a secret — the password
      * is the whole credential, and the realm is what keeps one demo's from being offered for
      * another. So the timing argument on {@link self::matches()} does not apply here in the way it
      * does to the admin gate, where the user name is something an attacker would like to learn. The
@@ -130,7 +131,7 @@ class Auth
     #[NoDiscard('this is the demo gate\'s decision and nothing else; dropping it is a door left open')]
     public static function admits(Request $request, Demo $demo): bool
     {
-        return self::matches($request, Config::DEMO_USER, $demo->password);
+        return self::matches($request, Site::DEMO_USER, $demo->password);
     }
 
     /**
@@ -175,7 +176,7 @@ class Auth
      */
     public static function requireSiteAuth(Request $request, ?File $file = null): void
     {
-        $file ??= Config::dataFile(DataFile::SiteAuth);
+        $file ??= App::current()->dataFile(DataFile::SiteAuth);
 
         if (!$file->exists()) {
             return;
@@ -199,7 +200,7 @@ class Auth
      */
     public static function requireAdminAuth(Request $request, ?File $file = null): void
     {
-        if (!self::accepts($request, $file ?? Config::dataFile(DataFile::Admin))) {
+        if (!self::accepts($request, $file ?? App::current()->dataFile(DataFile::Admin))) {
             self::challenge(self::challengeValue());
         }
     }
@@ -243,7 +244,7 @@ class Auth
         if ($demo === null) {
             // Spend what a real comparison would have. See the note above; the (void) is there to
             // say the answer is not the point, because the answer is always false.
-            (void) self::matches($request, Config::DEMO_USER, PasswordHash::unmatchable());
+            (void) self::matches($request, Site::DEMO_USER, PasswordHash::unmatchable());
             self::challenge(self::demoRealm($slug));
         }
 

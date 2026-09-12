@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
+use NeuroSYS\Site;
 use NeuroSYS\Support\File;
 
 /**
@@ -42,7 +42,7 @@ final readonly class ReleasesFile
      */
     public static function default(): self
     {
-        return new self(Config::dataFile(DataFile::Releases));
+        return new self(Site::current()->dataFile(DataFile::Releases));
     }
 
     /**

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Release;
+use NeuroSYS\Site;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
 
@@ -30,7 +30,7 @@ class ReleaseRepository
      */
     public function __construct(?File $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? Config::dataFile(DataFile::Releases);
+        $this->dataFile = $dataFile ?? Site::current()->dataFile(DataFile::Releases);
     }
 
     /**

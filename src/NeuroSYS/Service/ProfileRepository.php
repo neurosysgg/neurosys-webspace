@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Profile;
+use NeuroSYS\Site;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\File;
@@ -37,7 +37,7 @@ class ProfileRepository
      */
     public function __construct(?File $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? Config::dataFile(DataFile::Profiles);
+        $this->dataFile = $dataFile ?? Site::current()->dataFile(DataFile::Profiles);
     }
 
     /**

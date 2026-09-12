@@ -16,7 +16,7 @@ use NeuroSYS\Support\SearchableCollection;
  * by. The same objection {@link Finding} answers for the preflight's findings.
  *
  * **Absent and empty are different things here, and the page says so.** A `null` where one of these
- * is expected means the log was never read, because {@link \NeuroSYS\Config::DOWNLOAD_LOGGING} is
+ * is expected means the log was never read, because {@link \NeuroSYS\Site::DOWNLOAD_LOGGING} is
  * off; an instance with a total of zero means it was read and held nothing. Those render as
  * different sentences, deliberately — an empty stats page that cannot tell you which of the two it
  * is reads as a bug.

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\SearchableCollection;
 
@@ -51,7 +51,7 @@ class WaveformRepository
      */
     public function forDemo(string $slug, Demo $demo): SearchableCollection
     {
-        $directory  = $this->demos?->directory($slug) ?? Config::demoDir($slug);
+        $directory  = $this->demos?->directory($slug) ?? Site::current()->demoDir($slug);
         $collection = new SearchableCollection(Waveform::class);
 
         foreach ($demo->tracks as $track) {

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service\Api;
 
+use NeuroSYS\App;
 use NeuroSYS\AssetManifest;
-use NeuroSYS\Config;
 use NeuroSYS\Http\Api\ApiHandler;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
@@ -67,7 +67,7 @@ final readonly class UpdateVersion implements ApiHandler
      */
     public function handle(): Response
     {
-        $recorded = ($this->serial ?? Config::updateSerial())->read();
+        $recorded = ($this->serial ?? App::current()->updateSerial())->read();
 
         return new PlainTextResponse(HttpStatusCode::Ok, sprintf(
             self::REPORT,

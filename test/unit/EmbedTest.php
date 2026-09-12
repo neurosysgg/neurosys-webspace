@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Config;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Embed\SoundCloudOption;
 use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
 use NeuroSYS\Model\Embed\SoundCloudProfileEmbed;
 use NeuroSYS\Model\Platform;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -343,7 +343,7 @@ final class EmbedTest extends TestCase
         self::assertStringNotContainsString('<iframe', $html);
         self::assertStringNotContainsString('soundcloud.com', $html);
         self::assertStringNotContainsString('https://', $html);
-        self::assertStringNotContainsString(Config::HANDLE, $html);
+        self::assertStringNotContainsString(Site::HANDLE, $html);
     }
 
     // ───────────────────────────── escaping ─────────────────────────────

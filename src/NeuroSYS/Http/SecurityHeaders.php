@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
-use NeuroSYS\Config;
 use NeuroSYS\Http\Security\ContentSecurityPolicy;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
@@ -14,6 +13,7 @@ use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
 use NeuroSYS\Http\Security\StrictTransportSecurity;
+use NeuroSYS\Site;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\Collection;
 
@@ -166,7 +166,7 @@ final class SecurityHeaders
      *   avoid and the arrangement `<soundcloud-player>`'s gate exists to defer.
      * - A report carries `document-uri`, `referrer` and `blocked-uri`. Collecting those is a
      *   privacy-policy decision before it is a code one, on exactly the terms
-     *   {@link Config::DOWNLOAD_LOGGING} is switched off on: the privacy policy makes no such
+     *   {@link Site::DOWNLOAD_LOGGING} is switched off on: the privacy policy makes no such
      *   claim, so it would have to be amended first.
      *
      * `report-to` also wants a `Reporting-Endpoints` header, which would be a sixth
@@ -184,8 +184,8 @@ final class SecurityHeaders
             ->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::StyleSrc, CspKeyword::SelfOrigin)
-            ->allow(CspDirective::ImgSrc, CspKeyword::SelfOrigin, new CspHost(Config::FILE_HOST))
-            ->allow(CspDirective::FrameSrc, new CspHost(Config::PLAYER_HOST))
+            ->allow(CspDirective::ImgSrc, CspKeyword::SelfOrigin, new CspHost(Site::FILE_HOST))
+            ->allow(CspDirective::FrameSrc, new CspHost(Site::PLAYER_HOST))
             ->allow(CspDirective::BaseUri, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FormAction, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FrameAncestors, CspKeyword::None)

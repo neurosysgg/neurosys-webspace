@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ViewResponse;
+use NeuroSYS\Site;
 use NeuroSYS\View\PrivacyView;
 
 class PrivacyController implements Controller
@@ -45,6 +45,6 @@ class PrivacyController implements Controller
      */
     private static function policy(DataFile $half): string
     {
-        return Config::dataFile($half)->read() ?? '';
+        return Site::current()->dataFile($half)->read() ?? '';
     }
 }

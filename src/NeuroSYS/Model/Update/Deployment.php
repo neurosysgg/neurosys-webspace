@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model\Update;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 
@@ -13,7 +13,7 @@ use NeuroSYS\Support\File;
  * member's name to the file it becomes.
  *
  * **This is separate from {@link UpdateRoot} because membership must not require resolving a
- * path.** An enum that reached for {@link Config::webroot()} to decide so much as whether a name
+ * path.** An enum that reached for {@link App::webroot()} to decide so much as whether a name
  * is *under* a root would give a test that points `DOCUMENT_ROOT` at a sandbox a sandbox for one
  * root and the live tree for the other — and the mirror deletes what it reaches. See
  * docs/history/api.md.
@@ -41,7 +41,7 @@ final readonly class Deployment
      */
     public static function current(): self
     {
-        return new self(Config::above(), Config::webroot());
+        return new self(App::current()->above(), App::current()->webroot());
     }
 
     /**

@@ -129,7 +129,7 @@ final readonly class Waveform
     /**
      * Where one mix's sidecar sits, beside the audio it describes.
      *
-     * @param Directory $directory The demo's own directory — {@link \NeuroSYS\Config::demoDir()}.
+     * @param Directory $directory The demo's own directory — {@link \NeuroSYS\Site::demoDir()}.
      * @param string    $label     The mix's label, which is also what its audio file is named for.
      * @return File
      */

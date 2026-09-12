@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\Http\RequestHeader;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Text\Joined;
@@ -81,7 +81,7 @@ abstract class View
      */
     protected static function title(Translatable|string|null $section = null): Translatable
     {
-        $site = new Verbatim(Config::NAME);
+        $site = new Verbatim(App::current()->name());
 
         return match (true) {
             $section === null                => $site,

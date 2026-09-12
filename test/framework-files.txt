@@ -1,7 +1,9 @@
+src/NeuroSYS/App.php
 src/NeuroSYS/Controller/ApiController.php
 src/NeuroSYS/Controller/Controller.php
 src/NeuroSYS/Controller/UnroutedController.php
 src/NeuroSYS/Exception/ApiException.php
+src/NeuroSYS/Exception/AppException.php
 src/NeuroSYS/Exception/CollectionException.php
 src/NeuroSYS/Exception/ElementException.php
 src/NeuroSYS/Exception/GuidelineException.php

@@ -11,7 +11,7 @@ use NeuroSYS\Tool\Http\Url;
  *
  * Two hosts, and the split is the provider's: SoundCloud moved authorization and token exchange to
  * `secure.soundcloud.com` and left the API itself on `api.soundcloud.com`. Both are written here
- * once, for the reason {@link \NeuroSYS\Config} gives about `https://w.soundcloud.com` — an address
+ * once, for the reason {@link \NeuroSYS\Site} gives about `https://w.soundcloud.com` — an address
  * spelled twice is an address that can be changed once.
  *
  * **None of these reaches a page.** The site's output names no SoundCloud address at all, which is

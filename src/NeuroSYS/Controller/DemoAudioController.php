@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Config;
 use NeuroSYS\Http\FileResponse;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
@@ -16,6 +15,7 @@ use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DemoRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\NotFoundView;
 
@@ -71,7 +71,7 @@ readonly class DemoAudioController implements Controller
             return new ViewResponse(new NotFoundView($request->path()), HttpStatusCode::NotFound);
         }
 
-        $file = Config::demoDir($this->slug)->file($track->file);
+        $file = Site::current()->demoDir($this->slug)->file($track->file);
 
         // A track declared with no file behind it is a staging mistake rather than a half-state the
         // model is meant to carry — unlike a release Format, which is deliberately allowed to exist

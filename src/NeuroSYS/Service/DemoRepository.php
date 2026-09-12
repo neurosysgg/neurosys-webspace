@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Demo;
+use NeuroSYS\Site;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\SearchableCollection;
 
@@ -38,7 +38,7 @@ class DemoRepository
      */
     public function __construct(?File $dataFile = null)
     {
-        $this->dataFile = $dataFile ?? Config::dataFile(DataFile::Demos);
+        $this->dataFile = $dataFile ?? Site::current()->dataFile(DataFile::Demos);
     }
 
     /**
@@ -56,7 +56,7 @@ class DemoRepository
      *
      * **This is what makes the slug safe to use as a directory name.** A slug that comes back with
      * a demo is one `data/demos.php` declares; anything else is null here and a 404 above, so no
-     * arrangement of characters in a URL reaches {@link Config::demoDir()} unless it was written
+     * arrangement of characters in a URL reaches {@link Site::demoDir()} unless it was written
      * down in advance.
      *
      * @param string $slug

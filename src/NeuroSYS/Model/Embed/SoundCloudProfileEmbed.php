@@ -24,7 +24,7 @@ use NeuroSYS\View\Html\Tag;
  * a base class, because there the overlap is real: see assets/ts/elements/embed/SoundCloudWidget.ts.
  *
  * Note what {@link self::toElement()} does *not* send: no id, no handle, no title. There is no
- * release to take them from, and the artist is {@link \NeuroSYS\Config::HANDLE}, which the element
+ * release to take them from, and the artist is {@link \NeuroSYS\Site::HANDLE}, which the element
  * already mirrors. So the served page still names SoundCloud nowhere — the same guarantee the track
  * player has, and the reason the consent gate is worth anything.
  */

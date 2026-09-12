@@ -19,3 +19,9 @@ spl_autoload_register(static function (string $class): void {
         require $file;
     }
 });
+
+// Every entry point loads this file, so every entry point is booted: the site, the dev router,
+// the tools and each `php -r` line in the verify script. Booting does nothing but construct the
+// object (see App), and is idempotent, which the dev router needs — it loads this file before
+// index.php loads it again.
+NeuroSYS\Site::boot();

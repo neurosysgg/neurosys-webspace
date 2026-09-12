@@ -112,7 +112,7 @@ enum ServerVariable: string
     /**
      * The webroot's absolute path, and the only fact here that no derivation can reach.
      *
-     * {@link \NeuroSYS\Config::webroot()} needs the webroot's directory *name* — `public/` in the
+     * {@link \NeuroSYS\App::webroot()} needs the webroot's directory *name* — `public/` in the
      * repository, `neurosys/` on the live host — and nothing under `src/` can know which. Only the
      * server does, which is exactly the membership rule this enum states: a case belongs when the
      * `HTTP_` derivation cannot reach the name. It is not an HTTP header and no request can set it.

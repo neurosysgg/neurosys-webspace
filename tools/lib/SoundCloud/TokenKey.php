@@ -9,7 +9,7 @@ namespace NeuroSYS\Tool\SoundCloud;
  *
  * Three of these were the most-repeated strings in this namespace: `access_token` appeared four
  * times in {@link AccessToken} alone, `refresh_token` three more there and twice again in
- * {@link Client}. That is the criterion `\NeuroSYS\Config`'s docblock names — *already stated twice*
+ * {@link Client}. That is the criterion `\NeuroSYS\Site`'s docblock names — *already stated twice*
  * — met several times over, and it is met inside the one class where a misread key means the token
  * silently reads as absent and the account has to be authorized by hand again.
  *

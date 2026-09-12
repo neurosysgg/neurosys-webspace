@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use JsonException;
-use NeuroSYS\Config;
 use NeuroSYS\Controller\StatsController;
 use NeuroSYS\DataFile;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadStats;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
@@ -217,7 +217,7 @@ final class AdminTest extends TestCase
      */
     public function testTheShippedAdminPlaceholderAcceptsNobody(): void
     {
-        $file = Config::dataFile(DataFile::Admin);
+        $file = Site::current()->dataFile(DataFile::Admin);
 
         self::assertFalse(Auth::accepts($this->request('admin', ''), $file));
         self::assertFalse(Auth::accepts($this->request('admin', 'admin'), $file));

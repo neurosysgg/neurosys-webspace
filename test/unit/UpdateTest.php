@@ -723,7 +723,7 @@ final class UpdateTest extends TestCase
      * An applier that can only reach the sandbox.
      *
      * **The important word is *only*.** A sandbox supplied through `$_SERVER['DOCUMENT_ROOT']`
-     * reaches `Config::webroot()`, whose job is to find the *real* deployment, and `src/` is not
+     * reaches `App::webroot()`, whose job is to find the *real* deployment, and `src/` is not
      * redirected by it at all. Injecting the whole {@link Deployment} is what makes the live tree
      * unreachable from a test rather than unlikely. See docs/history/api.md.
      *

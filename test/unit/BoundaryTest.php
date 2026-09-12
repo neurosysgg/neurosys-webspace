@@ -16,10 +16,10 @@ use ReflectionClass;
  * framework cannot know about the site that uses it, so none of those files may reach a class that
  * is not on the list — whether by an import, a qualified name, or an unqualified one that PHP
  * resolves against the file's own namespace. The last is why this reads tokens and resolves names
- * the way {@link GuidelineTest} does, rather than grepping `use` lines: `Config::NAME` written in
+ * the way {@link GuidelineTest} does, rather than grepping `use` lines: `Site::NAME` written in
  * `NeuroSYS\Service` imports nothing and still reaches the site.
  *
- * **Comments do not count.** A docblock that says `{@link Config::dataFile()}` is a sentence about
+ * **Comments do not count.** A docblock that says `{@link App::dataFile()}` is a sentence about
  * the site, and it is read and rewritten when the files move; the tokenizer hands comments over as
  * their own tokens, so they never reach the resolver.
  *
@@ -36,24 +36,19 @@ final class BoundaryTest extends TestCase
      * @var list<string>
      */
     private const array STILL_REACHING = [
+        'src/NeuroSYS/App.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Controller/UnroutedController.php → NeuroSYS\\Controller\\NotFoundController',
         'src/NeuroSYS/Controller/UnroutedController.php → NeuroSYS\\Text\\Texts',
         'src/NeuroSYS/Http/Api/HealthAction.php → NeuroSYS\\Support\\RequirementInitialization',
-        'src/NeuroSYS/Http/SecurityHeaders.php → NeuroSYS\\Config',
+        'src/NeuroSYS/Http/SecurityHeaders.php → NeuroSYS\\Site',
         'src/NeuroSYS/Http/ViewResponse.php → NeuroSYS\\Layout',
-        'src/NeuroSYS/Model/Update/Deployment.php → NeuroSYS\\Config',
-        'src/NeuroSYS/Service/Api/CapabilityDeployment.php → NeuroSYS\\Config',
         'src/NeuroSYS/Service/Api/CapabilityDeployment.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Service/Api/UpdateVersion.php → NeuroSYS\\AssetManifest',
-        'src/NeuroSYS/Service/Api/UpdateVersion.php → NeuroSYS\\Config',
-        'src/NeuroSYS/Service/ApiGate.php → NeuroSYS\\Config',
         'src/NeuroSYS/Service/ApiGate.php → NeuroSYS\\DataFile',
-        'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Config',
         'src/NeuroSYS/Service/Auth.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Model\\Demo',
-        'src/NeuroSYS/Service/Health/DataFileRequirement.php → NeuroSYS\\Config',
+        'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Site',
         'src/NeuroSYS/Service/Health/DataFileRequirement.php → NeuroSYS\\DataFile',
-        'src/NeuroSYS/Service/Health/WebrootRequirement.php → NeuroSYS\\Config',
         'src/NeuroSYS/Support/PasswordHash.php → NeuroSYS\\Exception\\ReleaseVerificationException',
         'src/NeuroSYS/Support/Route.php → NeuroSYS\\Support\\SitePath',
         'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\Model\\Embed\\EmbedAttribute',
@@ -64,7 +59,6 @@ final class BoundaryTest extends TestCase
         'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\Tag',
         'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\WaveformAttribute',
         'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Terminal\\TerminalAttribute',
-        'src/NeuroSYS/View/View.php → NeuroSYS\\Config',
         'src/NeuroSYS/View/View.php → NeuroSYS\\View\\Html\\CssClass',
     ];
 

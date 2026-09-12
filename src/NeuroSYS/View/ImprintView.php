@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Config;
+use NeuroSYS\Site;
 use NeuroSYS\Support\UrlScheme;
 use NeuroSYS\Text\Language;
 use NeuroSYS\Text\Translatable;
@@ -183,8 +183,8 @@ class ImprintView extends View
         return new Element(HtmlTag::P)->containing(
             self::CONTACT,
             new Element(HtmlTag::A)
-                ->attr(HtmlAttribute::Href, UrlScheme::Mailto->url(Config::EMAIL))
-                ->containing(Config::EMAIL),
+                ->attr(HtmlAttribute::Href, UrlScheme::Mailto->url(Site::EMAIL))
+                ->containing(Site::EMAIL),
         );
     }
 }

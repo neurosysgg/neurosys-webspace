@@ -19,7 +19,7 @@ use NeuroSYS\Model\Health\PhpSetting;
  *
  * **Not in `public/.user.ini`**, although that would also catch what PHP raises before the script
  * starts. A path there has to be absolute, and the live host spells one directory two ways — see
- * {@link \NeuroSYS\Config::webroot()}; a relative one resolves against the working directory at the
+ * {@link \NeuroSYS\App::webroot()}; a relative one resolves against the working directory at the
  * moment of logging, which is not the same directory at startup as during the script. So a
  * diagnostic raised before `index.php` runs still goes to the host's log. That is the cost.
  *
@@ -44,7 +44,7 @@ final class ErrorLog
     /**
      * The file a diagnostic raised at $when is written to.
      *
-     * @param Directory         $logs Where the logs live — `Config::logs()`.
+     * @param Directory         $logs Where the logs live — `App::logs()`.
      * @param DateTimeImmutable $when
      * @return File
      */

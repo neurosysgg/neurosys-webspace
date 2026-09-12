@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Config;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Profile;
@@ -14,6 +13,7 @@ use NeuroSYS\Service\DownloadLogEntry;
 use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -207,7 +207,7 @@ final class ServiceTest extends TestCase
      */
     public function testLoggingIsSwitchedOff(): void
     {
-        self::assertFalse(Config::DOWNLOAD_LOGGING);
+        self::assertFalse(Site::DOWNLOAD_LOGGING);
     }
 
     /**
@@ -373,10 +373,10 @@ final class ServiceTest extends TestCase
      */
     public function testAProfileCarriesItsPlatformAndUrl(): void
     {
-        $profile = new Profile(Platform::SoundCloud, 'https://soundcloud.com/' . Config::HANDLE);
+        $profile = new Profile(Platform::SoundCloud, 'https://soundcloud.com/' . Site::HANDLE);
 
         self::assertSame(Platform::SoundCloud, $profile->platform);
-        self::assertSame('https://soundcloud.com/' . Config::HANDLE, $profile->url);
+        self::assertSame('https://soundcloud.com/' . Site::HANDLE, $profile->url);
     }
 
     /**

@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Config;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
@@ -109,7 +109,7 @@ class DemoView extends View
         $latest = $this->demo->tracks->first();
 
         $fields = [
-            new TerminalField(Texts::Terminal::Artist, Config::NAME),
+            new TerminalField(Texts::Terminal::Artist, Site::NAME),
             new TerminalField(Texts::Demo::Mixes, (string) $this->demo->tracks->count()),
         ];
 
@@ -144,7 +144,7 @@ class DemoView extends View
                 new Element(HtmlTag::H1)->containing(...self::accented($this->demo->title)),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::Tagline)
-                    ->containing(Config::NAME . ' — ', $this->demo->description ?? Texts::Demo::WorkInProgress),
+                    ->containing(Site::NAME . ' — ', $this->demo->description ?? Texts::Demo::WorkInProgress),
                 $this->notice(),
                 $this->tracks(),
             );

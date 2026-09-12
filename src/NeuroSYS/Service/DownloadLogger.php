@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Config;
 use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Site;
 use NeuroSYS\Support\File;
 
 /**
@@ -19,7 +19,7 @@ class DownloadLogger
     /** Constructs an instance of {@link self}. */
     public function __construct()
     {
-        $this->logFile = Config::downloadLog();
+        $this->logFile = Site::current()->downloadLog();
     }
 
     /**
@@ -31,7 +31,7 @@ class DownloadLogger
      */
     public function log(string $slug, ReleaseFormat $format): void
     {
-        if (!Config::DOWNLOAD_LOGGING) {
+        if (!Site::DOWNLOAD_LOGGING) {
             return;
         }
 

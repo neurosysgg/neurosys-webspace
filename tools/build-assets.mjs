@@ -34,7 +34,7 @@
  * verify script pins that they strip the same shape.
  *
  * Deliberately not versioned: everything under `assets/img/`. Those are vendored, hand-placed and
- * referenced from `Platform::icon()` and `Config::COVER_PLACEHOLDER` as plain constants — teaching
+ * referenced from `Platform::icon()` and `Site::COVER_PLACEHOLDER` as plain constants — teaching
  * a Model enum to consult a build artefact would cost more than a calendar TTL on files that change
  * about never. The line is: assets the build generates get a content hash, assets a person drops in
  * keep a date. `public/.htaccess` gives those thirty days.
@@ -321,8 +321,8 @@ namespace NeuroSYS;
  * the file's content *after* its own imports were stamped, so a change to a leaf module changes
  * every hash above it and none beside it.
  *
- * These are the versioned URLs. {@link Config}'s \`SCRIPT\` and \`STYLESHEET\` remain the canonical
- * unversioned paths — the fact about where the file lives, which is Config's business; this is the
+ * These are the versioned URLs. {@link Site}'s \`SCRIPT\` and \`STYLESHEET\` remain the canonical
+ * unversioned paths — the fact about where the file lives, which is Site's business; this is the
  * fact about which copy of it, which is the build's. \`ViewTest\` pins that the two agree.
  *
  * Regenerate with \`npm run build\`. test/basic_test.sh rebuilds this file and diffs, so an edit

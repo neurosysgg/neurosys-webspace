@@ -166,13 +166,13 @@ test('WaveformBand mirrors NeuroSYS\\Model\\WaveformBand, offsets included', () 
  * PLAYER_HOST is the one with teeth — it is also the CSP's whole frame-src, so a drift here means
  * the player is blocked by our own policy, in the console, with nothing in the page to say why.
  */
-test('Config mirrors the part of NeuroSYS\\Config the client reads', () => {
+test('Config mirrors the part of NeuroSYS\\Site the client reads', () => {
   assert.deepEqual(
     { NAME: Config.NAME, HANDLE: Config.HANDLE, PLAYER_HOST: Config.PLAYER_HOST },
     php(`echo json_encode([
-        'NAME'        => NeuroSYS\\Config::NAME,
-        'HANDLE'      => NeuroSYS\\Config::HANDLE,
-        'PLAYER_HOST' => NeuroSYS\\Config::PLAYER_HOST,
+        'NAME'        => NeuroSYS\\Site::NAME,
+        'HANDLE'      => NeuroSYS\\Site::HANDLE,
+        'PLAYER_HOST' => NeuroSYS\\Site::PLAYER_HOST,
     ]);`),
   );
 });

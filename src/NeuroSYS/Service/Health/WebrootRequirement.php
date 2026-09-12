@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service\Health;
 
-use NeuroSYS\Config;
+use NeuroSYS\App;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Model\Health\Area;
@@ -16,7 +16,7 @@ use NeuroSYS\Model\Health\Requirement;
  * The WebrootRequirement class. `DOCUMENT_ROOT` resolves to a webroot inside this deployment.
  *
  * **A requirement of this site's rather than of the core's**, which is why it lives here and not
- * under `Model\Health`: it asks {@link Config::webroot()}, and nothing in the core may know this
+ * under `Model\Health`: it asks {@link App::webroot()}, and nothing in the core may know this
  * site's `Config`. It is also the first use of the extension point by the code that defines it —
  * see {@link Requirement}.
  *
@@ -24,7 +24,7 @@ use NeuroSYS\Model\Health\Requirement;
  * cannot be updated over `/api` at all, and has to be fixed with `deploy.sh`.
  *
  * **The refusal is caught and becomes the finding**, which is the contract {@link Requirement}
- * states. `Config::webroot()` refuses with an {@link UpdateException}, and left alone that would
+ * states. `App::webroot()` refuses with an {@link UpdateException}, and left alone that would
  * reach {@link \NeuroSYS\Controller\ApiController}'s catch and turn the whole report into a 422. A
  * health check that will not report because something is unhealthy is not a health check; the
  * refusal's own sentence is the most useful thing on this line.
@@ -72,7 +72,7 @@ final readonly class WebrootRequirement implements Requirement
     public function check(): Finding
     {
         try {
-            return new Finding(Config::webroot()->path, true);
+            return new Finding(App::current()->webroot()->path, true);
         } catch (UpdateException $refusal) {
             return new Finding($refusal->getMessage(), false);
         }

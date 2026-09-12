@@ -21,3 +21,9 @@ require __DIR__ . '/../tools/autoload.php';
 
 /** Absolute path to the repository root, for tests that need the real data files. */
 define('NEUROSYS_ROOT', dirname(__DIR__));
+
+/**
+ * The site, booted the way autoload.php boots it for every other entry point. Composer's autoloader
+ * is what loads classes here, so nothing else would.
+ */
+NeuroSYS\Site::boot();

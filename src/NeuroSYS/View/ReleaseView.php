@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Config;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Site;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
@@ -79,8 +79,8 @@ class ReleaseView extends View
         );
 
         $cover = new Element(Tag::CoverArt)
-            ->attr(CoverArtAttribute::Src, $release->cover?->url() ?? Config::COVER_PLACEHOLDER)
-            ->attr(CoverArtAttribute::Fallback, Config::COVER_PLACEHOLDER)
+            ->attr(CoverArtAttribute::Src, $release->cover?->url() ?? Site::COVER_PLACEHOLDER)
+            ->attr(CoverArtAttribute::Fallback, Site::COVER_PLACEHOLDER)
             ->attr(CoverArtAttribute::Alt, Texts::Releases::CoverArt->with(title: $release->title));
 
         return new Element(HtmlTag::Section)
@@ -101,7 +101,7 @@ class ReleaseView extends View
                 new Element(HtmlTag::H1)->containing(...self::accented($this->release->title)),
                 new Element(HtmlTag::P)
                     ->attr(HtmlAttribute::ClassName, CssClass::Tagline)
-                    ->containing(Config::NAME . ' — ', $this->release->description),
+                    ->containing(Site::NAME . ' — ', $this->release->description),
             );
 
         // A release with no embed emits no player element at all, rather than an empty one: the
@@ -147,7 +147,7 @@ class ReleaseView extends View
         $timeSpent = $release->timeSpent;
 
         $fields = [
-            new TerminalField(Texts::Terminal::Artist, Config::NAME),
+            new TerminalField(Texts::Terminal::Artist, Site::NAME),
             new TerminalField(Texts::Releases::Bpm, (string) $release->bpm),
             new TerminalField(Texts::Releases::Key, $release->key),
             new TerminalField(Texts::Releases::Genre, $release->genre->value),
@@ -270,7 +270,7 @@ class ReleaseView extends View
     private static function formatMeta(ReleaseFormat $format): Translatable
     {
         return match ($format) {
-            ReleaseFormat::STEMS => Texts::Releases::Stems->with(email: Config::EMAIL),
+            ReleaseFormat::STEMS => Texts::Releases::Stems->with(email: Site::EMAIL),
             ReleaseFormat::MP3   => Texts::Releases::Mp3,
             ReleaseFormat::OGG   => Texts::Releases::Ogg,
             default              => $format->isLossless() ? Texts::Releases::Lossless : Texts::Releases::Lossy,

@@ -16,8 +16,8 @@ namespace NeuroSYS;
  * the file's content *after* its own imports were stamped, so a change to a leaf module changes
  * every hash above it and none beside it.
  *
- * These are the versioned URLs. {@link Config}'s `SCRIPT` and `STYLESHEET` remain the canonical
- * unversioned paths — the fact about where the file lives, which is Config's business; this is the
+ * These are the versioned URLs. {@link Site}'s `SCRIPT` and `STYLESHEET` remain the canonical
+ * unversioned paths — the fact about where the file lives, which is Site's business; this is the
  * fact about which copy of it, which is the build's. `ViewTest` pins that the two agree.
  *
  * Regenerate with `npm run build`. test/basic_test.sh rebuilds this file and diffs, so an edit

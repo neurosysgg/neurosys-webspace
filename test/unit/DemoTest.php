@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Config;
 use NeuroSYS\Controller\DemoAudioController;
 use NeuroSYS\Controller\DemoController;
 use NeuroSYS\Exception\MimeTypeException;
@@ -27,6 +26,7 @@ use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DemoRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
@@ -135,7 +135,7 @@ final class DemoTest extends TestCase
      * @return Request
      */
     private static function request(
-        string $user = Config::DEMO_USER,
+        string $user = Site::DEMO_USER,
         string $password = self::PASSWORD,
         string $range = '',
     ): Request {
@@ -854,7 +854,7 @@ final class DemoTest extends TestCase
      * release `Format` is deliberately allowed to exist before its upload does, and this is not.
      * It is a 404 rather than a 500 or an empty 200.
      *
-     * The slug is one nothing stages, so `Config::demoDir()` resolves under the real `data/demos/`
+     * The slug is one nothing stages, so `Site::demoDir()` resolves under the real `data/demos/`
      * and finds nothing there whatever this machine happens to hold. The **served** case is the one
      * this cannot reach — it needs a real file at a real path — and `test/basic_test.sh` covers it
      * over HTTP, which is where the 200, the 206 and the 416 are observable anyway.

@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Config;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
@@ -27,6 +26,7 @@ use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\TopLevelType;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
@@ -604,7 +604,7 @@ final class ResponseTest extends TestCase
         $response = new PrivacyController()->handle($this->request('/privacy'));
         $html     = self::peek($response, 'view')->content()->render(0, Language::English);
 
-        $lines = explode("\n", (string) Config::dataFile(DataFile::PrivacyEnglish)->read())
+        $lines = explode("\n", (string) Site::current()->dataFile(DataFile::PrivacyEnglish)->read())
                 |> (fn($x) => array_map(trim(...), $x))
                 |> array_filter(...)
                 |> array_values(...);
