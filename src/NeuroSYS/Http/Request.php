@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\App;
 use NeuroSYS\Support\File;
 use NeuroSYS\Text\Language;
 use Uri\Rfc3986\Uri;
@@ -362,11 +363,11 @@ readonly class Request
      * The language this request is answered in.
      *
      * **The visitor's own choice first, then their browser's, then the site's.** A `lang` cookie
-     * naming a language this site has is a choice somebody made on this site, so it outranks
+     * naming a language this site offers is a choice somebody made on this site, so it outranks
      * `Accept-Language`, which is a setting they made once for every site. With neither, the answer
-     * is English, by the argument order {@link AcceptedLanguages::preferred()} reads its default
-     * from. A cookie naming anything else — `lang=xx` — is no choice at all and falls through
-     * rather than failing: `tryFrom()`, not `from()`.
+     * is the app's default — the first of {@link \NeuroSYS\App::languages()}. A cookie naming
+     * anything else — `lang=xx`, or a language the framework knows and this site does not write —
+     * is no choice at all and falls through rather than failing.
      *
      * **A page answered in this owes a `Vary` on both headers** — see
      * {@link \NeuroSYS\View\View::varyOn()}.
@@ -375,7 +376,9 @@ readonly class Request
      */
     public function language(): Language
     {
-        return Language::tryFrom($this->cookies()->value(CookieName::Language) ?? '')
-            ?? $this->acceptedLanguages()->preferred(Language::English, Language::German);
+        $languages = App::current()->languages();
+
+        return $languages->tryFrom($this->cookies()->value(CookieName::Language) ?? '')
+            ?? $languages->preferredBy($this->acceptedLanguages());
     }
 }

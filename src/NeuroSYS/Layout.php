@@ -251,7 +251,7 @@ class Layout
     {
         $names = [];
 
-        foreach (Language::cases() as $language) {
+        foreach (Site::current()->languages()->offered() as $language) {
             if ($names !== []) {
                 $names[] = ' · ';
             }

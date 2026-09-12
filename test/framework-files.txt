@@ -142,6 +142,7 @@ src/NeuroSYS/Support/UrlScheme.php
 src/NeuroSYS/Text/FrameworkText.php
 src/NeuroSYS/Text/Joined.php
 src/NeuroSYS/Text/Language.php
+src/NeuroSYS/Text/Languages.php
 src/NeuroSYS/Text/Phrase.php
 src/NeuroSYS/Text/Translatable.php
 src/NeuroSYS/Text/Translated.php

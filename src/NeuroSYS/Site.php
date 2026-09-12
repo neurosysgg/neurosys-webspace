@@ -12,6 +12,8 @@ use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Support\RouteInitialization;
+use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Languages;
 
 /**
  * The Site class. This site, as the {@link App} the framework runs, and the facts about it.
@@ -140,6 +142,17 @@ final class Site extends App
     public function routes(): Collection
     {
         return RouteInitialization::routes();
+    }
+
+    /**
+     * English first — the site's own language, and the answer to a visitor who asks for neither —
+     * then German, which the legal pages are obliged to be in.
+     *
+     * @return Languages
+     */
+    public function languages(): Languages
+    {
+        return new Languages(Language::English, Language::German);
     }
 
     /**

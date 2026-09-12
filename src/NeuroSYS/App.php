@@ -20,6 +20,7 @@ use NeuroSYS\Support\ErrorLog;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\MethodPolicy;
 use NeuroSYS\Support\Route;
+use NeuroSYS\Text\Languages;
 
 /**
  * The App class. What a site tells the framework about itself, and the one place it is told.
@@ -150,6 +151,17 @@ abstract class App
      * @return Response
      */
     abstract public function notFound(Request $request): Response;
+
+    /**
+     * The languages the site is written in, its default first.
+     *
+     * What {@link Http\Request::language()} chooses among, and what a language switch lists. A
+     * language the framework can write and the site does not offer is answered as if it were
+     * nothing at all.
+     *
+     * @return Languages
+     */
+    abstract public function languages(): Languages;
 
     /**
      * The files the site's own code reads out of `data/` — its catalogue, its pages, its logs.

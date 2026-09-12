@@ -12,6 +12,7 @@ use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\SetCookie;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\Text\Language;
@@ -52,7 +53,9 @@ final readonly class LanguageController implements Controller
      */
     public function handle(Request $request): Response
     {
-        $language = Language::tryFrom($this->language);
+        // Only a language this site offers: `/language/de` on a site written in English alone is an
+        // address it does not have, and answers like one.
+        $language = Site::current()->languages()->tryFrom($this->language);
 
         if ($language === null) {
             return new NotFoundController($request->path())->handle($request);

@@ -19,6 +19,8 @@ use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\Route;
+use NeuroSYS\Text\Language;
+use NeuroSYS\Text\Languages;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -514,6 +516,12 @@ final class AppTest extends TestCase
             public function notFound(Request $request): Response
             {
                 return new PlainTextResponse(HttpStatusCode::NotFound, 'not here');
+            }
+
+            /** @return Languages */
+            public function languages(): Languages
+            {
+                return new Languages(Language::English);
             }
         };
     }
