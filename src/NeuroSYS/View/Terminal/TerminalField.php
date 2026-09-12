@@ -23,7 +23,8 @@ final readonly class TerminalField
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param string|Translatable $key   The row's label, rendered in the fixed-width first column.
+     * @param string|Translatable $key   The row's label, rendered in the first column, which is as
+     *                                  wide as the window's widest label.
      * @param string|Translatable $value The row's value.
      * @param TerminalTone        $tone  How the row reads.
      */
