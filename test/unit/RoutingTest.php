@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\App;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
@@ -12,6 +13,9 @@ use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
 use NeuroSYS\Exception\RouteException;
+use NeuroSYS\Site;
+use NeuroSYS\Support\ApiPath;
+use NeuroSYS\Support\Path;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
@@ -20,6 +24,8 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
+#[CoversClass(App::class)]
+#[CoversClass(ApiPath::class)]
 #[CoversClass(Route::class)]
 #[CoversClass(RouteInitialization::class)]
 #[CoversClass(SitePath::class)]
@@ -103,7 +109,7 @@ final class RoutingTest extends TestCase
      * a metacharacter would silently become a wildcard. Every pattern must therefore stay
      * metacharacter-free — this asserts that, rather than the escaping.
      *
-     * Over {@link SitePath::cases()} rather than over the registered routes, which is stricter in
+     * Over both vocabularies' cases rather than over the registered routes, which is stricter in
      * the direction that matters now: a case is a pattern whether or not anything has registered
      * it yet, and it is also what a view builds a link from.
      *
@@ -111,11 +117,11 @@ final class RoutingTest extends TestCase
      */
     public function testEveryPatternIsFreeOfRegexMetacharacters(): void
     {
-        foreach (SitePath::cases() as $path) {
+        foreach ([...SitePath::cases(), ...ApiPath::cases()] as $path) {
             self::assertMatchesRegularExpression(
                 '#^(/|(/[\w-]+|/\{\w+\})+)$#',
                 $path->value,
-                "SitePath::{$path->name} contains something that is not a plain segment "
+                "{$path->name} contains something that is not a plain segment "
                 . 'or a {placeholder}; Route::matches() does not preg_quote it.',
             );
         }
@@ -126,9 +132,9 @@ final class RoutingTest extends TestCase
      */
     public function testEveryRegisteredRouteUsesADeclaredPath(): void
     {
-        foreach (RouteInitialization::routes() as $route) {
+        foreach (Site::current()->routeTable() as $route) {
             self::assertInstanceOf(
-                SitePath::class,
+                Path::class,
                 new ReflectionProperty(Route::class, 'pattern')->getValue($route),
             );
         }
@@ -192,6 +198,7 @@ final class RoutingTest extends TestCase
     /**
      * Every path a view can build is one the router answers on. That is the whole reason the
      * patterns are an enum: one vocabulary for both, rather than two files that nothing compares.
+     * The site's come first, in declaration order, and the framework's API last.
      *
      * @return void
      */
@@ -199,11 +206,11 @@ final class RoutingTest extends TestCase
     {
         $registered = [];
 
-        foreach (RouteInitialization::routes() as $route) {
+        foreach (Site::current()->routeTable() as $route) {
             $registered[] = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
         }
 
-        self::assertSame(SitePath::cases(), $registered);
+        self::assertSame([...SitePath::cases(), ...ApiPath::cases()], $registered);
     }
 
     /**
@@ -228,7 +235,7 @@ final class RoutingTest extends TestCase
     #[DataProvider('dispatchProvider')]
     public function testTheRouteTableResolvesEachPathToItsController(string $path, string $expected): void
     {
-        foreach (RouteInitialization::routes() as $route) {
+        foreach (Site::current()->routeTable() as $route) {
             if (($params = $route->matches($path)) !== false) {
                 self::assertInstanceOf($expected, $route->createController($params));
                 return;
@@ -246,7 +253,7 @@ final class RoutingTest extends TestCase
     public function testStaticRoutesAreRegisteredBeforeTheirPlaceholderSiblings(): void
     {
         $matched = null;
-        foreach (RouteInitialization::routes() as $route) {
+        foreach (Site::current()->routeTable() as $route) {
             if ($route->matches('/releases') !== false) {
                 $matched = $route->createController([]);
                 break;
@@ -270,7 +277,7 @@ final class RoutingTest extends TestCase
         // Every depth short of `/api`'s four segments, and one past it. These match nothing at all,
         // which is what makes `/api` and everything under it fall through to the same 404 as any
         // other address that is not there — a property of the pattern rather than of a check
-        // anywhere. See SitePath::Api.
+        // anywhere. See ApiPath::Api.
         yield ['/api'];
         yield ['/api/update'];
         yield ['/api/update/v1'];
@@ -291,7 +298,7 @@ final class RoutingTest extends TestCase
     #[DataProvider('unmatchedProvider')]
     public function testUnknownPathsMatchNoRoute(string $path): void
     {
-        foreach (RouteInitialization::routes() as $route) {
+        foreach (Site::current()->routeTable() as $route) {
             self::assertFalse($route->matches($path), "$path unexpectedly matched a route");
         }
     }

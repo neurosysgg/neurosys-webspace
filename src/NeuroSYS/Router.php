@@ -33,7 +33,7 @@ readonly class Router
     {
         // The path is asked first and the method second, because the method question belongs to
         // the route: each Route carries a MethodPolicy. Nine of the ten are read-only, so POST to a
-        // download route 405s with `Allow: GET, HEAD` rather than 303'ing like a GET; SitePath::Api
+        // download route 405s with `Allow: GET, HEAD` rather than 303'ing like a GET; ApiPath::Api
         // delegates the question to its own controller. See docs/history/api.md.
         foreach ($this->routes as $route) {
             if (($params = $route->matches($request->path())) !== false) {

@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace NeuroSYS\Support;
 
 use Closure;
-use NeuroSYS\Controller\ApiController;
 use NeuroSYS\Controller\DemoAudioController;
 use NeuroSYS\Controller\DemoController;
 use NeuroSYS\Controller\DownloadController;
@@ -46,19 +45,8 @@ class RouteInitialization
             ->addRoute(SitePath::Imprint, fn() => new ImprintController())
             ->addRoute(SitePath::Privacy, fn() => new PrivacyController())
             ->addRoute(SitePath::Language, fn($language) => new LanguageController($language))
-            // The only route the router forms no opinion about. Every method reaches the
-            // controller, including one this site does not recognise, because any refusal the
-            // router made here would differ from the one it makes for an address that does not
-            // exist — and being indistinguishable from that is the whole design. See MethodPolicy.
-            //
-            // The captures go through as raw strings. Resolving them to cases here would put a
-            // from() in the factory, and a ValueError raised before the signature is checked is
-            // both a 500 that announces the endpoint and an exception nothing here owns.
-            ->addRoute(
-                SitePath::Api,
-                fn($service, $version, $action) => new ApiController($service, $version, $action),
-                MethodPolicy::Delegated,
-            )
+            // No API route: /api/{service}/{version}/{action} is the framework's, and
+            // App::routeTable() appends it after these.
             ->collection;
     }
 

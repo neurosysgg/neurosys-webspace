@@ -10,16 +10,16 @@ use NeuroSYS\Http\HttpMethod;
 use NoDiscard;
 
 /**
- * A registered route — a {@link SitePath} paired with a factory that produces a Controller.
+ * A registered route — a {@link Path} paired with a factory that produces a Controller.
  *
  * Pattern syntax: static segments and `{param}` placeholders, e.g. `/releases/{slug}/{format}`.
  * The pattern is a case rather than a string because the views build their links from the same
- * cases — see {@link SitePath}, which is where that argument is made.
+ * cases — see {@link Path}, which is where that argument is made.
  */
 readonly class Route
 {
     /**
-     * What a placeholder looks like, shared with {@link SitePath::to()}.
+     * What a placeholder looks like, shared with {@link FillsPlaceholders::to()}.
      *
      * One constant because the two halves of the syntax have to agree: this class turns a
      * placeholder into a capture group and that method fills it in, and a pattern that only one of
@@ -28,14 +28,14 @@ readonly class Route
     public const string PLACEHOLDER_PATTERN = '/\{(\w+)\}/';
 
     /**
-     * @param SitePath $pattern
+     * @param Path $pattern
      * @param Closure $factory
      * @param MethodPolicy $methods Who decides which methods this route answers on. Nine routes
      *                              take the default and say nothing; see that enum for the one
      *                              that does not, and why it cannot carry a method set instead.
      */
     public function __construct(
-        private SitePath     $pattern,
+        private Path         $pattern,
         private Closure      $factory,
         private MethodPolicy $methods = MethodPolicy::ReadOnly,
     ) {}

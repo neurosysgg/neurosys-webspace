@@ -116,6 +116,7 @@ src/NeuroSYS/Service/Health/DataFileRequirement.php
 src/NeuroSYS/Service/Health/LogDirectoryRequirement.php
 src/NeuroSYS/Service/Health/WebrootRequirement.php
 src/NeuroSYS/Service/UpdateApplier.php
+src/NeuroSYS/Support/ApiPath.php
 src/NeuroSYS/Support/BareArray.php
 src/NeuroSYS/Support/BareCall.php
 src/NeuroSYS/Support/BareString.php
@@ -125,9 +126,11 @@ src/NeuroSYS/Support/Diagnostics.php
 src/NeuroSYS/Support/Directory.php
 src/NeuroSYS/Support/ErrorLog.php
 src/NeuroSYS/Support/File.php
+src/NeuroSYS/Support/FillsPlaceholders.php
 src/NeuroSYS/Support/JsonDeserializable.php
 src/NeuroSYS/Support/MethodPolicy.php
 src/NeuroSYS/Support/PasswordHash.php
+src/NeuroSYS/Support/Path.php
 src/NeuroSYS/Support/PublicKey.php
 src/NeuroSYS/Support/Route.php
 src/NeuroSYS/Support/SearchableCollection.php
@@ -136,6 +139,7 @@ src/NeuroSYS/Support/TarEntry.php
 src/NeuroSYS/Support/TarMemberType.php
 src/NeuroSYS/Support/TypedItems.php
 src/NeuroSYS/Support/UrlScheme.php
+src/NeuroSYS/Text/FrameworkText.php
 src/NeuroSYS/Text/Joined.php
 src/NeuroSYS/Text/Language.php
 src/NeuroSYS/Text/Phrase.php

@@ -20,8 +20,8 @@ use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Layout;
 use NeuroSYS\Router;
 use NeuroSYS\Service\ReleaseRepository;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Text\Language;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleaseView;
@@ -170,7 +170,7 @@ final class SecurityTest extends TestCase
     #[DataProvider('writeMethodProvider')]
     public function testAWriteMethodIsRefusedOnEveryRoute(string $method, string $path): void
     {
-        $response = new Router(RouteInitialization::routes())->dispatch($this->request($method, $path));
+        $response = new Router(Site::current()->routeTable())->dispatch($this->request($method, $path));
 
         self::assertInstanceOf(PlainTextResponse::class, $response);
         self::assertSame(
@@ -204,7 +204,7 @@ final class SecurityTest extends TestCase
      */
     public function testTheRefusalNamesTheAllowedMethods(): void
     {
-        $response = new Router(RouteInitialization::routes())
+        $response = new Router(Site::current()->routeTable())
             ->dispatch($this->request('POST'));
 
         /** @var Collection<Header> $headers */
@@ -221,7 +221,7 @@ final class SecurityTest extends TestCase
      */
     public function testAGetStillDispatchesNormally(): void
     {
-        $response = new Router(RouteInitialization::routes())->dispatch($this->request('GET'));
+        $response = new Router(Site::current()->routeTable())->dispatch($this->request('GET'));
 
         self::assertNotInstanceOf(PlainTextResponse::class, $response);
     }
@@ -447,7 +447,7 @@ final class SecurityTest extends TestCase
      */
     public function testAPathNoRouteMatchesFallsThroughToTheNotFoundPage(): void
     {
-        $response = new Router(RouteInitialization::routes())
+        $response = new Router(Site::current()->routeTable())
             ->dispatch($this->request('GET', '/no-such-page'));
 
         self::assertInstanceOf(ViewResponse::class, $response);
@@ -464,7 +464,7 @@ final class SecurityTest extends TestCase
      */
     public function testTheNotFoundPageNamesThePathThatWasAskedFor(): void
     {
-        $response = new Router(RouteInitialization::routes())
+        $response = new Router(Site::current()->routeTable())
             ->dispatch($this->request('GET', '/no-such-page/'));
 
         $view = new ReflectionProperty($response, 'view')->getValue($response);

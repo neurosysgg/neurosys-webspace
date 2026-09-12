@@ -55,4 +55,7 @@ final class Texts
      * checked with everything else's.
      */
     public const string Keys = MusicalKey::class;
+
+    /** The framework's own words — the few it sends without a site's view around them. */
+    public const string Framework = FrameworkText::class;
 }

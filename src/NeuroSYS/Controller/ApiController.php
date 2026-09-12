@@ -26,7 +26,7 @@ use NeuroSYS\Support\Collection;
  * so would a 405 naming POST. What this returns instead is *exactly* what the router returns for a
  * path no route claims — the rendered 404 for a read method, the `text/plain` 405 with
  * `Allow: GET, HEAD` for a write one — so every address under `/api` is indistinguishable from a
- * typo under every verb. That is why {@link \NeuroSYS\Support\SitePath::Api} is registered
+ * typo under every verb. That is why {@link \NeuroSYS\Support\ApiPath::Api} is registered
  * {@link \NeuroSYS\Support\MethodPolicy::Delegated}: a route accepting POST alone would answer
  * `GET /api/update/v1/patch` with `405 Allow: POST` and give itself away in the one response an
  * idle prober is most likely to make.

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use NeuroSYS\Controller\NotFoundController;
+use NeuroSYS\Http\Request;
+use NeuroSYS\Http\Response;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
@@ -137,6 +140,17 @@ final class Site extends App
     public function routes(): Collection
     {
         return RouteInitialization::routes();
+    }
+
+    /**
+     * The site's own 404 page, for the path that was asked.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function notFound(Request $request): Response
+    {
+        return new NotFoundController($request->path())->handle($request);
     }
 
     /**

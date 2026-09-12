@@ -10,6 +10,10 @@ use NeuroSYS\DataFile;
 use NeuroSYS\DataFileName;
 use NeuroSYS\Exception\AppException;
 use NeuroSYS\Exception\UpdateException;
+use NeuroSYS\Http\HttpStatusCode;
+use NeuroSYS\Http\PlainTextResponse;
+use NeuroSYS\Http\Request;
+use NeuroSYS\Http\Response;
 use NeuroSYS\Http\Security\CspHost;
 use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
@@ -501,6 +505,15 @@ final class AppTest extends TestCase
             protected function ownDataFiles(): Collection
             {
                 return new Collection(DataFileName::class);
+            }
+
+            /**
+             * @param Request $request
+             * @return Response
+             */
+            public function notFound(Request $request): Response
+            {
+                return new PlainTextResponse(HttpStatusCode::NotFound, 'not here');
             }
         };
     }

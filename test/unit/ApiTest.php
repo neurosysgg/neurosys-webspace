@@ -28,13 +28,14 @@ use NeuroSYS\Service\Api\UpdatePatch;
 use NeuroSYS\Service\Api\UpdateVersion;
 use NeuroSYS\Service\ApiGate;
 use NeuroSYS\Service\UpdateApplier;
+use NeuroSYS\Site;
+use NeuroSYS\Support\ApiPath;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\MethodPolicy;
 use NeuroSYS\Support\PublicKey;
 use NeuroSYS\Support\RequirementInitialization;
 use NeuroSYS\Support\Route;
-use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
 use OpenSSLAsymmetricKey;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -147,7 +148,7 @@ final class ApiTest extends TestCase
     #[DataProvider('everyMethodProvider')]
     public function testEveryDepthUnderApiAnswersExactlyLikeAnUnroutedPath(string $method): void
     {
-        $router = new Router(RouteInitialization::routes());
+        $router = new Router(Site::current()->routeTable());
         $absent = $router->dispatch(self::request($method, '/no-such-page'));
 
         $depths = [
@@ -213,7 +214,7 @@ final class ApiTest extends TestCase
      */
     public function testTheRefusalNeverNamesPost(): void
     {
-        $response = new Router(RouteInitialization::routes())
+        $response = new Router(Site::current()->routeTable())
             ->dispatch(self::request('PUT', self::PATCH));
 
         self::assertInstanceOf(PlainTextResponse::class, $response);
@@ -240,7 +241,7 @@ final class ApiTest extends TestCase
         $accepting = [];
         $delegated = [];
 
-        foreach (RouteInitialization::routes() as $route) {
+        foreach (Site::current()->routeTable() as $route) {
             $pattern = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
 
             if ($route->accepts(HttpMethod::Post)) {
@@ -252,8 +253,8 @@ final class ApiTest extends TestCase
             }
         }
 
-        self::assertSame([SitePath::Api], $accepting);
-        self::assertSame([SitePath::Api], $delegated, 'a second route stopped being method-gated');
+        self::assertSame([ApiPath::Api], $accepting);
+        self::assertSame([ApiPath::Api], $delegated, 'a second route stopped being method-gated');
     }
 
     /**
@@ -281,7 +282,7 @@ final class ApiTest extends TestCase
      */
     public function testADelegatedRouteAcceptsEvenAnUnknownMethod(): void
     {
-        $route = new Route(SitePath::Api, static fn(): object => new stdClass(), MethodPolicy::Delegated);
+        $route = new Route(ApiPath::Api, static fn(): object => new stdClass(), MethodPolicy::Delegated);
 
         self::assertTrue($route->accepts(null));
 

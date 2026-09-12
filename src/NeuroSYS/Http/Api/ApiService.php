@@ -14,7 +14,7 @@ namespace NeuroSYS\Http\Api;
  *
  * **Adding a service is this file, its action enum, and its handlers — and no route.** That is the
  * whole point of the address being `/api/{service}/{version}/{action}` rather than a case per
- * endpoint: {@link \NeuroSYS\Support\SitePath::Api} already matches every one of them, so a new
+ * endpoint: {@link \NeuroSYS\Support\ApiPath::Api} already matches every one of them, so a new
  * service inherits the gate, the silence and the method policy without anybody remembering to
  * arrange them again. Both services after the first cost exactly that. ([history](docs/history/api.md))
  *

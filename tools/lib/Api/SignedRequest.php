@@ -11,7 +11,7 @@ use NeuroSYS\Http\Api\ApiService;
 use NeuroSYS\Http\Api\ApiVersion;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Support\SitePath;
+use NeuroSYS\Support\ApiPath;
 use NeuroSYS\Tool\Cli\UsageException;
 use NeuroSYS\Tool\Http\OutboundHeader;
 use NeuroSYS\Tool\Http\Request;
@@ -22,7 +22,7 @@ use NeuroSYS\Tool\Http\Url;
  *
  * It is the tooling half of {@link \NeuroSYS\Service\ApiGate}: it writes the manifest that gate
  * reads, and the two agree because **both sides use the same vocabulary rather than a copy of it**.
- * The path comes from {@link SitePath::Api}, the scheme from {@link \NeuroSYS\Http\AuthScheme}, the
+ * The path comes from {@link ApiPath::Api}, the scheme from {@link \NeuroSYS\Http\AuthScheme}, the
  * method from the action's own {@link ApiAction::method()} — so there is no spelling of an address,
  * a token or a verb that exists only on this side and could drift from the other.
  *
@@ -67,7 +67,7 @@ final readonly class SignedRequest
         array $fields,
         PrivateKey $key,
     ): Request {
-        $path = SitePath::Api->to($service->value, $version->value, (string) $action->value);
+        $path = ApiPath::Api->to($service->value, $version->value, (string) $action->value);
 
         // The manifest's bytes are what gets signed and what the server checks the signature
         // against, so they are built once and passed along as a string. Re-encoding the parsed form

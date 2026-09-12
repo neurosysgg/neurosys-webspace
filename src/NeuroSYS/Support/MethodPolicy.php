@@ -16,7 +16,7 @@ use NeuroSYS\Http\HttpMethod;
  * **A policy rather than a `Collection<HttpMethod>` on {@link Route}, and the reason is worth keeping.**
  * The obvious design is for each route to carry its own set of methods and for the 405 to name that
  * set — which is what {@link \NeuroSYS\Http\Allow}'s docblock argues for, and it is right for nine
- * routes out of ten. It is wrong for {@link SitePath::Api}, whose entire purpose is to be
+ * routes out of ten. It is wrong for {@link ApiPath::Api}, whose entire purpose is to be
  * indistinguishable from an address that does not exist: `PUT /api/update/v1/patch` would answer
  * `Allow: GET, HEAD, POST`, and the `POST` in that list is precisely the fact the endpoint exists
  * to hide. An unrecognised verb would be worse still — {@link \NeuroSYS\Http\Request::method()} is

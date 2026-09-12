@@ -7,8 +7,9 @@ namespace NeuroSYS\Text;
 /**
  * The ErrorText enum. What the site says when it cannot do what was asked.
  *
- * Two of these are plain-text bodies rather than pages — the 405 and the download 503 — so they
- * are put into the request's language by the controller that sends them, with `in()`.
+ * One of these is a plain-text body rather than a page — the download 503 — so it is put into the
+ * request's language by the controller that sends it, with `in()`. The 405's body is the
+ * framework's to say, in {@link FrameworkText}.
  */
 enum ErrorText: string implements Translatable
 {
@@ -24,10 +25,6 @@ enum ErrorText: string implements Translatable
     /** The 404's way back. */
     #[Translation(en: '← home', de: '← startseite')]
     case Home = 'home';
-
-    /** The body of every 405, whichever of the two paths sent it — see UnroutedController. */
-    #[Translation(en: 'This site is read-only.', de: 'Diese Seite ist schreibgeschützt.')]
-    case ReadOnly = 'read-only';
 
     /** The body of a download 503: a format with no file behind it yet. */
     #[Translation(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
+use NeuroSYS\App;
 use NeuroSYS\Http\Allow;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\HttpStatusCode;
@@ -12,8 +13,8 @@ use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Support\Collection;
+use NeuroSYS\Text\FrameworkText;
 use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Texts;
 
 /**
  * The UnroutedController class. What this site says about an address it does not have: the rendered
@@ -52,7 +53,7 @@ final readonly class UnroutedController implements Controller
      */
     public static function refusal(Language $language): string
     {
-        return Texts::Errors::ReadOnly->in($language) . "\n";
+        return FrameworkText::ReadOnly->in($language) . "\n";
     }
 
     /**
@@ -62,7 +63,7 @@ final readonly class UnroutedController implements Controller
     public function handle(Request $request): Response
     {
         if ($request->isReadOnly()) {
-            return new NotFoundController($request->path())->handle($request);
+            return App::current()->notFound($request);
         }
 
         return new PlainTextResponse(

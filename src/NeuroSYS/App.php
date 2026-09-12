@@ -5,16 +5,20 @@ declare(strict_types=1);
 namespace NeuroSYS;
 
 use DateTimeImmutable;
+use NeuroSYS\Controller\ApiController;
 use NeuroSYS\Exception\AppException;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\Request;
+use NeuroSYS\Http\Response;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Service\Auth;
+use NeuroSYS\Support\ApiPath;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\ErrorLog;
 use NeuroSYS\Support\File;
+use NeuroSYS\Support\MethodPolicy;
 use NeuroSYS\Support\Route;
 
 /**
@@ -129,9 +133,23 @@ abstract class App
     /**
      * Every address the site answers on, in the order the router asks them.
      *
+     * The site's own pages only — the API is the framework's, and {@link self::routeTable()} adds it.
+     *
      * @return Collection<Route>
      */
     abstract public function routes(): Collection;
+
+    /**
+     * What the site says about an address it does not have, to a method that reads.
+     *
+     * The page, rendered in the site's own shell — which is the site's to draw.
+     * {@link Controller\UnroutedController} asks this for the read-only case and answers the write
+     * one itself, so the 404 a typo gets and the 404 an unsigned API call gets are one page.
+     *
+     * @param Request $request
+     * @return Response
+     */
+    abstract public function notFound(Request $request): Response;
 
     /**
      * The files the site's own code reads out of `data/` — its catalogue, its pages, its logs.
@@ -334,6 +352,30 @@ abstract class App
     // ───────────────────────── the request ─────────────────────────
 
     /**
+     * Every route the router asks: the site's own, then the framework's API.
+     *
+     * The API goes last, so no site route can be shadowed by it, and it is added here rather than
+     * registered by each site, so no site can forget it — or register it with the wrong policy.
+     *
+     * @return Collection<Route>
+     */
+    final public function routeTable(): Collection
+    {
+        return $this->routes()->with(new Route(
+            ApiPath::Api,
+            // The captures go through as raw strings. Resolving them to cases here would put a
+            // from() in the factory, and a ValueError raised before the signature is checked is
+            // both a 500 that announces the endpoint and an exception nothing here owns.
+            fn($service, $version, $action) => new ApiController($service, $version, $action),
+            // The only route the router forms no opinion about. Every method reaches the
+            // controller, including one the site does not recognise, because any refusal the router
+            // made here would differ from the one it makes for an address that does not exist — and
+            // being indistinguishable from that is the whole design. See MethodPolicy.
+            MethodPolicy::Delegated,
+        ));
+    }
+
+    /**
      * Answers the request this process was started for.
      *
      * The order is the one `public/index.php` has always had, minus the handler it installs before
@@ -353,6 +395,6 @@ abstract class App
 
         Auth::requireSiteAuth($request);
 
-        new Router($this->routes())->dispatch($request)->send($request);
+        new Router($this->routeTable())->dispatch($request)->send($request);
     }
 }
