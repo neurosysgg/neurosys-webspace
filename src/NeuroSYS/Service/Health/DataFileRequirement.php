@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service\Health;
 
 use NeuroSYS\App;
-use NeuroSYS\DataFile;
+use NeuroSYS\DataFileName;
 use NeuroSYS\Model\Health\Area;
 use NeuroSYS\Model\Health\Finding;
 use NeuroSYS\Model\Health\Level;
@@ -30,7 +30,7 @@ final readonly class DataFileRequirement implements Requirement
      *
      * @param DataFile $file
      */
-    public function __construct(private DataFile $file) {}
+    public function __construct(private DataFileName $file) {}
 
     /**
      * @return string

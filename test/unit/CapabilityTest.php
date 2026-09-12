@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\DataFile;
 use NeuroSYS\Http\Api\CapabilityAction;
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Http\HttpStatusCode;
@@ -20,6 +19,7 @@ use NeuroSYS\Service\Api\CapabilityErrors;
 use NeuroSYS\Service\Api\CapabilityExtensions;
 use NeuroSYS\Service\Api\CapabilityRuntime;
 use NeuroSYS\Service\Api\CapabilitySettings;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -254,7 +254,7 @@ final class CapabilityTest extends TestCase
     {
         $body = self::body(new CapabilityDeployment()->handle());
 
-        foreach (DataFile::cases() as $file) {
+        foreach (Site::current()->dataFiles() as $file) {
             self::assertMatchesRegularExpression(
                 '/^  ' . preg_quote($file->value, '/') . ' +(present  \d+|absent)  \('
                 . ($file->isTracked() ? '' : 'un') . 'tracked\)$/m',

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Support;
 
-use NeuroSYS\DataFile;
+use NeuroSYS\DataFileName;
 use NeuroSYS\Model\Health\ByteFloor;
 use NeuroSYS\Model\Health\ExtensionRequirement;
 use NeuroSYS\Model\Health\Level;
@@ -96,10 +96,9 @@ final class RequirementInitialization
                 new SettingRequirement(PhpSetting::RegisterArgcArgv->value, Toggle::Off, Level::Optional),
             )
             ->with(new WebrootRequirement())
-            ->with(...new Collection(DataFile::class)
-                ->with(...DataFile::cases())
-                ->where(static fn(DataFile $file): bool => $file->isTracked())
-                ->map(static fn(DataFile $file): Requirement => new DataFileRequirement($file))
+            ->with(...Site::current()->dataFiles()
+                ->where(static fn(DataFileName $file): bool => $file->isTracked())
+                ->map(static fn(DataFileName $file): Requirement => new DataFileRequirement($file))
                 ->toValues())
             // Optional: without it the site is correct and its diagnostics go where nobody reads.
             ->with(new LogDirectoryRequirement(Site::current()->logs()));

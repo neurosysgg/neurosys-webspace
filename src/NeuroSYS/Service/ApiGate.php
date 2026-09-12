@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\App;
-use NeuroSYS\DataFile;
+use NeuroSYS\CredentialFile;
 use NeuroSYS\Exception\ApiException;
 use NeuroSYS\Http\AuthScheme;
 use NeuroSYS\Http\Request;
@@ -213,7 +213,7 @@ final readonly class ApiGate
      */
     private function key(): ?PublicKey
     {
-        $pem = ($this->key ?? App::current()->dataFile(DataFile::UpdateKey))->read();
+        $pem = ($this->key ?? App::current()->dataFile(CredentialFile::UpdateKey))->read();
 
         if ($pem === null) {
             return null;

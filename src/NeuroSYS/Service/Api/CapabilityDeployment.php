@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Service\Api;
 
 use NeuroSYS\App;
-use NeuroSYS\DataFile;
+use NeuroSYS\DataFileName;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\Api\ApiHandler;
 use NeuroSYS\Http\HttpStatusCode;
@@ -65,9 +65,8 @@ final readonly class CapabilityDeployment implements ApiHandler
         return new PlainTextResponse(HttpStatusCode::Ok, HealthSection::document(
             HealthSection::facts('deployment', new Collection(HealthFact::class)
                 ->with(new HealthFact('webroot', self::webroot()))
-                ->with(...new Collection(DataFile::class)
-                    ->with(...DataFile::cases())
-                    ->map(static fn(DataFile $file): HealthFact => new HealthFact($file->value, self::state($file)))
+                ->with(...App::current()->dataFiles()
+                    ->map(static fn(DataFileName $file): HealthFact => new HealthFact($file->value, self::state($file)))
                     ->toValues())),
         ));
     }
@@ -93,10 +92,10 @@ final readonly class CapabilityDeployment implements ApiHandler
     /**
      * Whether one of the files this site reads is there, and whether the repository carries it.
      *
-     * @param DataFile $file
+     * @param DataFileName $file
      * @return string
      */
-    private static function state(DataFile $file): string
+    private static function state(DataFileName $file): string
     {
         $handle = App::current()->dataFile($file);
         $state  = $handle->exists() ? self::PRESENT . '  ' . $handle->size() : self::ABSENT;

@@ -86,7 +86,7 @@ enum SitePath: string
      * exactly as the site replies for a path no route claims, unless the request carries a
      * signature `data/update.pub` verifies — and that file is absent by default, so on a fresh
      * clone every one of these addresses is a 404 and nothing else. See
-     * {@link \NeuroSYS\DataFile::UpdateKey}.
+     * {@link \NeuroSYS\CredentialFile::UpdateKey}.
      */
     case Api = '/api/{service}/{version}/{action}';
 

@@ -6,7 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use JsonException;
 use NeuroSYS\Controller\StatsController;
-use NeuroSYS\DataFile;
+use NeuroSYS\CredentialFile;
 use NeuroSYS\Http\Header;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Service\Auth;
@@ -217,7 +217,7 @@ final class AdminTest extends TestCase
      */
     public function testTheShippedAdminPlaceholderAcceptsNobody(): void
     {
-        $file = Site::current()->dataFile(DataFile::Admin);
+        $file = Site::current()->dataFile(CredentialFile::Admin);
 
         self::assertFalse(Auth::accepts($this->request('admin', ''), $file));
         self::assertFalse(Auth::accepts($this->request('admin', 'admin'), $file));

@@ -36,19 +36,14 @@ final class BoundaryTest extends TestCase
      * @var list<string>
      */
     private const array STILL_REACHING = [
-        'src/NeuroSYS/App.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Controller/UnroutedController.php → NeuroSYS\\Controller\\NotFoundController',
         'src/NeuroSYS/Controller/UnroutedController.php → NeuroSYS\\Text\\Texts',
         'src/NeuroSYS/Http/Api/HealthAction.php → NeuroSYS\\Support\\RequirementInitialization',
         'src/NeuroSYS/Http/SecurityHeaders.php → NeuroSYS\\Site',
         'src/NeuroSYS/Http/ViewResponse.php → NeuroSYS\\Layout',
-        'src/NeuroSYS/Service/Api/CapabilityDeployment.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Service/Api/UpdateVersion.php → NeuroSYS\\AssetManifest',
-        'src/NeuroSYS/Service/ApiGate.php → NeuroSYS\\DataFile',
-        'src/NeuroSYS/Service/Auth.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Model\\Demo',
         'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Site',
-        'src/NeuroSYS/Service/Health/DataFileRequirement.php → NeuroSYS\\DataFile',
         'src/NeuroSYS/Support/PasswordHash.php → NeuroSYS\\Exception\\ReleaseVerificationException',
         'src/NeuroSYS/Support/Route.php → NeuroSYS\\Support\\SitePath',
         'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\Model\\Embed\\EmbedAttribute',

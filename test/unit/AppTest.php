@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\App;
+use NeuroSYS\CredentialFile;
 use NeuroSYS\DataFile;
+use NeuroSYS\DataFileName;
 use NeuroSYS\Exception\AppException;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\Security\CspHost;
@@ -31,6 +33,7 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(AppException::class)]
 #[CoversClass(Site::class)]
 #[CoversClass(DataFile::class)]
+#[CoversClass(CredentialFile::class)]
 final class AppTest extends TestCase
 {
     // ───────────────────────────── paths ─────────────────────────────
@@ -102,11 +105,11 @@ final class AppTest extends TestCase
      * file — or a file added without a case — fails here rather than reading as an empty catalogue
      * on a page.
      *
-     * @param DataFile $file
+     * @param DataFileName $file
      * @return void
      */
     #[DataProvider('dataFileProvider')]
-    public function testTheDataFilesTheSiteLoadsAreWhereDataPathSaysTheyAre(DataFile $file): void
+    public function testTheDataFilesTheSiteLoadsAreWhereDataPathSaysTheyAre(DataFileName $file): void
     {
         self::assertTrue(
             Site::current()->dataFile($file)->exists(),
@@ -117,11 +120,11 @@ final class AppTest extends TestCase
     /**
      * The tracked cases, which are the ones a clone is guaranteed to have.
      *
-     * @return iterable<string, array{DataFile}>
+     * @return iterable<string, array{DataFileName}>
      */
     public static function dataFileProvider(): iterable
     {
-        foreach (DataFile::cases() as $file) {
+        foreach (Site::current()->dataFiles() as $file) {
             if ($file->isTracked()) {
                 yield $file->name => [$file];
             }
@@ -140,7 +143,7 @@ final class AppTest extends TestCase
      */
     public function testWhetherADataFileIsTrackedAgreesWithTheRepository(): void
     {
-        foreach (DataFile::cases() as $file) {
+        foreach (Site::current()->dataFiles() as $file) {
             $tracked = exec(sprintf(
                 'git -C %s ls-files --error-unmatch -- %s 2>/dev/null',
                 escapeshellarg(NEUROSYS_ROOT),
@@ -153,6 +156,21 @@ final class AppTest extends TestCase
                 $file->value . ' is ' . ($tracked ? '' : 'not ') . 'in git, and isTracked() disagrees',
             );
         }
+    }
+
+    /**
+     * The framework's files and the site's are two vocabularies over one directory, so a name both
+     * declared would be one file with two meanings — and whichever reader asked second would be
+     * reading the other one's credentials, or its catalogue.
+     *
+     * @return void
+     */
+    public function testNoTwoDataFilesShareAName(): void
+    {
+        $names = Site::current()->dataFiles()->map(static fn(DataFileName $file): string => (string) $file->value);
+
+        self::assertSame($names->toValues(), $names->unique()->toValues());
+        self::assertSame(count(CredentialFile::cases()) + count(DataFile::cases()), $names->count());
     }
 
     // ───────────────────────────── identity ─────────────────────────────
@@ -477,6 +495,12 @@ final class AppTest extends TestCase
             public function routes(): Collection
             {
                 return new Collection(Route::class);
+            }
+
+            /** @return Collection<DataFileName> */
+            protected function ownDataFiles(): Collection
+            {
+                return new Collection(DataFileName::class);
             }
         };
     }

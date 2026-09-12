@@ -33,6 +33,7 @@ use NeuroSYS\Service\ApiGate;
 use NeuroSYS\Service\Health\DataFileRequirement;
 use NeuroSYS\Service\Health\LogDirectoryRequirement;
 use NeuroSYS\Service\Health\WebrootRequirement;
+use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
@@ -240,7 +241,7 @@ final class HealthTest extends TestCase
     public function testTheDeploymentDeclaresExactlyTheTrackedFilesAndTheLogDirectory(): void
     {
         $expected = ['DOCUMENT_ROOT'];
-        foreach (DataFile::cases() as $file) {
+        foreach (Site::current()->dataFiles() as $file) {
             if ($file->isTracked()) {
                 $expected[] = $file->value;
             }

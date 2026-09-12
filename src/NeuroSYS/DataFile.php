@@ -12,14 +12,15 @@ namespace NeuroSYS;
  * and each repository turns that null into an empty collection on purpose — because a clone that
  * has never staged a demo has to be a site rather than a fatal. So the guard that makes a fresh
  * checkout work is the same guard that swallows a typo: `releaes.php` gives an empty catalogue, a
- * 200, and no line in any log. Two of the nine do it worse than that — {@link self::Admin} and
- * {@link self::SiteAuth} are where the credentials live.
+ * 200, and no line in any log. The files where that would be worse — the two gates' credentials
+ * and the API's key — are not here: the code that reads them is the framework's, so they are
+ * {@link CredentialFile}'s cases, and {@link App::dataFiles()} lists both vocabularies together.
  *
  * `test/unit/ConfigTest.php` iterates {@link self::cases()} and asks {@link self::isTracked()}
  * rather than keeping a hand-maintained list of its own, so the list of files the site expects
  * cannot fall behind the site. See docs/history/types.md.
  */
-enum DataFile: string
+enum DataFile: string implements DataFileName
 {
     /** The catalogue: PHP returning slug-keyed {@link Model\Release} objects. */
     case Releases = 'releases.php';
@@ -35,18 +36,6 @@ enum DataFile: string
      * consulting git. So it never reaches GitHub and always reaches Strato.
      */
     case Demos = 'demos.php';
-
-    /** bcrypt credentials for `/admin/stats`. The repo copy is a placeholder; the deploy skips it. */
-    case Admin = 'admin.php';
-
-    /**
-     * The pre-launch site gate's credentials, whose **absence is the off switch**.
-     *
-     * The one file here whose presence changes what the site does rather than what it shows, which
-     * makes it the one where a misspelling is not merely quiet but inverted: a typo reads as "no
-     * such file", and no such file means the gate stands down.
-     */
-    case SiteAuth = 'site_auth.php';
 
     /**
      * The privacy policy in German — half of the one document {@link View\Html\MarkupParser}
@@ -79,32 +68,12 @@ enum DataFile: string
     case DownloadLog = 'logs/downloads.log';
 
     /**
-     * The ECDSA public key `/api` verifies every signed call against — the public half, and only
-     * ever that.
-     *
-     * **Its absence is the off switch, which is {@link self::SiteAuth}'s arrangement with the
-     * polarity reversed.** No key file, no endpoint: {@link Service\ApiGate} refuses every
-     * request and {@link Controller\ApiController} answers exactly as the site answers for a
-     * path no route claims. So a fresh clone, and every machine that has not deliberately been given
-     * a key, is in the safe state rather than the open one — the opposite of the site gate, where
-     * absence stands the gate *down*. Worth reading twice, because the two files look alike and mean
-     * opposite things.
-     *
-     * Untracked and excluded from `deploy.sh`, like {@link self::Admin}'s live hashes: each
-     * deployment holds its own key, which is what binds a payload to a deployment without any field
-     * in the manifest naming one. Uploaded by hand, once. The private half never touches this
-     * repository at all — it lives at `~/.config/neurosys/update.key`, outside it entirely, the way
-     * the SoundCloud refresh token does.
-     */
-    case UpdateKey = 'update.pub';
-
-    /**
      * Whether the repository carries this file, and so whether every clone has it.
      *
-     * The five that are tracked have to be present for the site to be the site; the other four
-     * each have their own reason to be absent — two are gitignored so that a public repository
-     * cannot publish what they hold, one is gitignored because it exists per deployment, and the
-     * fourth does not exist until something logs a download. The test asserting these files are
+     * The four that are tracked have to be present for the site to be the site; the other two each
+     * have their own reason to be absent — the demos are gitignored so that a public repository
+     * cannot publish unreleased tracks, and the log does not exist until something logs a
+     * download. The test asserting these files are
      * where {@link App::dataFile()} says asks this rather than listing names.
      *
      * @return bool
@@ -112,10 +81,9 @@ enum DataFile: string
     public function isTracked(): bool
     {
         return match ($this) {
-            self::Releases, self::Profiles, self::Admin,
+            self::Releases, self::Profiles,
             self::PrivacyGerman, self::PrivacyEnglish => true,
-            self::Demos, self::SiteAuth, self::DownloadLog,
-            self::UpdateKey                           => false,
+            self::Demos, self::DownloadLog            => false,
         };
     }
 }

@@ -139,6 +139,14 @@ final class Site extends App
         return RouteInitialization::routes();
     }
 
+    /**
+     * @return Collection<DataFileName>
+     */
+    protected function ownDataFiles(): Collection
+    {
+        return new Collection(DataFileName::class)->with(...DataFile::cases());
+    }
+
     // ───────────────────────────── the site's own paths ─────────────────────────────
 
     /**

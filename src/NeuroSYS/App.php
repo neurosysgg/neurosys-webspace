@@ -133,6 +133,16 @@ abstract class App
      */
     abstract public function routes(): Collection;
 
+    /**
+     * The files the site's own code reads out of `data/` — its catalogue, its pages, its logs.
+     *
+     * Not the framework's: those are {@link CredentialFile}'s, and {@link self::dataFiles()} puts
+     * the two together.
+     *
+     * @return Collection<DataFileName>
+     */
+    abstract protected function ownDataFiles(): Collection;
+
     // ───────────────────────── what the framework derives ─────────────────────────
 
     /**
@@ -272,12 +282,28 @@ abstract class App
      * is not an error anywhere — it is an empty catalogue, an empty footer, or a gate that stands
      * down. See that enum.
      *
-     * @param DataFile $file The file, named rather than spelled.
+     * @param DataFileName $file The file, named rather than spelled.
      * @return File
      */
-    final public function dataFile(DataFile $file): File
+    final public function dataFile(DataFileName $file): File
     {
         return $this->data()->file($file->value);
+    }
+
+    /**
+     * Every file this app reads out of `data/`: the framework's credentials, then the site's own.
+     *
+     * One list for the two readers that describe the directory rather than use it — the health
+     * report asks for every tracked file, the deployment capability reports on all of them — so
+     * neither has to know which side of the line a file was declared on.
+     *
+     * @return Collection<DataFileName>
+     */
+    final public function dataFiles(): Collection
+    {
+        return new Collection(DataFileName::class)
+            ->with(...CredentialFile::cases())
+            ->with(...$this->ownDataFiles()->toValues());
     }
 
     /**
