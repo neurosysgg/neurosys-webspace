@@ -278,7 +278,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - The mirror is an enumerated delete: it never follows a symlink and never calls
   `Directory::remove()`.
 - A push leaves byte-identical files untouched, because rewriting a file the request is executing
-  makes NFS silly-rename it into an undeletable `.nfsXXXXXXXX`. Remove a stray over the mount.
+  makes NFS silly-rename it into an `.nfsXXXXXXXX` that lives as long as the worker holding it. The
+  mirror reports a stray in a note, never as a failure; removing one over the mount is tidiness.
 - A server not yet running the `/api` code can only be updated by `./deploy.sh`; `--url` is an origin.
 - A fault is shown in full only when `PHPANTA_ENVIRONMENT=development` **and** the request is from
   loopback — never `SetEnv` it on Strato; `health v1` warns if a deployment says it. The dev router
@@ -402,6 +403,7 @@ npm run build:prod && php tools/push-update.php             # phpanta/ + src/ + 
 php tools/api.php update v1 version                         # what is deployed
 php tools/api.php health v1 report                          # does the host meet the site's floor (503 if not)
 php tools/api.php capability v1 extensions                  # what it has; also runtime, settings, deployment, errors
+php tools/api.php update v1 probe                           # what its filesystem lets a push do (a write)
 ./deploy.sh                                                 # full deploy over SFTP; ships data/
 ```
 

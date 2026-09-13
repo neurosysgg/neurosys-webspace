@@ -339,12 +339,16 @@ client renames the *old* inode aside as `.nfsXXXXXXXX` instead of unlinking it, 
 stays valid. `public/index.php` is exactly that file: the request doing the pushing is executing out
 of it.
 
-The stray then reads as a surplus path to the mirror in the same request and cannot be deleted,
-because the handle keeping it alive belongs to the process trying to delete it. It shows up as:
+The stray then sits in the tree the mirror walks, and cannot be deleted while a worker holds it.
+**The mirror knows the name** — `.nfs` and 24 hex digits is the client's, not the site's — so it
+never counts one as surplus or records it for a rollback. It tries each once on the way past and
+says what came of it in a note, and the push stays a 200:
 
 ```
-! public/.nfs00000000bd2dac2512228f60 — could not be removed
+note: public/.nfs00000000bd2dac2512228f60 is a file the NFS client renamed aside, still held open by a running worker; it goes when the worker lets go, or over the mount, and is never served meanwhile
 ```
+
+Once the worker has let go, the next push removes it and says so in a note of its own.
 
 This is why a push leaves an unchanged file strictly alone: `UpdateApplier::isCurrent()` skips a
 file whose bytes are already there — not rewritten, not touched, not chmodded — so an unchanged
@@ -356,10 +360,10 @@ push. If you find one, it is harmless (Apache answers 500 for it, having no `Set
 extension, so it is not served) and it clears itself when the worker holding it recycles.
 ([history](history/api.md))
 
-To remove one now, do it **over the mount** rather than through the endpoint. The delete has to come
-from a different NFS client than the one holding the handle, and the web process is that client, so
-a push will never manage it. `deploy.sh` already knows where the mount is — it is gitignored,
-because the host and account name are not this repository's to publish:
+Removing one by hand is tidiness, not a fix. If you want it gone now, do it **over the mount**: the
+delete has to come from a different NFS client than the one holding the handle, and the web process
+is that client. `deploy.sh` already knows where the mount is — it is gitignored, because the host
+and account name are not this repository's to publish:
 
 ```bash
 source <(grep -E '^(SFTP_USER|SFTP_MOUNT)=' deploy.sh) && rm -v "$SFTP_MOUNT/cgi-bin/neurosys/".nfs*
@@ -391,6 +395,21 @@ rollback removed. Files the push left alone are not touched.
 
 **`./deploy.sh` remains the full recovery path** — for anything more than one step back, for a tree
 the rollback refuses, and for a push that broke the endpoint the rollback would be sent to.
+
+### Measuring the host's filesystem
+
+```bash
+php tools/api.php update v1 probe --dry-run   # the directory it would use, and nothing written
+php tools/api.php update v1 probe
+```
+
+A push still writes into the live tree file by file. Whether it could instead stage the tree beside
+the live one and swap it in rests on what Strato's NFS allows — a directory renamed while a worker
+holds a file inside it, how long two renames leave a name with nothing at it, whether
+`sys_get_temp_dir()` is even the same device. `update v1 probe` asks the host by doing each in a
+scratch directory beside `.update-serial` and removing it again. It is a write — the lock and a
+serial, like a push — and its lines are facts, not verdicts; what each means is in
+[the framework's security document](../phpanta/docs/security.md#measuring-the-host).
 
 ### What it does not do
 
