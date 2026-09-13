@@ -19,6 +19,7 @@ use Phpanta\Model\Api\VerifiedRequest;
 use Phpanta\Service\ApiGate;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Test\Unit\UpdateFixture;
 use Phpanta\Tool\Api\PrivateKey;
 use Phpanta\Tool\Api\SignedRequest;
 use Phpanta\Tool\Http\OutboundHeader;

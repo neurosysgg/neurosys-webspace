@@ -43,6 +43,7 @@ use Phpanta\Exception\MarkupException;
 use Phpanta\Support\Collection;
 use Phpanta\Support\PasswordHash;
 use Phpanta\Support\SearchableCollection;
+use Phpanta\Test\Unit\TextFixture;
 use Phpanta\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;

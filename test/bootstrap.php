@@ -19,6 +19,11 @@ require __DIR__ . '/../vendor/autoload.php';
  */
 require __DIR__ . '/../tools/autoload.php';
 
+/**
+ * The framework's test support — `Phpanta\Test\` — for the fixtures its tests and the site's share.
+ */
+require __DIR__ . '/../phpanta/test/autoload.php';
+
 /** Absolute path to the repository root, for tests that need the real data files. */
 define('NEUROSYS_ROOT', dirname(__DIR__));
 

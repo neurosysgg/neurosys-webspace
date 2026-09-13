@@ -320,7 +320,7 @@ final class CliTest extends TestCase
         $this->assertSame(ExitCode::Usage, $code);
         $this->assertSame('', stream_get_contents($out));
         $this->assertStringContainsString(
-            'usage: php tools/merge-coverage.php <unit.cov> <e2e-dir>',
+            'usage: php tools/merge-coverage.php <unit.cov>... <e2e-dir>',
             (string) stream_get_contents($error),
         );
     }

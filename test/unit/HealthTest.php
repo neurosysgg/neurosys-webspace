@@ -38,6 +38,7 @@ use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
 use Phpanta\Support\RequirementInitialization;
+use Phpanta\Test\Unit\UpdateFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

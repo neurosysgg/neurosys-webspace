@@ -21,6 +21,7 @@ use Phpanta\Exception\TranslationException;
 use Phpanta\Support\Collection;
 use Phpanta\Support\SearchableCollection;
 use Phpanta\Support\UrlScheme;
+use Phpanta\Test\Unit\TextFixture;
 use Phpanta\Text\Language;
 use Phpanta\View\Html\Attribute;
 use Phpanta\View\Html\AttributeName;

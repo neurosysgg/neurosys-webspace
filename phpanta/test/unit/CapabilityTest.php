@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace NeuroSYS\Test\Unit;
+namespace Phpanta\Test\Unit;
 
-use NeuroSYS\Site;
+use Phpanta\App;
+use Phpanta\CredentialFile;
 use Phpanta\Http\Api\CapabilityAction;
 use Phpanta\Http\HttpMethod;
 use Phpanta\Http\HttpStatusCode;
@@ -221,10 +222,10 @@ final class CapabilityTest extends TestCase
      */
     public function testAResolvableWebrootIsReported(): void
     {
-        $_SERVER['DOCUMENT_ROOT'] = dirname(__DIR__, 2) . '/public';
+        $_SERVER['DOCUMENT_ROOT'] = App::current()->above()->path . '/public';
 
         self::assertStringContainsString(
-            dirname(__DIR__, 2) . '/public',
+            App::current()->above()->path . '/public',
             self::body(new CapabilityDeployment()->handle()),
         );
     }
@@ -241,7 +242,7 @@ final class CapabilityTest extends TestCase
         $body = self::body(new CapabilityDeployment()->handle());
 
         self::assertStringContainsString('DOCUMENT_ROOT is not set', $body);
-        self::assertStringContainsString('releases.php', $body, 'the rest of the section still renders');
+        self::assertStringContainsString(CredentialFile::Admin->value, $body, 'the rest of the section still renders');
     }
 
     /**
@@ -254,7 +255,7 @@ final class CapabilityTest extends TestCase
     {
         $body = self::body(new CapabilityDeployment()->handle());
 
-        foreach (Site::current()->dataFiles() as $file) {
+        foreach (App::current()->dataFiles() as $file) {
             self::assertMatchesRegularExpression(
                 '/^  ' . preg_quote($file->value, '/') . ' +(present  \d+|absent)  \('
                 . ($file->isTracked() ? '' : 'un') . 'tracked\)$/m',
@@ -272,7 +273,7 @@ final class CapabilityTest extends TestCase
     public function testTheFrameworkReportsWhereItIsDeployed(): void
     {
         $body      = self::body(new CapabilityDeployment()->handle());
-        $framework = Site::current()->above()->directory('phpanta');
+        $framework = App::current()->above()->directory('phpanta');
 
         self::assertMatchesRegularExpression(
             '/^  phpanta +' . preg_quote($framework->exists() ? $framework->path : 'absent', '/') . '$/m',

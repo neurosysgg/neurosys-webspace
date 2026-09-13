@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NeuroSYS\Test\Unit;
+namespace Phpanta\Test\Unit;
 
 use Phpanta\Text\Translatable;
 use Phpanta\Text\Translated;

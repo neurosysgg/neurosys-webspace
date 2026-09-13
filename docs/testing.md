@@ -616,7 +616,7 @@ contrived tests to prop it up.
   other: `SignedRequest` builds the request and the real `ApiGate`, over a real generated keypair,
   verifies it. A disagreement between them fails closed and in silence, so the assertion is that
   they agree, with nothing in between restating the format.
-- `test/unit/ApiCallTest.php` — what `tools/api.php` shows and exits with. The exit code is the
+- `phpanta/test/unit/ApiCallTest.php` — what `tools/api.php` shows and exits with. The exit code is the
   answer's, so a failed `health` check — a 503 carrying its report — can stop a script; and only a
   404 is explained as a refusal, because telling someone to check their key about a 503 would send
   them looking in exactly the wrong place.

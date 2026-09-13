@@ -2,8 +2,9 @@
 
 declare(strict_types=1);
 
-namespace NeuroSYS\Test\Unit;
+namespace Phpanta\Test\Unit;
 
+use Phpanta\App;
 use Phpanta\Exception\UpdateException;
 use Phpanta\Http\HttpStatusCode;
 use Phpanta\Http\PlainTextResponse;
@@ -599,17 +600,17 @@ final class UpdateTest extends TestCase
     public function testTheCurrentDeploymentIsResolvedFromConfig(): void
     {
         $previous = $_SERVER['DOCUMENT_ROOT'] ?? null;
-        $_SERVER['DOCUMENT_ROOT'] = NEUROSYS_ROOT . '/public';
+        $_SERVER['DOCUMENT_ROOT'] = App::current()->above()->path . '/public';
 
         try {
             $deployment = Deployment::current();
 
             self::assertSame(
-                NEUROSYS_ROOT . '/public',
+                App::current()->above()->path . '/public',
                 $deployment->directory(UpdateRoot::Public)?->path,
             );
             self::assertSame(
-                NEUROSYS_ROOT . '/src',
+                App::current()->above()->path . '/src',
                 $deployment->directory(UpdateRoot::Source)?->path,
             );
         } finally {

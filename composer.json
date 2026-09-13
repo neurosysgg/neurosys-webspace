@@ -31,7 +31,10 @@
             "@unit",
             "@verify"
         ],
-        "unit": "phpunit",
+        "unit": [
+            "phpunit",
+            "phpunit -c phpanta/phpunit.xml.dist"
+        ],
         "verify": "bash test/basic_test.sh",
         "lint": [
             "@phpcs",
@@ -45,13 +48,14 @@
             "@putenv NEUROSYS_COVERAGE_DIR=build/coverage/e2e",
             "rm -rf build/coverage",
             "phpunit --coverage-php build/coverage/unit.cov",
+            "phpunit -c phpanta/phpunit.xml.dist --coverage-php build/coverage/phpanta.cov",
             "@verify",
-            "php tools/merge-coverage.php build/coverage/unit.cov build/coverage/e2e --clover build/coverage/clover.xml --html build/coverage/html"
+            "php tools/merge-coverage.php build/coverage/unit.cov build/coverage/phpanta.cov build/coverage/e2e --clover build/coverage/clover.xml --html build/coverage/html"
         ]
     },
     "scripts-descriptions": {
         "test": "Unit tests then the end-to-end verify script",
-        "unit": "PHPUnit unit tests",
+        "unit": "PHPUnit: the site suite, then the framework suite (phpanta/phpunit.xml.dist)",
         "verify": "End-to-end verify script (real autoloader, real HTTP, repo hygiene)",
         "lint": "phpcs + php-cs-fixer, both read-only",
         "phpcs": "phpcs only, read-only",

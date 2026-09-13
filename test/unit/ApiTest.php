@@ -38,6 +38,7 @@ use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\PublicKey;
 use Phpanta\Support\RequirementInitialization;
 use Phpanta\Support\Route;
+use Phpanta\Test\Unit\UpdateFixture;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

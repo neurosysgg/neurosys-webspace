@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace NeuroSYS\Test\Unit;
+namespace Phpanta\Test\Unit;
 
 use Phpanta\Exception\TranslationException;
 use Phpanta\Text\Joined;
