@@ -18,7 +18,7 @@ namespace NeuroSYS\Tool\SoundCloud;
  * plausible-looking absence"*. It then read all five keys as string literals. This is that sentence
  * being acted on.
  *
- * Read through {@link \NeuroSYS\Tool\Http\JsonBody}, which takes a case and never a string, so there
+ * Read through {@link \Phpanta\Tool\Http\JsonBody}, which takes a case and never a string, so there
  * is no spelling left at the call site to get wrong.
  */
 enum TrackKey: string

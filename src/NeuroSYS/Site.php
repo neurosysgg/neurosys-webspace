@@ -81,6 +81,18 @@ final class Site extends App
      */
     public const string DEMO_USER = 'demo';
 
+    /**
+     * Where this site is served, as an origin. Where a signed call or a push goes unless told
+     * otherwise, and the address a staged demo's link is written with.
+     */
+    public const string ORIGIN = 'https://neurosys.gg';
+
+    /**
+     * Where the update key's private half lives, relative to `$HOME` — outside the repository
+     * entirely, the way the SoundCloud refresh token is. The public half is `data/update.pub`.
+     */
+    public const string UPDATE_KEY = '.config/neurosys/update.key';
+
     // ───────────────────────── third-party origins ─────────────────────────
 
     /**

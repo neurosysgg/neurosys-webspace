@@ -6,7 +6,7 @@ namespace NeuroSYS\Tool\SoundCloud;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
-use NeuroSYS\Tool\Http\JsonBody;
+use Phpanta\Tool\Http\JsonBody;
 
 /**
  * The UploadedTrack class. What SoundCloud says exists now.

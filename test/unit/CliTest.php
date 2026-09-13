@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Tool\Cli\Command;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Input;
-use NeuroSYS\Tool\Cli\Option;
-use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
-use NeuroSYS\Tool\Cli\UsageException;
-use NeuroSYS\Tool\Command\MergeCoverage;
-use NeuroSYS\Tool\Command\MergeCoverageOption;
 use NeuroSYS\Tool\Command\ReleaseTrack;
 use NeuroSYS\Tool\Command\StageRelease;
 use NeuroSYS\Tool\Command\StageReleaseOption;
+use Phpanta\Tool\Cli\Command;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Input;
+use Phpanta\Tool\Cli\Option;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Cli\Runner;
+use Phpanta\Tool\Cli\UsageException;
+use Phpanta\Tool\Command\MergeCoverage;
+use Phpanta\Tool\Command\MergeCoverageOption;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;

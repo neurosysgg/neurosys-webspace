@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
-use NeuroSYS\Tool\Cli\Command;
-use NeuroSYS\Tool\Cli\Input;
-use NeuroSYS\Tool\Cli\Option;
-use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\ReleaseFolder;
 use NeuroSYS\Tool\Release\ReleasesFile;
+use Phpanta\Tool\Cli\Command;
+use Phpanta\Tool\Cli\Input;
+use Phpanta\Tool\Cli\Option;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Cli\Runner;
 
 /**
  * The FolderReport class. What both of the commands that read a release folder print about it.
@@ -53,7 +53,7 @@ final readonly class FolderReport
     /**
      * The folder named on the command line, or null once it has said why there is none.
      *
-     * Null rather than an {@link \NeuroSYS\Tool\Cli\ExitCode}, the same shape
+     * Null rather than an {@link \Phpanta\Tool\Cli\ExitCode}, the same shape
      * {@link ReleaseTrack::client()} already has: the caller answers with `ExitCode::Usage` because
      * that is the caller's decision, and this one has already put the reason on the screen.
      *

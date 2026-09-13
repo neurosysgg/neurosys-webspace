@@ -13,7 +13,7 @@
  * **This is one half of a mirror**, and the verify script pins that both halves strip the same
  * pattern. Change the shape in one and the check fails rather than the dev server quietly diverging.
  *
- * **Not a `NeuroSYS\Tool\Cli\Command`**, and cannot be: `php -S` loads this file per request and
+ * **Not a `Phpanta\Tool\Cli\Command`**, and cannot be: `php -S` loads this file per request and
  * reads a `bool` back. There is no argv and no exit code for a command interface to attach to.
  *
  * Dev-only: it is passed to `php -S` by test/basic_test.sh and by anyone running the local server.

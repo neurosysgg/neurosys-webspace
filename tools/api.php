@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Entry point for the `api` command — see {@link \NeuroSYS\Tool\Command\ApiCall}.
+ * Entry point for the `api` command — see {@link \Phpanta\Tool\Command\ApiCall}.
  *
  * Usage: php tools/api.php <service> <version> <action> [--url <origin>] [--key <file>]
  *
@@ -12,10 +12,11 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Tool\Cli\Runner;
-use NeuroSYS\Tool\Command\ApiCall;
+use NeuroSYS\Site;
+use Phpanta\Tool\Cli\Runner;
+use Phpanta\Tool\Command\ApiCall;
 
 require __DIR__ . '/../autoload.php';
 require __DIR__ . '/autoload.php';
 
-Runner::run(new ApiCall(), $argv);
+Runner::run(new ApiCall(Site::ORIGIN, Site::UPDATE_KEY), $argv);

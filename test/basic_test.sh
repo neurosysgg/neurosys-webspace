@@ -333,6 +333,18 @@ else
     fail "data/.htaccess is missing or no longer denies access"
 fi
 
+php_ok "every class under phpanta/tools/lib/ actually loads, as Phpanta\\Tool" \
+    "require '$REPO/tools/autoload.php';
+     \$bad = [];
+     \$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator('$REPO/phpanta/tools/lib'));
+     foreach (\$it as \$f) {
+         if (\$f->getExtension() !== 'php') continue;
+         \$rel = substr(\$f->getPathname(), strlen('$REPO/phpanta/tools/lib/'));
+         \$class = 'Phpanta' . chr(92) . 'Tool' . chr(92) . str_replace('/', chr(92), substr(\$rel, 0, -4));
+         if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class) && !trait_exists(\$class)) \$bad[] = \$class;
+     }
+     \$bad === [] or exit(1);"
+
 
 echo ""
 echo "=== Repo hygiene ==="
@@ -353,7 +365,7 @@ fi
 # makes it, the way Probe is the one class that shells out. Options set once are options that cannot
 # disagree between call sites, and two of them are load-bearing: certificates are verified, and
 # redirects are not followed with a credential and a 50 MB body attached.
-outbound=$(grep -rl "curl_" "$REPO/tools/lib" 2>/dev/null | grep -v "/Http/CurlTransport.php$" || true)
+outbound=$(grep -rl "curl_" "$REPO/tools/lib" "$REPO/phpanta/tools/lib" 2>/dev/null | grep -v "/Http/CurlTransport.php$" || true)
 if [[ -z "$outbound" ]]; then
     pass "curl is called in one place under tools/lib/"
 else

@@ -9,9 +9,6 @@ use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Command\ReleaseTrack;
 use NeuroSYS\Tool\Command\ReleaseTrackOption;
 use NeuroSYS\Tool\Export\ExportedAudio;
@@ -27,6 +24,9 @@ use NeuroSYS\Tool\SoundCloud\CredentialVariable;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
 use Phpanta\Support\SearchableCollection;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Cli\Runner;
 use PHPUnit\Framework\TestCase;
 
 /**

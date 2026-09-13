@@ -5,15 +5,15 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
-use NeuroSYS\Tool\Command\ApiCall;
-use NeuroSYS\Tool\Http\Request;
-use NeuroSYS\Tool\Http\Response;
-use NeuroSYS\Tool\Http\Transport;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Cli\Runner;
+use Phpanta\Tool\Command\ApiCall;
+use Phpanta\Tool\Http\Request;
+use Phpanta\Tool\Http\Response;
+use Phpanta\Tool\Http\Transport;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -180,7 +180,7 @@ final class ApiCallTest extends TestCase
         $error = fopen('php://memory', 'r+');
 
         $code = Runner::execute(
-            new ApiCall($transport),
+            new ApiCall('https://neurosys.gg', '.config/neurosys/update.key', $transport),
             ['--key', $this->keyFile->path, $service, $version, $action],
             new Output($out, $error),
         );

@@ -6,18 +6,11 @@ namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
-use NeuroSYS\Tool\Cli\Command;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Input;
-use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Export\ExportedAudio;
 use NeuroSYS\Tool\Export\Exporter;
 use NeuroSYS\Tool\Export\ExportException;
 use NeuroSYS\Tool\Export\PreparedExport;
 use NeuroSYS\Tool\Export\RenderFormat;
-use NeuroSYS\Tool\Http\CurlTransport;
-use NeuroSYS\Tool\Http\FilePart;
-use NeuroSYS\Tool\Http\TransportException;
 use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
@@ -31,6 +24,13 @@ use NeuroSYS\Tool\SoundCloud\TokenStore;
 use NeuroSYS\Tool\SoundCloud\TrackUpload;
 use NeuroSYS\Tool\SoundCloud\UploadedTrack;
 use Phpanta\Support\File;
+use Phpanta\Tool\Cli\Command;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Input;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Http\CurlTransport;
+use Phpanta\Tool\Http\FilePart;
+use Phpanta\Tool\Http\TransportException;
 
 /**
  * The ReleaseTrack command. Gets the audio, puts it on SoundCloud, and prints the finished entry.

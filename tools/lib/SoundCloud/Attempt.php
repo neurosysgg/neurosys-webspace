@@ -20,7 +20,7 @@ namespace NeuroSYS\Tool\SoundCloud;
  * the two places that format one.
  *
  * Exhaustive of what this client does. A case nothing attempts is an operation with nothing on the
- * other end of it — the same rule {@link TrackField} and {@link \NeuroSYS\Tool\Http\OutboundHeader}
+ * other end of it — the same rule {@link TrackField} and {@link \Phpanta\Tool\Http\OutboundHeader}
  * are held to.
  */
 enum Attempt: string

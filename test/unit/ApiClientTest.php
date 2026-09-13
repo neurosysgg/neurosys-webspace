@@ -6,13 +6,6 @@ namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
 use BackedEnum;
-use NeuroSYS\Tool\Api\PrivateKey;
-use NeuroSYS\Tool\Api\SignedRequest;
-use NeuroSYS\Tool\Http\OutboundHeader;
-use NeuroSYS\Tool\Http\Request;
-use NeuroSYS\Tool\Http\Response;
-use NeuroSYS\Tool\Http\Transport;
-use NeuroSYS\Tool\Http\Url;
 use Phpanta\Http\Api\ApiAction;
 use Phpanta\Http\Api\ApiService;
 use Phpanta\Http\Api\ApiVersion;
@@ -26,6 +19,13 @@ use Phpanta\Model\Api\VerifiedRequest;
 use Phpanta\Service\ApiGate;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Tool\Api\PrivateKey;
+use Phpanta\Tool\Api\SignedRequest;
+use Phpanta\Tool\Http\OutboundHeader;
+use Phpanta\Tool\Http\Request;
+use Phpanta\Tool\Http\Response;
+use Phpanta\Tool\Http\Transport;
+use Phpanta\Tool\Http\Url;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -266,7 +266,7 @@ final class ApiClientTest extends TestCase
     {
         self::assertTrue($this->keyFile->write('not a key'));
 
-        $this->expectException(\NeuroSYS\Tool\Cli\UsageException::class);
+        $this->expectException(\Phpanta\Tool\Cli\UsageException::class);
         $this->expectExceptionMessageMatches('/not a readable PEM private key/');
 
         PrivateKey::fromFile($this->keyFile);
@@ -279,7 +279,7 @@ final class ApiClientTest extends TestCase
      */
     public function testAMissingKeyNamesThePathAndTheRecipe(): void
     {
-        $this->expectException(\NeuroSYS\Tool\Cli\UsageException::class);
+        $this->expectException(\Phpanta\Tool\Cli\UsageException::class);
         $this->expectExceptionMessageMatches('/ec_paramgen_curve:P-256/');
 
         PrivateKey::fromFile(new File($this->sandbox . '/nothing-here.key'));

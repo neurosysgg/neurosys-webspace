@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
-use NeuroSYS\Tool\Http\Url;
+use Phpanta\Tool\Http\Url;
 
 /**
  * The Authorization class. One authorization attempt: the secret it keeps and the URL it sends you

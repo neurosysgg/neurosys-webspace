@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Entry point for the `push-update` command — see {@link \NeuroSYS\Tool\Command\PushUpdate}.
+ * Entry point for the `push-update` command — see {@link \Phpanta\Tool\Command\PushUpdate}.
  *
  * Usage: php tools/push-update.php [--dry-run] [--no-mirror] [--url <url>] [--key <file>]
  *
@@ -15,10 +15,12 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Tool\Cli\Runner;
-use NeuroSYS\Tool\Command\PushUpdate;
+use NeuroSYS\Site;
+use Phpanta\Support\Directory;
+use Phpanta\Tool\Cli\Runner;
+use Phpanta\Tool\Command\PushUpdate;
 
 require __DIR__ . '/../autoload.php';
 require __DIR__ . '/autoload.php';
 
-Runner::run(new PushUpdate(), $argv);
+Runner::run(new PushUpdate(new Directory(dirname(__DIR__)), Site::ORIGIN, Site::UPDATE_KEY), $argv);

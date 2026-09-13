@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
-use NeuroSYS\Tool\Http\Response;
+use Phpanta\Tool\Http\Response;
 use RuntimeException;
 
 /**
  * The SoundCloudException class. The API answered, and the answer was no.
  *
- * Distinct from {@link \NeuroSYS\Tool\Http\TransportException}, which is nothing having arrived at
+ * Distinct from {@link \Phpanta\Tool\Http\TransportException}, which is nothing having arrived at
  * all. This carries the status and the body, because the body is where the API says which field it
  * disliked — and an upload refused for a reason nobody printed is an upload retried blind.
  */

@@ -4,9 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Command\StageDemo;
 use NeuroSYS\Tool\Demo\DemoEntryWriter;
 use NeuroSYS\Tool\Demo\DemoPreflight;
@@ -17,6 +14,9 @@ use NeuroSYS\Tool\Demo\Password;
 use NeuroSYS\Tool\Release\Level;
 use Phpanta\Support\Directory;
 use Phpanta\Support\PasswordHash;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Cli\Runner;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;

@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Entry point for the `merge-coverage` command — see {@link \NeuroSYS\Tool\Command\MergeCoverage}.
+ * Entry point for the `merge-coverage` command — see {@link \Phpanta\Tool\Command\MergeCoverage}.
  *
  * Usage:
  *   php tools/merge-coverage.php <unit.cov> <e2e-dump-dir> [--clover <file>] [--html <dir>]
@@ -15,8 +15,8 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Tool\Cli\Runner;
-use NeuroSYS\Tool\Command\MergeCoverage;
+use Phpanta\Tool\Cli\Runner;
+use Phpanta\Tool\Command\MergeCoverage;
 
 require __DIR__ . '/../vendor/autoload.php';
 require __DIR__ . '/autoload.php';

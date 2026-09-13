@@ -6,19 +6,19 @@ namespace NeuroSYS\Tool\Demo;
 
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
-use NeuroSYS\Tool\Php\Argument;
-use NeuroSYS\Tool\Php\Call;
-use NeuroSYS\Tool\Php\ClassConstant;
-use NeuroSYS\Tool\Php\Entry;
-use NeuroSYS\Tool\Php\Value;
 use Phpanta\Support\Collection;
 use Phpanta\Support\PasswordHash;
+use Phpanta\Tool\Php\Argument;
+use Phpanta\Tool\Php\Call;
+use Phpanta\Tool\Php\ClassConstant;
+use Phpanta\Tool\Php\Entry;
+use Phpanta\Tool\Php\Value;
 
 /**
  * The DemoEntryWriter class. Renders the `data/demos.php` entry for a staged demo.
  *
  * The same arrangement as {@link \NeuroSYS\Tool\Release\EntryWriter}, for the same reasons — it
- * composes {@link \NeuroSYS\Tool\Php\Expression}s and one renderer turns them into source, so
+ * composes {@link \Phpanta\Tool\Php\Expression}s and one renderer turns them into source, so
  * nothing here writes PHP as a string. What differs is what it cannot know, which is almost
  * nothing: a demo has one editorial field, and it is optional.
  *

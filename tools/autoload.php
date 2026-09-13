@@ -17,6 +17,9 @@
 
 declare(strict_types=1);
 
+// The framework's generic tooling first — `Phpanta\Tool\` → `phpanta/tools/lib/`.
+require_once __DIR__ . '/../phpanta/tools/autoload.php';
+
 spl_autoload_register(static function (string $class): void {
     $prefix = 'NeuroSYS\\Tool\\';
 

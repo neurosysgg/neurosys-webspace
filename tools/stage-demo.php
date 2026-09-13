@@ -23,8 +23,8 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Command\StageDemo;
+use Phpanta\Tool\Cli\Runner;
 
 require __DIR__ . '/../autoload.php';
 require __DIR__ . '/autoload.php';

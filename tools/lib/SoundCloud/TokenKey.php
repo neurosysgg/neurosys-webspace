@@ -20,7 +20,7 @@ namespace NeuroSYS\Tool\SoundCloud;
  * leave three cases duplicated across both. Keeping them here is what makes the difference visible
  * at the moment somebody reaches for the wrong one.
  *
- * Read and written through {@link \NeuroSYS\Tool\Http\JsonBody} and
+ * Read and written through {@link \Phpanta\Tool\Http\JsonBody} and
  * {@link AccessToken::toArray()}, neither of which will take a string.
  */
 enum TokenKey: string

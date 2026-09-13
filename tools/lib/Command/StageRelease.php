@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Tool\Cli\Command;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Input;
-use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Fact;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use Phpanta\Tool\Cli\Command;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Input;
+use Phpanta\Tool\Cli\Output;
 
 /**
  * The StageRelease command. Stages a `data/releases.php` entry from a prepared release folder.

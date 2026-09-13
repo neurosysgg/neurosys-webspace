@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\SoundCloud;
 
 use JsonException;
-use NeuroSYS\Tool\Http\JsonBody;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Tool\Http\JsonBody;
 
 /**
  * The TokenStore class. Where the token lives between runs.

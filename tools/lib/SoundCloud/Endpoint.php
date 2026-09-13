@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
-use NeuroSYS\Tool\Http\Url;
+use Phpanta\Tool\Http\Url;
 
 /**
  * The Endpoint enum. The three addresses this client talks to.

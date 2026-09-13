@@ -4,8 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Export;
 
-use NeuroSYS\Tool\Http\FilePart;
+use NeuroSYS\Model\ReleaseFormat;
 use Phpanta\Support\File;
+use Phpanta\Tool\Http\FilePart;
 
 /**
  * The ExportedAudio class. A file to upload, and how it came to exist.
@@ -102,6 +103,10 @@ final readonly class ExportedAudio
      */
     public function part(?string $name = null): FilePart
     {
-        return FilePart::at($this->file, $name !== null ? $name . '.' . $this->format->value : null);
+        return FilePart::at(
+            $this->file,
+            $name !== null ? $name . '.' . $this->format->value : null,
+            ReleaseFormat::tryFrom($this->file->extension())?->mimeType(),
+        );
     }
 }

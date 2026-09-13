@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
-use NeuroSYS\Tool\Cli\Option;
+use Phpanta\Tool\Cli\Option;
 
 /**
  * The ReleaseTrackOption enum. What `tools/release-track.php` accepts.

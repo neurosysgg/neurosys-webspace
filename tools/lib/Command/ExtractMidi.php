@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
-use NeuroSYS\Tool\Cli\Command;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Input;
-use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Flp\PlacedNote;
 use NeuroSYS\Tool\Flp\Score;
 use NeuroSYS\Tool\Midi\MidiFile;
@@ -17,6 +13,10 @@ use NeuroSYS\Tool\Midi\TimeSignature;
 use NeuroSYS\Tool\Release\ProjectFile;
 use Phpanta\Support\Collection;
 use Phpanta\Support\File;
+use Phpanta\Tool\Cli\Command;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Input;
+use Phpanta\Tool\Cli\Output;
 
 /**
  * The ExtractMidi command. Writes a `.flp`'s notes out as a standard MIDI file.

@@ -8,11 +8,6 @@ use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Site;
-use NeuroSYS\Tool\Cli\Command;
-use NeuroSYS\Tool\Cli\ExitCode;
-use NeuroSYS\Tool\Cli\Input;
-use NeuroSYS\Tool\Cli\Output;
-use NeuroSYS\Tool\Cli\Runner;
 use NeuroSYS\Tool\Demo\DemoEntryWriter;
 use NeuroSYS\Tool\Demo\DemoPreflight;
 use NeuroSYS\Tool\Demo\DemoSource;
@@ -22,6 +17,11 @@ use NeuroSYS\Tool\Demo\WaveformScan;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use Phpanta\Support\Directory;
+use Phpanta\Tool\Cli\Command;
+use Phpanta\Tool\Cli\ExitCode;
+use Phpanta\Tool\Cli\Input;
+use Phpanta\Tool\Cli\Output;
+use Phpanta\Tool\Cli\Runner;
 
 /**
  * The StageDemo command. Puts an unreleased mix behind a password at `/demos/<slug>`.
@@ -376,7 +376,7 @@ final readonly class StageDemo implements Command
             . "      password:  %s\n\n"
             . "  shown once. Only the hash is stored, so this cannot be looked up later —\n"
             . "  losing it means `php tools/stage-demo.php --rotate`.\n\n",
-            $slug === null ? 'https://neurosys.gg/demos/<slug>' : 'https://neurosys.gg/demos/' . $slug,
+            Site::ORIGIN . '/demos/' . ($slug ?? '<slug>'),
             Site::DEMO_USER,
             $password->plaintext,
         ));

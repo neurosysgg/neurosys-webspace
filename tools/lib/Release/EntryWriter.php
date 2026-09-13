@@ -12,12 +12,12 @@ use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Tool\Flp\TimeMarker;
-use NeuroSYS\Tool\Php\Argument;
-use NeuroSYS\Tool\Php\Call;
-use NeuroSYS\Tool\Php\ClassConstant;
-use NeuroSYS\Tool\Php\Entry;
-use NeuroSYS\Tool\Php\Value;
 use Phpanta\Support\Collection;
+use Phpanta\Tool\Php\Argument;
+use Phpanta\Tool\Php\Call;
+use Phpanta\Tool\Php\ClassConstant;
+use Phpanta\Tool\Php\Entry;
+use Phpanta\Tool\Php\Value;
 
 /**
  * The EntryWriter class. Renders the `data/releases.php` entry for a folder.
@@ -27,7 +27,7 @@ use Phpanta\Support\Collection;
  * stands: a `Format` with no link renders its card and answers a click with a 503, a null cover
  * renders the placeholder, and an absent `embed:` renders no player.
  *
- * **Nothing here writes PHP as a string.** It composes {@link \NeuroSYS\Tool\Php\Expression}s and
+ * **Nothing here writes PHP as a string.** It composes {@link \Phpanta\Tool\Php\Expression}s and
  * one renderer turns them into source — the same arrangement the markup tree has, for the same
  * reason. A heredoc with `%s` holes would assemble `MusicalKey::DSharpMinor` by concatenating a
  * class name onto `$key->name`: a spelling nothing checks, in the one file whose failure mode is a

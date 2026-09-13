@@ -5,17 +5,17 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\SoundCloud;
 
 use JsonException;
-use NeuroSYS\Tool\Http\FormField;
-use NeuroSYS\Tool\Http\JsonBody;
-use NeuroSYS\Tool\Http\OutboundHeader;
-use NeuroSYS\Tool\Http\Request;
-use NeuroSYS\Tool\Http\Response;
-use NeuroSYS\Tool\Http\Transport;
 use Phpanta\Http\Header;
 use Phpanta\Http\MimeType;
 use Phpanta\Http\TopLevelType;
 use Phpanta\Support\Charset;
 use Phpanta\Support\Collection;
+use Phpanta\Tool\Http\FormField;
+use Phpanta\Tool\Http\JsonBody;
+use Phpanta\Tool\Http\OutboundHeader;
+use Phpanta\Tool\Http\Request;
+use Phpanta\Tool\Http\Response;
+use Phpanta\Tool\Http\Transport;
 
 /**
  * The Client class. Everything this repo knows how to ask SoundCloud.

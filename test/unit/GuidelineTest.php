@@ -867,7 +867,7 @@ final class GuidelineTest extends TestCase
      */
     private static function phpFiles(): array
     {
-        return SourceTree::files('/tools/lib');
+        return SourceTree::files('/tools/lib', '/phpanta/tools/lib');
     }
     /**
      * True if $type is, or contains, `array`.

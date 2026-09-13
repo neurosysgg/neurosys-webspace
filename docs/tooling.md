@@ -12,7 +12,7 @@ How they got that way is in [history/tooling.md](history/tooling.md).
 
 `tools/` holds seven commands and two things that are not. `stage-release`, `stage-demo`,
 `release-track`, `extract-midi`, `push-update`, `api` and `merge-coverage` implement
-`NeuroSYS\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a `run()`
+`Phpanta\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a `run()`
 returning an `ExitCode`. `dev-router.php` and `coverage-prepend.php` implement nothing, because PHP
 loads them itself: one is handed to `php -S` and one is an `auto_prepend_file`, so neither has an
 argv or an exit code for an interface to attach to. Each says so in its docblock.

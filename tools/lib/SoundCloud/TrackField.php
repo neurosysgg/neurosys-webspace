@@ -29,7 +29,7 @@ enum TrackField: string
     /** The track's title, which is `Release::$title` and not the file's name. */
     case Title = 'track[title]';
 
-    /** The audio itself — the only field whose value is a {@link \NeuroSYS\Tool\Http\FilePart}. */
+    /** The audio itself — the only field whose value is a {@link \Phpanta\Tool\Http\FilePart}. */
     case AssetData = 'track[asset_data]';
 
     /** {@link TrackSharing}, and always private on the way up. */

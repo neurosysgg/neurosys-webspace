@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
-use NeuroSYS\Tool\Http\JsonBody;
+use Phpanta\Tool\Http\JsonBody;
 
 /**
  * The AccessToken class. A token, when it stops working, and what to get the next one with.
