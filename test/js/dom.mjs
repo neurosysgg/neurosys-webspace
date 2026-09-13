@@ -30,7 +30,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
  * mangling did not break anything — the nesting guards, TerminalWindow's subtree, both embeds and
  * Navigation, all executing the bytes the server will send. Nothing else about the tests changes.
  */
-const JS = process.env.NEUROSYS_JS_DIR ?? `${ROOT}/public/assets/js`;
+const JS = process.env.PHPANTA_JS_DIR ?? `${ROOT}/public/assets/js`;
 
 /**
  * The shell Layout.php emits, reduced to the part the scripts look for.

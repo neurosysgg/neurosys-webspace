@@ -432,7 +432,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   names has bytes behind it; and **the whole client-side suite re-runs against the shipped bytes**.
   The manifests are deliberately not diffed against each other — the debug one lists every preload
   and the prod one none. The re-run is the check worth the most — `test/js/dom.mjs` takes its tree
-  from `NEUROSYS_JS_DIR`, so the nesting guards, `TerminalWindow`'s subtree, both embeds and
+  from `PHPANTA_JS_DIR`, so the nesting guards, `TerminalWindow`'s subtree, both embeds and
   `Navigation` execute what the server will send. `npm test` and `npm run coverage` use the debug
   tree by default; the 100% gate is measured against `public/assets/js/**`, which is why the debug
   tree stays readable rather than being minified in place.
@@ -486,8 +486,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.22% of lines** (2816/2838), derived on 2026-09-13
-(`aec9777`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.25% of lines** (2934/2956), derived on 2026-09-13
+(on top of `703fbd3`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
@@ -496,7 +496,7 @@ verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectRe
 site. They are invisible to PHPUnit twice over: `header()` is a no-op under CLI, and a `send()`
 ends in `exit`.
 
-So the verify script's dev server collects its own. With `NEUROSYS_COVERAGE_DIR` set it starts
+So the verify script's dev server collects its own. With `PHPANTA_COVERAGE_DIR` set it starts
 under `XDEBUG_MODE=coverage` with `phpanta/tools/coverage-prepend.php` as `auto_prepend_file`, which
 records line coverage and writes it out **from a shutdown function** — the whole trick, because a
 shutdown function still runs when a request ends in `exit`, and every response here does. That is
@@ -505,8 +505,8 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Twenty-six lines, in eight groups. Sixteen are deliberate — behind a switch that is off on purpose,
-behind a credential the repository does not hold, or on a failure no test can arrange — and ten are
+Twenty-two lines, in seven groups. Sixteen are deliberate — behind a switch that is off on purpose,
+behind a credential the repository does not hold, or on a failure no test can arrange — and six are
 a gap rather than a decision:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Site::DOWNLOAD_LOGGING`, a `false`
@@ -537,21 +537,21 @@ a gap rather than a decision:
   that one mattered, because opening an unreadable file warns, and by then the headers have gone out,
   so the warning would print into the audio. `@fopen` is there for the reason `File::read()`'s is.
 
-#### Ten more, which are a gap rather than a decision
+#### Six more, which are a gap rather than a decision
 
 These are listed to be closed rather than justified:
 
-- **`CacheControl::of()` (3)**, **`Vary::on()` (3)** and **`Location::verify()` (4)** — guard clauses
-  that throw `SecurityPolicyException` on an empty or malformed value. `HiDriveLink`'s equivalent
-  throw is tested by `badShareIdProvider` in `ModelTest`, which is the shape these want, and
-  `DemoTest` closes two of the same kind — `ContentLength`'s negative length and
-  `RobotsPolicy::of()`'s empty list — so the pattern is written down twice.
+- **`CacheControl::of()` (3)** and **`Vary::on()` (3)** — guard clauses that throw
+  `SecurityPolicyException` on an empty value. `HiDriveLink`'s equivalent throw is tested by
+  `badShareIdProvider` in `ModelTest`, which is the shape these want, and `DemoTest` closes two of
+  the same kind — `ContentLength`'s negative length and `RobotsPolicy::of()`'s empty list — so the
+  pattern is written down twice.
 
-Three small tests in `ResponseTest` would close all ten.
+Two small tests in `ResponseTest` would close all six.
 
 #### Keeping the count honest
 
-The twenty-six are a property of what is *deliberately* untested, not a budget that grows with the
+The twenty-two are a property of what is *deliberately* untested, not a budget that grows with the
 code. Every pass since the figure was first written has held it there, and the way it did is the
 rule:
 

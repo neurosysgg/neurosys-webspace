@@ -576,6 +576,37 @@ final class ApiTest extends TestCase
         );
     }
 
+    /**
+     * A lock file that cannot be opened is no lock, answered the way a held one is.
+     *
+     * @return void
+     */
+    public function testALockFileThatCannotBeOpenedIsNoLock(): void
+    {
+        self::assertNull(FileLock::exclusive(new File($this->sandbox . '/no-such-directory/x.lock')));
+    }
+
+    /**
+     * Releasing twice is releasing once, and a released lock can be taken again.
+     *
+     * @return void
+     */
+    public function testALockReleasedTwiceIsReleasedOnce(): void
+    {
+        $file = new File($this->sandbox . '/twice.lock');
+
+        $lock = FileLock::exclusive($file);
+        self::assertInstanceOf(FileLock::class, $lock);
+        self::assertNull(FileLock::exclusive($file), 'a held lock was taken a second time');
+
+        $lock->release();
+        $lock->release();
+
+        $again = FileLock::exclusive($file);
+        self::assertInstanceOf(FileLock::class, $again);
+        $again->release();
+    }
+
     // ───────────────────────────── the envelope ─────────────────────────────
 
     /**

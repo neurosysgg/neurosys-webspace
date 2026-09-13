@@ -358,7 +358,9 @@ fi
 # The framework cannot know about the site that uses it. BoundaryTest holds its code to that; this
 # holds everything else under phpanta/ to it too — a docblock, a doc or a tool that names a site
 # class is a reference that goes nowhere once phpanta/ is checked out on its own.
-naming=$(grep -rlE NeuroSYS\ "$REPO/phpanta" 2>/dev/null || true)
+# Both spellings: the namespace, and the upper case an environment variable would carry. history/ is
+# exempt — it is past tense about where the framework came from, and names the site to say so.
+naming=$(grep -rlE 'NeuroSYS|NEUROSYS' "$REPO/phpanta" --exclude-dir=history 2>/dev/null || true)
 if [[ -z "$naming" ]]; then
     pass "nothing under phpanta/ names a site class"
 else
@@ -618,7 +620,7 @@ if [[ -x "$TSC" ]]; then
     #   - a bad mangle is an element that registers and then does nothing
     #
     # The last is the one worth the most, and it is checked by re-running the whole client suite
-    # against the shipped bytes: test/js/dom.mjs takes the tree from NEUROSYS_JS_DIR, so the nesting
+    # against the shipped bytes: test/js/dom.mjs takes the tree from PHPANTA_JS_DIR, so the nesting
     # guards, TerminalWindow's subtree, both embeds and Navigation all execute what the server will
     # send. That still works across the bundling change, and it is worth knowing why rather than
     # being lucky: dom.mjs loads the whole vocabulary through one `import ${JS}/main.js` and every
@@ -641,13 +643,13 @@ if [[ -x "$TSC" ]]; then
             fail "the prod tree still carries source maps (see phpanta/tools/build-prod.mjs)"
         fi
 
-        if (cd "$REPO" && NEUROSYS_JS_DIR="$DIST_JS" node --test 'test/js/*.test.mjs' >/dev/null 2>&1); then
+        if (cd "$REPO" && PHPANTA_JS_DIR="$DIST_JS" node --test 'test/js/*.test.mjs' >/dev/null 2>&1); then
             pass "the client-side tests pass against the minified output"
         else
             fail "the minified output fails the client-side tests — a mangle broke something"
             # Absolute deliberately: dom.mjs interpolates this into an import specifier, and a
             # relative one resolves as a *package* name — "Cannot find package 'build'".
-            echo "       reproduce: NEUROSYS_JS_DIR=\$PWD/build/dist/public/assets/js npm test"
+            echo "       reproduce: PHPANTA_JS_DIR=\$PWD/build/dist/public/assets/js npm test"
         fi
 
         # The two manifests deliberately differ now, so diffing them would assert away the thing
@@ -702,16 +704,16 @@ echo "=== HTTP routes ==="
 
 # Start the built-in dev server in the background; kill it on exit.
 #
-# With NEUROSYS_COVERAGE_DIR set, the server runs under Xdebug with phpanta/tools/coverage-prepend.php
+# With PHPANTA_COVERAGE_DIR set, the server runs under Xdebug with phpanta/tools/coverage-prepend.php
 # loaded, so the checks below contribute to a coverage report instead of being invisible to one.
 # That is the only way the exit-ing auth code, the header() calls and the send() methods are ever
 # measured -- they are a no-op or a different process everywhere else. See `composer coverage`.
-if [[ -n "${NEUROSYS_COVERAGE_DIR:-}" ]]; then
-    mkdir -p "$NEUROSYS_COVERAGE_DIR"
+if [[ -n "${PHPANTA_COVERAGE_DIR:-}" ]]; then
+    mkdir -p "$PHPANTA_COVERAGE_DIR"
     # Absolute: the prepend script writes from the server process, whose working directory is
     # not something this script gets to decide.
-    NEUROSYS_COVERAGE_DIR="$(cd "$NEUROSYS_COVERAGE_DIR" && pwd)"
-    export NEUROSYS_COVERAGE_DIR
+    PHPANTA_COVERAGE_DIR="$(cd "$PHPANTA_COVERAGE_DIR" && pwd)"
+    export PHPANTA_COVERAGE_DIR
     XDEBUG_MODE=coverage php -d "auto_prepend_file=$REPO/phpanta/tools/coverage-prepend.php" \
         -S "localhost:$PORT" -t "$REPO/public" "$REPO/phpanta/tools/dev-router.php" >/dev/null 2>&1 &
 else

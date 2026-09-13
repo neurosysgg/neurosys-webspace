@@ -45,7 +45,7 @@
         "cs-fix": "php-cs-fixer fix",
         "coverage": [
             "@putenv XDEBUG_MODE=coverage",
-            "@putenv NEUROSYS_COVERAGE_DIR=build/coverage/e2e",
+            "@putenv PHPANTA_COVERAGE_DIR=build/coverage/e2e",
             "rm -rf build/coverage",
             "phpunit --coverage-php build/coverage/unit.cov",
             "phpunit -c phpanta/phpunit.xml.dist --coverage-php build/coverage/phpanta.cov",
