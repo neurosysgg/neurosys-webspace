@@ -9,6 +9,7 @@ export class Navigation {
     static EVENT = 'phpanta:navigate';
     static INTERNAL_LINK = `${HtmlTag.A}[${HtmlAttribute.Href}^="/"]`;
     static TITLE = new RegExp(`<${HtmlTag.Title}>([\\s\\S]*?)</${HtmlTag.Title}>`);
+    static DOCUMENT = /^\s*<!doctype html/i;
     navigation = 0;
     inFlight = null;
     constructor(content) {
@@ -59,12 +60,16 @@ export class Navigation {
             const html = await response.text();
             if (navigation !== this.navigation)
                 return;
-            const title = html.match(Navigation.TITLE)?.[1];
-            if (title !== undefined)
-                document.title = Navigation.decodeEntities(title);
+            const page = Navigation.page(html);
+            if (page === null) {
+                location.assign(url);
+                return;
+            }
+            if (page.title !== null)
+                document.title = page.title;
             else
                 console.warn('No title found in HTML response');
-            this.content.innerHTML = html.replace(Navigation.TITLE, '');
+            this.content.innerHTML = page.content;
             document.dispatchEvent(new Event(Navigation.EVENT));
             window.scrollTo(0, 0);
         }
@@ -73,6 +78,20 @@ export class Navigation {
                 return;
             location.assign(url);
         }
+    }
+    static page(html) {
+        if (!Navigation.DOCUMENT.test(html)) {
+            const title = html.match(Navigation.TITLE)?.[1];
+            return {
+                title: title === undefined ? null : Navigation.decodeEntities(title),
+                content: html.replace(Navigation.TITLE, ''),
+            };
+        }
+        const parsed = new DOMParser().parseFromString(html, 'text/html');
+        const content = parsed.getElementById(ElementId.Content);
+        if (content === null)
+            return null;
+        return { title: parsed.title === '' ? null : parsed.title, content: content.innerHTML };
     }
     static decodeEntities(text) {
         const el = document.createElement(HtmlTag.Textarea);

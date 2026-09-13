@@ -279,6 +279,7 @@ final class GuidelineTest extends TestCase
                 'Phpanta\Model\Health\HealthSection string',
                 'Phpanta\Model\Update\UpdateReport string',
                 'Phpanta\Support\Diagnostics string',
+                'Phpanta\Support\Route string',
                 'Phpanta\Support\TypedItems int',
                 'Phpanta\Support\TypedItems string',
                 'Phpanta\View\Html\Vocabulary string',

@@ -50,7 +50,7 @@ const dom = new JSDOM(
 for (const name of [
   'window', 'document', 'HTMLElement', 'HTMLAnchorElement', 'Element',
   'customElements', 'DocumentFragment', 'Node', 'Event', 'MouseEvent',
-  'CSSStyleDeclaration', 'getComputedStyle', 'history', 'location',
+  'CSSStyleDeclaration', 'getComputedStyle', 'history', 'location', 'DOMParser',
 ]) {
   globalThis[name] = name === 'window' ? dom.window : dom.window[name];
 }

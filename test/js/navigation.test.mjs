@@ -219,6 +219,65 @@ test('a fragment with no title says so rather than blanking the tab', async () =
   assert.match(content.innerHTML, /no title here/);
 });
 
+// ───────────────────────────── a whole document ─────────────────────────────
+
+/**
+ * What a static host sends. It has no X-Requested-With to read, so a static export's page arrives
+ * whole — header, footer and all — and only its #content and its title may be taken, or the
+ * chrome is written into <main> a second time.
+ */
+const whole = (head, body) => `<!DOCTYPE html><html lang="en"><head>${head}</head><body>${body}</body></html>`;
+
+test('a whole document gives up only its #content and its title', async () => {
+  respond = fragment(whole(
+    '<title>Getting started — Phpanta</title>',
+    '<header>chrome</header><main id="content"><p>whole</p></main><footer>chrome</footer>',
+  ));
+
+  await navigate(link('/phpanta/getting-started'));
+
+  assert.equal(content.innerHTML, '<p>whole</p>');
+  assert.equal(document.title, 'Getting started — Phpanta');
+  assert.deepEqual(handedBack, []);
+});
+
+test("a whole document's title arrives decoded", async () => {
+  respond = fragment(whole('<title>rock &amp; roll</title>', '<main id="content"><p>x</p></main>'));
+
+  await navigate(link('/phpanta/x'));
+
+  assert.equal(document.title, 'rock & roll');
+});
+
+test('a whole document with no title says so rather than blanking the tab', async () => {
+  const warnings = [];
+  const warn = console.warn;
+  console.warn = (message) => warnings.push(message);
+
+  try {
+    respond = fragment(whole('', '<main id="content"><p>untitled</p></main>'));
+    document.title = 'unchanged';
+
+    await navigate(link('/phpanta/x'));
+  } finally {
+    console.warn = warn;
+  }
+
+  assert.deepEqual(warnings, ['No title found in HTML response']);
+  assert.equal(document.title, 'unchanged');
+  assert.equal(content.innerHTML, '<p>untitled</p>');
+});
+
+/** Nothing to swap in is not a reason to strand the visitor: the browser can show the page itself. */
+test('a whole document with no #content is handed to the browser', async () => {
+  respond = fragment(whole('<title>elsewhere</title>', '<p>no main here</p>'));
+
+  await navigate(link('/phpanta/elsewhere'));
+
+  assert.deepEqual(handedBack, ['https://neurosys.gg/phpanta/elsewhere']);
+  assert.equal(content.innerHTML, '');
+});
+
 // ───────────────────────── what it must not intercept ─────────────────────────
 
 /**
