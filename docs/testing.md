@@ -108,7 +108,6 @@ checked out on its own:
 | `GuidelineTest` | the five habits |
 | `NoDiscardTest` | every builder and query that must not be discarded, and why |
 | `TranslationTest` | every translated enum is reachable from `Texts`, and written in every language |
-| `SecurityPolicyTest` | every header value is a typed object, and every one is covered |
 
 `SourceTree` is what lets them read both trees. The front end's tests stay in `test/js/` as well.
 They load the compiled tree, and the framework's eleven modules are part of it.
@@ -120,12 +119,17 @@ Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_
 
 Files are grouped by layer or by feature, not one-per-class. The site's are `ModelTest`,
 `ProductionTest`, `WaveformTest`, `EmbedTest`, `HtmlTest`, `ViewTest`, `PageTest`, `ServiceTest`,
-`SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `AppTest`, `SecurityTest`,
-`SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `HealthTest`, `LanguagesTest`,
-`TranslationTest`, `BoundaryTest`, `NoDiscardTest` and `GuidelineTest`. `PhpInputStream` and
-`SourceTree` are helpers rather than suites, and so are the framework's fixtures (`UpdateFixture`,
-`TextFixture`), which `test/bootstrap.php` loads from `phpanta/test/`. The tooling's tests are listed
-under [The development tooling](#the-development-tooling).
+`ResponseTest`, `RoutingTest`, `AppTest`, `SecurityTest`, `AdminTest`, `DemoTest`, `HealthTest`,
+`LanguagesTest`, `TranslationTest`, `BoundaryTest`, `NoDiscardTest` and `GuidelineTest`. `SourceTree`
+is a helper rather than a suite, and so are the framework's fixtures (`UpdateFixture`, `TextFixture`,
+`PhpInputStream`), which `test/bootstrap.php` loads from `phpanta/test/`. The tooling's tests are
+listed under [The development tooling](#the-development-tooling).
+
+A test that names no class of this site belongs to the framework, and lives in `phpanta/test/unit/`
+— collections and files, the request, every header value, the API and its gate, health, the CLI
+layer. `HealthTest`, `LanguagesTest` and `CliTest` here keep only what is this site's own: the data
+files it declares, the languages it offers, the scripts that run its commands. See
+[phpanta/docs/testing.md](../phpanta/docs/testing.md).
 
 Several are named for something other than a layer, because that is what they are about: `PageTest`
 covers the pages that are only content — the home hero, the imprint, the privacy policy —
@@ -524,8 +528,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.47% of lines** (3017/3033), derived on 2026-09-13
-(on top of `5b209d8`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.47% of lines** (3018/3034), derived on 2026-09-13
+(on top of `db3393a`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
@@ -600,15 +604,16 @@ did is the rule:
 
 ### The development tooling
 
-`tools/lib/` has thirteen test files and is **deliberately outside the coverage source**, so none of
-them carries `#[CoversClass]`. The figure above is a claim about the shipped site; folding in code
+`tools/lib/` and `phpanta/tools/lib/` are tested by the files below, and are **deliberately outside
+the coverage source**, so none of them carries `#[CoversClass]`. The figure above is a claim about the shipped site; folding in code
 whose job is to shell out to `metaflac` and `ffprobe` would either drop the number or invite
 contrived tests to prop it up.
 
-- `test/unit/CliTest.php` — the `Cli/` layer. Argument parsing is the part worth pinning: an
-  unrecognised flag is refused rather than dropped in silence. It also covers the case `getopt()`
+- `phpanta/test/unit/CliTest.php` — the `Cli/` layer. Argument parsing is the part worth pinning:
+  an unrecognised flag is refused rather than dropped in silence. It also covers the case `getopt()`
   gets wrong, flags written after operands, which is exactly how `composer coverage` invokes
-  `merge-coverage`.
+  `merge-coverage`. `test/unit/CliTest.php` keeps what is this site's: every command it runs has a
+  script of that name under `tools/`, and `stage-release` answers a bad command line with its usage.
 - `test/unit/ReleaseFolderTest.php` — the parts of `Release/` that need no folder on disk: the
   enharmonic key parser, slug derivation, format ordering, and the shape of the emitted entry. The
   last of these `eval`s the generated block and asserts it produces a renderable `Release`, so a
@@ -637,7 +642,7 @@ contrived tests to prop it up.
   `--project`, and what happens when it will not parse.
 - `test/unit/DspTest.php` — the `Dsp/` port, carrying `c-µdsp`'s own tests beside it: known input,
   known output, exact values pinned, with a tolerance chosen for doubles where the C compares floats.
-- `test/unit/ApiClientTest.php` — the two halves of the signed handshake checked against each
+- `phpanta/test/unit/ApiClientTest.php` — the two halves of the signed handshake checked against each
   other: `SignedRequest` builds the request and the real `ApiGate`, over a real generated keypair,
   verifies it. A disagreement between them fails closed and in silence, so the assertion is that
   they agree, with nothing in between restating the format.

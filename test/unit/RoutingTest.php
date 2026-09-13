@@ -16,7 +16,9 @@ use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
 use Phpanta\App;
 use Phpanta\Exception\RouteException;
+use Phpanta\Http\HttpMethod;
 use Phpanta\Support\ApiPath;
+use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\Path;
 use Phpanta\Support\Route;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -372,5 +374,35 @@ final class RoutingTest extends TestCase
 
         self::assertNotContains(SitePath::Stats->value, $exported);
         self::assertContains(SitePath::Home->value, $exported, 'a route without an $exports closure is still a page');
+    }
+
+    /**
+     * `/api` is the one route that accepts a write method, and the only one.
+     *
+     * Asserted over the real table by reflection rather than by reading the registration, because
+     * what matters is what the router will do and not what anybody wrote down. Both directions: a
+     * second route accepting a write, and a second route made `Delegated`, are each a hole.
+     *
+     * @return void
+     */
+    public function testOnlyTheApiRouteAcceptsAWriteMethod(): void
+    {
+        $accepting = [];
+        $delegated = [];
+
+        foreach (Site::current()->routeTable() as $route) {
+            $pattern = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
+
+            if ($route->accepts(HttpMethod::Post)) {
+                $accepting[] = $pattern;
+            }
+
+            if (new ReflectionProperty(Route::class, 'methods')->getValue($route) === MethodPolicy::Delegated) {
+                $delegated[] = $pattern;
+            }
+        }
+
+        self::assertSame([ApiPath::Api], $accepting);
+        self::assertSame([ApiPath::Api], $delegated, 'a second route stopped being method-gated');
     }
 }
