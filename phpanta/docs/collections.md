@@ -14,7 +14,7 @@ they got this way — the escape hatch `all()` used to be, the chain that used t
 
 A bare `array` with a `foreach`-and-`instanceof` check in a constructor is the thing these replace.
 That check is `TypedItems::guard()`'s, once, and it throws a `CollectionException` — which *is* a
-`TypeError`, see [architecture.md](architecture.md#exceptions). What is left to check by hand is the
+`TypeError`, see [architecture.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/architecture.md#exceptions). What is left to check by hand is the
 *element type*, the one thing a PHP generic cannot say: `is_a($this->fields->type,
 TerminalField::class, true)`, in seven places.
 

@@ -8,6 +8,9 @@ A rule that exists because of one of these stories is still stated in the curren
 present-tense sentence with a link back here. Nothing here is required reading to change the code
 safely; if it ever becomes so, the rule it carries belongs in a current document instead.
 
+Two topics — the type discipline and the markup tree — are the framework's, and moved with it into
+[Phpanta's history](../../phpanta/docs/history/README.md); the rows below link across.
+
 `docs/reviews/` is a different thing — the owner's own review log — and stays where it is.
 
 ## The format
@@ -36,7 +39,7 @@ a sentence of context is added in front of it rather than the passage being reph
 | [hosting.md](hosting.md) | readings of the live host that changed, extension probes, the dev router |
 | [frontend.md](frontend.md) | the bundling reversal, the mangled class name, cache versioning's first attempt, the build tools' argv |
 | [performance.md](performance.md) | before-and-after figures of past changes |
-| [types.md](types.md) | collections, exceptions, `Config`, `SitePath`, `File`, and the guidelines' first run |
-| [markup.md](markup.md) | the markup tree: attributes, the scheme check, `RawHtml` becoming `MarkupParser` |
+| [types.md](../../phpanta/docs/history/types.md) | Phpanta's: collections, exceptions, `Config` (now the app), `SitePath` (now `Path`), `File`, and the guidelines' first run |
+| [markup.md](../../phpanta/docs/history/markup.md) | Phpanta's: the markup tree — attributes, the scheme check, `RawHtml` becoming `MarkupParser` |
 | [tooling.md](tooling.md) | the release tooling built phase by phase, and the folders it found wrong |
 | [releases.md](releases.md) | the checklists of releases that have shipped |

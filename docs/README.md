@@ -1,6 +1,6 @@
 # neuro.SYS — site
 
-Music release site for neuro.SYS at `neurosys.gg`. Plain PHP/HTML/CSS, no framework. The front end
+Music release site for neuro.SYS at `neurosys.gg`. Plain PHP/HTML/CSS on Phpanta, the framework it grew and vendors at `phpanta/`. The front end
 is TypeScript compiled to ES modules; the output is committed, so the server still gets plain files.
 
 **[../README.md](../README.md) is the front door** — what you need installed (PHP 8.5 with three
@@ -13,7 +13,7 @@ how to run it, and what the licence does and does not cover. This file is the ma
 neurosys/
 ├── public/              ← webroot (maps to htdocs/ on Strato)
 │   ├── .htaccess        ← rewrites all requests to index.php
-│   ├── index.php        ← front controller (7 statements)
+│   ├── index.php        ← front controller: the last-resort handler, then Site::current()->run()
 │   └── assets/
 │       ├── css/style.css
 │       ├── js/           ← GENERATED from assets/ts/ — never hand-edit
@@ -22,26 +22,30 @@ neurosys/
 ├── assets/css/          ← stylesheet sources; GENERATED into public/assets/css/style.css
 ├── assets/ts/           ← front-end sources; outside public/, never deployed
 │   ├── main.ts          ← entry point, the only <script> the layout loads
-│   ├── Navigation.ts    ← SPA navigation
+│   ├── phpanta/         ← symlink to phpanta/assets/ts — the framework's modules, Navigation among them
 │   ├── model/           ← enums mirrored from the PHP side (parity-tested — see contracts.md)
 │   └── elements/        ← one module per component, named for its root element
 │
-├── src/NeuroSYS/        ← application classes (PSR-4, custom autoloader)
+├── src/NeuroSYS/        ← the site's classes (PSR-4, custom autoloader)
 │   ├── Controller/      ← one class per route group
-│   ├── Exception/       ← SiteException and the thirteen conditions under it (see architecture.md)
-│   ├── Http/            ← Request, Response types, HttpStatusCode, Header/MimeType
-│   │   └── Security/    ← CSP, Permissions-Policy, HSTS — as typed objects
-│   ├── Model/           ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform
+│   ├── Exception/       ← the two conditions only this site can be in
+│   ├── Model/           ← Release, Format, MusicalKey, Genre, ReleaseFormat, Platform, Demo, Waveform
 │   │   ├── Embed/       ← Embed interface + SoundCloudEmbed (+ style/option enums)
-│   │   └── Link/        ← FileLink interface + HiDriveLink
-│   ├── Service/         ← Auth, ReleaseRepository, ProfileRepository, DownloadLogger…
-│   ├── Support/         ← Collection<T>, SearchableCollection<T> (immutable), Route, JsonDeserializable
-│   ├── Text/            ← every word the site says, in both languages — see language.md
-│   ├── View/            ← one View class per page; each returns a tree of View\Html nodes
-│   │   ├── Html/        ← the markup tree: Node, Element, Text, Fragment, Document, MarkupParser
+│   │   ├── Link/        ← FileLink interface + HiDriveLink
+│   │   └── Production/  ← what the .flp knows: arrangement, time spent, plugins
+│   ├── Service/         ← ReleaseRepository, ProfileRepository, DemoGate, DownloadLogger…
+│   ├── Support/         ← SitePath and the route table
+│   ├── Text/            ← every word the site says, in both languages
+│   ├── View/            ← one View class per page; each returns a tree of markup nodes
+│   │   ├── Html/        ← the tags, attributes and classes this site adds
 │   │   └── Terminal/    ← Terminal, TerminalField, TerminalTone — declared, not written out
 │   ├── Layout.php       ← full HTML shell (nav, footer, scripts)
-│   └── Router.php       ← URL → Controller mapper
+│   └── Site.php         ← the app: identity, origins, and what Phpanta asks of a site
+│
+├── phpanta/             ← the framework — its own README, CLAUDE.md, docs, tests and licence
+│   ├── src/             ← Phpanta\: the wire, the markup tree, collections, the API, health, the router
+│   ├── assets/ts/       ← Navigation, the element guards, the framework's mirrored enums
+│   └── tools/           ← the CLI layer, the signed commands, the build tools, the dev router
 │
 ├── data/                ← above webroot, never web-accessible
 │   ├── releases.php     ← release catalogue (typed Release objects)
@@ -72,7 +76,7 @@ neurosys/
 | `/releases/{slug}/{format}` | HTTP 303 → HiDrive link (`flac`, `wav`, `mp3`, `aiff`, `stems`, `ogg`) |
 | `/imprint` | Impressum + Imprint — both, led by the visitor's language (`lang` cookie, else `Accept-Language`) |
 | `/privacy` | Datenschutzerklärung + Privacy Policy, from the two `data/privacy.*.html` files |
-| `/language/{language}` | the language switch: sets the `lang` cookie and 303s back — see [language.md](language.md) |
+| `/language/{language}` | the language switch: sets the `lang` cookie and 303s back — see [language.md](../phpanta/docs/language.md) |
 | `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
 | `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |
 | `/admin/stats` | download stats (HTTP basic auth) |
@@ -94,7 +98,7 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 
 ## Download logging
 
-**Off, deliberately, for legal reasons.** `Config::DOWNLOAD_LOGGING` is `false` and `log()` returns on it before the
+**Off, deliberately, for legal reasons.** `Site::DOWNLOAD_LOGGING` is `false` and `log()` returns on it before the
 entry is built, so the referrer is never read and nothing is written. `/admin/stats` says so rather than showing an
 empty table, and the verify script asserts the switch stays off.
 
@@ -108,13 +112,13 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 
 - [architecture.md](architecture.md) — the PHP side: the request traced end to end, the layers, the
   type discipline, and the recipes for adding a route, a page, a file host or an embed provider
-- [language.md](language.md) — German and English: which language a request gets, how a word finds
+- [language.md](../phpanta/docs/language.md) — German and English: which language a request gets, how a word finds
   it, the catalogs, and the switch and its cookie
 - [frontend.md](frontend.md) — the TypeScript and CSS: the build, the three kinds of custom element,
   the SPA router, and the no-JS cost
-- [collections.md](collections.md) — `Collection` and `SearchableCollection`: immutable, lazy, what
+- [collections.md](../phpanta/docs/collections.md) — `Collection` and `SearchableCollection`: immutable, lazy, what
   they may hold, and what deliberately stays an array
-- [guidelines.md](guidelines.md) — the five habits `GuidelineTest` watches for, and the three
+- [guidelines.md](../phpanta/docs/guidelines.md) — the five habits `GuidelineTest` watches for, and the three
   attributes that excuse an exception to them
 - [contracts.md](contracts.md) — the PHP↔TypeScript seam: every fact stated twice, what guards it,
   and the checklist for renaming one
@@ -122,7 +126,7 @@ Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates 
 **Working on it**
 
 - [deployment.md](deployment.md) — Strato setup and the deploy workflow
-- [health.md](health.md) — the `health` and `capability` services: what the host has, whether it
+- [health.md](../phpanta/docs/health.md) — the `health` and `capability` services: what the host has, whether it
   meets what the site needs, and how to declare a requirement of your own
 - [runtime.md](runtime.md) — Strato's PHP, the local Apache's and the CLI's, side by side: every
   extension and the settings that differ

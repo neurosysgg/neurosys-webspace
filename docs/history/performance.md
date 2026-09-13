@@ -2,7 +2,7 @@
 
 Before-and-after figures of past changes. The current measurements are in
 [../performance.md](../performance.md). The same changes from the code's side are in
-[frontend.md](frontend.md) and [markup.md](markup.md).
+[frontend.md](frontend.md) and [markup.md](../../phpanta/docs/history/markup.md).
 
 ## Bundling the prod tree
 

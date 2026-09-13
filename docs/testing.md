@@ -100,7 +100,7 @@ Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_
 
 Files are grouped by layer or by feature, not one-per-class. The site's are `ModelTest`,
 `ProductionTest`, `WaveformTest`, `EmbedTest`, `HtmlTest`, `ViewTest`, `PageTest`, `ServiceTest`,
-`SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `ConfigTest`, `SecurityTest`,
+`SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `AppTest`, `SecurityTest`,
 `SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `UpdateTest`, `RequirementTest`,
 `HealthTest`, `CapabilityTest`, `NoDiscardTest` and `GuidelineTest`; `PhpInputStream` and `UpdateFixture` are helpers rather than
 suites. The tooling's are listed under [The development tooling](#the-development-tooling).
@@ -182,7 +182,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   for something that is no longer one — an attribute left behind after the array became a collection
   is a sentence about code that is not there, and it reads as true because it used to be. A variadic
   is not a bare array and never will be; punctuation is not a name; and an attribute's own arguments
-  are prose, not code. See [guidelines.md](guidelines.md) for the four kinds of array and three kinds
+  are prose, not code. See [guidelines.md](../phpanta/docs/guidelines.md) for the four kinds of array and three kinds
   of literal that are on the lists, and for the one entry — a regex in two files — that is a real
   duplication kept on purpose. The third rule is table-driven: only the array functions a collection
   has a member for are asked about, so the table is both the rule and the answer to "which member
@@ -224,7 +224,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **A path-shaped URL really is a path on this site.** `HtmlTest` walks every spelling of a bare
   authority past `Element` — `//host`, `/\host`, and the two that hide one behind a tab or a
   newline, which no list of prefixes catches. `Element` puts the question to PHP 8.5's WHATWG
-  parser, so the answer covers spellings nobody wrote down. (history: [history/markup.md](history/markup.md))
+  parser, so the answer covers spellings nobody wrote down. (history: [history/markup.md](../phpanta/docs/history/markup.md))
 - **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
 - **A wrong admin password is refused.** `data/admin.php` ships with an empty `pass_hash`, so
@@ -252,9 +252,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   copies of an address is one with a wrong address eventually. `PageTest` asserts the four rendered
   blocks are byte-identical, not merely present.
 - **Every asset path resolves to a file, and every third-party origin is one the CSP accepts.**
-  A mistyped `Config::STYLESHEET` is a 404 that renders an unstyled page with nothing in a log; an
+  A mistyped `Site::STYLESHEET` is a 404 that renders an unstyled page with nothing in a log; an
   origin carrying a path is a CSP directive the browser drops while the URLs built from it stay
-  valid. `ConfigTest` walks both sets — the asset paths against `public/`, the origins through
+  valid. `AppTest` walks both sets — the asset paths against `public/`, the origins through
   `CspHost`, which is the same class the policy validates them with.
 - **Download cards carry `data-no-spa`.** Without it `Navigation` fetches the 303 and swallows it, and
   downloads silently stop working while every page still looks fine.
@@ -307,7 +307,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   is the one door a document from outside PHP comes through, and the standing rule that nothing a
   request can influence goes near it is only worth having if the next caller has to be argued for.
   `HtmlTest` scans `src/` and asserts both halves: `['PrivacyView.php']` calls `containingHtml(`, and
-  `['Element.php']` calls `MarkupParser::parse(`. (history: [history/markup.md](history/markup.md))
+  `['Element.php']` calls `MarkupParser::parse(`. (history: [history/markup.md](../phpanta/docs/history/markup.md))
 - **The real privacy policy parses.** Not a fixture — `HtmlTest` reads `data/privacy.de.html` and
   `data/privacy.en.html` themselves, so an e-recht24 re-export that brings an element or an attribute
   the enums do not have fails here rather than reaching a page. It also asserts the document says the
@@ -346,7 +346,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   enums, but they fail differently: a wrong value usually shows, a wrong name shows as nothing —
   `getAttribute` returns null, or the browser lays out an inert inline box. `tone` and `loaded` are
   the two with no PHP side, read only by the stylesheet, and no test can follow them.
-- **The origins the client uses are the origins the CSP allows.** `Config::PLAYER_HOST` is both the
+- **The origins the client uses are the origins the CSP allows.** `Site::PLAYER_HOST` is both the
   widget URL `SoundCloudPlayer.ts` builds and the whole of the CSP's `frame-src`; the parity test
   compares the two sides. A drift would show up only as a blocked frame in the console.
 - **Every class name is styled, and every styled class is named.** `HtmlTest` parses `style.css`
@@ -509,7 +509,7 @@ Twenty-six lines, in eight groups. Sixteen are deliberate — behind a switch th
 behind a credential the repository does not hold, or on a failure no test can arrange — and ten are
 a gap rather than a decision:
 
-- **`DownloadLogger::log()`'s body (7 lines)** is behind `Config::DOWNLOAD_LOGGING`, a `false`
+- **`DownloadLogger::log()`'s body (7 lines)** is behind `Site::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
   the switch injectable, which is exactly the guarantee that assertion exists to make — so the lines
   stay uncovered and the switch stays a constant. The locked append lives in

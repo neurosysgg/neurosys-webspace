@@ -2,7 +2,7 @@
 
 How collections, exceptions, `Config`, `SitePath`, the data-file vocabulary and the guidelines got the
 shape [collections.md](../collections.md), [guidelines.md](../guidelines.md) and
-[architecture.md](../architecture.md) describe. Format: see [README.md](README.md).
+[architecture.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/architecture.md) describe. Format: see [README.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/history/README.md).
 
 ## Collections
 
@@ -279,7 +279,7 @@ One-line framings, each cut from the docblock of the class that replaced the thi
 
 > Replaces an `array{int, array<string, int>, array<string, int>}`
 
-> The `(string)` cast is the one {@link \NeuroSYS\View\StatsView} used to make with
+> The `(string)` cast is the one `StatsView` used to make with
 > `array_map(strval(...), array_keys($rows))`.
 
 `StatsView` said of it: "which is what this replaced".

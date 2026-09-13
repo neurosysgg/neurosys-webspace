@@ -7,7 +7,8 @@ written the long way; an **`@`** hides whatever it happens to be in front of; an
 exception** names the condition "something".
 
 None of those arguments is worth anything if it only holds for as long as whoever writes the next
-method remembers it. `test/unit/GuidelineTest.php` is what holds it. How the rules arrived, and what
+method remembers it. neuro.SYS's `test/unit/GuidelineTest.php` is what holds it, over both source trees — the framework's
+and the site's. How the rules arrived, and what
 they found on their first run, is in [history/types.md](history/types.md).
 
 ---
@@ -118,18 +119,18 @@ severities it handles and hands everything else back to PHP untouched, and `watc
 messages, which is what `MarkupParser` uses to refuse a parse error. It costs **0.58 µs** a call,
 measured; against the 3.4 µs a failing `file_get_contents()` takes to fail, it does not show up.
 
-**This is the one rule that walks `tools/lib/` too**, and for the reason the others do not: what is
+**This is the one rule that walks the tooling too** — both `tools/lib/` trees —, and for the reason the others do not: what is
 excluded there are the doors, and a suppression is not a door — `PrivateKey` signs a call with the
 only private key this repository touches.
 
 ## The exception rule
 
-**Three questions, and `@throws` already answers the hardest.** Every `throw new` under `src/` names
-a class in `NeuroSYS\Exception`; every method that throws directly declares it; every `catch` names a
+**Three questions, and `@throws` already answers the hardest.** Every `throw new` under either source tree names
+a class in `Exception`; every method that throws directly declares it; every `catch` names a
 concrete class rather than `Throwable` or `Exception` — and one that binds a variable and then throws
 must hand that variable on. An SPL exception becomes ours by *extending what it already was*, so
 every `instanceof`, `catch` and `expectException` keeps matching; see
-[architecture.md](architecture.md#exceptions).
+[architecture.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/architecture.md#exceptions).
 
 **Three smaller guidelines ride along**, all at zero and all there as regressions rather than as
 work:
@@ -146,5 +147,5 @@ work:
 there because PHP has no generics rather than because anybody chose it, and a fourth attribute for a
 set that cannot change would be ceremony.
 
-**`tools/lib/`**, except for the `@` rule: it is not deployed, it is outside the coverage source, and
+**The tooling (`tools/lib/`)**, except for the `@` rule: it is not deployed, it is outside the coverage source, and
 the doors it is made of (`unpack`, `preg_match`, `file`) are most of what it does.

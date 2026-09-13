@@ -1,9 +1,15 @@
 # Language
 
-Every page is written in English and German, at the same address. The request decides which, and
+The mechanism is the framework's — `Translatable`, `Translation` and `Translated`, `Phrase`,
+`Languages`, `Request::language()`, and the tree putting each word into the nearest `lang`. The
+examples are neuro.SYS's: its catalogs under `Texts`, its footer switch and its legal pages are the
+site's own, and stand here for any site's.
+
+Every page is written in each language its site offers — neuro.SYS's are English and German — at
+the same address. The request decides which, and
 every word a page shows is a `Translatable` that is put into that language when the page renders. A
 view never names a language. This page is how that works and how to write for it; the legal pages'
-own arrangement — both halves, always — is in [architecture.md](architecture.md#language).
+own arrangement — both halves, always — is in [architecture.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/architecture.md#language).
 
 ## Which language a request gets
 
@@ -112,7 +118,7 @@ path that names another host. No referrer, a refused one, or a switch itself goe
 
 The cookie is set only on that click and holds only `de` or `en`. The privacy policy names it in
 both languages, as storage strictly necessary for a service the visitor asked for (§ 25 Abs. 2 Nr. 2
-TDDDG). See [security.md](security.md#the-language-cookie).
+TDDDG). See [security.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/security.md#the-language-cookie).
 
 ## The client
 

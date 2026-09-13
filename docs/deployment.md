@@ -3,12 +3,13 @@
 ## The layout on the server
 
 The deployment sits in `cgi-bin/` on Strato, and the webroot is a directory inside it. That is what
-`Config::above()` resolves to — the repository root locally, `cgi-bin/` on the server — and every
+`App::above()` resolves to — the repository root locally, `cgi-bin/` on the server — and every
 other path hangs off it, so `data/` is a sibling of the webroot rather than inside it:
 
 ```
-cgi-bin/                 ← Config::above()
+cgi-bin/                 ← App::above()
 ├── neurosys/            ← the webroot (DOCUMENT_ROOT) ← build/dist/public/
+├── phpanta/             ← phpanta/src/ + phpanta/autoload.php — the framework, written first by a push
 ├── src/                 ← src/, with the prod AssetManifest.php laid over it
 ├── autoload.php
 ├── data/                ← NOT web-exposed; releases, profiles, credentials, demos
@@ -143,7 +144,7 @@ Two more services on the same endpoint, signed with the same key and reached by 
 - **`capability` lists what the host has, with no verdict**: every extension, every directive, the
   clock, every `data/` file, the error log's tail.
 
-Both answer what `update version` deliberately does not. See [health.md](health.md), and
+Both answer what `update version` deliberately does not. See [health.md](../phpanta/docs/health.md), and
 [runtime.md](runtime.md) for what they said about each runtime, side by side.
 
 **They are the one source for what the live runtime is.** The extensions are declared in

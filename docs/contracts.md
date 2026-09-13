@@ -141,7 +141,7 @@ The absence of a constant is a decision here, not an oversight.
   font stack. None of it is a contract with our own code. `SoundCloudOption` is enumerated only
   because the *server* says which options are on.
 - **What means nothing outside the file that owns it** — `CspHost`'s origin pattern, `HiDriveLink`'s
-  share-id pattern, `Navigation`'s event name. Moving those to `Config` would only make them
+  share-id pattern, `Navigation`'s event name. Moving those to `Site` would only make them
   reachable from everywhere.
 
 ---

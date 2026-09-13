@@ -14,7 +14,7 @@ Three PHP runtimes run this code, and they are not the same PHP:
 counts and `health` tally were re-read on **2026-09-11**, when `intl` was declared and switched on
 locally. What the site actually *needs* is
 declared in `Support/RequirementInitialization.php` and checked by `health v1`; see
-[health.md](health.md). When a table here disagrees with the API, the API is right, and this page
+[health.md](../phpanta/docs/health.md). When a table here disagrees with the API, the API is right, and this page
 is the one to update. [Re-reading](#re-reading-them) is at the end.
 
 ## At a glance

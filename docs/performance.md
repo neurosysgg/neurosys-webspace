@@ -120,7 +120,7 @@ and the counts are not:
 `137 + 223 + 81 = 441`. **Every builder call constructs a copy**, so a document of 137 rendered
 elements costs 3.2 element objects each. That is the immutable-builder design showing up as a
 number, it is about 0.35 ms, and it is the price of the guarantee `#[\NoDiscard]` and `readonly`
-are there to make — see [collections.md](collections.md). Nothing here suggests changing it.
+are there to make — see [collections.md](../phpanta/docs/collections.md). Nothing here suggests changing it.
 
 The one part of the tree that was worth measuring separately is the preload block, because it is
 generated rather than authored:

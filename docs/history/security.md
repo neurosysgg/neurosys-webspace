@@ -3,7 +3,7 @@
 How the security posture in [../security.md](../security.md) got its current shape: the dated
 assessments and the findings they closed, the request-parsing and header faults, and the CSP
 allowances that were removed. The API's own story is in [api.md](api.md); the markup tree's in
-[markup.md](markup.md).
+[markup.md](../../phpanta/docs/history/markup.md).
 
 ## The assessments
 
@@ -319,7 +319,7 @@ browser sends credentials because of the realm rather than the origin.
 
 ### 2026-09-09 — the unaudited hole closes (`17cca79`)
 
-*From security.md's "The response". The full story is in [markup.md](markup.md).*
+*From security.md's "The response". The full story is in [markup.md](../../phpanta/docs/history/markup.md).*
 
 **There is no unaudited hole, and there used to be one.** `RawHtml` emitted `data/privacy.*.html`
 verbatim; `MarkupParser` reads those two files into the tree instead, so a hand-authored document is

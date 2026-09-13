@@ -1,7 +1,7 @@
 # History — the markup tree
 
-How the tree [architecture.md](../architecture.md#the-markup-tree) describes got its shape. Format:
-see [README.md](README.md).
+How the tree [architecture.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/architecture.md#the-markup-tree) describes got its shape. Format:
+see [README.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/history/README.md).
 
 ## Attributes
 

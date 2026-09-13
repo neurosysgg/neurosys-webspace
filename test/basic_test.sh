@@ -361,6 +361,15 @@ else
     fail "markup written as a string: $(echo "$markup" | tr '\n' ' ')"
 fi
 
+# The framework cannot know about the site that uses it. BoundaryTest holds its code to that; this
+# holds everything else under phpanta/ to it too — a docblock, a doc or a tool that names a site
+# class is a reference that goes nowhere once phpanta/ is checked out on its own.
+naming=$(grep -rlE NeuroSYS\ "$REPO/phpanta" 2>/dev/null || true)
+if [[ -z "$naming" ]]; then
+    pass "nothing under phpanta/ names a site class"
+else
+    fail "phpanta/ names the site: $(echo "$naming" | sed "s|$REPO/||g" | tr '\n' ' ')"
+fi
 # The tooling makes exactly one kind of outbound request — an upload to SoundCloud — and one class
 # makes it, the way Probe is the one class that shells out. Options set once are options that cannot
 # disagree between call sites, and two of them are load-bearing: certificates are verified, and

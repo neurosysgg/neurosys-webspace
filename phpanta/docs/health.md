@@ -13,7 +13,7 @@ The one overlap is deliberate. `capability v1 extensions` lists what is **regist
 Registered and working are two questions.
 
 What `capability` said about Strato, the local Apache and the CLI, side by side, is in
-[runtime.md](runtime.md).
+[runtime.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/runtime.md).
 
 ## Addresses
 
@@ -46,7 +46,7 @@ settings
 
 **Each area has an address of its own and is never a parameter.** The signature does not cover the
 query string, so `?area=settings` would be the one input reaching a verified handler unsigned. See
-[security.md](security.md#the-api).
+[security.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/security.md#the-api).
 
 ## The status is the verdict
 
@@ -70,7 +70,7 @@ says what failed.
 for byte. Nothing in `public/.htaccess` replaces an error body either. A front proxy *can*
 substitute its own page for a 5xx, which is why this was asked of the live host rather than assumed,
 with a probe push declaring one impossible requirement. Ask again the same way if the host changes;
-see [deployment.md](deployment.md#probing-the-live-host). ([history](history/api.md))
+see [deployment.md](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/deployment.md#probing-the-live-host). ([history](https://github.com/neurosysgg/neurosys-webspace/blob/master/docs/history/api.md))
 
 ## Declaring a requirement
 
@@ -150,7 +150,11 @@ final readonly class SpoolWritable implements Requirement
   this site's, so it can be lifted out whole. The site's own requirements live in
   `Service/Health/`.
 
-## What the site declares
+## The framework's floor
+
+What `health v1` checks is `App::requirements()`: this floor, declared in
+`Support\RequirementInitialization`, and then whatever a site adds in its `ownRequirements()`.
+neuro.SYS adds nothing, so its report is this table.
 
 | Area | Requirement | Floor | Level |
 |---|---|---|---|
@@ -164,10 +168,10 @@ final readonly class SpoolWritable implements Requirement
 | | `opcache.enable` | on | optional |
 | | `register_argc_argv` | off, set by `public/.user.ini` | optional |
 | deployment | `DOCUMENT_ROOT` | a directory inside this deployment | required |
-| | every tracked `DataFile` | present | required |
+| | every tracked data file | present | required |
 | | `logs/` | writable, so PHP can log into it | optional |
 
-- **`HealthTest` pins these values to their sources.** It checks the extension list and the PHP
+- **neuro.SYS's `HealthTest` pins these values to their sources.** It checks the extension list and the PHP
   floor against `composer.json`, and the two size floors against `MAX_BODY`.
 - **The memory floor comes from the push.** At its peak a push holds three copies of about
   `MAX_BODY` at once: the body, the decoded tar, and each file's bytes. The fourth copy is headroom
