@@ -54,8 +54,9 @@ final readonly class Deployment
     {
         return match ($root) {
             UpdateRoot::Public   => $this->webroot,
-            UpdateRoot::Source   => $this->above->directory($root->value),
-            UpdateRoot::Autoload => null,
+            UpdateRoot::Source    => $this->above->directory($root->value),
+            UpdateRoot::Framework => $this->above->directory($root->value),
+            UpdateRoot::Autoload  => null,
         };
     }
 

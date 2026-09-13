@@ -178,7 +178,22 @@ final readonly class PushUpdate implements Command
     }
 
     /**
-     * Everything a push carries, named as the server expects.
+     * Everything a push carries, named as the server expects — in the order it is written.
+     *
+     * **The server writes a payload in the order it is packed**, so the order is the dependency
+     * order, and two dependencies decide it:
+     *
+     * - `public/index.php` is the one file every request runs, so it changes only once everything
+     *   it will load is already there: the framework, then the site's source, then the autoloader
+     *   that finds both. Until then the old `index.php` runs against the new classes — which works,
+     *   because the mirror deletes nothing until every file is written.
+     * - The prod `AssetManifest.php` names stamped asset URLs, so it lands only once the bytes those
+     *   URLs name are up — after the webroot, last of all. Before that, a visitor could cache the
+     *   old bytes under the new stamp. The working tree's copy, written with the rest of `src/`,
+     *   carries the debug stamp, which nothing links to once the push is done.
+     *
+     * The framework is only packed where there is one — `phpanta/src/` and `phpanta/autoload.php`,
+     * and nothing else of the repository it comes from.
      *
      * @param Directory $dist
      * @return Collection<PackedFile>
@@ -186,18 +201,23 @@ final readonly class PushUpdate implements Command
     private function files(Directory $dist): Collection
     {
         $repository = new Directory(dirname(__DIR__, 3));
+        $framework  = $repository->directory('phpanta');
+        $files      = new Collection(PackedFile::class);
+
+        if ($framework->file('autoload.php')->exists()) {
+            $files = $files
+                ->with(...TarWriter::tree($framework->directory('src'), 'phpanta/src')->toValues())
+                ->with(new PackedFile('phpanta/autoload.php', (string) $framework->file('autoload.php')->read()));
+        }
 
         // src/ comes from build/dist where it differs and from the working tree otherwise, which is
         // the one file deploy.sh also overlays: AssetManifest.php is stamped for the minified bytes
         // rather than the readable ones. Taking dist's copy last is what makes it win.
-        $files = TarWriter::tree($dist->directory('public'), 'public')
+        return $files
             ->with(...TarWriter::tree($repository->directory('src'), 'src')->toValues())
+            ->with(new PackedFile('autoload.php', (string) $repository->file('autoload.php')->read()))
+            ->with(...TarWriter::tree($dist->directory('public'), 'public')->toValues())
             ->with(...TarWriter::tree($dist->directory('src'), 'src')->toValues());
-
-        return $files->with(new PackedFile(
-            'autoload.php',
-            (string) $repository->file('autoload.php')->read(),
-        ));
     }
 
     /**

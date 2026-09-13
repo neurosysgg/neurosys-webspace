@@ -265,7 +265,7 @@ final class UpdateTest extends TestCase
         self::assertNull(UpdateRoot::of('data/demos.php'));
         self::assertNull(UpdateRoot::of('data'));
         self::assertSame(
-            ['public', 'src', 'autoload.php'],
+            ['public', 'src', 'autoload.php', 'phpanta'],
             array_column(UpdateRoot::cases(), 'value'),
         );
     }
@@ -284,9 +284,14 @@ final class UpdateTest extends TestCase
         self::assertSame(UpdateRoot::Public, UpdateRoot::of('public/index.php'));
         self::assertSame(UpdateRoot::Source, UpdateRoot::of('src'));
         self::assertSame(UpdateRoot::Autoload, UpdateRoot::of('autoload.php'));
+        self::assertSame(UpdateRoot::Framework, UpdateRoot::of('phpanta'));
+        self::assertSame(UpdateRoot::Framework, UpdateRoot::of('phpanta/src/App.php'));
+        self::assertSame(UpdateRoot::Framework, UpdateRoot::of('phpanta/autoload.php'));
+        self::assertNull(UpdateRoot::of('phpantasm/x.php'), 'a prefix is a whole segment, not a string');
         self::assertFalse(UpdateRoot::Autoload->isTree(), 'a single-file root has no tree to mirror');
         self::assertTrue(UpdateRoot::Public->isTree());
         self::assertTrue(UpdateRoot::Source->isTree());
+        self::assertTrue(UpdateRoot::Framework->isTree());
     }
 
     /**
@@ -643,6 +648,33 @@ final class UpdateTest extends TestCase
         self::assertSame(
             'autoload.php',
             $deployment->nameOf(UpdateRoot::Autoload, $this->sandbox . '/autoload.php'),
+        );
+    }
+
+    /**
+     * The framework's root lands beside `src/`, one level above the webroot, and maps back the same
+     * way — and a deployment that has never been sent it has no directory, so nothing to mirror.
+     *
+     * @return void
+     */
+    public function testTheFrameworkRootLandsBesideTheSource(): void
+    {
+        $deployment = new Deployment(
+            new Directory($this->sandbox),
+            new Directory($this->sandbox . '/public'),
+        );
+
+        self::assertSame($this->sandbox . '/phpanta', $deployment->directory(UpdateRoot::Framework)?->path);
+        self::assertFalse($deployment->directory(UpdateRoot::Framework)?->exists());
+
+        self::assertSame(
+            $this->sandbox . '/phpanta/src/App.php',
+            $deployment->destination(UpdateRoot::Framework, 'phpanta/src/App.php')->path,
+        );
+
+        self::assertSame(
+            'phpanta/src/App.php',
+            $deployment->nameOf(UpdateRoot::Framework, $this->sandbox . '/phpanta/src/App.php'),
         );
     }
 

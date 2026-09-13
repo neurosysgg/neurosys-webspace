@@ -13,6 +13,7 @@ use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Model\Health\HealthFact;
 use NeuroSYS\Model\Health\HealthSection;
+use NeuroSYS\Model\Update\UpdateRoot;
 use NeuroSYS\Support\Collection;
 
 /**
@@ -65,6 +66,7 @@ final readonly class CapabilityDeployment implements ApiHandler
         return new PlainTextResponse(HttpStatusCode::Ok, HealthSection::document(
             HealthSection::facts('deployment', new Collection(HealthFact::class)
                 ->with(new HealthFact('webroot', self::webroot()))
+                ->with(new HealthFact(UpdateRoot::Framework->value, self::framework()))
                 ->with(...App::current()->dataFiles()
                     ->map(static fn(DataFileName $file): HealthFact => new HealthFact($file->value, self::state($file)))
                     ->toValues())),
@@ -87,6 +89,22 @@ final readonly class CapabilityDeployment implements ApiHandler
         } catch (UpdateException $refusal) {
             return $refusal->getMessage();
         }
+    }
+
+    /**
+     * Where the framework is deployed, or that it is not yet.
+     *
+     * Its own line because the first push that carries it is the one worth checking: a deployment
+     * whose updater knows the root but has never been sent it answers `absent`, and one that has
+     * answers the directory.
+     *
+     * @return string
+     */
+    private static function framework(): string
+    {
+        $directory = App::current()->above()->directory(UpdateRoot::Framework->value);
+
+        return $directory->exists() ? $directory->path : self::ABSENT;
     }
 
     /**

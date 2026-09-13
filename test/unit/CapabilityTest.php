@@ -263,6 +263,23 @@ final class CapabilityTest extends TestCase
         }
     }
 
+    /**
+     * The framework has a line of its own, saying where it is deployed or that it is not yet — which
+     * is what the first push that carries it is checked by.
+     *
+     * @return void
+     */
+    public function testTheFrameworkReportsWhereItIsDeployed(): void
+    {
+        $body      = self::body(new CapabilityDeployment()->handle());
+        $framework = Site::current()->above()->directory('phpanta');
+
+        self::assertMatchesRegularExpression(
+            '/^  phpanta +' . preg_quote($framework->exists() ? $framework->path : 'absent', '/') . '$/m',
+            $body,
+        );
+    }
+
     // ───────────────────────────── errors ─────────────────────────────
 
     /**

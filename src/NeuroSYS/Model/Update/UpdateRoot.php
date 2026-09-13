@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Update;
 
 /**
- * The UpdateRoot enum. The three things a signed payload may write, and where each one lands.
+ * The UpdateRoot enum. The four things a signed payload may write, and where each one lands.
  *
  * **This enum is the allowlist.** A member name whose first segment is not one of these values —
  * and `data` conspicuously is not — reaches no destination at all, which is what keeps
@@ -41,6 +41,18 @@ enum UpdateRoot: string
      * a tree can.
      */
     case Autoload = 'autoload.php';
+
+    /**
+     * The framework, beside `src/`: `phpanta/src/` and `phpanta/autoload.php`, and nothing else of
+     * the repository it is vendored from — its tests, tools and docs are not deployed any more than
+     * the site's are.
+     *
+     * **A root before anything ships into it**, which is the order that makes the first push of the
+     * framework an ordinary one: a deployment whose updater already knows this root takes a payload
+     * carrying it, where one that did not would refuse its first member. A root with no directory
+     * on the server has nothing surplus in it, so a push that names none of it changes nothing.
+     */
+    case Framework = 'phpanta';
 
     /**
      * The root a payload member belongs to, or null if it belongs to none.
