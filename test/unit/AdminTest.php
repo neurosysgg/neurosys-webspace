@@ -10,13 +10,10 @@ use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Site;
 use NeuroSYS\View\StatsView;
 use Phpanta\CredentialFile;
-use Phpanta\Http\BasicChallenge;
-use Phpanta\Http\Header;
 use Phpanta\Http\HttpStatusCode;
 use Phpanta\Http\Request;
 use Phpanta\Http\ResponseHeader;
 use Phpanta\Service\Auth;
-use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
 use Phpanta\Test\TestRequest;
@@ -25,25 +22,20 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Random\RandomException;
 use ReflectionMethod;
-use ReflectionProperty;
 
 /**
- * The admin path: the gate, and the log it protects.
+ * The admin path: the shipped gate, the page behind it, and the log it protects.
  *
- * Nothing else exercises the comparison. `data/admin.php` ships with an empty `pass_hash`, so
- * `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()` nor
- * `password_verify()` runs — which means `test/basic_test.sh`'s two `/admin/stats → 401` checks
- * prove the route is gated without ever comparing a credential. These tests supply a real bcrypt
- * hash, so the comparison itself is what is under test.
+ * The comparison itself — the right pair, every wrong one, the timing rule, an empty hash — is the
+ * framework's `AuthTest`, against credentials files it writes. What stays here is what only this
+ * repository makes true: that the `data/admin.php` it ships opens for nobody, that `/admin/stats`
+ * is behind it, and what the stats page does with the log.
  */
 #[CoversClass(Auth::class)]
 #[CoversClass(StatsController::class)]
 #[CoversClass(DownloadStats::class)]
 final class AdminTest extends TestCase
 {
-    /** @var array<string, mixed> */
-    private array $serverBackup;
-
     private Directory $fixtures;
 
     /** Names one fixture from the next inside the one directory. */
@@ -54,8 +46,7 @@ final class AdminTest extends TestCase
      */
     protected function setUp(): void
     {
-        $this->serverBackup = $_SERVER;
-        $this->fixtures     = Directory::temporary('neurosys-admin-');
+        $this->fixtures = Directory::temporary('neurosys-admin-');
     }
 
     /**
@@ -63,8 +54,6 @@ final class AdminTest extends TestCase
      */
     protected function tearDown(): void
     {
-        $_SERVER = $this->serverBackup;
-
         $this->fixtures->remove();
     }
 
@@ -84,138 +73,21 @@ final class AdminTest extends TestCase
     }
 
     /**
-     * A credentials file of the shape both gates read.
-     *
-     * Cost 4 is bcrypt's minimum and keeps the suite fast; `password_verify()` reads the cost out
-     * of the hash, so this exercises exactly the same code path a production hash does.
-     *
-     * @param string $user
-     * @param string $password
-     * @return File
-     */
-    private function credentials(string $user, string $password): File
-    {
-        $hash = $password === '' ? '' : password_hash($password, PASSWORD_BCRYPT, ['cost' => 4]);
-
-        return $this->temp(
-            '<?php return ' . var_export(['user' => $user, 'pass_hash' => $hash], true) . ';',
-            '.php',
-        );
-    }
-
-    /**
      * @param string $user
      * @param string $password
      * @return Request
      */
-    private function request(string $user, string $password): Request
+    private static function request(string $user, string $password): Request
     {
-        $_SERVER = ['REQUEST_URI' => '/admin/stats', 'PHP_AUTH_USER' => $user, 'PHP_AUTH_PW' => $password];
-
-        return Request::fromGlobals();
+        return TestRequest::get('/admin/stats')->withCredentials($user, $password)->request();
     }
 
     // ───────────────────────────── the gate ─────────────────────────────
 
     /**
-     * @return void
-     */
-    public function testTheRightUserAndPasswordAreAccepted(): void
-    {
-        self::assertTrue(
-            Auth::accepts($this->request('admin', 'hunter2'), $this->credentials('admin', 'hunter2')),
-        );
-    }
-
-    /**
-     * The comparison neither suite had ever run.
-     *
-     * @param string $user
-     * @param string $password
-     * @return void
-     */
-    #[DataProvider('wrongCredentialProvider')]
-    public function testAnythingOtherThanTheRightPairIsRejected(string $user, string $password): void
-    {
-        self::assertFalse(
-            Auth::accepts($this->request($user, $password), $this->credentials('admin', 'hunter2')),
-        );
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function wrongCredentialProvider(): iterable
-    {
-        yield 'wrong password'        => ['admin', 'hunter3'];
-        yield 'wrong user'            => ['root', 'hunter2'];
-        yield 'both wrong'            => ['root', 'hunter3'];
-        yield 'no credentials'        => ['', ''];
-        yield 'empty password'        => ['admin', ''];
-        yield 'empty user'            => ['', 'hunter2'];
-        yield 'password prefix'       => ['admin', 'hunter'];
-        yield 'password with suffix'  => ['admin', 'hunter22'];
-        yield 'user prefix'           => ['adm', 'hunter2'];
-        yield 'case-changed user'     => ['Admin', 'hunter2'];
-        yield 'case-changed password' => ['admin', 'Hunter2'];
-        yield 'the hash as password'  => ['admin', '$2y$04$'];
-    }
-
-    /**
-     * The password comparison runs even when the user name is wrong.
-     *
-     * `hash_equals() && password_verify()` leaked, as a pair, what neither leaks alone: bcrypt is
-     * deliberately slow, so a wrong user name came back in microseconds while a right one paid the
-     * full cost. That difference is measurable across a network, and it tells an attacker which
-     * half of the credential they already hold — the half a brute-force attempt gets no other
-     * feedback on.
-     *
-     * Measured rather than read off the source, because the property is behavioural. Cost 10 puts a
-     * verify in the tens of milliseconds; the floor asserted here is a small fraction of that, and
-     * a short-circuit would return in microseconds — so the gap is three orders of magnitude and
-     * load can only push the measurement the safe way.
-     *
-     * @return void
-     */
-    public function testAWrongUserNameStillPaysForThePasswordCheck(): void
-    {
-        $file = $this->temp(
-            '<?php return ' . var_export([
-                'user'      => 'admin',
-                'pass_hash' => password_hash('hunter2', PASSWORD_BCRYPT, ['cost' => 10]),
-            ], true) . ';',
-            '.php',
-        );
-
-        $start = hrtime(true);
-        self::assertFalse(Auth::accepts($this->request('wrong-user-entirely', 'hunter2'), $file));
-        $elapsed = (hrtime(true) - $start) / 1_000_000;
-
-        self::assertGreaterThan(
-            1.0,
-            $elapsed,
-            'A wrong user name returned before bcrypt could have run — the comparisons are '
-            . 'short-circuiting again, which makes the user name enumerable by timing.',
-        );
-    }
-
-    /**
-     * An unconfigured gate is closed, not open. This is the state the repository actually ships:
-     * `data/admin.php` is a placeholder whose `pass_hash` is empty, because the live credentials
-     * are uploaded by hand and `deploy.sh` excludes the file.
-     *
-     * @return void
-     */
-    public function testAnEmptyHashAcceptsNobodyIncludingAnEmptyPassword(): void
-    {
-        $file = $this->credentials('admin', '');
-
-        self::assertFalse(Auth::accepts($this->request('admin', ''), $file));
-        self::assertFalse(Auth::accepts($this->request('admin', 'hunter2'), $file));
-    }
-
-    /**
-     * The placeholder in the repository, checked as the file it is rather than as a fixture.
+     * The placeholder in the repository, checked as the file it is rather than as a fixture. An
+     * unconfigured gate is closed, not open: `pass_hash` is empty because the live credentials are
+     * uploaded by hand and `deploy.sh` excludes the file.
      *
      * @return void
      */
@@ -223,64 +95,8 @@ final class AdminTest extends TestCase
     {
         $file = Site::current()->dataFile(CredentialFile::Admin);
 
-        self::assertFalse(Auth::accepts($this->request('admin', ''), $file));
-        self::assertFalse(Auth::accepts($this->request('admin', 'admin'), $file));
-    }
-
-    /**
-     * Absent is how pre-launch auth is switched off, and `data/site_auth.php` is gitignored so
-     * the repository copy cannot switch it on.
-     *
-     * @return void
-     */
-    public function testTheSiteGateDoesNothingWhenThereIsNoCredentialsFile(): void
-    {
-        self::assertNull(Auth::siteGate($this->request('', ''), new File('/nonexistent/site_auth.php')));
-    }
-
-    /**
-     * @param string $method
-     * @return void
-     */
-    #[DataProvider('gateProvider')]
-    public function testAGateLetsTheRightCredentialsThrough(string $method): void
-    {
-        self::assertNull(
-            Auth::{$method}($this->request('preview', 'hunter2'), $this->credentials('preview', 'hunter2')),
-        );
-    }
-
-    /**
-     * A gate that refuses answers with the challenge, in the site's own realm, and nothing else —
-     * the prompt is the whole of what a visitor sees.
-     *
-     * @param string $method
-     * @return void
-     */
-    #[DataProvider('gateProvider')]
-    public function testAGateRefusesTheWrongCredentialsWithTheSitesChallenge(string $method): void
-    {
-        $refusal = Auth::{$method}($this->request('preview', 'wrong'), $this->credentials('preview', 'hunter2'));
-
-        self::assertNotNull($refusal);
-
-        $answer = $refusal->answer($this->request('preview', 'wrong'));
-
-        self::assertSame(HttpStatusCode::Unauthorized, $answer->status());
-        self::assertSame(
-            new BasicChallenge(Site::current()->name())->render(),
-            $answer->header(ResponseHeader::WwwAuthenticate)?->value->render(),
-        );
-        self::assertSame('', $answer->body());
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function gateProvider(): iterable
-    {
-        yield 'site'  => ['siteGate'];
-        yield 'admin' => ['adminGate'];
+        self::assertFalse(Auth::accepts(self::request('admin', ''), $file));
+        self::assertFalse(Auth::accepts(self::request('admin', 'admin'), $file));
     }
 
     /**
@@ -302,27 +118,25 @@ final class AdminTest extends TestCase
     /**
      * The one page on the site reached by handing over a password, and the only one told not to be
      * kept. `no-store` keeps it out of the disk cache a shared or borrowed machine would leave it
-     * in, and `private` says the same to anything in between.
+     * in, and `private` says the same to anything in between — and a page told how it may be kept
+     * carries no `ETag`, so there is no validator to hand it back on.
      *
-     * Reached through reflection because handle() asks
-     * adminGate() against `data/admin.php`, whose shipped pass_hash is empty, so nothing in
-     * this repository can get past the gate to the response behind it. The header is the part worth
-     * asserting, and it does not need the gate opened to be asserted.
+     * The response is built through reflection because handle() asks adminGate() against
+     * `data/admin.php`, whose shipped pass_hash is empty, so nothing in this repository can get past
+     * the gate to the response behind it. The headers are the part worth asserting, and they do not
+     * need the gate opened to be asserted.
      *
      * @return void
      */
     public function testTheStatsPageTellsTheBrowserNotToKeepIt(): void
     {
-        $response = new ReflectionMethod(StatsController::class, 'response')
-            ->invoke(null, new StatsView());
+        $answer = new ReflectionMethod(StatsController::class, 'response')
+            ->invoke(null, new StatsView())
+            ->answer(self::request('admin', 'admin'));
 
-        /** @var Collection<Header> $headers */
-        $headers = new ReflectionProperty($response, 'headers')->getValue($response);
-
-        self::assertSame(
-            ['Cache-Control: no-store, private'],
-            $headers->map(static fn(Header $h): string => $h->line())->toValues(),
-        );
+        self::assertSame(HttpStatusCode::Ok, $answer->status());
+        self::assertSame('no-store, private', $answer->header(ResponseHeader::CacheControl)?->value->render());
+        self::assertNull($answer->header(ResponseHeader::ETag));
     }
 
     // ───────────────────────── the log the gate protects ─────────────────────────

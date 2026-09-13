@@ -20,40 +20,35 @@ use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\PrivacyView;
 use NeuroSYS\View\ReleasesView;
-use Phpanta\Exception\MimeTypeException;
 use Phpanta\Http\Answer;
-use Phpanta\Http\CacheControl;
-use Phpanta\Http\ETag;
 use Phpanta\Http\Header;
 use Phpanta\Http\HttpStatusCode;
 use Phpanta\Http\MimeType;
 use Phpanta\Http\PlainTextResponse;
 use Phpanta\Http\RedirectResponse;
 use Phpanta\Http\Request;
+use Phpanta\Http\RequestHeader;
 use Phpanta\Http\ResponseHeader;
 use Phpanta\Http\SecurityHeader;
 use Phpanta\Http\TextBody;
-use Phpanta\Http\TopLevelType;
 use Phpanta\Http\ViewResponse;
-use Phpanta\Support\Charset;
-use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
 use Phpanta\Test\TestRequest;
-use Phpanta\Text\Language;
-use Phpanta\Text\Translatable;
-use Phpanta\Text\Verbatim;
-use Phpanta\View\Html\Element;
-use Phpanta\View\Html\HtmlTag;
-use Phpanta\View\Html\Node;
-use Phpanta\View\View;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionException;
-use ReflectionMethod;
 use ReflectionProperty;
 
+/**
+ * The site's controllers, and the site's shell around a page.
+ *
+ * What a {@link ViewResponse} does with any view — the document or the fragment, the validator,
+ * the 304 — is the framework's, and asserted in its own suite under its test app. What is here is
+ * which page each of this site's controllers answers with, and the one end-to-end proof that this
+ * site's layout wraps a page and not the fragment.
+ */
 #[CoversClass(ViewResponse::class)]
 #[CoversClass(RedirectResponse::class)]
 #[CoversClass(PlainTextResponse::class)]
@@ -61,7 +56,6 @@ use ReflectionProperty;
 #[CoversClass(TextBody::class)]
 #[CoversClass(HttpStatusCode::class)]
 #[CoversClass(MimeType::class)]
-#[CoversClass(Charset::class)]
 #[CoversClass(DownloadController::class)]
 #[CoversClass(ReleaseController::class)]
 #[CoversClass(NotFoundController::class)]
@@ -72,27 +66,14 @@ use ReflectionProperty;
 #[CoversClass(ReleasesController::class)]
 final class ResponseTest extends TestCase
 {
-    /** @var array<string, mixed> */
-    private array $serverBackup;
-
     /** @var list<File> */
     private array $fixtures = [];
 
     /**
      * @return void
      */
-    protected function setUp(): void
-    {
-        $this->serverBackup = $_SERVER;
-    }
-
-    /**
-     * @return void
-     */
     protected function tearDown(): void
     {
-        $_SERVER = $this->serverBackup;
-
         foreach ($this->fixtures as $file) {
             $file->directory()->remove();
         }
@@ -100,330 +81,68 @@ final class ResponseTest extends TestCase
     }
 
     /**
+     * A GET for $path.
+     *
      * @param string $path
-     * @param bool $ajax
-     * @param string $ifNoneMatch
      * @return Request
      */
-    private function request(string $path, bool $ajax = false, string $ifNoneMatch = ''): Request
+    private static function request(string $path): Request
     {
-        $_SERVER = ['REQUEST_URI' => $path];
-        if ($ajax) {
-            $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
-        }
-        if ($ifNoneMatch !== '') {
-            $_SERVER['HTTP_IF_NONE_MATCH'] = $ifNoneMatch;
-        }
-        return Request::fromGlobals();
+        return TestRequest::get($path)->request();
     }
 
     /**
-     * The validator a response would send for $request, asked of the code that computes it.
+     * What $controller answers a GET for $path with — as Navigation asks for it, when $fragment,
+     * which is the page's title and content with none of the layout around it.
+     *
+     * @param object $controller A controller of this site's.
+     * @param string $path
+     * @param bool   $fragment
+     * @return Answer
+     */
+    private static function answer(object $controller, string $path, bool $fragment = false): Answer
+    {
+        $request = $fragment
+            ? TestRequest::get($path)->with(RequestHeader::RequestedWith, 'XMLHttpRequest')->request()
+            : self::request($path);
+
+        return $controller->handle($request)->answer($request);
+    }
+
+    /**
+     * The view a response renders, which it offers no accessor for: which view a route means is
+     * the whole of what a static route's controller decides.
      *
      * @param ViewResponse $response
-     * @param Request $request
-     * @return string
-     */
-    private function etagFor(ViewResponse $response, Request $request): string
-    {
-        return ETag::forBody($this->render($response, $request))->render();
-    }
-
-    /**
-     * @param ViewResponse $response
-     * @param Request $request
-     * @return list<string> The `Name: value` lines a response would send about caching.
+     * @return object
      * @throws ReflectionException
      */
-    private function cacheHeadersOf(ViewResponse $response, Request $request): array
+    private static function viewOf(ViewResponse $response): object
     {
-        // The validator is hashed by send() and handed down, so this hashes it the same way rather
-        // than passing the markup: cacheHeaders() takes the ETag it is to publish, which is what
-        // makes it the same value the 304 compares against.
-        $etag = ETag::forBody($this->render($response, $request));
-
-        /** @var Collection<Header> $headers */
-        $headers = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')->invoke($response, $etag);
-
-        return $headers->map(static fn(Header $h): string => $h->line())->toValues();
+        return new ReflectionProperty($response, 'view')->getValue($response);
     }
 
-    /**
-     * @param ViewResponse $response
-     * @param Request $request
-     * @return string
-     */
-    private function render(ViewResponse $response, Request $request): string
-    {
-        return $response->answer($request)->body();
-    }
+    // ───────────────────────────── the layout ─────────────────────────────
 
     /**
-     * @param object $object
-     * @param string $property
-     * @return mixed
-     * @throws ReflectionException
-     */
-    private static function peek(object $object, string $property): mixed
-    {
-        return new ReflectionProperty($object::class, $property)->getValue($object);
-    }
-
-    // ───────────────────────────── ViewResponse ─────────────────────────────
-
-    /**
-     * @return void
-     */
-    public function testAFullPageRequestGetsTheWholeDocument(): void
-    {
-        $html = $this->render(new ViewResponse(new HomeView()), $this->request('/'));
-
-        self::assertStringStartsWith('<!DOCTYPE html>', $html);
-        self::assertStringContainsString('<html lang="en">', $html);
-        self::assertStringContainsString('site-footer', $html);
-    }
-
-    /**
-     * Navigation swaps this straight into #content, so a full document here would nest one.
+     * The whole site, end to end: a page arrives in the site's layout, its footer and all, and the
+     * fragment Navigation asks for arrives as the home page's title and content and nothing else.
      *
      * @return void
      */
-    public function testAnAjaxRequestGetsAFragmentWithNoDocumentShell(): void
+    public function testTheLayoutWrapsAPageAndNeverTheFragment(): void
     {
-        $html = $this->render(new ViewResponse(new HomeView()), $this->request('/', ajax: true));
+        $page     = TestRequest::get('/')->answer()->body();
+        $fragment = TestRequest::get('/')->with(RequestHeader::RequestedWith, 'XMLHttpRequest')->answer()->body();
 
-        self::assertStringNotContainsString('<html', $html);
-        self::assertStringNotContainsString('<!DOCTYPE', $html);
-        self::assertStringNotContainsString('site-footer', $html);
-        self::assertStringContainsString('home-hero', $html);
-    }
+        self::assertStringStartsWith('<!DOCTYPE html>', $page);
+        self::assertStringContainsString('<html lang="en">', $page);
+        self::assertStringContainsString('site-footer', $page);
 
-    /**
-     * @return void
-     */
-    public function testTheAjaxFragmentLeadsWithTheTitleNavJsLooksFor(): void
-    {
-        $html = $this->render(new ViewResponse(new HomeView()), $this->request('/', ajax: true));
-
-        self::assertStringStartsWith('<title>', $html);
-        self::assertSame(1, preg_match('/^<title>(.*?)<\/title>/', $html, $m));
-        self::assertSame('neuro.SYS', $m[1]);
-    }
-
-    /**
-     * Navigation HTML-decodes this before assigning document.title. The two have to agree:
-     * the fragment escapes, the client decodes.
-     *
-     * @return void
-     */
-    public function testTheAjaxTitleIsEscapedSoTheClientCanDecodeIt(): void
-    {
-        $view = new class () extends View {
-            /**
-             * @return Translatable
-             */
-            public function pageTitle(): Translatable
-            {
-                return new Verbatim('rock & roll');
-            }
-
-            /**
-             * @return Node
-             */
-            public function content(): Node
-            {
-                return new Element(HtmlTag::P)->containing('x');
-            }
-        };
-
-        $html = $this->render(new ViewResponse($view), $this->request('/', ajax: true));
-
-        preg_match('/^<title>(.*?)<\/title>/', $html, $m);
-
-        self::assertSame('rock &amp; roll', $m[1]);
-        self::assertSame('rock & roll', html_entity_decode($m[1], ENT_QUOTES));
-    }
-
-    /**
-     * @return void
-     */
-    public function testTheDefaultStatusIsOk(): void
-    {
-        self::assertSame(HttpStatusCode::Ok, self::peek(new ViewResponse(new HomeView()), 'status'));
-    }
-
-    /**
-     * Extra headers reach the wire, in the order given.
-     *
-     * `header()` is a no-op under CLI, so what is asserted here is that the loop runs at all — the
-     * headers themselves are checked over real HTTP by the verify script, and the one caller that
-     * passes any is pinned in {@link AdminTest}. Worth having as a unit test regardless: an
-     * unexecuted loop is how a `Cache-Control` that nothing sends still reads as sent.
-     *
-     * @return void
-     */
-    public function testExtraHeadersAreSentAlongsideTheBody(): void
-    {
-        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
-            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ));
-
-        self::assertSame(
-            ['Cache-Control: no-store, private'],
-            self::peek($response, 'headers')->map(static fn(Header $h): string => $h->line())->toValues(),
-        );
-        self::assertStringContainsString('<main', $this->render($response, $this->request('/')));
-    }
-
-    // ───────────────────────────── caching ─────────────────────────────
-
-    /**
-     * A public document says how it may be reused, and the answer is "ask first".
-     *
-     * `header()` is a no-op under CLI, so what a unit test can reach is the list a response would
-     * send; the verify script watches the same three arrive over real HTTP. Both halves are worth
-     * having — this one fails on the day the list is built wrong, that one on the day it is built
-     * right and never sent.
-     *
-     * @return void
-     */
-    public function testAPublicDocumentSaysHowItMayBeReused(): void
-    {
-        $headers = $this->cacheHeadersOf(new ViewResponse(new HomeView()), $this->request('/'));
-
-        self::assertSame('Cache-Control: no-cache', $headers[0]);
-        self::assertMatchesRegularExpression('/^ETag: "[0-9a-f]+"$/', $headers[1]);
-        self::assertSame('Vary: X-Requested-With, Accept-Language, Cookie', $headers[2]);
-    }
-
-    /**
-     * The document and the fragment are one URL with two bodies, so they must not validate against
-     * each other. `Vary` is what says so to a cache; this is why it holds even where `Vary` is
-     * ignored — the bytes differ, so the hash of the bytes differs.
-     *
-     * @return void
-     */
-    public function testTheFragmentAndTheDocumentDoNotShareAValidator(): void
-    {
-        $response = new ViewResponse(new HomeView());
-
-        self::assertNotSame(
-            $this->etagFor($response, $this->request('/')),
-            $this->etagFor($response, $this->request('/', ajax: true)),
-        );
-    }
-
-    /**
-     * @return void
-     */
-    public function testAMatchingValidatorGetsA304AndNoBody(): void
-    {
-        $response = new ViewResponse(new HomeView());
-        $etag     = $this->etagFor($response, $this->request('/'));
-
-        self::assertSame('', $this->render($response, $this->request('/', ifNoneMatch: $etag)));
-    }
-
-    /**
-     * A validator for another page, or for a previous build, is not this response.
-     *
-     * @return void
-     */
-    public function testAStaleValidatorGetsTheWholePageBack(): void
-    {
-        $html = $this->render(
-            new ViewResponse(new HomeView()),
-            $this->request('/', ifNoneMatch: '"0123456789abcdef"'),
-        );
-
-        self::assertStringStartsWith('<!DOCTYPE html>', $html);
-    }
-
-    /**
-     * A caller that already said how its response may be kept is not argued with.
-     *
-     * StatsController says `no-store, private` because its page sits behind a password. Adding a
-     * validator to that would be offering to revalidate something we just asked not to be stored.
-     * The `Vary` stays: it says what the body depends on, which no `Cache-Control` changes.
-     *
-     * @return void
-     */
-    public function testAResponseThatAlreadySaidHowItMayBeKeptGetsNoValidator(): void
-    {
-        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
-            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ));
-
-        self::assertSame(
-            ['Vary: X-Requested-With, Accept-Language, Cookie'],
-            $this->cacheHeadersOf($response, $this->request('/')),
-        );
-    }
-
-    /**
-     * A 404 is told to revalidate — left to its heuristics a browser may keep one, for a page that
-     * has since been published — and carries no validator, because only a success is one.
-     *
-     * @return void
-     */
-    public function testANotFoundPageRevalidatesAndCarriesNoValidator(): void
-    {
-        $response = new ViewResponse(new NotFoundView('/gone'), HttpStatusCode::NotFound);
-
-        self::assertSame(
-            ['Cache-Control: no-cache', 'Vary: X-Requested-With, Accept-Language, Cookie'],
-            $this->cacheHeadersOf($response, $this->request('/gone')),
-        );
-    }
-
-    /**
-     * And so a 404 is never a 304, whatever validator arrives with it.
-     *
-     * @return void
-     */
-    public function testANotFoundPageNeverAnswers304(): void
-    {
-        $response = new ViewResponse(new NotFoundView('/gone'), HttpStatusCode::NotFound);
-        $etag     = $this->etagFor($response, $this->request('/gone'));
-
-        self::assertStringStartsWith(
-            '<!DOCTYPE html>',
-            $this->render($response, $this->request('/gone', ifNoneMatch: $etag)),
-        );
-    }
-
-    /**
-     * What a browser holds behind mod_deflate is the tag with `-gzip` inside the quotes, and it
-     * validates: compared verbatim, no compressed page was ever answered with a 304.
-     *
-     * @return void
-     */
-    public function testAValidatorACompressingModuleSuffixedStillValidates(): void
-    {
-        $response = new ViewResponse(new HomeView());
-        $etag     = $this->etagFor($response, $this->request('/'));
-        $gzipped  = substr($etag, 0, -1) . '-gzip"';
-
-        self::assertSame('', $this->render($response, $this->request('/', ifNoneMatch: $gzipped)));
-    }
-
-    /**
-     * And so it cannot be short-circuited into a 304 by a guessed validator either.
-     *
-     * @return void
-     */
-    public function testAGatedPageNeverAnswers304(): void
-    {
-        $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
-            new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
-        ));
-
-        $etag = ETag::forBody($this->render($response, $this->request('/')))->render();
-
-        self::assertStringStartsWith(
-            '<!DOCTYPE html>',
-            $this->render($response, $this->request('/', ifNoneMatch: $etag)),
-        );
+        self::assertStringStartsWith('<title>neuro.SYS</title>', $fragment);
+        self::assertStringContainsString('home-hero', $fragment);
+        self::assertStringNotContainsString('site-footer', $fragment);
+        self::assertStringNotContainsString('<html', $fragment);
     }
 
     // ───────────────────────────── controllers ─────────────────────────────
@@ -433,10 +152,10 @@ final class ResponseTest extends TestCase
      */
     public function testAnUnknownSlugProducesA404(): void
     {
-        $response = new ReleaseController('no-such-release')->handle($this->request('/releases/no-such-release'));
+        $response = new ReleaseController('no-such-release')->handle(self::request('/releases/no-such-release'));
 
         self::assertInstanceOf(ViewResponse::class, $response);
-        self::assertSame(HttpStatusCode::NotFound, self::peek($response, 'status'));
+        self::assertSame(HttpStatusCode::NotFound, $response->status());
     }
 
     /**
@@ -444,9 +163,10 @@ final class ResponseTest extends TestCase
      */
     public function testAKnownSlugProducesAnOkPage(): void
     {
-        $response = new ReleaseController('hello-world')->handle($this->request('/releases/hello-world'));
-
-        self::assertSame(HttpStatusCode::Ok, self::peek($response, 'status'));
+        self::assertSame(
+            HttpStatusCode::Ok,
+            self::answer(new ReleaseController('hello-world'), '/releases/hello-world')->status(),
+        );
     }
 
     /**
@@ -454,10 +174,11 @@ final class ResponseTest extends TestCase
      */
     public function testTheNotFoundControllerReportsTheRequestedPath(): void
     {
-        $response = new NotFoundController('/gone')->handle($this->request('/gone'));
+        $response = new NotFoundController('/gone')->handle(self::request('/gone'));
 
-        self::assertInstanceOf(NotFoundView::class, self::peek($response, 'view'));
-        self::assertSame(HttpStatusCode::NotFound, self::peek($response, 'status'));
+        self::assertInstanceOf(ViewResponse::class, $response);
+        self::assertInstanceOf(NotFoundView::class, self::viewOf($response));
+        self::assertSame(HttpStatusCode::NotFound, $response->status());
     }
 
     // ───────────────────────────── the language switch ─────────────────────────────
@@ -522,13 +243,15 @@ final class ResponseTest extends TestCase
      */
     public function testASwitchToALanguageTheSiteDoesNotHaveIsNotThere(): void
     {
-        $response = new LanguageController('fr')->handle($this->request('/language/fr'));
+        $answer = self::answer(new LanguageController('fr'), '/language/fr');
 
-        self::assertSame(HttpStatusCode::NotFound, self::peek($response, 'status'));
+        self::assertSame(HttpStatusCode::NotFound, $answer->status());
     }
 
+    // ───────────────────────────── downloads ─────────────────────────────
+
     /**
-     * @return iterable
+     * @return iterable<string, array{string, string, class-string}>
      */
     public static function downloadProvider(): iterable
     {
@@ -550,7 +273,7 @@ final class ResponseTest extends TestCase
         string $format,
         string $expected,
     ): void {
-        $response = new DownloadController($slug, $format)->handle($this->request("/releases/$slug/$format"));
+        $response = new DownloadController($slug, $format)->handle(self::request("/releases/$slug/$format"));
 
         self::assertInstanceOf($expected, $response);
     }
@@ -560,13 +283,12 @@ final class ResponseTest extends TestCase
      */
     public function testADownloadRedirectsToTheFileHostWithSeeOther(): void
     {
-        $response = new DownloadController('hello-world', 'flac')
-            ->handle($this->request('/releases/hello-world/flac'));
+        $answer = self::answer(new DownloadController('hello-world', 'flac'), '/releases/hello-world/flac');
 
-        self::assertSame(HttpStatusCode::SeeOther, self::peek($response, 'status'));
+        self::assertSame(HttpStatusCode::SeeOther, $answer->status());
         self::assertStringStartsWith(
             'https://my.hidrive.com/api/sharelink/download?id=',
-            self::peek($response, 'location')->render(),
+            $answer->header(ResponseHeader::Location)?->value->render() ?? '',
         );
     }
 
@@ -578,12 +300,13 @@ final class ResponseTest extends TestCase
      */
     public function testAFormatWithNoLinkYetReturnsServiceUnavailable(): void
     {
-        $response = new DownloadController('staged', 'flac', $this->stagedCatalogue())
-            ->handle($this->request('/releases/staged/flac'));
+        $request  = self::request('/releases/staged/flac');
+        $response = new DownloadController('staged', 'flac', $this->stagedCatalogue())->handle($request);
+        $answer   = $response->answer($request);
 
         self::assertInstanceOf(PlainTextResponse::class, $response);
-        self::assertSame(HttpStatusCode::ServiceUnavailable, self::peek($response, 'status'));
-        self::assertStringContainsString("isn't available yet", self::peek($response, 'body'));
+        self::assertSame(HttpStatusCode::ServiceUnavailable, $answer->status());
+        self::assertStringContainsString("isn't available yet", $answer->body());
     }
 
     /**
@@ -591,10 +314,10 @@ final class ResponseTest extends TestCase
      */
     public function testAStagedReleaseStillRendersItsPage(): void
     {
-        $response = new ReleaseController('staged', $this->stagedCatalogue())
-            ->handle($this->request('/releases/staged'));
-
-        self::assertSame(HttpStatusCode::Ok, self::peek($response, 'status'));
+        self::assertSame(
+            HttpStatusCode::Ok,
+            self::answer(new ReleaseController('staged', $this->stagedCatalogue()), '/releases/staged')->status(),
+        );
     }
 
     /**
@@ -626,23 +349,23 @@ final class ResponseTest extends TestCase
     /**
      * Each of these is one line, and the line is which view the route means.
      *
-     * @param string $controller
-     * @param string $path
-     * @param string $view
+     * @param class-string $controller
+     * @param string       $path
+     * @param class-string $view
      * @return void
      */
     #[DataProvider('staticRouteProvider')]
     public function testAStaticRouteRendersItsOwnView(string $controller, string $path, string $view): void
     {
-        $response = new $controller()->handle($this->request($path));
+        $response = new $controller()->handle(self::request($path));
 
         self::assertInstanceOf(ViewResponse::class, $response);
-        self::assertInstanceOf($view, self::peek($response, 'view'));
-        self::assertSame(HttpStatusCode::Ok, self::peek($response, 'status'));
+        self::assertInstanceOf($view, self::viewOf($response));
+        self::assertSame(HttpStatusCode::Ok, $response->status());
     }
 
     /**
-     * @return iterable
+     * @return iterable<string, array{class-string, string, class-string}>
      */
     public static function staticRouteProvider(): iterable
     {
@@ -660,8 +383,7 @@ final class ResponseTest extends TestCase
      */
     public function testThePrivacyControllerReadsTheRealPolicyDocument(): void
     {
-        $response = new PrivacyController()->handle($this->request('/privacy'));
-        $html     = self::peek($response, 'view')->content()->render(0, Language::English);
+        $html = self::answer(new PrivacyController(), '/privacy', fragment: true)->body();
 
         $lines = explode("\n", (string) Site::current()->dataFile(DataFile::PrivacyEnglish)->read())
                 |> (fn($x) => array_map(trim(...), $x))
@@ -686,9 +408,7 @@ final class ResponseTest extends TestCase
      */
     public function testTheCatalogueControllerListsTheReleasesItWasGiven(): void
     {
-        $response = new ReleasesController($this->stagedCatalogue())->handle($this->request('/releases'));
-
-        $html = self::peek($response, 'view')->content()->render(0, Language::English);
+        $html = self::answer(new ReleasesController($this->stagedCatalogue()), '/releases', fragment: true)->body();
 
         self::assertStringContainsString('staged', $html);
         self::assertStringNotContainsString('hello-world', $html);
@@ -701,153 +421,9 @@ final class ResponseTest extends TestCase
      */
     public function testTheCatalogueControllerFallsBackToTheRealCatalogue(): void
     {
-        $response = new ReleasesController()->handle($this->request('/releases'));
-
         self::assertStringContainsString(
             'hello-world',
-            self::peek($response, 'view')->content()->render(0, Language::English),
+            self::answer(new ReleasesController(), '/releases', fragment: true)->body(),
         );
-    }
-
-    // ───────────────────────────── status codes ─────────────────────────────
-
-    /**
-     * @param HttpStatusCode $case
-     * @param int $value
-     * @return void
-     */
-    #[DataProvider('statusProvider')]
-    public function testTheStatusCodesTheAppUsesHaveTheRightValues(HttpStatusCode $case, int $value): void
-    {
-        self::assertSame($value, $case->value);
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function statusProvider(): iterable
-    {
-        yield [HttpStatusCode::Ok, 200];
-        yield [HttpStatusCode::SeeOther, 303];
-        yield [HttpStatusCode::Unauthorized, 401];
-        yield [HttpStatusCode::NotFound, 404];
-        yield [HttpStatusCode::ServiceUnavailable, 503];
-    }
-
-    // ───────────────────────────── MimeType ─────────────────────────────
-
-    /**
-     * The two the site sends, pinned to the byte. test/basic_test.sh greps the live headers for
-     * these exact strings; this is the same assertion one layer down, where it can say why it
-     * failed rather than that a curl did not match.
-     *
-     * @return void
-     */
-    public function testTheTwoTypesTheSiteSendsRenderExactly(): void
-    {
-        self::assertSame('text/html; charset=utf-8', MimeType::html()->render());
-        self::assertSame('text/plain; charset=utf-8', MimeType::plainText()->render());
-    }
-
-    /**
-     * The essence is the type without its encoding — what `Navigation` compares a response's
-     * `Content-Type` with, and what the `MediaType` mirror is checked against.
-     *
-     * @return void
-     */
-    public function testTheEssenceIsTheTypeWithoutItsCharset(): void
-    {
-        self::assertSame('text/html', MimeType::html()->essence());
-        self::assertSame('audio/mpeg', MimeType::forAudio('mp3')->essence());
-    }
-
-    /**
-     * The parameter is optional because most types have no encoding to declare.
-     *
-     * @return void
-     */
-    public function testANullCharsetRendersTheTypeAlone(): void
-    {
-        self::assertSame(
-            'image/png',
-            new MimeType(TopLevelType::Image, 'png', charset: null)->render(),
-        );
-    }
-
-    /**
-     * Every body this site sends is text, so the parameter is there unless it is refused.
-     *
-     * @return void
-     */
-    public function testTheCharsetIsPresentByDefault(): void
-    {
-        self::assertSame(Charset::Utf8, new MimeType(TopLevelType::Text, 'css')->charset);
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function validSubtypeProvider(): iterable
-    {
-        yield 'plain'        => ['html'];
-        yield 'plus suffix'  => ['svg+xml'];
-        yield 'vendor tree'  => ['vnd.api+json'];
-        yield 'x- prefix'    => ['x-www-form-urlencoded'];
-        yield 'digits'       => ['mp4'];
-        yield 'leading digit' => ['3gpp'];
-        yield 'at the cap'   => [str_repeat('a', 127)];
-    }
-
-    /**
-     * @param string $subtype
-     * @return void
-     */
-    #[DataProvider('validSubtypeProvider')]
-    public function testAcceptsEveryShapeARegisteredSubtypeTakes(string $subtype): void
-    {
-        self::assertSame($subtype, new MimeType(TopLevelType::Application, $subtype)->subtype);
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function invalidSubtypeProvider(): iterable
-    {
-        yield 'empty'          => [''];
-        yield 'space'          => ['ht ml'];
-        yield 'a whole type'   => ['text/html'];
-        yield 'with parameter' => ['html; q=1'];
-        yield 'leading dash'   => ['-html'];
-        yield 'leading dot'    => ['.html'];
-        yield 'a token char no subtype uses' => ['ht!ml'];
-        yield 'past the cap'   => [str_repeat('a', 128)];
-        yield 'newline'        => ["html\n"];
-    }
-
-    /**
-     * Mirrors CspHost: a bad paste has to fail where it is written, not on the wire.
-     *
-     * @param string $subtype
-     * @return void
-     */
-    #[DataProvider('invalidSubtypeProvider')]
-    public function testRejectsAnythingThatIsNotABareSubtype(string $subtype): void
-    {
-        $this->expectException(MimeTypeException::class);
-        new MimeType(TopLevelType::Text, $subtype);
-    }
-
-    // ───────────────────────────── Charset ─────────────────────────────
-
-    /**
-     * Both forms, pinned to the literal each of the three readers expects: the header parameter,
-     * the charset meta tag in Layout, and htmlspecialchars in Text.
-     *
-     * @return void
-     */
-    public function testTheEncodingHasAHeaderFormAndACanonicalOne(): void
-    {
-        self::assertSame('utf-8', Charset::Utf8->value);
-        self::assertSame('UTF-8', Charset::Utf8->canonical());
     }
 }

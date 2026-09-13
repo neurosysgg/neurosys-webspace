@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use InvalidArgumentException;
 use Phpanta\Support\BareArray;
 use Phpanta\Support\BareCall;
 use Phpanta\Support\BareString;
@@ -19,7 +18,8 @@ use ReflectionType;
 use ReflectionUnionType;
 
 /**
- * The two habits this codebase is built against, checked by asking PHP about itself.
+ * The habits this codebase is built against, checked by asking PHP about itself — over the site's
+ * own tree.
  *
  * Everything under `src/` is an argument against two shapes. A **bare array** announces nothing
  * about what it holds, which is why {@link \Phpanta\Support\Collection} exists; a **bare string**
@@ -40,6 +40,14 @@ use ReflectionUnionType;
  * became a collection is a sentence describing code that is not there, and the next reader will
  * believe it.
  *
+ * **The framework's half is the framework's.** {@link \Phpanta\Test\Unit\GuidelineTest} runs the
+ * same rules over `phpanta/src/` and pins the framework's excuses; this runs them over
+ * `src/NeuroSYS/` and pins the site's. The one rule that reads across the line is the bare-string
+ * rule's second clause, a word written in two classes: that is a question about the whole program,
+ * so it is asked of this site's classes with the framework's beside them as the other writers and
+ * the enums in reach. The framework pins, on its side, the excuses it carries for a word this site
+ * writes too.
+ *
  * Three smaller guidelines ride along at the bottom. All three are at zero today and are here as
  * regressions rather than as work: `strict_types` on every file, a declared type on every
  * declaration, a backing value on every enum. Each is invisible when it slips — scalars quietly
@@ -54,10 +62,11 @@ use ReflectionUnionType;
  * are most of what it does. {@link self::testNothingSuppressesADiagnosticWithAnAtSign()} is the one
  * rule that does walk it, and says on itself why a suppression is not a door.
  *
- * It covers the two attributes and nothing else, which is not the `#[CoversNothing]`
+ * It covers the three attributes and nothing else, which is not the `#[CoversNothing]`
  * {@link NoDiscardTest} carries and is the honest difference between them: that test only ever
- * *asks* reflection what an attribute says, where this one also constructs both of these and
- * proves each refuses a hole. Everything else here executes no line of `src/` at all.
+ * *asks* reflection what an attribute says, where this one instantiates every excuse it reads to
+ * get at its reason. That each attribute refuses a hole is the framework's test to prove. Nothing
+ * else here executes a line of `src/` at all.
  */
 #[CoversClass(BareArray::class)]
 #[CoversClass(BareCall::class)]
@@ -137,23 +146,17 @@ final class GuidelineTest extends TestCase
     /**
      * These, and only these, stay arrays.
      *
-     * Four kinds, and it is worth knowing which is which before adding a fifth:
+     * Three kinds, and it is worth knowing which is which before adding a fourth:
      *
-     * - **A door.** `preg_match`'s `$matches`, `file()`'s lines, `require`'s data file,
-     *   `jsonSerialize()`'s contract, `toArray()` itself. PHP hands these over as arrays and no
-     *   amount of typing on this side changes that; the collection is what crosses the boundary,
-     *   and the door is where it is built.
-     * - **A variadic's argument.** `varyOn()`, `accented()`, `nodes()`, `modulePreloads()`,
-     *   `terminalFields()` are each spread into a call PHP already guards.
-     * - **A tuple.** `entry()` and `credentials()` return two values of different kinds in a fixed
-     *   order, which is the one shape a homogeneous collection cannot hold.
-     * - **An accumulator.** `$qualities` and `counts()` are written to in a loop, where `with()`
-     *   would copy — the same argument `tools/lib/Dsp/` makes at a larger scale.
+     * - **A door.** `require`'s data file, `jsonSerialize()`'s contract, a table row handed to a
+     *   variadic. PHP hands these over as arrays and no amount of typing on this side changes that;
+     *   the collection is what crosses the boundary, and the door is where it is built.
+     * - **A variadic's argument.** `accented()`, `nodes()`, `modulePreloads()`, `terminalFields()`
+     *   are each spread into a call PHP already guards — `varyOn()` in the framework is the same.
+     * - **An accumulator.** `counts()` is written to in a loop, where `with()` would copy — the
+     *   same argument `tools/lib/Dsp/` makes at a larger scale.
      *
-     * The collections' own five members appear three times each. That is this test working and not
-     * failing, for the reason {@link NoDiscardTest} states about the same trait: PHP flattens a
-     * trait's members into each using class, and counting one twice is the direction a test like
-     * this can survive.
+     * A tuple is the fourth kind the framework has, and this site has none of its own.
      *
      * @return void
      */
@@ -172,45 +175,6 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\View\ReleaseView::terminalFields()',
                 'NeuroSYS\View\Terminal\TerminalField::row()',
                 'NeuroSYS\View\Wordmark::nodes()',
-                'Phpanta\Http\AcceptedLanguages::$qualities',
-                'Phpanta\Http\AcceptedLanguages::__construct()',
-                'Phpanta\Http\AcceptedLanguages::entry()',
-                'Phpanta\Http\AuthScheme::credentials()',
-                'Phpanta\Http\SecurityHeaders::headers()',
-                'Phpanta\Http\Security\ContentSecurityPolicy::hosts()',
-                'Phpanta\Http\ServerParameters::$values',
-                'Phpanta\Http\ServerParameters::__construct()',
-                'Phpanta\Service\UpdateApplier::directories()',
-                'Phpanta\Service\UpdateApplier::entries()',
-                'Phpanta\Service\UpdateApplier::surplusIn()',
-                'Phpanta\Service\UpdateApplier::walk()',
-                'Phpanta\Support\Collection::$items',
-                'Phpanta\Support\Collection::$steps',
-                'Phpanta\Support\Collection::stringKeyed()',
-                'Phpanta\Support\Collection::toArray()',
-                'Phpanta\Support\Collection::toKeys()',
-                'Phpanta\Support\Collection::toValues()',
-                'Phpanta\Support\Directory::entries()',
-                'Phpanta\Support\File::lines()',
-                'Phpanta\Support\Route::createController()',
-                'Phpanta\Support\Route::matches()',
-                'Phpanta\Support\SearchableCollection::$items',
-                'Phpanta\Support\SearchableCollection::$steps',
-                'Phpanta\Support\SearchableCollection::stringKeyed()',
-                'Phpanta\Support\SearchableCollection::toArray()',
-                'Phpanta\Support\SearchableCollection::toKeys()',
-                'Phpanta\Support\SearchableCollection::toValues()',
-                'Phpanta\Support\TarArchive::header()',
-                'Phpanta\Support\TarArchive::name()',
-                'Phpanta\Support\TypedItems::$items',
-                'Phpanta\Support\TypedItems::$steps',
-                'Phpanta\Support\TypedItems::stringKeyed()',
-                'Phpanta\Support\TypedItems::toArray()',
-                'Phpanta\Support\TypedItems::toKeys()',
-                'Phpanta\Support\TypedItems::toValues()',
-                'Phpanta\Text\Phrase::$arguments',
-                'Phpanta\Text\Phrase::__construct()',
-                'Phpanta\View\View::varyOn()',
             ],
             array_keys(self::bareArrays()['excused']),
         );
@@ -264,11 +228,15 @@ final class GuidelineTest extends TestCase
      *   does have to be one fact is the address under the link, which is a {@link
      *   \NeuroSYS\Support\SitePath} case.
      * - **Another grammar.** `%d:%02d` is a printf format, and `#^https://…#i` is a regex — the
-     *   only entry here that is genuinely one fact in two files, kept apart on purpose. See
-     *   {@link \Phpanta\Http\Location}, where the argument is made and can be re-read.
+     *   only entry here that is genuinely one fact in two files, kept apart on purpose. The other
+     *   file is the framework's {@link \Phpanta\Http\Location}, where the argument is made and
+     *   can be re-read.
      * - **Someone else's vocabulary.** `int` and `string` are `get_debug_type()`'s spellings, in a
-     *   class-string's place; `time` is a JSON key on one side of the pair and a caption on the
-     *   other; `c` is `date()`'s ISO 8601 format on one side and `fopen()`'s mode on the other.
+     *   class-string's place; `c` is `date()`'s ISO 8601 format here and `fopen()`'s mode in the
+     *   framework's `FileLock`.
+     *
+     * Three of these are bare only because the framework writes the same word — the regex, `int`,
+     * `c` — and the framework's own test pins its half of each of those pairs.
      *
      * @return void
      */
@@ -282,15 +250,6 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Service\DownloadLogger c',
                 'NeuroSYS\Service\DownloadStats int',
                 'NeuroSYS\View\Terminal\TerminalCommand string',
-                'Phpanta\Http\Location #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
-                'Phpanta\Model\Health\HealthSection string',
-                'Phpanta\Model\Update\UpdateReport string',
-                'Phpanta\Support\Diagnostics string',
-                'Phpanta\Support\FileLock c',
-                'Phpanta\Support\Route string',
-                'Phpanta\Support\TypedItems int',
-                'Phpanta\Support\TypedItems string',
-                'Phpanta\View\Html\Vocabulary string',
             ],
             array_keys(self::bareStrings()['excused']),
         );
@@ -320,17 +279,14 @@ final class GuidelineTest extends TestCase
     /**
      * These, and only these, stay calls.
      *
-     * Two kinds, and both are about what is on the other side of the call rather than about the
-     * call:
+     * One kind, and it is about what is on the other side of the call rather than about the call:
      *
-     * - **A class constant.** `Layout::modulePreloads()` and `Element::verifyUrl()` map over one,
-     *   and a class constant *cannot* hold a `Collection` — `new` is not a constant expression, so
-     *   `AssetManifest::MODULES` and `Element::URL_SCHEMES` are arrays wherever they are read.
-     *   These two are permanent until PHP says otherwise.
-     * - **A door, or a variadic straight through one.** `File::lines()` is `file()`'s doorway, and
-     *   `Element::containing()` maps the variadic PHP has already guarded directly into `with()` —
-     *   a collection there would be built only to be spread back out on the same line, on the
-     *   hottest path this site has.
+     * - **A class constant.** `Layout::modulePreloads()` maps over one, and a class constant
+     *   *cannot* hold a `Collection` — `new` is not a constant expression, so
+     *   `AssetManifest::MODULES` is an array wherever it is read. Permanent until PHP says
+     *   otherwise.
+     *
+     * The other kind, a door or a variadic straight through one, is the framework's alone.
      *
      * @return void
      */
@@ -339,9 +295,6 @@ final class GuidelineTest extends TestCase
         self::assertSame(
             [
                 'NeuroSYS\Layout::modulePreloads array_map',
-                'Phpanta\Support\File::lines array_values',
-                'Phpanta\View\Html\Element::containing array_map',
-                'Phpanta\View\Html\Element::verifyUrl array_map',
             ],
             array_keys(self::bareCalls()['excused']),
         );
@@ -364,36 +317,6 @@ final class GuidelineTest extends TestCase
     }
 
     /**
-     * An excuse with a hole in it is refused where it is written.
-     *
-     * The lists above report a fault against a set; the constructors report it against the line
-     * that is wrong, which is the same division of labour {@link \NeuroSYS\Model\Link\HiDriveLink}
-     * has with its own tests. A bare `#[BareArray]` would say the array is deliberate — which the
-     * reader already suspected — where what is worth saying is which door it is.
-     *
-     * @return void
-     */
-    public function testAnExcuseMustExplainItself(): void
-    {
-        $holes = [
-            'an array excused without a reason'   => static fn(): object => new BareArray(''),
-            'a literal excused without a reason'  => static fn(): object => new BareString('x', ''),
-            'a reason attached to no literal'     => static fn(): object => new BareString('', 'why'),
-            'a call excused without a reason'    => static fn(): object => new BareCall('array_map', ''),
-            'an excuse for no such function'     => static fn(): object => new BareCall('array_nope', 'why'),
-        ];
-
-        foreach ($holes as $what => $construct) {
-            try {
-                $construct();
-                self::fail($what . ' was accepted');
-            } catch (InvalidArgumentException $refused) {
-                self::assertNotSame('', $refused->getMessage(), $what . ' threw without saying what');
-            }
-        }
-    }
-
-    /**
      * Nothing suppresses a diagnostic with an `@`.
      *
      * The one rule here with no excuse mechanism at all, because the replacement is strictly better
@@ -408,10 +331,11 @@ final class GuidelineTest extends TestCase
      * policy document on a parse error.
      *
      * **This is the one rule that walks `tools/lib/` as well**, and the reason is the same one that
-     * keeps that tree out of the other four: what is excluded there are the *doors* — `unpack`,
-     * `preg_match`, `file` — and a suppression is not a door. `PrivateKey` signs a call with the
-     * only private key this repository ever touches, which is not a place to leave a character that
-     * hides whatever it happens to be in front of.
+     * keeps that tree out of the others: what is excluded there are the *doors* — `unpack`,
+     * `preg_match`, `file` — and a suppression is not a door. The release and demo tools read
+     * files nothing else checks and write what ships, which is not a place to leave a character
+     * that hides whatever it happens to be in front of. The signing side of the API is the
+     * framework's tooling, and the framework's test walks it.
      *
      * The token is `@` on its own; `#[` is `T_ATTRIBUTE` and a docblock's `@param` is one
      * `T_DOC_COMMENT`, so neither is reachable from here. `test/` is deliberately outside: a
@@ -443,8 +367,9 @@ final class GuidelineTest extends TestCase
      *
      * The rule with the shortest argument. An exception is a name for a condition, and a bare
      * `RuntimeException` names the condition "something", which is the same complaint the enums and
-     * the collections answer one layer down. `NeuroSYS\Exception` is where the vocabulary lives, and
-     * a throw that reaches outside it is a condition nobody has bothered to say the name of.
+     * the collections answer one layer down. `NeuroSYS\Exception` is where the vocabulary lives —
+     * with `Phpanta\Exception` beside it, whose conditions the site raises too — and a throw that
+     * reaches outside both is a condition nobody has bothered to say the name of.
      *
      * **The two that look like exceptions to it are not.** {@link
      * \Phpanta\Exception\CollectionException} extends `TypeError` and {@link
@@ -460,7 +385,7 @@ final class GuidelineTest extends TestCase
         self::assertSame(
             [],
             self::throwsUnderSrc()['foreign'],
-            'a throw naming an exception outside NeuroSYS\Exception, which names no condition',
+            'a throw naming an exception outside NeuroSYS\Exception and Phpanta\Exception, which names no condition',
         );
     }
 
@@ -610,19 +535,19 @@ final class GuidelineTest extends TestCase
     }
 
     /**
-     * Every file under `src/`, as `path => class-string`, sorted by path.
+     * Every file under `src/NeuroSYS/`, as `path => class-string`, sorted by path — the tree
+     * every rule here judges.
      *
-     * Not the walk {@link NoDiscardTest::classesUnderSrc()} does, and deliberately not shared with
-     * it: this one keeps the path, because half of what is checked here is read by the tokenizer
-     * rather than by reflection, and a `ReflectionClass` cannot be asked what its file's tokens
-     * were. The mapping is the autoloader's own, so a file this cannot name is one the site could
-     * not have loaded either.
+     * It keeps the path, because half of what is checked here is read by the tokenizer rather than
+     * by reflection, and a `ReflectionClass` cannot be asked what its file's tokens were. The
+     * mapping is the autoloader's own, so a file this cannot name is one the site could not have
+     * loaded either.
      *
      * @return array<string, class-string>
      */
     private static function sourceTree(): array
     {
-        return self::$tree ??= SourceTree::classes();
+        return self::$tree ??= SourceTree::site()->classes();
     }
 
     /**
@@ -659,10 +584,9 @@ final class GuidelineTest extends TestCase
             foreach (self::thrown($tokens) as [$name, $line]) {
                 $resolved = $imports[$name] ?? ltrim($namespace . '\\' . $name, '\\');
 
+                // The framework's conditions are this site's to raise too.
                 $ours = str_starts_with($resolved, 'NeuroSYS\\Exception\\')
-
                     || str_starts_with($resolved, 'Phpanta\\Exception\\');
-
 
                 if (!$ours) {
                     $foreign[] = $class . ':' . $line . ' throws ' . $resolved;
@@ -870,13 +794,14 @@ final class GuidelineTest extends TestCase
      * Not {@link self::sourceTree()}, and the difference is the point: that one maps a path to the
      * class the autoloader would load, so it can only see `src/`. This asks the filesystem and
      * nothing else, which is what lets it reach `tools/lib/` — where the classes are real but the
-     * site's autoloader has never heard of them.
+     * site's autoloader has never heard of them. `phpanta/tools/lib/` is the framework's test's to
+     * walk.
      *
      * @return list<string>
      */
     private static function phpFiles(): array
     {
-        return SourceTree::files('/tools/lib', '/phpanta/tools/lib');
+        return SourceTree::site()->files(NEUROSYS_ROOT . '/tools/lib');
     }
     /**
      * True if $type is, or contains, `array`.
@@ -1098,9 +1023,14 @@ final class GuidelineTest extends TestCase
      * Every literal under `src/` that a vocabulary already spells, judged against its
      * `#[BareString]`.
      *
-     * Two passes, because the second clause is a question about the whole tree: the first collects
-     * what every file writes, the second asks of each literal whether an enum the file names can
-     * spell it, or whether another class writes it too.
+     * Two passes, because the second clause is a question about the whole program: the first
+     * collects what every file writes, the second asks of each literal whether an enum the file
+     * names can spell it, or whether another class writes it too.
+     *
+     * The first pass reads both trees — the framework's classes are other writers, and its enums
+     * are vocabularies a site file has in reach — and the second judges only this site's classes.
+     * Where both trees have an enum of one short name, the site's is the one in reach, since the
+     * site's tree is read second.
      *
      * @return array{excused: array<string, string>, unexcused: list<string>, stale: list<string>}
      */
@@ -1109,8 +1039,9 @@ final class GuidelineTest extends TestCase
         $written = [];
         $named   = [];
         $shorts  = [];
+        $judged  = array_flip(self::sourceTree());
 
-        foreach (self::sourceTree() as $path => $class) {
+        foreach (SourceTree::classes() as $path => $class) {
             if (enum_exists($class)) {
                 $shorts[substr($class, strrpos($class, '\\') + 1)] = $class;
                 continue;
@@ -1132,6 +1063,10 @@ final class GuidelineTest extends TestCase
         $stale = [];
 
         foreach ($written as $class => $literals) {
+            if (!isset($judged[$class])) {
+                continue;
+            }
+
             $vocabulary = [];
 
             foreach ($named[$class] as $mentioned => $_) {

@@ -6,45 +6,33 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\AssetManifest;
 use NeuroSYS\DataFile;
-use NeuroSYS\Layout;
 use NeuroSYS\Site;
 use Phpanta\App;
 use Phpanta\CredentialFile;
 use Phpanta\DataFileName;
-use Phpanta\Exception\AppException;
-use Phpanta\Exception\UpdateException;
-use Phpanta\Http\HttpStatusCode;
-use Phpanta\Http\PlainTextResponse;
-use Phpanta\Http\Request;
-use Phpanta\Http\Response;
 use Phpanta\Http\Security\CspDirective;
 use Phpanta\Http\Security\CspHost;
 use Phpanta\Http\Security\CspSource;
+use Phpanta\Http\ServerVariable;
 use Phpanta\Model\Health\Requirement;
-use Phpanta\Support\Collection;
-use Phpanta\Support\Directory;
 use Phpanta\Support\RequirementInitialization;
-use Phpanta\Support\Route;
-use Phpanta\Text\Language;
-use Phpanta\Text\Languages;
-use Phpanta\View\Html\Vocabulary;
-use Phpanta\View\Shell;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * The app, and the facts about this site.
+ * The facts about this site, and the paths the booted app derives from them.
  *
- * Two kinds of assertion. The booted {@link App} keeps three rules — one per process, the same
- * class booted twice is the same object, a second class is refused — and its paths hang off
- * {@link App::above()}, which has to be the directory holding the autoloader. The {@link Site}'s
- * constants are each one two files would otherwise have a copy of, so what is worth asserting is
- * not the value but that the readers still agree with it — a bare origin the CSP will accept, an
- * asset path that resolves to a file, a data directory that lands outside the webroot.
+ * The {@link Site}'s constants are each one two files would otherwise have a copy of, so what is
+ * worth asserting is not the value but that the readers still agree with it — a bare origin the
+ * CSP will accept, an asset path that resolves to a file, a data directory that lands outside the
+ * webroot, a data file that is where the app says it is.
+ *
+ * What the framework does with any app — one per process, the webroot's refusals, the paths it
+ * derives — is the framework's own `AppTest`, under its test app. What stays here is what only
+ * this site's answers make true: that its deployment is this repository, its webroot `public/`.
  */
 #[CoversClass(App::class)]
-#[CoversClass(AppException::class)]
 #[CoversClass(Site::class)]
 #[CoversClass(DataFile::class)]
 #[CoversClass(CredentialFile::class)]
@@ -207,19 +195,6 @@ final class AppTest extends TestCase
     }
 
     /**
-     * An app that loads nothing from anywhere else is asked for hosts and has none, which is the
-     * strict policy it should get.
-     *
-     * @return void
-     */
-    public function testAnAppNamesNoThirdPartyHostUnlessItSaysSo(): void
-    {
-        foreach (CspDirective::cases() as $directive) {
-            self::assertTrue(self::other()->contentHosts($directive)->isEmpty(), $directive->value);
-        }
-    }
-
-    /**
      * This site's two hosts, each under the one directive it needs, and nothing anywhere else — a
      * host added to a directive it does not need widens the policy for nothing.
      *
@@ -320,189 +295,35 @@ final class AppTest extends TestCase
         yield 'placeholder' => [Site::COVER_PLACEHOLDER];
     }
 
-    // ───────────────────────────── the webroot ─────────────────────────────
+    // ───────────────────────────── the deployment ─────────────────────────────
 
     /**
-     * The webroot is the one path here that cannot be derived, so it is asked for — and refused
-     * rather than guessed.
+     * This site's webroot is `public/`, resolved from the `DOCUMENT_ROOT` a server reports for it.
      *
-     * **This is the method that once emptied this repository**, so what each case asserts is worth
-     * saying plainly. The directory is called `public/` here and `neurosys/` on the live host, and
-     * nothing under `src/` can know that; `DOCUMENT_ROOT` does. Taking it whole does not work
-     * either — the live host reports one directory under two different absolute paths, and a
-     * mirror compares paths. So only the *basename* is taken, and the basename is only meaningful
-     * once the two are known to be the same tree.
+     * Every refusal around this — blank, relative, a dot segment, outside the deployment, naming
+     * nothing — is the framework's `AppTest`, against its fixture deployment. What only this suite
+     * can say is that this repository's own layout passes them.
      *
      * @return void
      */
     public function testTheWebrootIsResolvedFromDocumentRoot(): void
     {
-        self::assertSame(
-            NEUROSYS_ROOT . '/public',
-            self::withDocumentRoot(NEUROSYS_ROOT . '/public', static fn(): string => Site::current()->webroot()->path),
-        );
-    }
+        $key      = ServerVariable::DocumentRoot->value;
+        $previous = $_SERVER[$key] ?? null;
 
-    /**
-     * A trailing slash is the shape a server is as likely to report as not.
-     *
-     * @return void
-     */
-    public function testTheWebrootIgnoresATrailingSlash(): void
-    {
-        self::assertSame(
-            NEUROSYS_ROOT . '/public',
-            self::withDocumentRoot(NEUROSYS_ROOT . '/public/', static fn(): string => Site::current()->webroot()->path),
-        );
-    }
-
-    /**
-     * Absent, it stops. There is no default and there must not be one.
-     *
-     * @param string $root
-     * @return void
-     */
-    #[DataProvider('absentDocumentRootProvider')]
-    public function testAnAbsentDocumentRootIsRefusedRatherThanDefaulted(string $root): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessage('DOCUMENT_ROOT is not set');
-
-        self::withDocumentRoot($root, static fn(): string => Site::current()->webroot()->path);
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function absentDocumentRootProvider(): iterable
-    {
-        yield 'empty'      => [''];
-        yield 'whitespace' => ['   '];
-    }
-
-    /**
-     * A `DOCUMENT_ROOT` outside the deployment is refused, and this is the guard that matters most.
-     *
-     * A basename grafted onto a different tree names a real directory somewhere else. That is not
-     * hypothetical: a test pointing `DOCUMENT_ROOT` at a sandbox whose last segment was `public`
-     * got *this repository's* `public/` back, and the update mirror emptied it. `realpath()` on
-     * both sides is what collapses the two spellings the live host reports for one directory, and
-     * comparing them is what turns a plausible guess into a refusal.
-     *
-     * @param string $suffix
-     * @return void
-     */
-    #[DataProvider('foreignDocumentRootProvider')]
-    public function testADocumentRootOutsideTheDeploymentIsRefused(string $suffix): void
-    {
-        $sandbox = sys_get_temp_dir() . '/neurosys-webroot-' . bin2hex(random_bytes(6));
-        self::assertTrue(mkdir($sandbox . $suffix, 0o755, true));
+        // webroot() reads the process's own server variables rather than a request's, so this is
+        // the one variable a test still sets — and puts back.
+        $_SERVER[$key] = NEUROSYS_ROOT . '/public';
 
         try {
-            $this->expectException(UpdateException::class);
-            $this->expectExceptionMessage('not a directory inside this deployment');
-
-            self::withDocumentRoot($sandbox . $suffix, static fn(): string => Site::current()->webroot()->path);
+            self::assertSame(NEUROSYS_ROOT . '/public', Site::current()->webroot()->path);
         } finally {
-            @rmdir($sandbox . $suffix);
-            @rmdir(dirname($sandbox . $suffix));
-            @rmdir($sandbox);
+            if ($previous === null) {
+                unset($_SERVER[$key]);
+            } else {
+                $_SERVER[$key] = $previous;
+            }
         }
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function foreignDocumentRootProvider(): iterable
-    {
-        // The first is the exact shape that did the damage: a directory called `public`, somewhere
-        // else entirely. The second is a name this deployment has no directory for at all.
-        yield 'named public elsewhere' => ['/public'];
-        yield 'named anything else'    => ['/htdocs'];
-    }
-
-    /**
-     * A path that does not exist cannot be shown to be inside the deployment, so it is not.
-     *
-     * @return void
-     */
-    public function testADocumentRootThatDoesNotExistIsRefused(): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessage('not a directory inside this deployment');
-
-        self::withDocumentRoot(
-            NEUROSYS_ROOT . '/no-such-directory/public',
-            static fn(): string => Site::current()->webroot()->path,
-        );
-    }
-
-    /**
-     * A name whose *parent* is the deployment but which is not there is refused too.
-     *
-     * The containment check above is satisfied by this — its parent really is the deployment — so
-     * without a second question it resolves to a `Directory` that does not exist, and the first
-     * push would create it and write the whole webroot into it beside the real one, served by
-     * nothing. The two checks ask different things and both are needed.
-     *
-     * @return void
-     */
-    public function testADocumentRootNamingNoDirectoryIsRefused(): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessage('names no directory');
-
-        self::withDocumentRoot(
-            NEUROSYS_ROOT . '/not-a-real-webroot',
-            static fn(): string => Site::current()->webroot()->path,
-        );
-    }
-
-    /**
-     * A relative `DOCUMENT_ROOT` is refused rather than resolved against the working directory.
-     *
-     * The containment check reasons about `dirname($root)`, which for a bare name is `.` — whose
-     * realpath is the cwd, and under this very runner the cwd *is* the deployment. So without the
-     * absolute check a relative value would pass containment and graft its basename onto the
-     * deployment, the one confusion an absolute path cannot cause. A real server never reports one.
-     *
-     * @return void
-     */
-    public function testARelativeDocumentRootIsRefused(): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessage('not an absolute path');
-
-        self::withDocumentRoot('public', static fn(): string => Site::current()->webroot()->path);
-    }
-
-    /**
-     * A `DOCUMENT_ROOT` ending in `.` or `..` is refused rather than grafted.
-     *
-     * Both satisfy containment, which reasons about the parent — and `…/deployment/.` *is* the
-     * deployment, the one webroot a push's mirror must never be pointed at.
-     *
-     * @param string $suffix
-     * @return void
-     */
-    #[DataProvider('dotSegmentDocumentRootProvider')]
-    public function testADocumentRootEndingInADotSegmentIsRefused(string $suffix): void
-    {
-        $this->expectException(UpdateException::class);
-        $this->expectExceptionMessage('ends in a dot segment');
-
-        self::withDocumentRoot(NEUROSYS_ROOT . $suffix, static fn(): string => Site::current()->webroot()->path);
-    }
-
-    /**
-     * @return iterable
-     */
-    public static function dotSegmentDocumentRootProvider(): iterable
-    {
-        yield 'the deployment itself'     => ['/.'];
-        yield 'with a trailing slash'     => ['/./'];
-        yield 'the directory above it'    => ['/..'];
-        yield 'the webroot, then back up' => ['/public/..'];
     }
 
     /**
@@ -516,13 +337,11 @@ final class AppTest extends TestCase
         self::assertSame(NEUROSYS_ROOT, Site::current()->above()->path);
     }
 
-    // ───────────────────────────── the booted app ─────────────────────────────
-
     /**
      * The deployment directory is the one the autoloader sits in, whatever the framework's own files
      * sit in. The update serial and the push's mirror both hang off it, so an `above()` that drifted
-     * — into a framework directory, say — would move the serial and reset replay protection with
-     * nothing to say so.
+     * — into `phpanta/`, say — would move the serial and reset replay protection with nothing to
+     * say so.
      *
      * @return void
      */
@@ -535,140 +354,13 @@ final class AppTest extends TestCase
     }
 
     /**
-     * Booting twice is booting once, which the dev router needs: it loads the autoloader, and then
-     * `index.php` loads it again.
+     * The app the bootstrap booted is the site, and it is named for it.
      *
      * @return void
      */
-    public function testBootingTheSameAppTwiceIsTheSameApp(): void
+    public function testTheBootedAppIsTheSiteAndNamedForIt(): void
     {
-        self::assertSame(Site::current(), Site::boot());
         self::assertSame(Site::current(), App::current());
-    }
-
-    /**
-     * A second app beside the first would be reading the other one's data, so it is refused.
-     *
-     * @return void
-     */
-    public function testASecondAppIsRefused(): void
-    {
-        $this->expectException(AppException::class);
-        $this->expectExceptionMessage('is already booted');
-
-        (void) self::other()::boot();
-    }
-
-    /**
-     * Asked as a class that is not the booted one, `current()` refuses rather than answering an app
-     * of a type the caller did not ask for.
-     *
-     * @return void
-     */
-    public function testTheCurrentAppIsOnlyAnsweredAsItsOwnClass(): void
-    {
-        $this->expectException(AppException::class);
-        $this->expectExceptionMessage('is booted, not');
-
-        (void) self::other()::current();
-    }
-
-    /**
-     * @return void
-     */
-    public function testTheAppIsNamedForTheSite(): void
-    {
         self::assertSame(Site::NAME, App::current()->name());
-    }
-
-    /**
-     * An app that is not the site, for the two refusals above. Constructing one is allowed — it is
-     * booting it that is not.
-     *
-     * @return App
-     */
-    private static function other(): App
-    {
-        return new class () extends App {
-            /** @return string */
-            public function name(): string
-            {
-                return 'other';
-            }
-
-            /** @return Directory */
-            public function above(): Directory
-            {
-                return new Directory(sys_get_temp_dir());
-            }
-
-            /** @return Collection<Route> */
-            public function routes(): Collection
-            {
-                return new Collection(Route::class);
-            }
-
-            /** @return Collection<DataFileName> */
-            protected function ownDataFiles(): Collection
-            {
-                return new Collection(DataFileName::class);
-            }
-
-            /**
-             * @param Request $request
-             * @return Response
-             */
-            public function notFound(Request $request): Response
-            {
-                return new PlainTextResponse(HttpStatusCode::NotFound, 'not here');
-            }
-
-            /** @return Languages */
-            public function languages(): Languages
-            {
-                return new Languages(Language::English);
-            }
-
-            /** @return Shell */
-            public function shell(): Shell
-            {
-                return new Layout();
-            }
-
-            /** @return Vocabulary */
-            public function vocabulary(): Vocabulary
-            {
-                return Vocabulary::standard();
-            }
-
-            /** @return string */
-            public function buildId(): string
-            {
-                return 'other';
-            }
-        };
-    }
-
-    /**
-     * Runs $body with `DOCUMENT_ROOT` set to $root, and puts the superglobal back either way.
-     *
-     * @param string $root
-     * @param callable(): string $body
-     * @return string
-     */
-    private static function withDocumentRoot(string $root, callable $body): string
-    {
-        $previous = $_SERVER['DOCUMENT_ROOT'] ?? null;
-        $_SERVER['DOCUMENT_ROOT'] = $root;
-
-        try {
-            return $body();
-        } finally {
-            if ($previous === null) {
-                unset($_SERVER['DOCUMENT_ROOT']);
-            } else {
-                $_SERVER['DOCUMENT_ROOT'] = $previous;
-            }
-        }
     }
 }

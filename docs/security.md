@@ -228,8 +228,9 @@ The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#5
 The site's side of it:
 
 - **The verify script fails a heredoc or a `'<tag'` literal** anywhere under `src/` or
-  `phpanta/src/`, and `HtmlTest` pins both the one `htmlspecialchars` call site and every spelling of
-  an off-origin URL `Element` refuses.
+  `phpanta/src/`. The framework's `MarkupTest` pins the one `htmlspecialchars` call site and every
+  spelling of an off-origin URL `Element` refuses, and the site's `HtmlTest` that nothing under
+  `src/` escapes for itself.
 - **The one hand-authored document is the privacy policy**, its two halves (`data/privacy.de.html`,
   `data/privacy.en.html`) read through `Element::containingHtml()` against the site's own
   vocabulary. A test named for the fact pins its call sites. ([history](history/security.md))

@@ -4,34 +4,40 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use FilesystemIterator;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
+use Phpanta\Test\SourceTree as Tree;
 
 /**
  * Every class under the two source trees — the site's and the framework's — named the way the two
  * autoloaders name them.
  *
- * Four tests used to walk `src/NeuroSYS/` with their own copy of the same loop, and each would have
- * had to learn about `phpanta/src/` separately when the framework moved out; one of them not
- * learning it would be a rule that quietly stopped reading half the code. So there is one walk,
- * over both roots, and the mapping from a path to a class is each root's own prefix — the same one
- * its autoloader uses, so a file this cannot name is one production could not have loaded either.
+ * The walk itself is the framework's {@link Tree}, parameterised by a root and its prefix, so the
+ * framework's suite and this one read a tree the same way. This is the site's view over it: the
+ * site's tree on its own, the framework's as vendored here, and the two together for the rules
+ * that still read everything this repository ships. One of the two roots quietly dropping out of
+ * a rule would be a rule that stopped reading half the code, which is why there is one place that
+ * names both.
  */
 final class SourceTree
 {
     /**
-     * Each root, under the repository, beside the namespace prefix its autoloader maps to it.
+     * `src/NeuroSYS/`, under `NeuroSYS\`.
      *
-     * @var array<string, string>
+     * @return Tree
      */
-    public const array ROOTS = [
-        '/src/NeuroSYS/' => 'NeuroSYS\\',
-        '/phpanta/src/'  => 'Phpanta\\',
-    ];
+    public static function site(): Tree
+    {
+        return new Tree(NEUROSYS_ROOT . '/src/NeuroSYS', 'NeuroSYS\\');
+    }
 
-    /** Cache for {@link self::classes()}: every test asks, and the answer does not change mid-run. */
-    private static ?array $classes = null;
+    /**
+     * `phpanta/src/`, under `Phpanta\` — the framework as this site vendors it.
+     *
+     * @return Tree
+     */
+    public static function framework(): Tree
+    {
+        return new Tree(NEUROSYS_ROOT . '/phpanta/src', 'Phpanta\\');
+    }
 
     /**
      * Every class, interface, enum and trait under both roots, as `absolute path => class-string`,
@@ -41,27 +47,11 @@ final class SourceTree
      */
     public static function classes(): array
     {
-        if (self::$classes !== null) {
-            return self::$classes;
-        }
-
-        $classes = [];
-
-        foreach (self::ROOTS as $directory => $prefix) {
-            foreach (self::phpFilesUnder(NEUROSYS_ROOT . $directory) as $path) {
-                $relative = substr($path, strlen(NEUROSYS_ROOT . $directory), -strlen('.php'));
-                $class    = $prefix . str_replace('/', '\\', $relative);
-
-                if (class_exists($class) || interface_exists($class) || enum_exists($class) || trait_exists($class)) {
-                    /** @var class-string $class */
-                    $classes[$path] = $class;
-                }
-            }
-        }
+        $classes = [...self::framework()->classes(), ...self::site()->classes()];
 
         ksort($classes);
 
-        return self::$classes = $classes;
+        return $classes;
     }
 
     /**
@@ -74,37 +64,10 @@ final class SourceTree
      */
     public static function files(string ...$extra): array
     {
-        $paths = [];
-
-        foreach ([...array_keys(self::ROOTS), ...$extra] as $directory) {
-            $paths = [...$paths, ...self::phpFilesUnder(NEUROSYS_ROOT . $directory)];
-        }
+        $beside = array_map(static fn(string $directory): string => NEUROSYS_ROOT . $directory, $extra);
+        $paths  = [...self::framework()->files(), ...self::site()->files(...$beside)];
 
         sort($paths);
-
-        return $paths;
-    }
-
-    /**
-     * @param string $directory
-     * @return list<string>
-     */
-    private static function phpFilesUnder(string $directory): array
-    {
-        if (!is_dir($directory)) {
-            return [];
-        }
-
-        $paths = [];
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
-        );
-
-        foreach ($files as $file) {
-            if ($file->getExtension() === 'php') {
-                $paths[] = $file->getPathname();
-            }
-        }
 
         return $paths;
     }

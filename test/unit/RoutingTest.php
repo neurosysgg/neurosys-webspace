@@ -15,155 +15,47 @@ use NeuroSYS\Site;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
 use Phpanta\App;
-use Phpanta\Exception\RouteException;
 use Phpanta\Http\HttpMethod;
 use Phpanta\Support\ApiPath;
 use Phpanta\Support\MethodPolicy;
-use Phpanta\Support\Path;
 use Phpanta\Support\Route;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use ReflectionProperty;
 
+/**
+ * The site's addresses and its route table.
+ *
+ * How a pattern matches, what `to()` fills it with, and how the router answers are the framework's,
+ * and asserted in its own suite over fixture paths. What is here is this site's vocabulary — every
+ * address written out in full, so a wrong case fails — and what its table does with it.
+ */
 #[CoversClass(App::class)]
 #[CoversClass(ApiPath::class)]
 #[CoversClass(Route::class)]
+#[CoversClass(MethodPolicy::class)]
 #[CoversClass(RouteInitialization::class)]
 #[CoversClass(SitePath::class)]
 final class RoutingTest extends TestCase
 {
     /**
-     * @return void
-     */
-    public function testStaticPatternMatchesExactlyAndCapturesNothing(): void
-    {
-        $route = new Route(SitePath::Releases, fn() => new ReleasesController());
-
-        self::assertSame([], $route->matches('/releases'));
-        self::assertFalse($route->matches('/releases/ill'));
-        self::assertFalse($route->matches('/release'));
-        self::assertFalse($route->matches('/'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testPlaceholderCapturesOneSegment(): void
-    {
-        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
-
-        self::assertSame(['ill'], $route->matches('/releases/ill'));
-        self::assertSame(['hello-world'], $route->matches('/releases/hello-world'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testPlaceholderDoesNotSpanASlash(): void
-    {
-        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
-
-        self::assertFalse($route->matches('/releases/ill/flac'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testMultiplePlaceholdersCaptureInOrder(): void
-    {
-        $route = new Route(
-            SitePath::Download,
-            fn($slug, $format) => new DownloadController($slug, $format),
-        );
-
-        self::assertSame(['ill', 'flac'], $route->matches('/releases/ill/flac'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testEmptySegmentDoesNotMatchAPlaceholder(): void
-    {
-        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
-
-        self::assertFalse($route->matches('/releases/'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testFactoryReceivesTheCapturedParams(): void
-    {
-        $route = new Route(
-            SitePath::Download,
-            fn($slug, $format) => new DownloadController($slug, $format),
-        );
-
-        self::assertInstanceOf(
-            DownloadController::class,
-            $route->createController($route->matches('/releases/ill/flac') ?: []),
-        );
-    }
-
-    /**
-     * What comes out of a match is what went into `to()`: a value is encoded into its segment and
-     * decoded out of it, so the two are inverses — an encoded slash included, which is matched as
-     * part of its segment and only then becomes a slash in the value.
-     *
-     * @return void
-     */
-    public function testAValueComesBackAsItWentIntoTo(): void
-    {
-        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
-
-        self::assertSame('/releases/a%20b%2Fc', SitePath::Release->to('a b/c'));
-        self::assertSame(['a b/c'], $route->matches(SitePath::Release->to('a b/c')));
-    }
-
-    /**
-     * A slug that reads as a number is still a string: a capture is text, whatever it spells.
-     *
-     * @return void
-     */
-    public function testANumericSlugIsCapturedAsAString(): void
-    {
-        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
-
-        self::assertSame(['2024'], $route->matches('/releases/2024'));
-    }
-
-    /**
      * Every pattern is plain segments and placeholders. `Route` quotes a pattern's static parts, so
      * a metacharacter would match only itself now; this keeps the addresses the site names plain,
      * which is a decision about URLs rather than a guard for the regex.
      *
-     * Over both vocabularies' cases rather than over the registered routes, which is stricter in
-     * the direction that matters now: a case is a pattern whether or not anything has registered
-     * it yet, and it is also what a view builds a link from.
+     * Over the vocabulary's cases rather than over the registered routes, which is stricter in the
+     * direction that matters: a case is a pattern whether or not anything has registered it yet,
+     * and it is also what a view builds a link from.
      *
      * @return void
      */
     public function testEveryPatternIsPlainSegmentsAndPlaceholders(): void
     {
-        foreach ([...SitePath::cases(), ...ApiPath::cases()] as $path) {
+        foreach (SitePath::cases() as $path) {
             self::assertMatchesRegularExpression(
                 '#^(/|(/[\w-]+|/\{\w+\})+)$#',
                 $path->value,
                 "{$path->name} contains something that is not a plain segment or a {placeholder}.",
-            );
-        }
-    }
-
-    /**
-     * @return void
-     */
-    public function testEveryRegisteredRouteUsesADeclaredPath(): void
-    {
-        foreach (Site::current()->routeTable() as $route) {
-            self::assertInstanceOf(
-                Path::class,
-                new ReflectionProperty(Route::class, 'pattern')->getValue($route),
             );
         }
     }
@@ -181,49 +73,6 @@ final class RoutingTest extends TestCase
     }
 
     /**
-     * The mistake an arrow function makes here: `fn()` captures by value, so a shift inside it
-     * leaves the outer list untouched and every placeholder is filled with the first value —
-     * `/releases/ill/ill`, which is well formed, matches a route, and is the wrong page.
-     *
-     * @return void
-     */
-    public function testToDoesNotRepeatTheFirstValue(): void
-    {
-        self::assertSame('/releases/ill/wav', SitePath::Download->to('ill', 'wav'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testToEncodesEachValueAsOneSegment(): void
-    {
-        self::assertSame('/releases/hello%20world', SitePath::Release->to('hello world'));
-        self::assertSame('/releases/a%2Fb', SitePath::Release->to('a/b'));
-    }
-
-    /**
-     * @return void
-     */
-    public function testToRefusesTooFewValues(): void
-    {
-        $this->expectException(RouteException::class);
-        $this->expectExceptionMessage('SitePath::Download takes 2 value(s)');
-
-        SitePath::Download->to('ill');
-    }
-
-    /**
-     * @return void
-     */
-    public function testToRefusesTooManyValues(): void
-    {
-        $this->expectException(RouteException::class);
-        $this->expectExceptionMessage('SitePath::Home takes 0 value(s)');
-
-        SitePath::Home->to('ill');
-    }
-
-    /**
      * Every path a view can build is one the router answers on. That is the whole reason the
      * patterns are an enum: one vocabulary for both, rather than two files that nothing compares.
      * The site's come first, in declaration order, and the framework's API last.
@@ -235,14 +84,14 @@ final class RoutingTest extends TestCase
         $registered = [];
 
         foreach (Site::current()->routeTable() as $route) {
-            $registered[] = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
+            $registered[] = $route->path();
         }
 
         self::assertSame([...SitePath::cases(), ...ApiPath::cases()], $registered);
     }
 
     /**
-     * @return iterable
+     * @return iterable<array{string, class-string}>
      */
     public static function dispatchProvider(): iterable
     {
@@ -292,7 +141,7 @@ final class RoutingTest extends TestCase
     }
 
     /**
-     * @return iterable
+     * @return iterable<array{string}>
      */
     public static function unmatchedProvider(): iterable
     {
@@ -302,18 +151,14 @@ final class RoutingTest extends TestCase
         yield ['/admin/stats/extra'];
         yield ['/imprints'];
 
-        // Every depth short of `/api`'s four segments, and one past it. These match nothing at all,
-        // which is what makes `/api` and everything under it fall through to the same 404 as any
-        // other address that is not there — a property of the pattern rather than of a check
-        // anywhere. See ApiPath::Api.
+        // Every depth short of `/api`'s four segments, and one past it. The framework asserts its
+        // own pattern matches none of these; over this table they also say no route of the site's
+        // claims one, which is what keeps `/api` falling through to the same 404 as any other
+        // address that is not there. See ApiPath::Api.
         yield ['/api'];
         yield ['/api/update'];
         yield ['/api/update/v1'];
         yield ['/api/update/v1/patch/extra'];
-
-        // The same depths under the second service, which cost nothing to keep in line: the
-        // pattern is four segments whatever the first of them says, so `health` is short and long
-        // in exactly the same places `update` is.
         yield ['/api/health'];
         yield ['/api/health/v1'];
         yield ['/api/health/v1/report/extra'];
@@ -332,33 +177,9 @@ final class RoutingTest extends TestCase
     }
 
     /**
-     * A placeholder matches anything at all, malformed included — which is the fact
-     * {@link \Phpanta\Http\Request::normalisePath()} spent a paragraph assuming the opposite of.
-     *
-     * That docblock argued its verbatim fallback was safe because "no route pattern matches a
-     * malformed target, so handing it through unchanged 404s the way every other unknown path
-     * does". `{slug}` compiles to `([^/]+)`, so a raw `"` matches like any other byte and the demo
-     * route claimed it — and since the fallback was the whole target rather than its path, a query
-     * string arrived inside the captured slug. That slug names a demo's `WWW-Authenticate` realm.
-     *
-     * Pinned here rather than only over there because it is a fact about **this** class: the claim
-     * was written in a file that does not import `Route`, and checking it was one `matches()` call.
-     * The row is the check nobody made.
-     *
-     * @return void
-     */
-    public function testAMalformedTargetStillMatchesAPlaceholderRoute(): void
-    {
-        $demo = new Route(SitePath::Demo, static fn(string $slug): HomeController => new HomeController());
-
-        self::assertSame(['a"b'], $demo->matches('/demos/a"b'));
-        self::assertSame(['x?a=1'], $demo->matches('/demos/x?a=1'));
-    }
-
-    /**
      * The one read-only route without placeholders that is not a page. It is behind the admin
-     * password, so under the CLI its controller ends the process, and a static export that asked it
-     * would stop there — the route says it has no pages instead.
+     * password, so a static export that asked it would be answered with a 401 — the route says it
+     * has no pages instead.
      *
      * @return void
      */
@@ -379,9 +200,10 @@ final class RoutingTest extends TestCase
     /**
      * `/api` is the one route that accepts a write method, and the only one.
      *
-     * Asserted over the real table by reflection rather than by reading the registration, because
-     * what matters is what the router will do and not what anybody wrote down. Both directions: a
-     * second route accepting a write, and a second route made `Delegated`, are each a hole.
+     * Asserted over the real table rather than by reading the registration, because what matters is
+     * what the router will do and not what anybody wrote down. Both directions: a second route
+     * accepting a write, and a second route made `Delegated`, are each a hole. A delegated route is
+     * the one that accepts even a method nobody recognises, which a read-only one never does.
      *
      * @return void
      */
@@ -391,14 +213,12 @@ final class RoutingTest extends TestCase
         $delegated = [];
 
         foreach (Site::current()->routeTable() as $route) {
-            $pattern = new ReflectionProperty(Route::class, 'pattern')->getValue($route);
-
             if ($route->accepts(HttpMethod::Post)) {
-                $accepting[] = $pattern;
+                $accepting[] = $route->path();
             }
 
-            if (new ReflectionProperty(Route::class, 'methods')->getValue($route) === MethodPolicy::Delegated) {
-                $delegated[] = $pattern;
+            if ($route->accepts(null)) {
+                $delegated[] = $route->path();
             }
         }
 

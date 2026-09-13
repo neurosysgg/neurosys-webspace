@@ -78,22 +78,24 @@ final class TranslationTest extends TestCase
     }
 
     /**
-     * Every translated enum under `src/` is reachable from the index — the provider above walks the
-     * index, so one that is not would be one nothing checks.
+     * Every translated enum under the site's `src/` is reachable from the index — the provider above
+     * walks the index, so one that is not would be one nothing checks. The framework's catalogs are
+     * found and checked by its own suite, whether or not an index names them.
      *
      * @return void
      */
     public function testTheIndexReachesEveryTranslatedEnum(): void
     {
+        $ours  = static fn(string $class): bool => str_starts_with($class, 'NeuroSYS\\');
         $found = [];
 
         foreach (SourceTree::classes() as $class) {
-            if (enum_exists($class) && in_array(Translated::class, class_uses($class), true)) {
+            if ($ours($class) && enum_exists($class) && in_array(Translated::class, class_uses($class), true)) {
                 $found[] = $class;
             }
         }
 
-        $reached = self::catalogs();
+        $reached = array_values(array_filter(self::catalogs(), $ours));
 
         sort($found);
         sort($reached);

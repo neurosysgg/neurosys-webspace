@@ -97,21 +97,21 @@ The division matters in a few concrete places:
 ### The framework's checks, run here
 
 `phpanta/` has a suite of its own, which runs under a test app rather than this site (see
-[phpanta/docs/testing.md](../phpanta/docs/testing.md)). The checks that watched the framework while
-it lived in this repository moved only as far as they had to. They still run here, and each reads
-**both** source trees, `src/` and `phpanta/`, so the framework is held to them whether or not it is
-checked out on its own:
+[phpanta/docs/testing.md](../phpanta/docs/testing.md)), and `composer unit` runs it after this one.
+It holds the framework to its own rules — its `BoundaryTest`, `GuidelineTest` and `NoDiscardTest`
+read `phpanta/` alone. The same three run here over `src/`, through `SourceTree` pointed at this
+tree, and two checks stay here because only the site can make them:
 
-| Check | What it holds the framework to |
+| Check | What it holds |
 |---|---|
-| `BoundaryTest` | nothing under `phpanta/src/` names a site class, by any kind of name; every `{@link}` under `phpanta/` lands on a framework class, member or function, or PHP's own |
+| `BoundaryTest` | no `NeuroSYS\` class is named anywhere under `phpanta/` — the framework's own boundary test already fails on one, and this is the site saying so in its own words |
 | the verify script | nothing under `phpanta/` mentions the site's namespace, comments and docs included; every link in its documents stays inside it; every framework class loads; no markup from a string, no outbound request, one `openssl_` caller |
-| `GuidelineTest` | the five habits |
-| `NoDiscardTest` | every builder and query that must not be discarded, and why |
+| `GuidelineTest` | the five habits, over `src/`, with the site's excuses pinned |
+| `NoDiscardTest` | every result under `src/` that must not be dropped |
 | `TranslationTest` | every translated enum is reachable from `Texts`, and written in every language |
 
-`SourceTree` is what lets them read both trees. The front end's tests stay in `test/js/` as well.
-They load the compiled tree, and the framework's eleven modules are part of it.
+The front end's tests stay in `test/js/`. They load the compiled tree, and the framework's eleven
+modules are part of it.
 
 ## Adding a unit test
 
@@ -127,10 +127,12 @@ is a helper rather than a suite, and so are the framework's fixtures (`UpdateFix
 listed under [The development tooling](#the-development-tooling).
 
 A test that names no class of this site belongs to the framework, and lives in `phpanta/test/unit/`
-— collections and files, the request, every header value, the API and its gate, health, the CLI
-layer. `HealthTest`, `LanguagesTest` and `CliTest` here keep only what is this site's own: the data
-files it declares, the languages it offers, the scripts that run its commands. See
-[phpanta/docs/testing.md](../phpanta/docs/testing.md).
+— collections and files, the request and every answer, every header value, the router, the markup
+tree, auth, the API and its gate, health, the CLI layer. The files here that share a name with one
+there keep only what is this site's own: `AppTest` its paths and facts, `AdminTest` its shipped
+placeholder and its stats page, `DemoTest` its demos, `ResponseTest` its controllers, `SecurityTest`
+its routes behind the gate and the hosts its policy names, `RoutingTest` its route table, `HtmlTest`
+its tags, stylesheet and privacy page. See [phpanta/docs/testing.md](../phpanta/docs/testing.md).
 
 Several are named for something other than a layer, because that is what they are about: `PageTest`
 covers the pages that are only content — the home hero, the imprint, the privacy policy —
@@ -248,7 +250,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   check it — `DemoTest` through the controller with encoded dots, the verify script over HTTP — and
   `DemoTrack` refusing a file name with a separator in it is the second guard, for a typo in
   `data/demos.php` rather than for anything a visitor can send.
-- **A path-shaped URL really is a path on this site.** `HtmlTest` walks every spelling of a bare
+- **A path-shaped URL really is a path on this site.** The framework's `MarkupTest` walks every spelling of a bare
   authority past `Element` — `//host`, `/\host`, and the two that hide one behind a tab or a
   newline, which no list of prefixes catches. `Element` puts the question to PHP 8.5's WHATWG
   parser, so the answer covers spellings nobody wrote down. (history: [history/markup.md](../phpanta/docs/history/markup.md))
@@ -257,7 +259,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **A wrong admin password is refused.** `data/admin.php` ships with an empty `pass_hash`, so
   `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()` nor
   `password_verify()` is reached — the verify script's two `/admin/stats → 401` checks prove the
-  route is gated without ever comparing a credential. `AdminTest` is what compares one: it supplies a
+  route is gated without ever comparing a credential. The framework's `AuthTest` is what compares one: it supplies a
   real bcrypt hash (cost 4, so the suite stays fast) and walks a dozen near-misses past it: wrong
   case, a prefix of the right password, the right password with a character appended.
 - **An unconfigured gate is closed, not open.** An empty `pass_hash` accepts nobody, including
