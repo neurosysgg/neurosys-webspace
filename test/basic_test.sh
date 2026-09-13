@@ -266,12 +266,6 @@ php_ok "every class under phpanta/src/ actually loads, as Phpanta" \
      }
      \$bad === [] or exit(1);"
 
-# TEMPORARY, with the alias in autoload.php: a moved class's old name is still how the server's data/
-# files name it until deploy.sh ships the new ones, so it has to resolve — to the framework's class,
-# never to an old copy. Both go when data/ has been redeployed.
-php_ok "autoload.php aliases a moved class's old name to the framework's" \
-    "new ReflectionClass('Neuro' . 'SYS' . chr(92) . 'Support' . chr(92) . 'Collection')->getName() === 'Phpanta' . chr(92) . 'Support' . chr(92) . 'Collection' or exit(1);"
-
 # The same question of the development tooling, which has an autoloader of its own — `tools/` is not
 # deployed, so the site's must not know about it. Nothing else reaches these classes: the CLI layer
 # is outside the coverage source and the commands are run by hand, so a namespace that disagrees
