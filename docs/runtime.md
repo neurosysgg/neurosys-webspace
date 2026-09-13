@@ -207,6 +207,35 @@ What the differences mean, the dangerous ones first:
   `/opt/RZphp84` is a leftover of the host's previous PHP. Nothing here uses `include_path`: every
   `require` is absolute from `__DIR__`.
 
+## The filesystem
+
+What a push that stages its tree and swaps it in would rest on, read by `update v1 probe` on
+**2026-09-13** — on Strato right after serial 1789328472, locally through the Apache's TLS vhost.
+Each step ran in a scratch directory beside the roots and left nothing behind.
+
+| probe line | Strato (NFS) | local Apache |
+|---|---|---|
+| `devices` | webroot on the deployment's device; **`/tmp` on another** | the same, `/tmp` on another |
+| `free space` | 6.4 TB of 15 TB — the export's, not the account's quota | 100 GB of 400 GB |
+| `file rename` | yes | yes |
+| `directory rename` | yes, ~600 µs | yes, 18 µs |
+| `with a file open` | yes; the handle still reads, no stray | the same |
+| `over an open file` | **one `.nfs` stray while open, none after it closed** | no stray |
+| `onto an empty dir` | yes | yes |
+| `onto a full dir` | no — `Directory not empty` | the same |
+| `swap window` | **~626 µs with nothing at the name**, 1.1 ms for both renames | 10 µs, 23 µs |
+| `hard link` · `symbolic link` | both can be made | both |
+
+Three of these decide things:
+
+- **`/tmp` is another device on both**, so anything staged for a rename into place has to live beside
+  the roots, under `cgi-bin/`, never in `sys_get_temp_dir()`.
+- **Strato renames a directory with a file held open inside it** and the open handle keeps reading, so
+  moving a tree out from under a worker that is running its `index.php` strands nothing.
+- **The stray is released by the last close.** A stray left by a push outlives the push only because
+  Strato's `cgi-fcgi` workers keep `index.php` open between requests; see
+  [deployment.md](deployment.md#the-nfsxxxxxxxx-files-if-you-ever-see-one).
+
 ## Re-reading them
 
 For Strato, the API answers directly:
@@ -215,7 +244,12 @@ For Strato, the API answers directly:
 php tools/api.php capability v1 runtime
 php tools/api.php capability v1 extensions
 php tools/api.php capability v1 settings
+php tools/api.php update v1 probe          # the filesystem table — a write, so it spends a serial
 ```
+
+The local Apache has a TLS vhost too, so the same commands reach it with
+`php -d curl.cainfo=/etc/httpd/conf/neurosys.localhost.crt tools/api.php … --url https://neurosys.localhost`,
+signed with the local deployment's own key.
 
 **The local Apache is plain HTTP, and `tools/api.php` only speaks `https`** (`Url` refuses
 anything else, by design, on the one request that carries a signature). Build the same signed
