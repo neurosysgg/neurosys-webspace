@@ -146,6 +146,33 @@ final class ModelTest extends TestCase
         }
     }
 
+    /**
+     * @return iterable
+     */
+    public static function mimeTypeProvider(): iterable
+    {
+        yield [ReleaseFormat::FLAC, 'audio/flac'];
+        yield [ReleaseFormat::WAV, 'audio/wav'];
+        yield [ReleaseFormat::MP3, 'audio/mpeg'];
+        yield [ReleaseFormat::AIFF, 'audio/aiff'];
+        yield [ReleaseFormat::OGG, 'audio/ogg'];
+        yield [ReleaseFormat::STEMS, 'application/octet-stream'];
+    }
+
+    /**
+     * The type a file in each format is uploaded as. Stems are an archive of several sounds rather
+     * than one, so they have no audio type and go as bytes.
+     *
+     * @param ReleaseFormat $format
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('mimeTypeProvider')]
+    public function testEachFormatIsSentAsItsOwnType(ReleaseFormat $format, string $expected): void
+    {
+        self::assertSame($expected, $format->mimeType()->render());
+    }
+
     // ───────────────────── MusicalKey / Genre ─────────────────────
 
     /**
