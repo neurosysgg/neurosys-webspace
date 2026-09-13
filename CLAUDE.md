@@ -19,6 +19,17 @@ framework's code writes, and the verify script fails any mention of the site's n
 under it, comments and docs included. The site's facts reach the framework through `Site`, the app.
 The rules and traps below hold for both trees; the framework's own file states them without the site.
 
+**It is a git submodule**, at the relative URL `../phpanta.git`, so GitHub and HiDrive each resolve
+their own copy (`neurosysgg/phpanta`, `users/ecki590/phpanta.git`); clone with
+`--recurse-submodules`. A change to the framework is a commit in `phpanta/`, then `git add phpanta`
+and a commit in the site — `push-update` refuses anything else. This clone sets `submodule.recurse`,
+`push.recurseSubmodules=on-demand` and `status.submoduleSummary`, so a checkout moves the framework
+with the site and a push sends the framework commit the site records first; the submodule has an
+`origin` and a `hidrive` remote of its own, named as the site's are, so pushing both still means
+`origin` then `hidrive`. **Checking out or bisecting across the commit that made `phpanta/` a
+submodule needs `--no-recurse-submodules`** (`git log -1 -- .gitmodules` names it), and after a
+remote's URL changes, `git submodule sync`.
+
 ## Stack
 
 Plain PHP 8.5 / HTML / CSS on Phpanta, **no runtime dependencies**. PHP ≥ 8.5 is load-bearing

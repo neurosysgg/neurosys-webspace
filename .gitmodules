@@ -1,0 +1,3 @@
+[submodule "phpanta"]
+	path = phpanta
+	url = ../phpanta.git
