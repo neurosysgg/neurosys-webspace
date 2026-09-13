@@ -7,10 +7,15 @@
  * with nothing in the console, a drifted X-Requested-With gets a whole document written into
  * <main>, and a missing #content switches the whole thing off silently.
  *
+ * It also stands in for what a page load does for free — the scroll position back and forward
+ * return to, focus, and telling a screen reader the page changed — so a swap that works can still
+ * leave a visitor in the wrong place, and this file checks where they are left.
+ *
  * The Navigation under test is the one main.js started, not one built here — the wiring is part of
- * what is being tested, and there is only ever one document listener in a real page.
+ * what is being tested, and there is only ever one document listener in a real page. What start()
+ * does with the entry it is loaded on is in navigation-start.test.mjs.
  */
-import { test, beforeEach } from 'node:test';
+import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { dom } from './dom.mjs';
@@ -25,6 +30,9 @@ let requests = [];
 
 /** Every URL it handed back to the browser rather than fetching itself. */
 let handedBack = [];
+
+/** Every URL it handed to location.assign() — which should be none; see the afterEach below. */
+let assigned = [];
 
 /** What the next fetch resolves to. */
 let respond;
@@ -53,30 +61,54 @@ function deferred() {
   return { promise, ...settle };
 }
 
-const fragment = (body, { ok = true } = {}) => () =>
-  Promise.resolve({ ok, text: () => Promise.resolve(body) });
+/**
+ * A response as fetch resolves it: a page's Content-Type unless a test says otherwise, and none at
+ * all for a null one.
+ *
+ * @param {() => Promise<string>} text
+ * @param {{ ok?: boolean, type?: string | null }} [options]
+ */
+function response(text, { ok = true, type = 'text/html; charset=utf-8' } = {}) {
+  return { ok, headers: new Headers(type === null ? {} : { 'Content-Type': type }), text };
+}
+
+/**
+ * @param {string} body
+ * @param {{ ok?: boolean, type?: string | null }} [options]
+ */
+const fragment = (body, options) => () =>
+  Promise.resolve(response(() => Promise.resolve(body), options));
 
 const unreachable = () => () => Promise.reject(new TypeError('failed to fetch'));
 
 /**
- * location, with assign() recorded instead of performed.
+ * location, with replace() recorded instead of performed.
  *
- * jsdom's own Location refuses to be stubbed — assign is read-only and non-configurable — and it
- * cannot navigate anyway. Reads still come from the real one, so pushState is observable.
+ * jsdom's own Location refuses to be stubbed — its methods are read-only and non-configurable — and
+ * it cannot navigate anyway. Reads still come from the real one, so pushState and back and forward
+ * are observable. assign() is here only to be caught using it: see the afterEach below.
  */
 const real = dom.window.location;
 
-// Three getters and an assign, because that is every member Navigation touches. The cast says the
-// double is deliberately partial rather than inviting nine more members nothing reads.
+// Two getters and two methods, because that is every member Navigation touches or must not. The
+// cast says the double is deliberately partial rather than inviting more members nothing reads.
 globalThis.location = /** @type {Location} */ (/** @type {unknown} */ ({
   get href() { return real.href; },
-  get pathname() { return real.pathname; },
   get origin() { return real.origin; },
-  assign(url) { handedBack.push(url); },
+  replace(url) { handedBack.push(url); },
+  assign(url) { assigned.push(url); },
 }));
 
-// jsdom prints "Not implemented" for this on every successful navigation.
-dom.window.scrollTo = () => {};
+/** Every window.scrollTo(x, y), in order. jsdom prints "Not implemented" for it otherwise. */
+let scrolls = [];
+
+dom.window.scrollTo = (...at) => { scrolls.push(at); };
+
+/** Every element scrolled into view, in order. jsdom has no scrollIntoView at all. */
+let revealed = [];
+
+/** @this {Element} */
+dom.window.Element.prototype.scrollIntoView = function scrollIntoView() { revealed.push(this); };
 
 /**
  * What Navigation decided about the last click, read before jsdom acts on it.
@@ -120,13 +152,59 @@ async function navigate(node, init = {}) {
   await settle();
 }
 
+/**
+ * Says where the page is scrolled. jsdom has no layout, so a test states it — the way sized() in
+ * dom.mjs states how big a box is.
+ */
+function scrolledTo(y) {
+  Object.defineProperty(dom.window, 'scrollY', { value: y, configurable: true, writable: true });
+}
+
+/**
+ * Goes back (-1) or forward (1) the way the browser does — jsdom traverses its own session history
+ * and fires popstate — and waits for whatever the arrival started.
+ */
+async function traverse(delta) {
+  const arrived = new Promise((resolve) => {
+    window.addEventListener('popstate', resolve, { once: true });
+  });
+
+  history.go(delta);
+  await arrived;
+  await settle();
+}
+
+/** A popstate for an entry a test pushed by hand, as the browser fires one arriving on it. */
+async function arriveOn(state, url) {
+  history.pushState(state, '', url);
+  window.dispatchEvent(new dom.window.Event('popstate'));
+  await settle();
+}
+
+/** The region the new title is announced through. */
+const announcer = () =>
+  /** @type {HTMLElement} */ (document.querySelector('[aria-live="polite"]'));
+
 beforeEach(() => {
   requests   = [];
   handedBack = [];
+  assigned   = [];
+  scrolls    = [];
+  revealed   = [];
   verdict    = null;
   respond    = fragment('<title>neuro.SYS</title><p>fragment</p>');
+  scrolledTo(0);
   content.replaceChildren();
   document.body.querySelectorAll('a').forEach((a) => { a.remove(); });
+});
+
+/**
+ * Every fallback is location.replace(). The entry for the URL already exists — pushState made it,
+ * or back and forward arrived on it — so assign() would put a second one behind it, and back would
+ * land the visitor on the URL they had just failed to leave.
+ */
+afterEach(() => {
+  assert.deepEqual(assigned, [], 'a fallback used assign() rather than replace()');
 });
 
 // ───────────────────────────── interception ─────────────────────────────
@@ -165,6 +243,13 @@ test('a click on something inside the link still navigates', async () => {
 
   await navigate(span);
 
+  assert.equal(requests.length, 1);
+});
+
+test('a link that opens in this page is intercepted, whatever the case of its target', async () => {
+  await navigate(link('/releases', { target: '_SELF' }));
+
+  assert.equal(verdict.intercepted, true);
   assert.equal(requests.length, 1);
 });
 
@@ -291,6 +376,49 @@ test('a download link is left to the browser', async () => {
   assert.deepEqual(requests, []);
 });
 
+/** `download` asks the browser to save the response — nothing a swap could show. */
+test('a link with a download attribute is left to the browser', async () => {
+  await navigate(link('/releases/ill/flac', { download: '' }));
+
+  assert.equal(verdict.intercepted, false);
+  assert.deepEqual(requests, []);
+});
+
+test('a link that opens in another window is left to the browser', async () => {
+  await navigate(link('/releases', { target: '_blank' }));
+
+  assert.equal(verdict.intercepted, false);
+  assert.deepEqual(requests, []);
+});
+
+/**
+ * A handler of the page's own ran first and cancelled the click, so it has decided what the click
+ * does. The verdict reads "cancelled" either way; what shows Navigation stayed out is that nothing
+ * was fetched.
+ */
+test('a click something else has already cancelled is left alone', async () => {
+  const a = link('/releases');
+  a.addEventListener('click', (event) => { event.preventDefault(); });
+
+  await navigate(a);
+
+  assert.deepEqual(requests, []);
+  assert.deepEqual(handedBack, []);
+});
+
+/**
+ * A fragment of the page already showing is a scroll. The browser moves to it and makes the
+ * history entry itself; a fetch would replace the very content it is scrolling through.
+ */
+test('a fragment of the page already showing is left to the browser', async () => {
+  history.pushState(null, '', '/imprint');
+
+  await navigate(link('/imprint#contact'));
+
+  assert.equal(verdict.intercepted, false);
+  assert.deepEqual(requests, []);
+});
+
 test('an external link is left to the browser', async () => {
   await navigate(link('https://soundcloud.com/neurosysgg'));
 
@@ -385,16 +513,180 @@ test('a fetch that never arrives becomes a real navigation', async () => {
   assert.equal(content.innerHTML, '');
 });
 
+/** A route can answer with a file. Its bytes are not a page, and #content is no place for them. */
+test('a response that is not a page becomes a real navigation', async () => {
+  respond = fragment('%PDF-1.7', { type: 'application/pdf' });
+
+  await navigate(link('/files/sheet.pdf'));
+
+  assert.deepEqual(handedBack, ['https://neurosys.gg/files/sheet.pdf']);
+  assert.equal(content.innerHTML, '');
+});
+
+test('a response that does not say what it is becomes a real navigation', async () => {
+  respond = fragment('<p>who knows</p>', { type: null });
+
+  await navigate(link('/files/unknown'));
+
+  assert.deepEqual(handedBack, ['https://neurosys.gg/files/unknown']);
+  assert.equal(content.innerHTML, '');
+});
+
+/** The type's case is not significant and its parameters say nothing about what it is. */
+test('a page is recognised whatever the case and parameters of its type', async () => {
+  respond = fragment('<title>t</title><p>shouting</p>', { type: 'Text/HTML ; Charset=UTF-8' });
+
+  await navigate(link('/releases'));
+
+  assert.deepEqual(handedBack, []);
+  assert.match(content.innerHTML, /shouting/);
+});
+
 // ───────────────────────── back and forward ─────────────────────────
 
-test('back and forward re-fetch the path they land on', async () => {
-  history.pushState({}, '', '/imprint');
-
-  window.dispatchEvent(new dom.window.Event('popstate'));
-  await settle();
+test('back and forward re-fetch the page they land on, query and fragment included', async () => {
+  await arriveOn({}, '/imprint?lang=de#contact');
 
   assert.equal(requests.length, 1);
-  assert.equal(requests[0].url, '/imprint');
+  assert.equal(requests[0].url, 'https://neurosys.gg/imprint?lang=de#contact');
+});
+
+// ───────────────────────── where the visitor is left ─────────────────────────
+
+test('a new page starts at the top', async () => {
+  scrolledTo(900);
+
+  await navigate(link('/scroll/new'));
+
+  assert.deepEqual(scrolls, [[0, 0]]);
+});
+
+/**
+ * What a page load would have done, and the swap has to do by hand now that scroll restoration is
+ * this file's: back returns to where the list was left, forward to where the release was.
+ */
+test('back returns to where a page was left, and forward to where the next one was', async () => {
+  respond = fragment('<title>list</title><p>list</p>');
+  await navigate(link('/scroll/list'));
+  scrolledTo(480);
+
+  respond = fragment('<title>detail</title><p>detail</p>');
+  await navigate(link('/scroll/detail'));
+  scrolledTo(120);
+
+  respond = fragment('<title>list</title><p>list</p>');
+  await traverse(-1);
+
+  assert.equal(real.pathname, '/scroll/list');
+  assert.match(content.innerHTML, /list/);
+  assert.deepEqual(scrolls.at(-1), [0, 480]);
+
+  scrolledTo(15);
+  respond = fragment('<title>detail</title><p>detail</p>');
+  await traverse(1);
+
+  assert.equal(real.pathname, '/scroll/detail');
+  assert.deepEqual(scrolls.at(-1), [0, 120]);
+});
+
+/** A reload empties the memory; the entry itself still says where it was left. */
+test('an entry this document never showed is returned to where its state says', async () => {
+  await arriveOn({ key: 'from-before-a-reload', scrollY: 300 }, '/scroll/reloaded');
+
+  assert.equal(requests.length, 1);
+  assert.deepEqual(scrolls.at(-1), [0, 300]);
+});
+
+test('a document being left writes where it was onto its entry, for a reload to find', () => {
+  scrolledTo(360);
+
+  window.dispatchEvent(new dom.window.Event('pagehide'));
+
+  assert.equal(history.state.scrollY, 360);
+  assert.equal(typeof history.state.key, 'string');
+});
+
+/**
+ * Back and forward between two fragments of one page change no content. The browser makes a
+ * stateless entry for a fragment link this file left alone and fires popstate on it; nothing may be
+ * fetched, and the page moves to the fragment — or, going back, to where it was.
+ */
+test('moving between fragments of one page scrolls and fetches nothing', async () => {
+  respond = fragment('<title>parts</title><h2 id="part">part</h2>');
+  await navigate(link('/scroll/parts'));
+  scrolledTo(40);
+  requests = [];
+
+  await arriveOn(null, '/scroll/parts#part');
+
+  assert.deepEqual(requests, []);
+  assert.equal(revealed.at(-1)?.id, 'part');
+
+  scrolledTo(700);
+  await traverse(-1);
+
+  assert.equal(real.href, 'https://neurosys.gg/scroll/parts');
+  assert.deepEqual(requests, []);
+  assert.deepEqual(scrolls.at(-1), [0, 40]);
+});
+
+test('a fragment of another page is fetched, and scrolled to once it has arrived', async () => {
+  respond = fragment('<title>t</title><h2 id="contact">contact</h2>');
+
+  await navigate(link('/scroll/elsewhere#contact'));
+
+  assert.equal(requests.length, 1);
+  assert.equal(revealed.at(-1)?.id, 'contact');
+  assert.deepEqual(scrolls, []);
+});
+
+/** The URL holds a fragment percent-encoded; the id it names does not. */
+test('a fragment is found by its decoded name too', async () => {
+  respond = fragment('<title>t</title><h2 id="café">café</h2>');
+
+  await navigate(link('/scroll/accents#café'));
+
+  assert.equal(revealed.at(-1)?.id, 'café');
+});
+
+test('a fragment that does not decode names nothing, and the page starts at the top', async () => {
+  respond = fragment('<title>t</title><h2 id="x">x</h2>');
+
+  await navigate(link('/scroll/broken#%E0%A4%A'));
+
+  assert.deepEqual(revealed, []);
+  assert.deepEqual(scrolls, [[0, 0]]);
+});
+
+/**
+ * A page load puts focus at the top of the document. After a swap it would otherwise stay on the
+ * link that was clicked — which is gone — and the next Tab would start from nowhere in particular.
+ */
+test('the new content takes focus, without becoming a tab stop', async () => {
+  await navigate(link('/releases'));
+
+  assert.equal(document.activeElement, content);
+  assert.equal(content.tabIndex, -1);
+});
+
+/** A page load is announced by the browser; a swap is silent unless something says it. */
+test('the new title is announced, politely', async () => {
+  respond = fragment('<title>rock &amp; roll</title><p>x</p>');
+
+  await navigate(link('/releases/ill'));
+
+  assert.equal(announcer().textContent, 'rock & roll');
+});
+
+/** Hidden from sight only: `hidden` or `display: none` would hide it from a screen reader too. */
+test('the announcer is out of sight, but not hidden from assistive technology', () => {
+  const region = announcer();
+
+  assert.equal(region.hidden, false);
+  assert.notEqual(region.style.display, 'none');
+  assert.equal(region.style.position, 'absolute');
+  assert.equal(region.style.clipPath, 'inset(50%)');
+  assert.equal(document.querySelectorAll('[aria-live]').length, 1, 'one region, however many swaps');
 });
 
 // ───────────────────────── the swap notification ─────────────────────────
@@ -438,7 +730,7 @@ test('a response resolved just as a newer click starts is dropped', async () => 
 
   respond = fragment('<title>imprint</title><p>second</p>');
 
-  first.resolve({ ok: true, text: () => Promise.resolve('<title>releases</title><p>first</p>') });
+  first.resolve(response(() => Promise.resolve('<title>releases</title><p>first</p>')));
 
   // One microtask, and exactly one: enough for the fetch promise to settle — so the abort below
   // has nothing left to cancel — but not enough for its continuation to run. That gap is the race.
@@ -455,7 +747,7 @@ test('a body that arrives after a newer click has started is dropped', async () 
   const body = deferred();
 
   // The fetch resolves at once; it is reading the body that outlives the navigation.
-  respond = () => Promise.resolve({ ok: true, text: () => body.promise });
+  respond = () => Promise.resolve(response(() => body.promise));
   click(link('/releases'));
   await settle();
 
@@ -470,7 +762,7 @@ test('a body that arrives after a newer click has started is dropped', async () 
 });
 
 /**
- * The abort is Navigation cancelling itself. Handing that to location.assign() would turn every
+ * The abort is Navigation cancelling itself. Handing that to location.replace() would turn every
  * double-click into a full page load of the URL the visitor already left.
  */
 test('the request a newer click cancels is not handed back to the browser', async () => {

@@ -214,13 +214,13 @@ curl -sI -H 'Accept-Encoding: gzip' https://neurosys.gg/assets/js/main.js | grep
 
 ## The front-end payload
 
-The debug tree in `public/` has 49 separate modules; the tree that deploys bundles them into one.
+The debug tree in `public/` has 52 separate modules; the tree that deploys bundles them into one.
 Both are gzipped at level 6, which is what `mod_deflate` uses.
 
 | | files | raw | gzip |
 |---|---|---|---|
-| debug tree, as committed | 49 | 35,527 | 15,681 |
-| **bundled and minified — what ships** | **1** | **15,557** | **5,801** |
+| debug tree, as committed | 52 | 42,342 | 17,845 |
+| **bundled and minified — what ships** | **1** | **19,113** | **6,956** |
 
 **The shipped tree is one bundle because gzip's window then spans the whole graph** instead of
 restarting at every small module. A per-file measurement and a concatenated one answer different
@@ -235,7 +235,7 @@ the compression table:
 | `/`, shipped | 2,979 | 963 |
 | `/releases/ill`, shipped | 7,042 | 1,705 |
 
-About **385 gzipped bytes** of every debug-tree document is the preload block.
+About **420 gzipped bytes** of every debug-tree document is the preload block.
 
 ---
 

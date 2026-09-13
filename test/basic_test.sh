@@ -674,7 +674,7 @@ if [[ -x "$TSC" ]]; then
         fi
 
         # Empty is the bundled shape. A list here means build-prod.mjs copied the tree instead of
-        # bundling it, and the page would then preload forty-six modules that are no longer served.
+        # bundling it, and the page would then preload modules that are no longer served.
         if grep -q 'public const array MODULES = \[\];' "$DIST_MANIFEST"; then
             pass "the prod manifest preloads nothing, as a bundled tree should"
         else

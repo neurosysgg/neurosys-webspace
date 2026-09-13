@@ -742,6 +742,18 @@ final class ResponseTest extends TestCase
     }
 
     /**
+     * The essence is the type without its encoding — what `Navigation` compares a response's
+     * `Content-Type` with, and what the `MediaType` mirror is checked against.
+     *
+     * @return void
+     */
+    public function testTheEssenceIsTheTypeWithoutItsCharset(): void
+    {
+        self::assertSame('text/html', MimeType::html()->essence());
+        self::assertSame('audio/mpeg', MimeType::forAudio('mp3')->essence());
+    }
+
+    /**
      * The parameter is optional because most types have no encoding to declare.
      *
      * @return void

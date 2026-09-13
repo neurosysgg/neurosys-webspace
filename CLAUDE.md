@@ -291,7 +291,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - Both `php -S` invocations — `npm run dev` and the verify script's — must load `phpanta/tools/dev-router.php`.
 - `npm run watch` rebuilds neither the stylesheet nor the manifest; run `npm run build` before
   committing.
-- The debug and prod manifests differ on purpose (47 preloads against none) — do not add a diff
+- The debug and prod manifests differ on purpose (49 preloads against none) — do not add a diff
   between them.
 - The build tools refuse an undeclared flag; keep it that way, since a misspelled `--out` once
   overwrote the committed stylesheet and reported success.

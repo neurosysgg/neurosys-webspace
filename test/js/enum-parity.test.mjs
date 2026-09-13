@@ -34,6 +34,8 @@ import { ElementId } from '../../public/assets/js/phpanta/model/ElementId.js';
 import { Language } from '../../public/assets/js/phpanta/model/Language.js';
 import { RequestHeader } from '../../public/assets/js/phpanta/model/RequestHeader.js';
 import { RequestedWith } from '../../public/assets/js/phpanta/model/RequestedWith.js';
+import { ResponseHeader } from '../../public/assets/js/phpanta/model/ResponseHeader.js';
+import { MediaType } from '../../public/assets/js/phpanta/model/MediaType.js';
 import { TerminalFieldKey } from '../../public/assets/js/model/TerminalFieldKey.js';
 import { WaveformAttribute } from '../../public/assets/js/model/WaveformAttribute.js';
 import { WaveformBand, STRIDE } from '../../public/assets/js/model/WaveformBand.js';
@@ -174,5 +176,33 @@ test('Config mirrors the part of NeuroSYS\\Site the client reads', () => {
         'HANDLE'      => NeuroSYS\\Site::HANDLE,
         'PLAYER_HOST' => NeuroSYS\\Site::PLAYER_HOST,
     ]);`),
+  );
+});
+
+/**
+ * ResponseHeader, mirrored in part: the client reads one response header, and carrying the other
+ * thirteen would be a list nothing uses. So the direction is one way — every case the mirror has is
+ * a PHP case of the same name and value — and a PHP case the client does not read is not a drift.
+ */
+test('ResponseHeader mirrors the part of Phpanta\\Http\\ResponseHeader the client reads', () => {
+  const php_cases = new Map(php(`echo json_encode(array_map(
+      fn ($c) => [$c->name, $c->value],
+      Phpanta\\Http\\ResponseHeader::cases(),
+  ));`));
+
+  assert.deepEqual(
+    cases(ResponseHeader),
+    Object.keys(ResponseHeader).map((name) => [name, php_cases.get(name)]),
+  );
+});
+
+/**
+ * MediaType, which has no PHP enum to mirror: MimeType is a class, because it carries a charset.
+ * What Navigation compares a response with is the essence of the type ViewResponse sends it.
+ */
+test('MediaType mirrors the essence of Phpanta\\Http\\MimeType::html()', () => {
+  assert.deepEqual(
+    cases(MediaType),
+    [['Html', php('echo json_encode(Phpanta\\Http\\MimeType::html()->essence());')]],
   );
 });

@@ -9,6 +9,7 @@ export var HtmlAttribute;
     HtmlAttribute["Rel"] = "rel";
     HtmlAttribute["Target"] = "target";
     HtmlAttribute["Type"] = "type";
+    HtmlAttribute["Download"] = "download";
     HtmlAttribute["Alt"] = "alt";
     HtmlAttribute["Height"] = "height";
     HtmlAttribute["Width"] = "width";
@@ -18,5 +19,6 @@ export var HtmlAttribute;
     HtmlAttribute["Controls"] = "controls";
     HtmlAttribute["Preload"] = "preload";
     HtmlAttribute["AriaLabel"] = "aria-label";
+    HtmlAttribute["AriaLive"] = "aria-live";
 })(HtmlAttribute || (HtmlAttribute = {}));
 //# sourceMappingURL=HtmlAttribute.js.map

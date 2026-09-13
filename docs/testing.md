@@ -134,7 +134,7 @@ in which colour, at which opacity, and a real canvas would answer that only by b
 image.
 
 The suites are `soundcloud-player`, `soundcloud-profile`, `terminal-window`, `cover-art`,
-`demo-waveform`, `nesting`, `navigation`, `vocabulary` and `enum-parity`.
+`demo-waveform`, `nesting`, `navigation`, `navigation-start`, `vocabulary` and `enum-parity`.
 
 **Both test commands name their files.** `node --test` with no argument matches
 `**/test/**/*.?(c|m)js` among its default patterns, which is everything under `test/` — `dom.mjs`
@@ -292,7 +292,16 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   equal.
 - **A navigation that fails is handed back to the browser.** `pushState` has already run by the time
   a response arrives, so a 404 or a dead connection would otherwise strand the visitor on a URL
-  they never got. Both paths end in `location.assign`.
+  they never got. Every fallback is `location.replace`, and so is a response that is not
+  `text/html`; `assign()` would leave the failed entry behind for back to land on, and
+  `navigation.test.mjs` fails any call to it.
+- **Back and forward return to where a page was left.** Scroll restoration is `Navigation`'s
+  (`scrollRestoration = 'manual'`), so a lost position is a visitor thrown to the top of a long list
+  with nothing reporting it. `navigation.test.mjs` walks jsdom's own session history back and forth
+  and reads the positions off `scrollTo`; `navigation-start.test.mjs` covers the entry a reload
+  lands on.
+- **A swap moves focus and says so.** Focus goes to `#content`, and the new title into a polite live
+  region that is out of sight but not `hidden`, which would hide it from the screen reader it is for.
 - **The SPA switches itself off rather than throwing.** No `#content` means `forDocument()` returns
   null, nothing is registered, and every link stays the plain href it always was.
 - **The cover falls back without an inline handler.** `onerror=` would need `'unsafe-inline'` in
@@ -487,8 +496,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.47% of lines** (3014/3030), derived on 2026-09-13
-(on top of `3a915c5`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.47% of lines** (3015/3031), derived on 2026-09-13
+(on top of `c95cc40`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the

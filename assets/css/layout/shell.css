@@ -45,6 +45,10 @@
   max-width: 960px;
   margin: 0 auto;
   padding: 1.5rem 1.5rem 4rem;
+
+  /* Navigation focuses it after a swap, so the next Tab starts in the new page. It is no control,
+     and a ring around the whole page would say it was one. */
+  &:focus { outline: none; }
 }
 
 /* Locally vendored brand assets only. Hot-linking a platform's own CDN would

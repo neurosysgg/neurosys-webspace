@@ -80,6 +80,13 @@ original **by name, backing value and declaration order** — declaration order 
 | `model/RequestedWith.ts` | `Http\RequestedWith` | `XMLHttpRequest` |
 | `model/Language.ts` | `Text\Language` | `en`, `de` — what `<html lang>` says; `pageLanguage()` reads it for the words an element writes itself |
 
+### Mirrors of a part
+
+| TypeScript | PHP | Carries |
+|---|---|---|
+| `model/ResponseHeader.ts` | `Http\ResponseHeader` | `Content-Type`, the one response header client code reads. Compared one way: every case the mirror has is a PHP case of the same name and value, and the thirteen only the browser reads are not carried |
+| `model/MediaType.ts` | `Http\MimeType::html()->essence()` | `text/html` — what `Navigation` swaps in, where anything else goes to the browser. `MimeType` is a class, because it carries a charset, so there is no enum to compare with |
+
 ### Not an enum, same problem
 
 | TypeScript | PHP | Fields |
@@ -93,7 +100,7 @@ player is blocked by our own policy — in the console, with nothing in the page
 
 ## Names with only one side
 
-Seven names are written or read on one side only, and each arrangement is deliberate.
+Nine names are written or read on one side only, and each arrangement is deliberate.
 
 | Name | Written by | Read by | Why no mirror |
 |---|---|---|---|
@@ -104,6 +111,8 @@ Seven names are written or read on one side only, and each arrangement is delibe
 | `Range` (`RequestHeader::Range`) | the browser, when an `<audio>` is seeked | `Request`, for `FileResponse` | as `If-None-Match` |
 | `Accept-Language` (`RequestHeader::AcceptLanguage`) | the browser | `AcceptedLanguages`, for `Request::language()` | as `If-None-Match` |
 | `Cookie` (`RequestHeader::Cookie`) | the browser | `RequestCookies`, for the `lang` cookie `Request::language()` puts first | as `If-None-Match` |
+| `aria-live` (`HtmlAttribute::AriaLive`) | `Navigation.ts`, on the live region it creates | a screen reader | as `loaded`: client-written, with a PHP case so the mirror stays comparable case for case |
+| `download` (`HtmlAttribute::Download`) | no view yet | `Navigation.ts`, which leaves such a link to the browser | client-read and server-writable; a view that ever writes one gets that for free |
 
 The first two are named in TypeScript anyway, even though no test can follow them, because **the
 stylesheet is exactly the kind of reader that fails in silence**: get `--player-height` wrong and the
