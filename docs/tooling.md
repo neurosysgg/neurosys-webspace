@@ -10,25 +10,24 @@ How they got that way is in [history/tooling.md](history/tooling.md).
 
 ## The commands
 
-`tools/` holds seven commands and two things that are not. `stage-release`, `stage-demo`,
-`release-track`, `extract-midi`, `push-update`, `api` and `merge-coverage` implement
-`Phpanta\Tool\Cli\Command` — a name, a usage line, the `Option`s it accepts, and a `run()`
-returning an `ExitCode`. `dev-router.php` and `coverage-prepend.php` implement nothing, because PHP
-loads them itself: one is handed to `php -S` and one is an `auto_prepend_file`, so neither has an
-argv or an exit code for an interface to attach to. Each says so in its docblock.
+`tools/` holds seven entry points, and every one of them runs a `Phpanta\Tool\Cli\Command`: a
+name, a usage line, the `Option`s it accepts, and a `run()` returning an `ExitCode`. Four of the
+commands are this site's own, under `tools/lib/Command/`: `stage-release`, `stage-demo`,
+`release-track` and `extract-midi`. The other three are the framework's, and this site only wires
+them. `push-update.php` hands `PushUpdate` the repository root, `Site::ORIGIN` and
+`Site::UPDATE_KEY`. `api.php` hands `ApiCall` the same origin and key. `merge-coverage.php` hands
+`MergeCoverage` the root. The CLI layer, the signing side, the outbound HTTP, the tar writer, the
+PHP expression tree, the dev router and the coverage prepend all live in `phpanta/tools/`; see
+[phpanta/docs/tooling.md](../phpanta/docs/tooling.md#what-is-here).
 
 ```
 tools/
-├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/
-├── stage-release.php     ├── release-track.php    ├── merge-coverage.php   ← entry points
-├── extract-midi.php      ├── stage-demo.php       ├── push-update.php
-├── api.php
+├── autoload.php          ← NeuroSYS\Tool\ → tools/lib/, after requiring phpanta/tools/autoload.php
+├── stage-release.php     ├── release-track.php    ├── extract-midi.php     ← this site's commands
+├── stage-demo.php
+├── push-update.php       ├── api.php              ├── merge-coverage.php   ← the framework's, wired here
 └── lib/
-    ├── Api/              ← the calling side: PrivateKey (the only signer in this repository),
-    │                       SignedCredential, SignedRequest — one signed call, built out of the
-    │                       site's own SitePath, AuthScheme and ApiAction rather than a copy
-    ├── Cli/              ← Command, Option, Arity, Input, Output, ExitCode, UsageException, Runner
-    ├── Command/          ← the seven commands, their option enums, and FolderReport — the report
+    ├── Command/          ← the four commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share
     ├── Demo/             ← what puts unreleased work behind a password: Password, DemoSource,
     │                       DemoStage, DemoPreflight, DemoEntryWriter, Encoding, WaveformScan
@@ -42,15 +41,9 @@ tools/
     │                       Playlist/PlaylistClip
     ├── Midi/             ← the standard MIDI file writer: MidiFile + MidiTrack/MidiNote,
     │                       TimeSignature, VariableLength
-    ├── Http/             ← the only outbound requests this repo makes: Transport + CurlTransport,
-    │                       Request/Response, Url, JsonBody, FormField, FilePart, OutboundHeader
-    ├── Php/              ← the expression tree EntryWriter emits through, so nothing builds
-    │                       PHP source from a string: Expression, Value, Call, Argument, Entry
-    ├── Release/          ← ReleaseFolder, Preflight, EntryWriter, ProjectFile, ReleasesFile
+    ├── Release/          ← ReleaseFolder, Preflight, EntryWriter (which emits through the
+    │                       framework's Php/ expression tree), ProjectFile, ReleasesFile, Probe
     │                       + the enums they read
-    ├── Update/           ← the push side: TarWriter + PackedFile.
-    │                       The reader lives under src/ because the server needs it; the writer
-    │                       lives here because the server must not have it
     └── SoundCloud/       ← the upload client: Client, Endpoint, Attempt, Credentials/
                             CredentialVariable/Authorization/AccessToken/OAuthCredential/TokenStore,
                             TrackUpload/TrackField/TrackKey/TokenKey/TrackSharing, UploadedTrack
@@ -67,6 +60,21 @@ The framework's — see [phpanta/docs/tooling.md](../phpanta/docs/tooling.md#the
 ## A second autoloader, and it is not optional
 
 The framework's — see [phpanta/docs/tooling.md](../phpanta/docs/tooling.md#a-second-autoloader-and-it-is-not-optional).
+
+Here it is `tools/autoload.php`, which maps `NeuroSYS\Tool\` and requires the framework's own
+loader first. The reason it cannot be composer's `autoload-dev` is concrete: `stage-release` runs on
+a clone that has never seen `composer install`. And no tooling class goes under `src/`, which
+`deploy.sh` uploads with `--delete` and PHPUnit measures.
+
+Two dependencies are declared in `composer.json`'s `require-dev` rather than inherited:
+
+- **`phpunit/php-code-coverage`**, for `merge-coverage`, which needs `vendor/`. Left transitive
+  under PHPUnit, a PHPUnit major that bumped the constraint would break `composer coverage` with a
+  class-not-found, and nothing in `composer.json` would explain it.
+- **`ext/curl`**, for `release-track`, `api` and `push-update`. `require` states what the *site*
+  needs, and the site makes no outbound request at all. The verify script asserts that, alongside
+  curl being called in exactly one class (`CurlTransport`), the way `Probe` is the one class that
+  shells out.
 
 ## The two release commands, and `FolderReport`
 

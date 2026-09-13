@@ -366,6 +366,24 @@ if [[ -z "$naming" ]]; then
 else
     fail "phpanta/ names the site: $(echo "$naming" | sed "s|$REPO/||g" | tr '\n' ' ')"
 fi
+# The same holds for the framework's documents as links: each one lands on a file inside phpanta/, so
+# the docs read whole wherever the framework is checked out. A link into the site's docs/ passes
+# here and dangles there; so does one to a file that was renamed. history/ is exempt, as above.
+framework=$(realpath "$REPO/phpanta")
+dangling=""
+for doc in "$framework/README.md" "$framework/CLAUDE.md" "$framework"/docs/*.md; do
+    while IFS= read -r target; do
+        target=${target%%#*}
+        [[ -z "$target" || "$target" =~ ^[a-z]+: ]] && continue
+        landed=$(realpath -e -- "$(dirname "$doc")/$target" 2>/dev/null || true)
+        [[ -n "$landed" && "$landed" == "$framework/"* ]] || dangling+=" ${doc#"$framework/"} → $target"
+    done < <(grep -oE '\]\([^) ]+\)' "$doc" | sed -E 's/^\]\(//; s/\)$//')
+done
+if [[ -z "$dangling" ]]; then
+    pass "every link in phpanta/'s documents lands inside phpanta/"
+else
+    fail "a framework document links outside phpanta/ or to nothing:$dangling"
+fi
 # The tooling makes exactly one kind of outbound request — an upload to SoundCloud — and one class
 # makes it, the way Probe is the one class that shells out. Options set once are options that cannot
 # disagree between call sites, and two of them are load-bearing: certificates are verified, and

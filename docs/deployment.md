@@ -146,7 +146,16 @@ Two more services on the same endpoint, signed with the same key and reached by 
   clock, every `data/` file, the error log's tail.
 
 Both answer what `update version` deliberately does not. See [health.md](../phpanta/docs/health.md), and
-[runtime.md](runtime.md) for what they said about each runtime, side by side.
+[runtime.md](runtime.md) for what they said about each runtime, side by side. The site declares no
+requirement of its own (`Site` does not override `ownRequirements()`), so its `health` report is
+exactly the framework's floor.
+
+**Strato passes a `503`'s body through unchanged**: `HTTP/2 503`, `text/plain`, and the report byte
+for byte. Nothing in `public/.htaccess` replaces an error body either. A front proxy *can*
+substitute its own page for a 5xx, which is why this was asked of the live host rather than
+assumed. The question was put with a probe push declaring one impossible requirement (see
+[Probing the live host](#probing-the-live-host)). If the host changes, ask again the same way.
+([history](history/api.md))
 
 **They are the one source for what the live runtime is.** The extensions are declared in
 `composer.json`, which never runs on the server because `vendor/` is not deployed. They are asked
@@ -353,6 +362,11 @@ It never touches `data/`. That tree is 8.6 MB of demo audio, it is rsynced delib
 `--delete` because `demos.php` and `demos/` are gitignored, and reproducing that asymmetry inside a
 mirroring updater is where a mistake would take unreleased tracks off the server. `data` is not one
 of the three roots a payload may name, so a push cannot reach it even if one tried.
+
+**So a push alone cannot ship an entry that names a new case.** A release whose `description:` names
+a new `ReleaseDescription` case comes in two halves. The case is in `src/`, which a push carries.
+The entry naming it is in `data/releases.php`, which only `./deploy.sh` carries. `./deploy.sh`
+ships both, and a push alone leaves the live catalogue without the entry.
 
 **`deploy.sh` remains, and remains the recovery path.** A push that breaks `src/` breaks the endpoint
 that would fix it; the way back is the mount. Every previous tree is in git, so recovery is

@@ -92,18 +92,62 @@ itself.
 ### 1. Transport — HTTPS and HSTS
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#1-transport--https-and-hsts).
+The site's half is the redirect, and what the verify script holds the build to:
+
+- **`public/.htaccess` redirects `http://` to `https://` before any PHP runs, and asks two
+  questions to do it.** Strato terminates TLS at its proxy, where `%{HTTPS}` can read `off` on a
+  request that was encrypted the whole way; `X-Forwarded-Proto` is the header telling the truth
+  there, so the redirect fires only when both say plaintext. On its own, `%{HTTPS}` would be an
+  infinite loop behind Strato's proxy.
+- **The verify script asserts no source map ships** and no shipped module names one, on top of
+  `build-prod.mjs` refusing both. `public/` keeps them — the site's `tsconfig` sets
+  `inlineSources`, so each carries the whole commented TypeScript — which is fine for the local
+  Apache and `npm run dev` on localhost, and is the gap [Known and accepted](#known-and-accepted)
+  lists for a dev server bound wider. ([history](history/security.md))
 
 ### 2. Response headers — typed, and sent before anything can fail
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#2-response-headers--typed-and-sent-before-anything-can-fail).
+The site widens the framework's strict policy in exactly two places, both from
+`Site::contentHosts()`: its images come from HiDrive and its player is SoundCloud's. HSTS and
+`Permissions-Policy` are the framework's defaults, unwidened. The policy as sent:
+
+```
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self';
+    img-src 'self' https://my.hidrive.com; frame-src https://w.soundcloud.com;
+    base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'
+```
+
+- **No `'unsafe-inline'`, because nothing needs it.** No view emits an inline style or an event
+  handler — `ViewTest` and the verify script both fail on one — and `<soundcloud-player>` sets its
+  accent and attribution styling through the CSSOM rather than a `style` attribute.
+- **No `data:` on `img-src`, because nothing references one** — the cover placeholder is a file, a
+  self-contained SVG. Both suites assert the absence. ([history](history/security.md))
+- **No `report-uri`**, on the terms download logging is off on: a report's `document-uri` and
+  `blocked-uri` are data neither half of the privacy policy claims. `SecurityTest` pins the hosts
+  the policy names instead.
+- **`/admin/stats` says `no-store, private`**, which is also what keeps an `ETag` off it; a demo's
+  responses do the same — see [Authentication](#3-again-authentication).
 
 ### 3 + 4. The method gate
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#3--4-the-method-gate).
+Here that is nine `ReadOnly` routes and `/api`, `Delegated`. The verify script sweeps `BREW`
+alongside every real verb, at every depth, so the one route the router has no opinion about answers
+an unknown verb exactly as `/no-such-page` does. ([history](history/api.md))
+
+**`TRACE` never reaches the router on the live host.** Strato's Apache refuses it itself — `405`, an
+empty `Allow`, Apache's own body, nothing echoed — on every path including static files (checked
+2026-09-10 with `curl -X TRACE`). The local rig has `TraceEnable On`, so a local run is no evidence
+either way. If the live answer ever changes, the only lever is a `RewriteRule` refusing the method.
 
 ### 2 (again). Parsing the request defensively
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#2-again-parsing-the-request-defensively).
+`RoutingTest` pins that an unparseable target still matches a `{slug}` route and `RequestTest` pins
+where the fallback cuts it. What keeps a hostile slug out of a header here is a demo's realm, under
+[Authentication](#3-again-authentication). The `parse_url()` that was once here, and the `500` it
+made of `GET ///`, are in [history/security.md](history/security.md).
 
 ### 4 (again). Routing
 
@@ -116,10 +160,11 @@ Four gates. Three are HTTP Basic; the fourth is a signature, described under [Th
 Two of the Basic gates — the pre-launch site gate and the admin gate — ask the same question of the
 same shape of credentials file, so they ask it in one place: `Auth::accepts()`. The third is a
 demo's, whose credential is a `PasswordHash` on the `Demo` object itself rather than in a file; it
-is `Auth::admits()`. Both are public and return a `bool`, and both are the *decision* separated from
-the `401` that follows it, the way `SecurityHeaders::headers()` is separate from `send()` — a method
-that ends the request cannot be asserted against, so everything worth testing lives in the pair that
-does not. All three end up in one private comparison.
+is `DemoGate::admits()`, the site's gate built on the framework's. Both are public and return a
+`bool`, and both are the *decision* separated from the `401` that follows it, the way
+`SecurityHeaders::headers()` is separate from `send()` — a method that ends the request cannot be
+asserted against, so everything worth testing lives in the pair that does not. All three end up in
+one comparison, `Auth::matches()`.
 
 - **Every comparison is constant-time, and neither is skipped when the other fails.** The password is
   `password_verify()`; the user name is `hash_equals()`, compared on every request just the same.
@@ -138,7 +183,7 @@ does not. All three end up in one private comparison.
 - **A realm is checked, and a visitor's slug is encoded before it becomes one.** `BasicChallenge`
   refuses anything but RFC 9110's `qdtext` — no `"`, no `\`, never empty — which reports a realm
   built wrong *in this repository*. A demo's realm is named after its slug, which comes out of the
-  URL, so `Auth::demoRealm()` `rawurlencode`s it first: a no-op for every real slug, and what keeps a
+  URL, so `DemoGate` `rawurlencode`s it first: a no-op for every real slug, and what keeps a
   hostile target a `401` rather than the `500` a throw would make of it. `header()` refuses a value
   containing CR or LF, so no second header is reachable either way. Do not rely on Strato's proxy
   percent-encoding a hostile target before PHP sees it — a bare Apache 2.4 does not.
@@ -152,7 +197,7 @@ does not. All three end up in one private comparison.
   code *and* in elapsed time. A `404` for an unknown slug and a `401` for a known one is a catalogue
   of unreleased tracks, readable one guess at a time; and returning early on the unknown one would
   answer in microseconds where a real comparison pays bcrypt, so the uniform `401` would be undone by
-  a stopwatch. `Auth::requireDemoAuth()` verifies against `PasswordHash::unmatchable()` — a real
+  a stopwatch. `DemoGate::requireAuth()` verifies against `PasswordHash::unmatchable()` — a real
   digest with no preimage — and then refuses. Same reasoning as the no-short-circuit rule above, one
   level out.
 - **A demo's password gates the bytes, not only the page.** Its audio is under `data/`, which the web
@@ -176,10 +221,32 @@ signature. So there is no token, no `SameSite` attribute, and nothing for them t
 ### 5. The response — output safety in the markup tree
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#5-the-response--output-safety-in-the-markup-tree).
+The site's side of it:
+
+- **The verify script fails a heredoc or a `'<tag'` literal** anywhere under `src/` or
+  `phpanta/src/`, and `HtmlTest` pins both the one `htmlspecialchars` call site and every spelling of
+  an off-origin URL `Element` refuses.
+- **The one hand-authored document is the privacy policy**, its two halves (`data/privacy.de.html`,
+  `data/privacy.en.html`) read through `Element::containingHtml()` against the site's own
+  vocabulary. A test named for the fact pins its call sites. ([history](history/security.md))
+- **No request data reaches a URL attribute.** Release and profile pages render trusted data; the
+  one place request input is reflected — the `404` page echoing the path into a terminal's
+  `command` — is a *text* attribute, escaped like any other, and the client-side element sinks it
+  via `textContent`, never `innerHTML`.
 
 ### Input validation at the boundary it is written
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#input-validation-at-the-boundary-it-is-written).
+Two of the site's own types hold the same line, so a bad paste in `data/releases.php` throws when the
+file loads rather than `404`ing from HiDrive or rendering a dead link:
+
+| Type | Invariant |
+|---|---|
+| `HiDriveLink` | share id is exactly nine alphanumerics |
+| `Profile` | an absolute `https://` URL |
+
+Every bad-input test provider — the framework's types' included — carries a trailing-newline case.
+([history](history/security.md))
 
 ### The language cookie
 
@@ -211,6 +278,37 @@ privacy-policy decision before a code one — neither half of the policy (`data/
 ## The API
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#the-api).
+What is this site's about it:
+
+- **Why it exists here.** Deploying with `rsync -c` over a GVFS SFTP mount costs **480 ms** a
+  `stat` and **3.7 s** to walk `src/` alone, across 269 files, for a payload that is **250 KB
+  gzipped** — a figure that grows with the codebase, so `php tools/push-update.php --dry-run`
+  re-derives it. A push replaces minutes with one request; `tools/api.php` signs every other call.
+- **The private key is `~/.config/neurosys/update.key`**, the same arrangement the SoundCloud
+  refresh token has: outside the repository, so no `.gitignore` entry and no rsync flag is what
+  keeps it off a webroot. `data/update.pub` is gitignored, per deployment, and uploaded by hand —
+  `deploy.sh` excludes it.
+- **The serial is `cgi-bin/.update-serial`** on the live host: above the webroot, in neither mirrored
+  tree, and in no tree `deploy.sh` rsyncs.
+- **No push can reach `data/`**, which is what keeps `data/admin.php`, `data/site_auth.php`,
+  `data/demos.php` and 8.6 MB of unreleased audio out of reach however well a payload is signed.
+- **`Authorization` has to survive Strato**, and `public/.htaccess` puts it back with
+  `E=HTTP_AUTHORIZATION`. All three Basic gates already depend on it arriving, which is the
+  strongest evidence available that Strato forwards it — but a proxy that strips it fails closed and
+  in silence, looking exactly like a bad key, so re-check it on the live host rather than reason
+  about it. ([history](history/api.md))
+- **Strato reports one directory two ways** — `/home/strato/…/cgi-bin/neurosys` against
+  `/mnt/web505/…/cgi-bin/neurosys` — which is why `App::webroot()` takes only `DOCUMENT_ROOT`'s
+  basename. A push leaves byte-identical files alone for the NFS reason in
+  [deployment.md](deployment.md).
+- **The verify script holds the framework to its claims over real HTTP**: every method, `BREW`
+  included, at every depth, against `/no-such-page`; six malformed-credential probes, the one over
+  the header limit refused by Apache with a `400`; nothing under `public/api/`; and `openssl_` only
+  in `PublicKey`, with no signing or key-minting call under `src/` or `phpanta/src/`, the way it pins
+  `curl_` to `CurlTransport` under `tools/lib/`.
+- **About 180 µs** separates the `/api` shape from a typo for a caller already sending an `NS1`
+  credential, measured on localhost in the 2026-09-09 pentest — see
+  [Known and accepted](#known-and-accepted).
 
 ## Known and accepted
 

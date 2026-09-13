@@ -8,14 +8,82 @@ what to do when you need to add one. The server side has its own doc
 
 No framework and no runtime dependency. TypeScript compiles to browser-native ES modules; the
 stylesheet is concatenated from its parts. Both outputs are committed, and both are what a person
-develops against — the tree in `public/` is 49 separate modules, plain `tsc` output that no bundler
-has touched. What deploys is a different tree, bundled by esbuild; see *Debug and prod* below.
+develops against — the tree in `public/` is 52 separate modules (the site's 41 and the framework's
+11), plain `tsc` output that no bundler has touched. What deploys is a different tree, bundled by
+esbuild; see *Debug and prod* below.
 
 ---
 
 ## The build
 
-The framework's — see [phpanta/docs/frontend.md](../phpanta/docs/frontend.md#the-build).
+The tools and the reasoning behind them are the framework's; see
+[phpanta/docs/frontend.md](../phpanta/docs/frontend.md#the-build). This section covers how they are
+wired here and what they come to on this site.
+
+| Command | Does |
+|---|---|
+| `npm run build` | `tsc`, then the stylesheet, then the asset manifest. The manifest comes last, because it hashes both outputs |
+| `npm run build:css` | the stylesheet only |
+| `npm run build:assets` | the asset manifest only |
+| `npm run build:prod` | `npm run build`, then derives `build/dist/`. See *Debug and prod* |
+| `npm run watch` | `tsc --watch`. **Does not build the CSS or the manifest.** |
+| `npm run dev` | `php -S` with `phpanta/tools/dev-router.php`. The router is not optional. |
+| `npm run check` | `tsc` over all three trees: `assets/ts/`, `tools/*.mjs`, `test/js/*.mjs` |
+| `npm test` | `node --test` against the compiled output |
+| `npm run coverage` | the same, with 100% thresholds |
+
+**Why the output is committed.** `deploy.sh` and `push-update` both ship out of the working tree,
+and nothing builds on Strato, so a forgotten rebuild would ship stale JS or a stale stylesheet. The
+verify script therefore rebuilds all three outputs and diffs them. The CSS and manifest checks need
+only `node`, so they run on a bare clone. The TypeScript checks need `node_modules`, and are
+**skipped with a printed NOTE** when `npm install` has never run, so `composer test` still works
+without the npm tooling.
+
+### Debug and prod
+
+The debug tree is 52 modules. The prod tree is one bundle of about 6.8 KB gzipped, served in one
+response instead of 50 (the sizes are in
+[performance.md](performance.md#the-front-end-payload)).
+
+- **The maps would be public files on Strato.** Static assets are served straight by Apache and
+  reach neither auth gate. The source is on GitHub, which is a reason not to worry about exposing
+  it, not a reason to serve a second copy from Strato.
+- **The prod manifest has to reach the server with the prod tree.** A push carries it. `deploy.sh`
+  uploads `src/` from the working tree and then overlays the prod manifest; see
+  [deployment.md](deployment.md#full-deploy).
+- **The six prod checks are the verify script's**, listed in
+  [testing.md](testing.md#invariants-worth-keeping-green). The re-run against the shipped bytes
+  works because `test/js/dom.mjs` takes its tree from `PHPANTA_JS_DIR`. The nesting guards,
+  `TerminalWindow`'s subtree, both embeds and `Navigation` all execute what the server will send.
+  The three test files that import modules directly (`enum-parity`, `navigation`, `vocabulary`) are
+  hardcoded to the debug tree, and are unaffected by what prod ships.
+
+### The preload list
+
+The graph is **five waves deep**. The browser learns it needs `model/CssClass.js` only after parsing
+`ConsentGatedEmbed.js`. It learned about that file from `SoundCloudWidget.js`, which it learned
+about from `SoundCloudPlayer.js`, which it learned about from `main.js`. `Layout::modulePreloads()`
+renders the manifest's list after the stylesheet, and the five waves become one, for about 420
+gzipped bytes per page.
+
+**The counts:** the debug tree has 52 modules.
+
+- `main.js` is the `<script src>` itself.
+- 49 more are reachable from it and preloaded: `AssetManifest::MODULES`.
+- Two, `model/SectionKind.js` and `model/ArrangementAttribute.js`, are imported by no module at all.
+  They are mirrors that only `enum-parity.test.mjs` reads, since the arrangement is server-rendered
+  and no element selects on its values.
+
+The verify script rebuilds the manifest and diffs it, and asks the dev server for every hinted URL.
+`ViewTest` asks the filesystem the same existence question.
+
+### What this host needs of the build
+
+- **`public/.htaccess` lists `map` in its `SetHandler` allow-list**, because Strato 500s any static
+  file it has no handler for. The prod tree ships no maps. The handler stays for the debug tree,
+  which is what `npm run dev` and a PHPStorm upload serve.
+- **Images are not versioned.** They are reached through `Platform::icon()` and
+  `Site::COVER_PLACEHOLDER` as plain constants, and `public/.htaccess` gives them thirty days.
 
 ## Layout
 
@@ -335,6 +403,70 @@ the guarantee; one that draws behind a card the server already wrote whole does 
 
 ---
 
+## Words — the catalogs
+
+The mechanism is the framework's; see [language.md](../phpanta/docs/language.md). What is this
+site's is where its words live and what holds them. The legal pages are written twice rather than
+translated; see [architecture.md](architecture.md#language).
+
+- **`Texts` is the index.** It has one constant per section: `Layout`, `Home`, `Terminal`,
+  `Releases`, `Demo`, `Stats`, `Errors`, `Profiles`, `Keys`, and `Framework` for the framework's own
+  `FrameworkText`. Each constant names a catalog enum, so `Texts::Releases::Downloads` *is*
+  `ReleaseText::Downloads`. The constants are not upper case, and `phpcs.xml.dist` exempts
+  `Texts.php` and `ReleaseText.php` by name. They are steps of a path a reader skims, not values to
+  notice.
+- **A release's description** is a `ReleaseDescription` case, reached as
+  `Texts::Releases::Descriptions::Ill`, with the slug as its backing value. `data/releases.php`
+  names it: `description: Texts::Releases::Descriptions::Ill`. It lives in `src/` so both languages
+  sit side by side and ship with a push.
+  - German may fall back to English here, and only here. A description is written by whoever
+    releases the track, possibly before the German exists.
+  - A plain string still works and reads the same in both languages. That is what the staging tool
+    writes (`description: ''`).
+  - An entry naming a new case needs `./deploy.sh`; see
+    [deployment.md](deployment.md#what-it-does-not-do).
+- **A demo's description is never a catalog case.** `src/` is public, and a case would name an
+  unreleased track. It is written inline in the gitignored `data/demos.php`:
+  `description: new Translation(en: '…', de: '…')`.
+- **A release's key** is translated on `MusicalKey` itself (`Fis-Dur`, `dis-Moll`, `H` for the
+  English B), while its backing value stays the English name the tools match on. Genres and formats
+  are proper names and stay as they are.
+- **A terminal's rows** cross to the client as JSON, and their captions are translated. So
+  `TerminalFields` implements `Translatable`, and is encoded at render rather than when the terminal
+  is built.
+- **The switch is in the footer.** It names every language in that language itself
+  (`english · deutsch`): the page's own as text, the others as links to `/language/{language}`. The
+  links carry `data-no-spa`, because the header and footer are outside the fragment Navigation swaps,
+  and they have to come back in the new language too. The cookie is described in
+  [security.md](security.md#the-language-cookie). The privacy policy names it in both languages, as
+  storage strictly necessary for a service the visitor asked for (§ 25 Abs. 2 Nr. 2 TDDDG).
+
+Three checks hold the words:
+
+- **`TranslationTest`** reads `Texts`, and in turn every catalog a catalog names. It asserts that
+  every case has a `#[Translation]`, that both languages parse as ICU messages and name the same
+  arguments, and that the German is written, except a release description's. It also walks `src/`
+  for every enum that uses `Translated`, and fails on one the index cannot reach. And it reads every
+  view's tokens for a word written as a literal: a string with a letter in it, passed straight to
+  `containing()` or as an `alt`, `title` or `aria-label`.
+- **`HtmlTest`** pins the scope rules:
+  - inheritance;
+  - a `lang` narrowing the scope, and a foreign `lang` keeping it;
+  - a translated attribute;
+  - a translated child keeping its element on one line;
+  - the refusal.
+- **The verify script** asks the running server:
+  - German to a German browser and to a German cookie, on the home page, a release, the 404 and a
+    fragment;
+  - `Vary` and `Content-Language` on every page;
+  - the switch's cookie, its way back, and its refusal of a path that is another host.
+
+**The verify script's "no markup from a string" grep reads comments too.** It fails on an
+apostrophe followed on the same line by a `<tag`, as in "the page's language off `<html lang>`".
+Reword the line.
+
+---
+
 ## Recipes
 
 ### Add an element
@@ -394,7 +526,7 @@ files the browser loads, so a build that never ran is a failing test rather than
 
 `npm run coverage` is a gate rather than a report: 100% for lines, branches and functions, with
 `--test-coverage-include-all` so a module nothing imports is reported as uncovered rather than not
-reported at all. That is affordable here and nowhere else — these are 49 small files with one job
+reported at all. That is affordable here and nowhere else — these are 52 small files with one job
 each.
 
 See [testing.md](testing.md) for the full picture, including the PHP suites.

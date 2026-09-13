@@ -23,9 +23,12 @@ use ReflectionClass;
  * while everything still lived under `src/NeuroSYS/`. Then they moved. What is left to guard is
  * that it stays at nothing.
  *
- * **Comments do not count here.** A docblock that mentions the site is a sentence, not a
+ * **Comments do not count as code.** A docblock that mentions the site is a sentence, not a
  * dependency; the tokenizer hands comments over as their own tokens, so they never reach the
- * resolver.
+ * resolver. **A `{@link}` does count**, in its own test: it is a reference an editor follows and a
+ * reader trusts, so every one under `phpanta/` has to land on the framework or on PHP itself. A link
+ * to a site class — unqualified, it would dangle in any other site — fails there, and so does one
+ * that dangles already.
  */
 #[CoversNothing]
 final class BoundaryTest extends TestCase
@@ -63,6 +66,160 @@ final class BoundaryTest extends TestCase
         );
 
         $this->assertGreaterThan(100, count($framework));
+    }
+
+    /**
+     * Every `{@link}` a framework file writes — in `src/`, `tools/` and `test/` — names a class, member
+     * or function the framework or PHP itself has, resolved the way PHP resolves the same name in code.
+     *
+     * @return void
+     */
+    public function testEveryLinkInTheFrameworkLandsInsideIt(): void
+    {
+        $broken = [];
+        $links  = 0;
+
+        foreach (SourceTree::files('/phpanta/tools', '/phpanta/test') as $path) {
+            if (!str_starts_with($path, NEUROSYS_ROOT . '/phpanta/')) {
+                continue;
+            }
+
+            [$targets, $namespace, $imports, $self] = self::links($path);
+
+            foreach ($targets as $target) {
+                $links++;
+
+                if (!self::landsInTheFramework($target, $namespace, $imports, $self)) {
+                    $broken[] = substr($path, strlen(NEUROSYS_ROOT) + 1) . ' → ' . $target;
+                }
+            }
+        }
+
+        $this->assertGreaterThan(500, $links, 'The walk found too few links to be reading the framework.');
+        $this->assertSame([], $broken, 'A framework docblock links outside the framework, or to nothing.');
+    }
+
+    /**
+     * One file's `{@link}` targets, with what resolving them needs: its namespace, its imports as
+     * `alias => name`, and the class it declares, which `self` and `static` mean.
+     *
+     * @param string $path
+     * @return array{list<string>, string, array<string, string>, ?string}
+     */
+    private static function links(string $path): array
+    {
+        $tokens    = PhpToken::tokenize(file_get_contents($path));
+        $namespace = '';
+        $imports   = [];
+        $self      = null;
+        $targets   = [];
+        $count     = count($tokens);
+
+        for ($i = 0; $i < $count; $i++) {
+            $token = $tokens[$i];
+
+            if ($token->is([T_DOC_COMMENT, T_COMMENT])) {
+                // A link can wrap, and then its target opens the next line, after the docblock's `*`.
+                preg_match_all('/\{@link\s+(?:\*\s+)?([^\s}]+)/', $token->text, $found);
+                $targets = [...$targets, ...$found[1]];
+                continue;
+            }
+
+            if ($token->id === T_NAMESPACE && isset($tokens[$i + 2])) {
+                $namespace = $tokens[$i + 2]->text;
+                continue;
+            }
+
+            if ($token->id === T_USE && self::isImport($tokens, $i)) {
+                [$name, $alias, $i]                     = self::import($tokens, $i);
+                $imports[$alias ?? self::shortName($name)] = $name;
+                continue;
+            }
+
+            if ($self === null && $token->is([T_CLASS, T_ENUM, T_INTERFACE, T_TRAIT]) && !self::isMember($tokens, $i)) {
+                $name = $tokens[$i + 2] ?? null;
+                $self = $name?->id === T_STRING ? ltrim($namespace . '\\' . $name->text, '\\') : null;
+            }
+        }
+
+        return [$targets, $namespace, $imports, $self];
+    }
+
+    /**
+     * Whether one link target names something in the framework or in PHP: a URL is taken as written,
+     * `name()` is a function, and `Class::member` needs the member as well as the class.
+     *
+     * @param string                $target
+     * @param string                $namespace
+     * @param array<string, string> $imports
+     * @param ?string               $self
+     * @return bool
+     */
+    private static function landsInTheFramework(string $target, string $namespace, array $imports, ?string $self): bool
+    {
+        if (str_contains($target, '://')) {
+            return true;
+        }
+
+        [$name, $member] = [...explode('::', $target, 2), null];
+
+        if ($member === null && str_ends_with($name, '()')) {
+            $function = ltrim(substr($name, 0, -2), '\\');
+
+            return function_exists($function) || function_exists($namespace . '\\' . $function);
+        }
+
+        $class = self::resolved($name, $namespace, $imports, $self);
+
+        if ($class === null) {
+            return false;
+        }
+
+        $reflection = new ReflectionClass($class);
+        $ours       = str_starts_with($class, 'Phpanta\\') || $reflection->isInternal();
+
+        if (!$ours || $reflection->getName() !== $class) {
+            return false;
+        }
+
+        return match (true) {
+            $member === null                => true,
+            str_ends_with($member, '()')    => $reflection->hasMethod(substr($member, 0, -2)),
+            str_starts_with($member, '$')   => $reflection->hasProperty(substr($member, 1)),
+            default                         => $reflection->hasConstant($member)
+                || $reflection->hasMethod($member) || $reflection->hasProperty($member),
+        };
+    }
+
+    /**
+     * The class a linked name means, or null when it means none: `self`, a fully qualified name, an
+     * import, the file's own namespace — and, for a bare name that is none of those, a class PHP
+     * itself declares, the way a docblock tool falls back to the global namespace.
+     *
+     * @param string                $name
+     * @param string                $namespace
+     * @param array<string, string> $imports
+     * @param ?string               $self
+     * @return ?string
+     */
+    private static function resolved(string $name, string $namespace, array $imports, ?string $self): ?string
+    {
+        $first = strtok($name, '\\');
+
+        $candidate = match (true) {
+            $name === 'self' || $name === 'static' => $self,
+            str_starts_with($name, '\\')           => ltrim($name, '\\'),
+            isset($imports[$first])                => $imports[$first] . substr($name, strlen($first)),
+            default                                => ltrim($namespace . '\\' . $name, '\\'),
+        };
+
+        if ($candidate !== null && self::exists($candidate)) {
+            return $candidate;
+        }
+
+        $global = !str_contains($name, '\\') && self::exists($name) && new ReflectionClass($name)->isInternal();
+
+        return $global ? $name : null;
     }
 
     /**

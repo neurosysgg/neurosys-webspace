@@ -87,7 +87,32 @@ Two rules hold the arrows straight, and both are worth knowing before you add a 
 
 ## The request, traced
 
-The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architecture.md#the-request-traced).
+The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architecture.md#the-request-traced),
+which follows its test app's one route. What this site puts on that road:
+
+- **The table.** Ten routes of the site's, every one `ReadOnly`, then the framework's `/api` —
+  eleven in all. Every address is a `SitePath` case, filled by `SitePath::X->to(…)`:
+  `SitePath::Release->to('ill')` is `/releases/ill`, and a filler written with `fn()` would make
+  `/releases/ill/ill` of a two-placeholder path — well formed, matching a route, and the wrong page.
+  `RoutingTest` pins that one by name, and still writes its paths out in full, because
+  `SitePath::Release->to('ill')` in a test would pass with the enum wrong. Each value is
+  `rawurlencode`d, a no-op for every slug, format and label in `data/` today.
+- **The release page.** `ReleaseController` constructs a `ReleaseRepository`, asks it for the slug,
+  and returns a `ViewResponse` wrapping `ReleaseView`, or one wrapping `NotFoundView` with a 404. The
+  optional `?ReleaseRepository $releases = null` on the release and download controllers is a test
+  seam and nothing else — it is how the "format staged, no link yet" branch is exercised without a
+  real release. A full page is drawn inside [`Layout`](../src/NeuroSYS/Layout.php), the app's shell.
+- **Downloads.** `/releases/{slug}/{format}` calls `DownloadLogger` and answers with a 303 to the
+  HiDrive direct-download link. The logger reads `HTTP_REFERER` through `ServerVariable::Referer`
+  rather than from the `Request`, deliberately: the read has to stay *behind* the
+  `DOWNLOAD_LOGGING` guard, and an argument would be evaluated in front of it. The header lost an
+  `r` in 1996 and `DownloadLogEntry::$referrer`, the property it fills, did not.
+- **Demos are the one place a file passes through PHP.** `/demos/{slug}` and `/demos/{slug}/{label}`
+  sit behind that demo's own password, and the audio lives under `data/` where the web server cannot
+  reach it, so the password covers the bytes rather than only the page. `FileResponse` answers byte
+  ranges because an `<audio>` element seeks by asking for one. See [demos.md](demos.md).
+- **The Authorization fallback matters here.** Strato does not always hand PHP `PHP_AUTH_*`, which is
+  why `Request` decodes `Authorization` itself; see [deployment.md](deployment.md).
 
 ## The layers
 
@@ -152,6 +177,19 @@ Two sub-namespaces exist so a release can name a thing without knowing where it 
   `SoundCloudProfileEmbed` deliberately **does not** — it is a different *resource*, not a different
   *provider*, and a profile player assignable to a release would be nonsense. See
   [frontend.md](frontend.md#the-embed-hierarchy) for the client half, where the two do share a base.
+
+**A value that arrives as free text is a value object with a `verify()`** — `HiDriveLink` (a share
+id), `Profile` (a URL), `Release` (a positive bpm) — and each throws a `ReleaseVerificationException`
+while `data/` is being loaded, naming the offending value, rather than surfacing later as a broken
+link nobody clicks. `Profile::url` is checked there *and* again by `Element` at render time: the
+renderer is the backstop and reports the fault on whatever page draws the footer; the constructor
+reports it where the mistake actually is.
+
+`Profile::URL_PATTERN` and the framework's `Location::URL_PATTERN` are the same regex in two files,
+kept apart on purpose. They check two different kinds of address — a header the site emits, and data
+it reads — and throw different exceptions for it, so sharing one constant would mean a change made
+for a redirect silently changing what a profile URL may be. The argument is written on `Location`'s
+`#[BareString]`, and it is the one excuse a later reader might reasonably overturn.
 
 The rest describe something other than a release: `Production/` is what the `.flp` knows
 (`Arrangement`, `Section`, `ProductionTime`, `Plugin` — see [authoring.md](authoring.md)); `Api/`,
@@ -219,10 +257,68 @@ tree does not.
 ## The type discipline
 
 The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architecture.md#the-type-discipline).
+This site's enums are the same kind of thing — `Genre`, `MusicalKey`, `ReleaseFormat`, `Tag`,
+`SitePath`, `DataFile` — and its interfaces are drawn on the same axis: `FileLink` and `Embed` say
+"which provider".
+
+### Collections here
+
+The rules are [collections.md](../phpanta/docs/collections.md)'s; what is worth knowing is where this
+site meets them.
+
+- **The element-type guard is in seven places** — six in `Model/` and one in `Terminal` — each an
+  `is_a($this->x->type, …, true)` check, and it asks `is_a()` rather than `!==` so a collection of a
+  subclass is accepted. That changes behaviour on exactly one of the seven today, because `Format` is
+  the only element type they name that is not `final`; the rest are `final` classes or an enum, where
+  the two spellings cannot differ. The argument lives on `Release::verify()` and the other six point
+  at it.
+- **`DemoStage::write()` is the one step that does work.** It filters on a predicate that
+  *transcodes with ffmpeg* and reports whether that worked, so it ends in `settled()`: left pending,
+  its caller's `isEmpty()` would stop at the first failure with every mix behind it unstaged, and the
+  loop that reports the failures would encode them all a second time.
+- **A collection behind a variadic** here is `TerminalCommand`, beside the framework's `Allow` and
+  `Vary`; the other public groups are `Release`'s formats and plugins, an `Arrangement`'s sections,
+  `WaveformBand::bands()`,
+  `ReleaseFolder`'s audio files (keyed by `ReleaseFormat` value, in catalogue order), and in `tools/`,
+  `Project::$markers` and `DemoStage::$sources`. `Demo::verify()` is `unique()`'s second caller.
+- **What stays a plain array.** `Preflight`'s findings, `ReleaseFolder::missing()`'s filter over
+  `Fact::cases()` and `FlpFile::all()` cross no public boundary. `DownloadStats`'s tally accumulator
+  is written to in a loop, where `with()` would copy. **`tools/lib/Dsp/` keeps raw arrays**:
+  `Fft::transform()`'s butterfly is the in-place mutation collections.md measures, and `hann()`,
+  `magnitude()`, `Analyze::mono()` and `Spectrum::bars()` build fresh arrays already, and stay arrays
+  because the port's contract is that the caller owns the buffer.
+
+### Excuses here
+
+`GuidelineTest` reads this tree as well as the framework's; [guidelines.md](../phpanta/docs/guidelines.md)
+is the rule. This site's own excuses:
+
+- **`#[BareArray]`** on a variadic's argument spread into a call — `accented()`, `Wordmark::nodes()`,
+  `terminalFields()`, `TerminalField::row()` — on a door, `DownloadLogEntry::jsonSerialize()`'s
+  contract and `ProfileRepository`'s required data file, and on the `counts()` accumulator in
+  `DownloadStats`.
+- **`#[BareString]`** on another grammar — the printf format `%d:%02d` in `DemoTrack` and `Section`,
+  which render the same shape from different arithmetic, `Profile`'s URL regex, and `DownloadLogger`'s
+  `fopen()` mode `c` — and on `int` and `string` as `get_debug_type()` spells them.
+- **`#[BareCall]`** on `Layout::modulePreloads()`, which maps a class constant — and a class
+  constant *cannot* hold a `Collection`, since `new` is not a constant expression, so that one is
+  permanent.
 
 ## Exceptions
 
 The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architecture.md#exceptions).
+This site adds two, in `NeuroSYS\Exception`, each a subclass of the framework's family it belongs to:
+
+| Class | Extends | Thrown when |
+|---|---|---|
+| `ReleaseVerificationException` | `InvalidValueException` | a `data/` value object is built from data it cannot accept — 14 classes |
+| `TerminalException` | `MarkupException` | `Terminal`'s rows cannot reach the element that draws them |
+
+**One throw looks misplaced and is argued rather than moved.** `Terminal` throws
+`ReleaseVerificationException` for its element-type guard — but that guard is the seventh of seven
+identical `is_a($this->x->type, …)` checks, the other six of which are in `Model/`, and splitting one
+off would put a single question in two classes. The class *name* is the only thing that reads oddly,
+and a name is a cheaper thing to live with than a check in two places.
 
 ## Site
 
@@ -253,6 +349,20 @@ pattern, `HiDriveLink`'s share-id pattern, SoundCloud's accent and attribution s
 ## The markup tree
 
 The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architecture.md#the-markup-tree).
+Three things about it are this site's:
+
+- **`''` and `null` differ for the SoundCloud player.** A public track has no secret token, and
+  `secret-token=""` is not the same thing to the client as no attribute.
+- **The footer and the imprint build their `mailto:` links through `UrlScheme`**, the allowlist
+  `Element` checks every URL attribute against.
+- **`/privacy` is the one page that parses markup.** `data/privacy.de.html` and
+  `data/privacy.en.html` go through `Element::containingHtml()`, so `ext/dom` missing is a fatal on
+  that page alone — the one page here that is a legal obligation rather than a choice. Both halves
+  parse with zero errors, which is what makes refusing on any error affordable, and the page pays
+  about **+1.14 ms** for both halves without Xdebug: the largest single price this site pays for a
+  guarantee, affordable because it is one route of ten and the least-visited page on the site.
+  [performance.md](performance.md) records +3.4 ms for the same work, because it measures with Xdebug
+  loaded, and the walk into the tree is three times slower there.
 
 ## Language
 
@@ -283,9 +393,10 @@ Four things are worth knowing about them before touching either.
   to hand one visitor the copy it built for another, which here means the wrong language and
   nothing else visibly wrong. The `ETag` is the belt to that brace, since the two orderings are
   different bytes. The verify script checks both, because only it can see a real header.
-- **The default is the argument order, not a branch.** `preferred(Language::English,
-  Language::German)` is an English page that will speak German if asked; a tie, a header naming
-  neither, and no header at all all come back English. There is no 406 and there should not be:
+- **The default is the argument order, not a branch.** `Site::languages()` offers English first,
+  and `Languages::preferredBy()` hands that order to `AcceptedLanguages::preferred()`, so every page
+  is English that will speak German if asked; a tie, a header naming neither, and no header at all
+  all come back English. There is no 406 and there should not be:
   the question is only which half leads.
 
 `AcceptedLanguages` parses RFC 9110 §12.5.4 — weights, `*`, `q=0` as a real refusal that outranks

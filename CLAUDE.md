@@ -16,7 +16,10 @@ exists because of a story, the current document states the rule in one sentence 
 [CLAUDE.md](phpanta/CLAUDE.md), docs, tests and licence — read its CLAUDE.md before touching anything
 under it. **Nothing under `phpanta/` may name this site**: `BoundaryTest` resolves every name the
 framework's code writes, and the verify script fails any mention of the site's namespace anywhere
-under it, comments and docs included. The site's facts reach the framework through `Site`, the app.
+under it, comments and docs included. Every `{@link}` under it must land on a framework class or PHP's
+own, which `BoundaryTest` checks too, and every link in its documents must stay inside it, which the
+verify script checks, so an example borrowed from this site fails rather than dangling. The site's
+facts reach the framework through `Site`, the app.
 The rules and traps below hold for both trees; the framework's own file states them without the site.
 
 **It is a git submodule**, at the relative URL `../phpanta.git`, so GitHub and HiDrive each resolve
@@ -239,7 +242,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - Never `parse_url()` the request target: it fails with `false`, which `??` does not guard.
   `Request::path()` uses `Uri\Rfc3986\Uri::parse()`, which answers null.
 - An unparseable target still matches a `{slug}` route, because `{slug}` compiles to `[^/]+`. A slug
-  that reaches a header goes through `Auth::demoRealm()`'s `rawurlencode`, and `BasicChallenge`
+  that reaches a header goes through `DemoGate::realm()`'s `rawurlencode`, and `BasicChallenge`
   refuses anything but `qdtext`.
 - `AuthScheme::Basic` is the only spelling of the token on both sides of the handshake — a mismatch
   makes both gates refuse everything, identically, with nothing in any log.

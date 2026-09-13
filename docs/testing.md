@@ -46,10 +46,10 @@ The division matters in a few concrete places:
   split is the same one `SecurityHeaders` makes between `headers()` and `send()`, for the same reason:
   a method that ends the request cannot be asserted against, so everything worth asserting lives
   beside it rather than inside it.
-- **The demo gate is the same split, twice over.** `Auth::requireDemoAuth()` calls `exit`, so the
+- **The demo gate is the same split, twice over.** `DemoGate::requireAuth()` calls `exit`, so the
   `401` is the verify script's — and so is everything about the audio route, because `header()` is a
   no-op under CLI and that route's whole answer is a status code and four headers. The decision half
-  is `Auth::admits()`, which `DemoTest` asks about a wrong password without the answer ending the
+  is `DemoGate::admits()`, which `DemoTest` asks about a wrong password without the answer ending the
   process. What only real HTTP can show is worth listing, because it is most of the feature: the
   `401`, that an **unknown slug is refused identically to a known one**, the realm naming the demo,
   the `206` with its `Content-Range`, the `416`, and the absence of an `ETag`.
@@ -93,6 +93,26 @@ The division matters in a few concrete places:
   attribution crediting the artist once with no dangling separator after it. Everything the two
   share is `SoundCloudWidget`'s and is pinned in the player's file, not twice.
 
+### The framework's checks, run here
+
+`phpanta/` has a suite of its own, which runs under a test app rather than this site (see
+[phpanta/docs/testing.md](../phpanta/docs/testing.md)). The checks that watched the framework while
+it lived in this repository moved only as far as they had to. They still run here, and each reads
+**both** source trees, `src/` and `phpanta/`, so the framework is held to them whether or not it is
+checked out on its own:
+
+| Check | What it holds the framework to |
+|---|---|
+| `BoundaryTest` | nothing under `phpanta/src/` names a site class, by any kind of name; every `{@link}` under `phpanta/` lands on a framework class, member or function, or PHP's own |
+| the verify script | nothing under `phpanta/` mentions the site's namespace, comments and docs included; every link in its documents stays inside it; every framework class loads; no markup from a string, no outbound request, one `openssl_` caller |
+| `GuidelineTest` | the five habits |
+| `NoDiscardTest` | every builder and query that must not be discarded, and why |
+| `TranslationTest` | every translated enum is reachable from `Texts`, and written in every language |
+| `SecurityPolicyTest` | every header value is a typed object, and every one is covered |
+
+`SourceTree` is what lets them read both trees. The front end's tests stay in `test/js/` as well.
+They load the compiled tree, and the framework's eleven modules are part of it.
+
 ## Adding a unit test
 
 Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_ROOT` is defined by
@@ -101,9 +121,11 @@ Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_
 Files are grouped by layer or by feature, not one-per-class. The site's are `ModelTest`,
 `ProductionTest`, `WaveformTest`, `EmbedTest`, `HtmlTest`, `ViewTest`, `PageTest`, `ServiceTest`,
 `SupportTest`, `ResponseTest`, `RoutingTest`, `RequestTest`, `AppTest`, `SecurityTest`,
-`SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `UpdateTest`, `RequirementTest`,
-`HealthTest`, `CapabilityTest`, `NoDiscardTest` and `GuidelineTest`; `PhpInputStream` and `UpdateFixture` are helpers rather than
-suites. The tooling's are listed under [The development tooling](#the-development-tooling).
+`SecurityPolicyTest`, `AdminTest`, `DemoTest`, `ApiTest`, `HealthTest`, `LanguagesTest`,
+`TranslationTest`, `BoundaryTest`, `NoDiscardTest` and `GuidelineTest`. `PhpInputStream` and
+`SourceTree` are helpers rather than suites, and so are the framework's fixtures (`UpdateFixture`,
+`TextFixture`), which `test/bootstrap.php` loads from `phpanta/test/`. The tooling's tests are listed
+under [The development tooling](#the-development-tooling).
 
 Several are named for something other than a layer, because that is what they are about: `PageTest`
 covers the pages that are only content — the home hero, the imprint, the privacy policy —
@@ -213,7 +235,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **An unknown demo is indistinguishable from a wrong password.** A `404` for a slug that names
   nothing and a `401` for one that names something is a catalogue of unreleased tracks, readable one
   guess at a time. The verify script asserts both answer `401`; `DemoTest` asserts the reason it is
-  also true of the *timing* — `Auth::requireDemoAuth()` verifies against
+  also true of the *timing* — `DemoGate::requireAuth()` verifies against
   `PasswordHash::unmatchable()` before refusing, so the unknown case pays the same bcrypt the known
   one does. A uniform status code undone by a stopwatch is not uniform.
 - **No URL segment can name a file.** A demo's audio is addressed by a label the demo declares, never
@@ -248,6 +270,11 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **A value PHP reads leniently is not met.** `ini_parse_quantity()` reads an unparseable size as
   `0` "for backwards compatibility", and for `post_max_size` that means unlimited. `ByteFloor`
   watches for the diagnostic and fails the value, and `RequirementTest` has the row.
+- **The floors agree with their other statements.** The extension list and the PHP floor are also
+  written in `composer.json`, and the two size floors derive from `ApiGate::MAX_BODY`. `HealthTest`
+  holds `PhpExtension`'s cases and the PHP floor to `composer.json`'s `require`. Composer never runs
+  on the server, so without that check a drift would surface only as a host passing a check it
+  should fail.
 - **The imprint states one address, four times.** It is a legal document, and one built from four
   copies of an address is one with a wrong address eventually. `PageTest` asserts the four rendered
   blocks are byte-identical, not merely present.
@@ -331,8 +358,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   one, which is what lets the privacy policy claim no server-side call reaches a third party. The
   verify script greps `src/` for `curl_*`, `fsockopen` and `stream_socket_client`. Proved by
   dropping an `fsockopen` into `src/` and watching it fail.
-- **curl is called in one place under `tools/lib/`.** The SoundCloud upload is the only outbound
-  request this repo makes, and `Http\CurlTransport` is the only class that makes it — the same
+- **curl is called in one place, `phpanta/tools/lib/Http/CurlTransport.php`.** The SoundCloud upload
+  and the signed `/api` calls are the only outbound requests this repo makes, and that class is the
+  only one that makes them — the verify script greps both `tools/lib/` trees for `curl_` — the same
   arrangement `Release\Probe` has for shelling out. Options set once cannot disagree between call
   sites, and two of them matter: certificates are verified, and redirects are not followed with a
   credential and a 50 MB body attached.
@@ -392,7 +420,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **Every preloaded module resolves.** The drift check proves the manifest matches the graph; it
   cannot prove it points at anything, because the href is a graph path under a URL base written by
   hand in `phpanta/tools/build-assets.mjs`. So the verify script asks the dev server for every one of
-  `AssetManifest::MODULES` (47 in the debug tree), and `ViewTest` asks the filesystem the same
+  `AssetManifest::MODULES` (49 in the debug tree), and `ViewTest` asks the filesystem the same
   question — which fails in the fast suite, without a server. A preload that 404s is the quietest
   failure here: the module is simply fetched late, the slow way, and the console offers at most an
   unused-preload notice.
@@ -479,8 +507,8 @@ npm run coverage    # front end — 100% of lines, branches and functions, enfor
 
 `node --test` has coverage built in. The thresholds in the `coverage` script are set to 100 across
 lines, branches and functions, so this is a gate rather than a report: a new branch nothing
-exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is fifty
-small files with one job each. It has teeth the other way too: an unreachable fallback such as
+exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is fifty-two
+small files with one job each, the framework's eleven among them. It has teeth the other way too: an unreachable fallback such as
 `?? 0` on an index that cannot miss is refused, which is why `DemoWaveform` reads its bytes with a
 `charCodeAt` that needs no fallback at all.
 
@@ -497,7 +525,7 @@ composer coverage
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
 clover XML and a browsable HTML report. **99.47% of lines** (3017/3033), derived on 2026-09-13
-(on top of `328784b`). This is the one place the figure is written: CLAUDE.md points here rather than
+(on top of `5b209d8`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the

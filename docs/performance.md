@@ -16,7 +16,7 @@ in [history/performance.md](history/performance.md).
 the shape holds and the absolute figures do not transfer.
 
 **The request timings and the compression table were taken against the debug tree** — the one
-`npm run dev` serves, whose documents carry a 46-link `modulepreload` block. What deploys is the
+`npm run dev` serves, whose documents carried a 46-link `modulepreload` block then (49 now). What deploys is the
 prod tree, which has none; its document sizes are under [the front-end payload](#the-front-end-payload).
 None of the tables has been re-measured against the prod tree.
 
@@ -127,7 +127,7 @@ generated rather than authored:
 
 | | |
 |---|---|
-| `Layout::modulePreloads()`, 46 links (debug tree) | 0.23 ms |
+| `Layout::modulePreloads()`, 46 links when measured (debug tree) | 0.23 ms |
 | as a share of the whole tree build | 23% |
 
 The prod tree has no preload list, so what ships pays none of it — see
