@@ -11,7 +11,7 @@
   // where a build tool's unchecked reads show up. Where a loop bound or an earlier check is the
   // proof the checker cannot read, the site carries a `@type` cast and a sentence saying which; a
   // guard there would be the dead defensive branch this project refuses elsewhere.
-  "include": ["tools/*.mjs"],
+  "include": ["phpanta/tools/*.mjs"],
 
   "compilerOptions": {
     "noEmit": true,

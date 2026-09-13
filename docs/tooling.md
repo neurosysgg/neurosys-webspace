@@ -57,7 +57,7 @@ tools/
 ```
 
 The three Node build tools — `build-css.mjs`, `build-assets.mjs`, `build-prod.mjs` — are the same
-layer in the other language, sharing `tools/build-cli.mjs`. They are described with the build in
+layer in the other language, sharing `phpanta/tools/build-cli.mjs`. They are described with the build in
 [frontend.md](frontend.md).
 
 ## The CLI layer

@@ -17,9 +17,9 @@ has touched. What deploys is a different tree, bundled by esbuild; see *Debug an
 
 ```
 assets/ts/  ──tsc──────────────────────→  public/assets/js/               ← the debug tree: generated, committed
-assets/css/ ──tools/build-css.mjs──────→  public/assets/css/style.css     ← generated, committed
-both        ──tools/build-assets.mjs───→  src/NeuroSYS/AssetManifest.php  ← generated, committed
-public/     ──tools/build-prod.mjs─────→  build/dist/                     ← the prod tree: generated, gitignored, deployed
+assets/css/ ──phpanta/tools/build-css.mjs──────→  public/assets/css/style.css     ← generated, committed
+both        ──phpanta/tools/build-assets.mjs───→  src/NeuroSYS/AssetManifest.php  ← generated, committed
+public/     ──phpanta/tools/build-prod.mjs─────→  build/dist/                     ← the prod tree: generated, gitignored, deployed
 ```
 
 | Command | Does |
@@ -29,7 +29,7 @@ public/     ──tools/build-prod.mjs─────→  build/dist/           
 | `npm run build:assets` | the asset manifest only |
 | `npm run build:prod` | `npm run build`, then derives `build/dist/` — see *Debug and prod* |
 | `npm run watch` | `tsc --watch`. **Does not build the CSS or the manifest.** |
-| `npm run dev` | `php -S` with `tools/dev-router.php`. The router is not optional. |
+| `npm run dev` | `php -S` with `phpanta/tools/dev-router.php`. The router is not optional. |
 | `npm run check` | `tsc` over all three trees — `assets/ts/`, `tools/*.mjs`, `test/js/*.mjs` |
 | `npm test` | `node --test` against the compiled output |
 | `npm run coverage` | the same, with 100% thresholds |
@@ -58,7 +58,7 @@ because three things read it by path: `test/js/` imports the modules, `npm run c
 `tsc`. All three want output a person can read — which is also why the cache version is a path
 segment and not a rewritten specifier (see [Cache versioning](#cache-versioning)).
 
-`npm run build:prod` derives the **prod** tree from it. `tools/build-prod.mjs` copies `public/`
+`npm run build:prod` derives the **prod** tree from it. `phpanta/tools/build-prod.mjs` copies `public/`
 wholesale, bundles the whole module graph into one file with esbuild, minifies that with terser,
 deletes every source map, and writes a manifest of its own:
 
@@ -129,7 +129,7 @@ from `SoundCloudWidget.js`, from `SoundCloudPlayer.js`, from `main.js`. Five seq
 before the last module starts downloading, and none of it is bytes — compressing and stripping
 comments leave the number exactly where it was.
 
-`tools/build-assets.mjs` walks the compiled graph and generates `src/NeuroSYS/AssetManifest.php`;
+`phpanta/tools/build-assets.mjs` walks the compiled graph and generates `src/NeuroSYS/AssetManifest.php`;
 `Layout::modulePreloads()` renders one `<link rel="modulepreload">` per entry, after the stylesheet
 because that one blocks rendering and these do not. The preload scanner then sees all of them at
 once and the five waves become one, for ~385 gzipped bytes per page.
@@ -159,7 +159,7 @@ Every built asset is served under a path segment naming a hash of the build:
 `/assets/js/v-a1b2c3d4/main.js`. That is what lets `public/.htaccess` mark them
 `immutable, max-age=31536000` — a URL that names its own content cannot come to mean something else,
 so a returning visitor fetches none of it. The segment is not a directory; the server strips it,
-Apache by a `RewriteRule` and the dev server by `tools/dev-router.php`.
+Apache by a `RewriteRule` and the dev server by `phpanta/tools/dev-router.php`.
 
 **Why a path segment and not a filename or a query.** `Tag.a1b2c3d4.js` would break every test that
 imports `public/assets/js/model/Tag.js` by name. A `?v=` query on each import specifier is ruled out
@@ -530,7 +530,7 @@ assets/css/
 [`main.css`](../assets/css/main.css) is the CSS half of what `main.ts` is for the elements: an
 explicit list, in order, that nothing derives from a directory walk.
 
-[`tools/build-css.mjs`](../tools/build-css.mjs) inlines each `@import`, because the source form is
+[`phpanta/tools/build-css.mjs`](../tools/build-css.mjs) inlines each `@import`, because the source form is
 never the served one — left in place, the browser would discover each part only after parsing the
 one before it, and a typo'd href would 404 in silence with that component unstyled. Inlining makes
 both a build error instead.
@@ -545,7 +545,7 @@ The build also refuses:
 ### The build tools' command line
 
 `build-css.mjs`, `build-assets.mjs` and `build-prod.mjs` share
-[`tools/build-cli.mjs`](../tools/build-cli.mjs) — a `fail`, a `label`, a `read`, and an argv parsed
+[`phpanta/tools/build-cli.mjs`](../tools/build-cli.mjs) — a `fail`, a `label`, a `read`, and an argv parsed
 against the flags a tool declares. It is `NeuroSYS\Tool\Cli` on the other side of the language
 boundary, and there for the reason that layer exists: an undeclared flag, a flag with no path and
 `--out=` are all refused by name, because a misspelled `--out` that is silently ignored overwrites

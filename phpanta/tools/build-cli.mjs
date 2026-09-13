@@ -1,8 +1,8 @@
 /**
- * The command-line plumbing tools/build-*.mjs share: a way to fail, a way to name a file, and an
+ * The command-line plumbing phpanta/tools/build-*.mjs share: a way to fail, a way to name a file, and an
  * argv parsed against the flags a tool actually declares.
  *
- * **This is `NeuroSYS\Tool\Cli` on the other side of the language boundary**, and it is here for the
+ * **This is `Phpanta\Tool\Cli` on the other side of the language boundary**, and it is here for the
  * reason that layer exists. `Cli\Command::options()`'s docblock names the failure: both hand-rolled
  * parsers the PHP tooling had grown *"dropped an unrecognised flag in silence, which for
  * merge-coverage meant a mistyped `--clover` reported success and wrote no report"*. The three
@@ -24,12 +24,67 @@
  * checkout while it skips everything that needs `tsc`.
  */
 
-import { readFileSync } from 'node:fs';
-import { dirname, relative, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
 
-/** The repository root, one level up from tools/. */
-export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+/**
+ * The project being built: the nearest directory, at or above the one the tool was run from, that
+ * holds a `composer.json`.
+ *
+ * **Not where this file sits.** That is the framework's tooling, vendored into the project as
+ * `phpanta/`, and a root worked out from it would be `phpanta/` itself — every path below would
+ * then name the framework's tree rather than the site's, and `build-assets` would write the site's
+ * manifest somewhere nothing reads it. The project is where npm runs a script from and where the
+ * verify script is run from; walking up is what lets a tool be run from a subdirectory as well.
+ */
+export const ROOT = findRoot(process.cwd());
+
+/**
+ * @param {string} from
+ * @returns {string}
+ */
+function findRoot(from) {
+  for (let directory = resolve(from); ; directory = dirname(directory)) {
+    if (existsSync(join(directory, 'composer.json'))) {
+      return directory;
+    }
+
+    if (dirname(directory) === directory) {
+      console.error(`no composer.json at or above ${from} — run this from the project it builds.`);
+      process.exit(1);
+    }
+  }
+}
+
+/**
+ * The app being built: the namespace `composer.json` maps to a directory under `src/`, and so what
+ * its generated manifest is declared in and where it is written.
+ *
+ * Read from `composer.json` because that is where the namespace is already stated — `autoload.php`
+ * states it once more, for the server, which has no composer — so a third statement here would be
+ * one more place a rename has to reach. **Exactly one entry qualifies, or this refuses**: fewer
+ * means there is no app to build, and more would be a guess, and a wrong guess writes the manifest
+ * into the wrong namespace with nothing anywhere saying so.
+ *
+ * @returns {{ namespace: string, manifest: string }}
+ */
+export function app() {
+  const composer = JSON.parse(read(join(ROOT, 'composer.json')) ?? '{}');
+  /** @type {[string, unknown][]} */
+  const entries = Object.entries(composer?.autoload?.['psr-4'] ?? {}).filter(
+    ([namespace, directory]) => namespace !== 'Phpanta\\'
+      && typeof directory === 'string'
+      && directory.startsWith('src/'),
+  );
+  const entry = entries[0];
+
+  if (entries.length !== 1 || entry === undefined || typeof entry[1] !== 'string') {
+    console.error(`composer.json maps ${entries.length} namespaces to src/, and a build needs exactly one.`);
+    process.exit(1);
+  }
+
+  return { namespace: entry[0].replace(/\\+$/, ''), manifest: join(ROOT, entry[1], 'AssetManifest.php') };
+}
 
 /**
  * A file's text, or `null` for any reason it could not be read.

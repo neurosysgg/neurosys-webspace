@@ -370,7 +370,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   assertion. Proved by adding a stray part and watching it fail.
 - **The committed stylesheet is current with `assets/css/`.** The CSS half of the JS drift check
   below, and for the same reason — `deploy.sh` builds what it ships out of `public/`, so a part
-  edited without a rebuild would ship a stale stylesheet nothing else notices. `tools/build-css.mjs`
+  edited without a rebuild would ship a stale stylesheet nothing else notices. `phpanta/tools/build-css.mjs`
   has no dependencies, so unlike the TypeScript checks this one runs on a clone that has never seen
   `npm install`. The build itself refuses a part imported twice, an import that does not resolve, an
   absolute import, and a rule sitting in a manifest.
@@ -382,7 +382,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   reads only committed files, so it runs on a clone that has never seen `npm install`.
 - **Every preloaded module resolves.** The drift check proves the manifest matches the graph; it
   cannot prove it points at anything, because the href is a graph path under a URL base written by
-  hand in `tools/build-assets.mjs`. So the verify script asks the dev server for every one of
+  hand in `phpanta/tools/build-assets.mjs`. So the verify script asks the dev server for every one of
   `AssetManifest::MODULES` (47 in the debug tree), and `ViewTest` asks the filesystem the same
   question — which fails in the fast suite, without a server. A preload that 404s is the quietest
   failure here: the module is simply fetched late, the slow way, and the console offers at most an
@@ -497,7 +497,7 @@ site. They are invisible to PHPUnit twice over: `header()` is a no-op under CLI,
 ends in `exit`.
 
 So the verify script's dev server collects its own. With `NEUROSYS_COVERAGE_DIR` set it starts
-under `XDEBUG_MODE=coverage` with `tools/coverage-prepend.php` as `auto_prepend_file`, which
+under `XDEBUG_MODE=coverage` with `phpanta/tools/coverage-prepend.php` as `auto_prepend_file`, which
 records line coverage and writes it out **from a shutdown function** — the whole trick, because a
 shutdown function still runs when a request ends in `exit`, and every response here does. That is
 one dump per request; `tools/merge-coverage.php` unions them with PHPUnit's `--coverage-php` output

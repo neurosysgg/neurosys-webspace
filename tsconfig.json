@@ -38,7 +38,7 @@
     // Minification is deliberately not here. tsc's output is the *debug* tree: test/js/ imports it
     // by path, the coverage gate is pinned to those paths, and the verify script diffs it
     // byte-for-byte against a fresh compile — all three want something a person can read.
-    // tools/build-prod.mjs derives build/dist/ from it, bundled and minified, and that is what
+    // phpanta/tools/build-prod.mjs derives build/dist/ from it, bundled and minified, and that is what
     // ships. See the note on sourceMap below, and docs/frontend.md's "Debug and prod".
     "removeComments": true,
     "newLine": "lf",
@@ -48,7 +48,7 @@
     // web-exposed at their own paths, but they ARE served — /assets/js/Navigation.js.map carries the
     // whole commented original, and static assets never reach PHP, so neither auth gate covers them.
     //
-    // **That applies to local dev and not to the live host.** tools/build-prod.mjs deletes every
+    // **That applies to local dev and not to the live host.** phpanta/tools/build-prod.mjs deletes every
     // map from the tree that ships and asserts no module still names one. The source is public on
     // GitHub, which is a reason not to worry about it rather than a reason to serve a second copy
     // from Strato. On a project where the source is not public the

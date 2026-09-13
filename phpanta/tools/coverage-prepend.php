@@ -31,7 +31,10 @@ declare(strict_types=1);
 
     xdebug_start_code_coverage();
 
-    $sources = [dirname(__DIR__) . '/src/', dirname(__DIR__) . '/phpanta/src/'];
+    // The project is the one the server was started on — the parent of its webroot — not the
+    // directory this file sits in, which is the framework's tooling.
+    $root    = dirname((string) realpath($_SERVER['DOCUMENT_ROOT'] ?? ''));
+    $sources = [$root . '/src/', $root . '/phpanta/src/'];
 
     register_shutdown_function(static function () use ($directory, $sources): void {
         // Only this site's own code: the dumps are written per request, and carrying the whole

@@ -34,7 +34,11 @@ use Phpanta\Support\Charset;
 
 // The site's own autoloader, so a served asset declares its type the way a served document does.
 // `public/index.php` requires the same file; this adds no dependency the dev server did not have.
-require_once __DIR__ . '/../autoload.php';
+// The project this serves is the one `php -S -t` was pointed at: its webroot, and the directory
+// above it that holds the autoloader. Never where this file sits, which is the framework's tooling.
+$public = (string) realpath($_SERVER['DOCUMENT_ROOT'] ?? '');
+
+require_once dirname($public) . '/autoload.php';
 
 /** The version segment, directly under the asset root. Mirrored in public/.htaccess. */
 const VERSION_SEGMENT = '#^/assets/(js|css)/v-[0-9a-f]{8}/#';
@@ -47,7 +51,7 @@ $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 // Handed to the site rather than refused here, so it gets exactly the 404 an address that does not
 // exist gets. Returning false would have the built-in server serve the file as it stands.
 if ($path === USER_INI) {
-    require dirname(__DIR__) . '/public/index.php';
+    require $public . '/index.php';
 
     return true;
 }
@@ -60,7 +64,6 @@ if ($stripped !== 1) {
     return false;
 }
 
-$public = dirname(__DIR__) . '/public';
 $file   = realpath($public . $bare);
 
 // realpath before is_file, and containment before either: everything after the version segment came

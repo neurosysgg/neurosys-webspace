@@ -66,10 +66,11 @@ import { build as esbuild } from 'esbuild';
 import { minify } from 'terser';
 import { cpSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync }
   from 'node:fs';
-import { join, relative } from 'node:path';
+import { dirname, join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 
-import { ROOT, cli } from './build-cli.mjs';
+import { ROOT, app, cli } from './build-cli.mjs';
 
 const { fail, label, path } = cli('build-prod', ['out']);
 
@@ -257,11 +258,12 @@ if (stragglers.length > 0) {
 // The graph is walked in the readable tree and the bytes are read from the bundle. That is the same
 // split --graph-dir was added for, taken one step further: the shape of the graph is a property of
 // the sources, and after bundling there is no shipped tree left with a shape to read.
-const MANIFEST = join(DIST, 'src/NeuroSYS/AssetManifest.php');
+const MANIFEST = join(DIST, relative(ROOT, app().manifest));
 
 try {
   execFileSync(process.execPath, [
-    join(ROOT, 'tools/build-assets.mjs'),
+    // The sibling tool, found beside this one — a tool, not a project file, so not under ROOT.
+    join(dirname(fileURLToPath(import.meta.url)), 'build-assets.mjs'),
     '--graph-dir', JS,
     '--bundle', join(DIST_JS, 'main.js'),
     '--css', join(DIST_PUB, 'assets/css/style.css'),

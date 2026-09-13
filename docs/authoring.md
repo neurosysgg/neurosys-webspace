@@ -47,7 +47,7 @@ it was minted for.
 
 **It prints; it does not write `data/releases.php`.** That file is ordered by hand, newest first, and
 carries the one field nothing can derive. Generating into it would leave it half-authored and
-half-generated — the arrangement `tools/build-css.mjs` already refuses when it rejects a rule in a
+half-generated — the arrangement `phpanta/tools/build-css.mjs` already refuses when it rejects a rule in a
 manifest, since a file either orders parts or is one.
 
 ### Pointing it at the project

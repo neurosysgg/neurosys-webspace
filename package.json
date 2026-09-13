@@ -8,11 +8,11 @@
         "node": ">=26.7.0"
     },
     "scripts": {
-        "dev": "php -S localhost:8080 -t public tools/dev-router.php",
-        "build": "tsc && node tools/build-css.mjs && node tools/build-assets.mjs",
-        "build:css": "node tools/build-css.mjs",
-        "build:assets": "node tools/build-assets.mjs",
-        "build:prod": "npm run build && node tools/build-prod.mjs",
+        "dev": "php -S localhost:8080 -t public phpanta/tools/dev-router.php",
+        "build": "tsc && node phpanta/tools/build-css.mjs && node phpanta/tools/build-assets.mjs",
+        "build:css": "node phpanta/tools/build-css.mjs",
+        "build:assets": "node phpanta/tools/build-assets.mjs",
+        "build:prod": "npm run build && node phpanta/tools/build-prod.mjs",
         "watch": "tsc --watch",
         "check": "tsc --noEmit && tsc -p tsconfig.tools.json && tsc -p tsconfig.test.json",
         "test": "node --test 'test/js/*.test.mjs'",

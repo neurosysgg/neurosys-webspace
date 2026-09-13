@@ -469,11 +469,11 @@ fi
 # public/assets/css/style.css is generated from assets/css/ the same way, and for the same reason:
 # deploy.sh rsyncs public/ from the working tree, so a part edited without a rebuild would ship a
 # stylesheet nothing else notices is stale. Unlike the TypeScript below this needs no node_modules —
-# tools/build-css.mjs has no dependencies — so it runs on a clone that has never seen `npm install`.
+# phpanta/tools/build-css.mjs has no dependencies — so it runs on a clone that has never seen `npm install`.
 if command -v node >/dev/null 2>&1; then
     CSSOUT="$REPO/.csscheck/style.css"
     rm -rf "$REPO/.csscheck"
-    if css_error=$(node "$REPO/tools/build-css.mjs" --out "$CSSOUT" 2>&1 >/dev/null); then
+    if css_error=$(node "$REPO/phpanta/tools/build-css.mjs" --out "$CSSOUT" 2>&1 >/dev/null); then
         if diff -q "$CSSOUT" "$REPO/public/assets/css/style.css" >/dev/null 2>&1; then
             pass "public/assets/css/style.css is current with assets/css/"
         else
@@ -503,7 +503,7 @@ fi
 if command -v node >/dev/null 2>&1; then
     ASSETOUT="$REPO/.assetcheck/AssetManifest.php"
     rm -rf "$REPO/.assetcheck"
-    if asset_error=$(node "$REPO/tools/build-assets.mjs" --out "$ASSETOUT" 2>&1 >/dev/null); then
+    if asset_error=$(node "$REPO/phpanta/tools/build-assets.mjs" --out "$ASSETOUT" 2>&1 >/dev/null); then
         if diff -q "$ASSETOUT" "$REPO/src/NeuroSYS/AssetManifest.php" >/dev/null 2>&1; then
             pass "src/NeuroSYS/AssetManifest.php is current with the built assets"
         else
@@ -519,16 +519,16 @@ else
     echo "  SKIP asset manifest drift check — no node on PATH"
 fi
 
-# The version segment is a mirror: public/.htaccess strips it in production, tools/dev-router.php
+# The version segment is a mirror: public/.htaccess strips it in production, phpanta/tools/dev-router.php
 # strips it under the php -S this script runs. Two spellings of one rule, in two languages, with
 # nothing but this check between them — drift and the dev server serves a 404 for a URL that works
 # live, or worse, the reverse.
 htaccess_shape=$(grep -oE 'assets/\(js\|css\)/v-\[0-9a-f\]\{8\}' "$REPO/public/.htaccess" | head -1)
-router_shape=$(grep -oE 'assets/\(js\|css\)/v-\[0-9a-f\]\{8\}' "$REPO/tools/dev-router.php" | head -1)
+router_shape=$(grep -oE 'assets/\(js\|css\)/v-\[0-9a-f\]\{8\}' "$REPO/phpanta/tools/dev-router.php" | head -1)
 if [[ -n "$htaccess_shape" && "$htaccess_shape" == "$router_shape" ]]; then
     pass "the version segment is stripped identically by .htaccess and the dev router"
 else
-    fail "the version-segment pattern differs between public/.htaccess and tools/dev-router.php"
+    fail "the version-segment pattern differs between public/.htaccess and phpanta/tools/dev-router.php"
     echo "       .htaccess: ${htaccess_shape:-<not found>}"
     echo "       router:    ${router_shape:-<not found>}"
 fi
@@ -537,10 +537,10 @@ fi
 # dev router hands it to index.php, so both answer it as an address that does not exist. The HTTP
 # section below asks the dev server; this is what says production does the same.
 if grep -qE '^RewriteRule \^\\\.user\\\.ini\$ index\.php' "$REPO/public/.htaccess" \
-   && grep -q "const USER_INI = '/.user.ini';" "$REPO/tools/dev-router.php"; then
+   && grep -q "const USER_INI = '/.user.ini';" "$REPO/phpanta/tools/dev-router.php"; then
     pass "public/.user.ini is sent to the router by both .htaccess and the dev router"
 else
-    fail "public/.htaccess and tools/dev-router.php no longer both hide public/.user.ini"
+    fail "public/.htaccess and phpanta/tools/dev-router.php no longer both hide public/.user.ini"
 fi
 
 # public/assets/js/ is generated from assets/ts/ and committed, because deploy.sh rsyncs public/
@@ -578,7 +578,7 @@ if [[ -x "$TSC" ]]; then
     TSOUT="$REPO/.tscheck/assets/js"
     rm -rf "$REPO/.tscheck"
     if (cd "$REPO" && "$TSC" --outDir "$TSOUT" >/dev/null 2>&1) \
-       && node "$REPO/tools/build-assets.mjs" --js-dir "$TSOUT" \
+       && node "$REPO/phpanta/tools/build-assets.mjs" --js-dir "$TSOUT" \
                --out "$REPO/.tscheck/AssetManifest.php" >/dev/null 2>&1; then
         # --brief names the files rather than dumping them; "Only in" lines are the ones that
         # matter after a source is deleted, since tsc never removes what it no longer emits.
@@ -605,7 +605,7 @@ if [[ -x "$TSC" ]]; then
     # public/ is the debug tree: readable, mapped, committed, forty-nine separate modules, and
     # everything above this line is about keeping it in step with assets/ts/. build/dist/ is what
     # actually ships — that same graph bundled into one module and minified, with the maps dropped,
-    # built by tools/build-prod.mjs and rsynced by deploy.sh.
+    # built by phpanta/tools/build-prod.mjs and rsynced by deploy.sh.
     #
     # Nothing above can see it, and neither can PHPUnit. Three failure modes live here and every one
     # of them is invisible in a browser until it is live:
@@ -625,7 +625,7 @@ if [[ -x "$TSC" ]]; then
     #
     # This runs build-prod.mjs directly rather than `npm run build:prod`, because the block above
     # has already proven public/ current and rebuilding it here would just be slower.
-    if node "$REPO/tools/build-prod.mjs" >/dev/null 2>&1; then
+    if node "$REPO/phpanta/tools/build-prod.mjs" >/dev/null 2>&1; then
         pass "the prod tree builds"
 
         DIST_JS="$REPO/build/dist/public/assets/js"
@@ -635,7 +635,7 @@ if [[ -x "$TSC" ]]; then
            && ! grep -rq sourceMappingURL "$DIST_JS"; then
             pass "the prod tree ships no source map, and names none"
         else
-            fail "the prod tree still carries source maps (see tools/build-prod.mjs)"
+            fail "the prod tree still carries source maps (see phpanta/tools/build-prod.mjs)"
         fi
 
         if (cd "$REPO" && NEUROSYS_JS_DIR="$DIST_JS" node --test 'test/js/*.test.mjs' >/dev/null 2>&1); then
@@ -699,7 +699,7 @@ echo "=== HTTP routes ==="
 
 # Start the built-in dev server in the background; kill it on exit.
 #
-# With NEUROSYS_COVERAGE_DIR set, the server runs under Xdebug with tools/coverage-prepend.php
+# With NEUROSYS_COVERAGE_DIR set, the server runs under Xdebug with phpanta/tools/coverage-prepend.php
 # loaded, so the checks below contribute to a coverage report instead of being invisible to one.
 # That is the only way the exit-ing auth code, the header() calls and the send() methods are ever
 # measured -- they are a no-op or a different process everywhere else. See `composer coverage`.
@@ -709,10 +709,10 @@ if [[ -n "${NEUROSYS_COVERAGE_DIR:-}" ]]; then
     # not something this script gets to decide.
     NEUROSYS_COVERAGE_DIR="$(cd "$NEUROSYS_COVERAGE_DIR" && pwd)"
     export NEUROSYS_COVERAGE_DIR
-    XDEBUG_MODE=coverage php -d "auto_prepend_file=$REPO/tools/coverage-prepend.php" \
-        -S "localhost:$PORT" -t "$REPO/public" "$REPO/tools/dev-router.php" >/dev/null 2>&1 &
+    XDEBUG_MODE=coverage php -d "auto_prepend_file=$REPO/phpanta/tools/coverage-prepend.php" \
+        -S "localhost:$PORT" -t "$REPO/public" "$REPO/phpanta/tools/dev-router.php" >/dev/null 2>&1 &
 else
-    php -S "localhost:$PORT" -t "$REPO/public" "$REPO/tools/dev-router.php" >/dev/null 2>&1 &
+    php -S "localhost:$PORT" -t "$REPO/public" "$REPO/phpanta/tools/dev-router.php" >/dev/null 2>&1 &
 fi
 SERVER_PID=$!
 trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
@@ -721,10 +721,10 @@ trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
 # the other — `composer test` green and `composer coverage` not. See docs/history/frontend.md.
 # `dev-rou[t]er` so the pattern does not match the line it is written on — the same idiom as
 # `ps aux | grep [f]oo`. Without it this counts itself and passes with one invocation patched.
-if [[ $(grep -cE -- '-S "localhost:\$PORT" -t "\$REPO/public" "\$REPO/tools/dev-rou[t]er\.php"' "$0") -eq 2 ]]; then
+if [[ $(grep -cE -- '-S "localhost:\$PORT" -t "\$REPO/public" "\$REPO/phpanta/tools/dev-rou[t]er\.php"' "$0") -eq 2 ]]; then
     pass "both dev-server invocations load the version-stripping router"
 else
-    fail "one of the php -S invocations in this script is missing tools/dev-router.php"
+    fail "one of the php -S invocations in this script is missing phpanta/tools/dev-router.php"
 fi
 
 # Poll until the server is accepting connections (max ~3s).

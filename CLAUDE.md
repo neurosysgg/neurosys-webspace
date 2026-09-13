@@ -47,7 +47,7 @@ enforced by `.npmrc`'s `engine-strict`.
 ## Local dev
 
 ```bash
-npm run dev        # php -S localhost:8080 -t public tools/dev-router.php
+npm run dev        # php -S localhost:8080 -t public phpanta/tools/dev-router.php
 ```
 
 **The router is not optional.** Assets are served under a build-stamp path segment
@@ -242,7 +242,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - Strato buffers no output and the local Apache buffers 4096 bytes, so a stray byte before a
   `header()` works locally and costs the live response its headers. Strato also drops notices and
   deprecations (`error_reporting` 22519). [runtime.md](docs/runtime.md)
-- `public/.user.ini` is PHP's per-directory php.ini: `.htaccess` and `tools/dev-router.php` both hand
+- `public/.user.ini` is PHP's per-directory php.ini: `.htaccess` and `phpanta/tools/dev-router.php` both hand
   it to the router for an ordinary 404 (a deny would 403, which says it exists). Strato caches it for
   300 s, and it cannot switch on `opcache.enable`.
 
@@ -251,7 +251,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   misnesting error a guard throws reads `must be inside <P>`.
 - Never cache-bust with `?v=` on an import specifier: V8 attributes the module to a URL the coverage
   include does not match, and the 100% gate collapses. The build stamp is a path segment instead.
-- Both `php -S` invocations — `npm run dev` and the verify script's — must load `tools/dev-router.php`.
+- Both `php -S` invocations — `npm run dev` and the verify script's — must load `phpanta/tools/dev-router.php`.
 - `npm run watch` rebuilds neither the stylesheet nor the manifest; run `npm run build` before
   committing.
 - The debug and prod manifests differ on purpose (47 preloads against none) — do not add a diff
