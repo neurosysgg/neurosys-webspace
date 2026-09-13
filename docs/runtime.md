@@ -5,7 +5,10 @@ Three PHP runtimes run this code, and they are not the same PHP:
 - **Strato**, the live host: PHP under `cgi-fcgi` behind Apache, which is the only one that serves
   visitors.
 - **The local Apache**: the systemd `httpd` + `php-fpm` serving the working tree at
-  `http://neurosys.localhost`. This is where a change is tried before it is pushed.
+  `http://neurosys.localhost`. This is where a change is tried before it is pushed. A fault there
+  is a bare `500` unless its vhost says `SetEnv PHPANTA_ENVIRONMENT development`; with it, a request
+  from this machine gets the fault page — see `Phpanta\Environment`. `php -S` needs nothing: the dev
+  router states development itself.
 - **The local CLI**: the `php` on `$PATH`. It runs PHPUnit, the verify script's `php -S`, and every
   command under `tools/`.
 

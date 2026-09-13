@@ -41,7 +41,7 @@ final class HealthTest extends TestCase
      */
     public function testTheDeploymentDeclaresExactlyTheTrackedFilesAndTheLogDirectory(): void
     {
-        $expected = ['DOCUMENT_ROOT'];
+        $expected = ['DOCUMENT_ROOT', 'PHPANTA_ENVIRONMENT'];
         foreach (Site::current()->dataFiles() as $file) {
             if ($file->isTracked()) {
                 $expected[] = $file->value;

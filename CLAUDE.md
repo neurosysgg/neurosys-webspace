@@ -273,6 +273,9 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - A push leaves byte-identical files untouched, because rewriting a file the request is executing
   makes NFS silly-rename it into an undeletable `.nfsXXXXXXXX`. Remove a stray over the mount.
 - A server not yet running the `/api` code can only be updated by `./deploy.sh`; `--url` is an origin.
+- A fault is shown in full only when `PHPANTA_ENVIRONMENT=development` **and** the request is from
+  loopback — never `SetEnv` it on Strato; `health v1` warns if a deployment says it. The dev router
+  sets it for `php -S`; the local Apache needs the line in its vhost. [runtime.md](docs/runtime.md)
 - A health check **returns** its 503 — a thrown `ApiException` is a 422 — and `Requirement::check()`
   never throws: nothing catches it, so one throw is a 500 for the whole report. [health.md](phpanta/docs/health.md)
 - Probe the live host by pushing from a **detached worktree at `HEAD`** — the push mirrors the whole
