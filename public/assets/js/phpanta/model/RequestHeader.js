@@ -8,5 +8,6 @@ export var RequestHeader;
     RequestHeader["Referer"] = "Referer";
     RequestHeader["Origin"] = "Origin";
     RequestHeader["AccessControlRequestMethod"] = "Access-Control-Request-Method";
+    RequestHeader["Accept"] = "Accept";
 })(RequestHeader || (RequestHeader = {}));
 //# sourceMappingURL=RequestHeader.js.map

@@ -152,8 +152,9 @@ Both answer what `update version` deliberately does not. See [health.md](../phpa
 requirement of its own (`Site` does not override `ownRequirements()`), so its `health` report is
 exactly the framework's floor.
 
-**Strato passes a `503`'s body through unchanged**: `HTTP/2 503`, `text/plain`, and the report byte
-for byte. Nothing in `public/.htaccess` replaces an error body either. A front proxy *can*
+**Strato passes a `503`'s body through unchanged**: `HTTP/2 503` and the report byte for byte —
+measured while the report was still plain text, and a claim about the body rather than its type.
+Nothing in `public/.htaccess` replaces an error body either. A front proxy *can*
 substitute its own page for a 5xx, which is why this was asked of the live host rather than
 assumed. The question was put with a probe push declaring one impossible requirement (see
 [Probing the live host](#probing-the-live-host)). If the host changes, ask again the same way.
