@@ -8,7 +8,6 @@ use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Directory;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -22,6 +21,7 @@ use NeuroSYS\Tool\Demo\Password;
 use NeuroSYS\Tool\Demo\WaveformScan;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
+use Phpanta\Support\Directory;
 
 /**
  * The StageDemo command. Puts an unreleased mix behind a password at `/demos/<slug>`.

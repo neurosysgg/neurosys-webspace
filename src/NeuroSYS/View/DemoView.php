@@ -8,24 +8,25 @@ use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\Text\Texts;
-use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\Fragment;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\MediaPreload;
-use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Html\WaveformAttribute;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
+use Phpanta\Support\Collection;
+use Phpanta\Support\SearchableCollection;
+use Phpanta\Text\Translatable;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\Fragment;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\MediaPreload;
+use Phpanta\View\Html\Node;
+use Phpanta\View\View;
 
 /**
  * The DemoView class. Renders one demo's page — the mixes, and the ask.
@@ -37,7 +38,7 @@ use NeuroSYS\View\Terminal\TerminalTone;
  * the audio: an empty box is the whole thing missing. The browser's own control also seeks, takes a
  * keyboard, and is announced by a screen reader, none of which would come free in a rewrite.
  *
- * Seeking is why {@link \NeuroSYS\Http\FileResponse} answers byte ranges. The two halves belong to
+ * Seeking is why {@link \Phpanta\Http\FileResponse} answers byte ranges. The two halves belong to
  * each other: this emits the control, and that is what makes dragging it work.
  *
  * **The waveform does not spend that.** `<demo-waveform>` prepends a canvas to the card and leaves

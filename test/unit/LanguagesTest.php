@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Exception\TranslationException;
-use NeuroSYS\Http\AcceptedLanguages;
 use NeuroSYS\Site;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Languages;
+use Phpanta\Exception\TranslationException;
+use Phpanta\Http\AcceptedLanguages;
+use Phpanta\Text\Language;
+use Phpanta\Text\Languages;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 

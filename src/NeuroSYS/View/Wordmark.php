@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Site;
-use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Node;
+use Phpanta\Support\BareArray;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\Node;
 
 /**
  * The Wordmark class. The site's name with its dot accented — `neuro.SYS`.
@@ -19,7 +19,7 @@ use NeuroSYS\View\Html\Node;
  * as three pieces at each is two chances to end up with a lookalike of the site's own name.
  *
  * Returns the pieces rather than one node on purpose. {@link Element} renders inline only when a
- * child is {@link \NeuroSYS\View\Html\Text}, so a wordmark wrapped in a single node would be laid
+ * child is {@link \Phpanta\View\Html\Text}, so a wordmark wrapped in a single node would be laid
  * out as a block and gain spaces either side of the dot — spread, the text is the element's own and
  * it stays on one line.
  */

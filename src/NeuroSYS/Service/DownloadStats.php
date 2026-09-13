@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\BareString;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Support\BareArray;
+use Phpanta\Support\BareString;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The DownloadStats class. What the downloads log adds up to.

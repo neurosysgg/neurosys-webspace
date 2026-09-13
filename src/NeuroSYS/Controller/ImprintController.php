@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\View\ImprintView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ViewResponse;
 
 class ImprintController implements Controller
 {

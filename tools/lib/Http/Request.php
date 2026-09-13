@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Http;
 
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HeaderName;
-use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Http\MimeType;
-use NeuroSYS\Http\TopLevelType;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Http\Header;
+use Phpanta\Http\HeaderName;
+use Phpanta\Http\HttpMethod;
+use Phpanta\Http\MimeType;
+use Phpanta\Http\TopLevelType;
+use Phpanta\Support\Collection;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The Request class. One request this tooling is about to send.
  *
- * The site's {@link \NeuroSYS\Http\Request} names the same thing pointing the other way — one is a
+ * The site's {@link \Phpanta\Http\Request} names the same thing pointing the other way — one is a
  * request the site *received* and answers, this is one a command *sends* and reads the answer to.
  * Neither is the other's inverse and neither shares a line of code with it; they share a word,
  * because there is only one word.

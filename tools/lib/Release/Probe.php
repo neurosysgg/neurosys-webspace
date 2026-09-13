@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
-use NeuroSYS\Support\File;
+use Phpanta\Support\File;
 use ZipArchive;
 
 /**
@@ -70,7 +70,7 @@ final readonly class Probe
      *
      * @param File         $source The master, in whatever format it was exported.
      * @param File         $target Where it goes. Its directory must exist — this class does not
-     *                             create one, for the reason {@link \NeuroSYS\Support\File} does not.
+     *                             create one, for the reason {@link \Phpanta\Support\File} does not.
      * @param list<string> $codec  The codec arguments — see {@link \NeuroSYS\Tool\Demo\Encoding}.
      * @return bool
      */

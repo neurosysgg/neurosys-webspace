@@ -4,15 +4,16 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Exception\MarkupException;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\MarkupParser;
-use NeuroSYS\View\Html\Node;
+use Phpanta\Exception\MarkupException;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\MarkupParser;
+use Phpanta\View\Html\Node;
+use Phpanta\View\View;
 
 /**
  * The PrivacyView class. Renders the privacy policy inside the page shell.

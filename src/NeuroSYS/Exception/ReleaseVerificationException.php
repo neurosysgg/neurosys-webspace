@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Exception;
 
+use Phpanta\Exception\InvalidValueException;
+
 /**
  * The ReleaseVerificationException class. Thrown when a value object is constructed with data it
  * cannot accept — a {@link \NeuroSYS\Model\Release} or one of the parts it is built from, and

@@ -25,7 +25,7 @@ use NeuroSYS\Tool\Release\ReleasesFile;
  * already states and stopped one method short of: *"a class rather than the same six lines in two
  * commands, now that both `stage-release` and `release-track` print an entry"*.
  *
- * **A class and not a trait**, which is the same test {@link \NeuroSYS\Support\TypedItems} is on
+ * **A class and not a trait**, which is the same test {@link \Phpanta\Support\TypedItems} is on
  * the other side of. That is a trait because nothing anywhere holds "either kind of collection";
  * these two *are* both {@link Command}s and {@link Runner} holds either one, so a shared parent or
  * a trait would be announcing a type the layer already has. What they share is not a kind of

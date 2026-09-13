@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Text;
 
 use NeuroSYS\Model\MusicalKey;
+use Phpanta\Text\FrameworkText;
 
 /**
  * The Texts class. The index of every catalog, so a view writes `Texts::Releases::Downloads`.

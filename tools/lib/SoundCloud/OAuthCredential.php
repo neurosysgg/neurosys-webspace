@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\SoundCloud;
 
-use NeuroSYS\Http\HeaderValue;
+use Phpanta\Http\HeaderValue;
 
 /**
  * The OAuthCredential class. What goes after `Authorization: ` on a request to SoundCloud.
  *
  * A {@link HeaderValue} for the reason that interface exists: a header value has a *grammar*, and
  * `'OAuth ' . $token->value` assembled at a call site is exactly where a grammar goes to be got
- * wrong. The site's {@link \NeuroSYS\Http\BasicChallenge} is the same shape pointing the other way
+ * wrong. The site's {@link \Phpanta\Http\BasicChallenge} is the same shape pointing the other way
  * — that one is the challenge a response sends, this is the credential a request carries.
  *
  * **The scheme is `OAuth`, not `Bearer`.** SoundCloud's own examples say so, and it is the sort of

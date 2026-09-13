@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Http;
 
-use NeuroSYS\Http\HeaderName;
+use Phpanta\Http\HeaderName;
 
 /**
  * The OutboundHeader enum. The request headers this tooling sends.
  *
  * The site has two header-name enums already and this is a third direction rather than a fourth
- * enum's worth of new idea: {@link \NeuroSYS\Http\SecurityHeader} and
- * {@link \NeuroSYS\Http\ResponseHeader} are headers the site *sends* on a response,
- * {@link \NeuroSYS\Http\RequestHeader} is the ones it *reads* off a request, and these are the ones
+ * enum's worth of new idea: {@link \Phpanta\Http\SecurityHeader} and
+ * {@link \Phpanta\Http\ResponseHeader} are headers the site *sends* on a response,
+ * {@link \Phpanta\Http\RequestHeader} is the ones it *reads* off a request, and these are the ones
  * a command *sends* on a request of its own. All four are {@link HeaderName}s, so nothing has to
  * learn a second way to spell a header name.
  *
@@ -30,7 +30,7 @@ enum OutboundHeader: string implements HeaderName
      * What the API is asked to answer with.
      *
      * SoundCloud's documented value carries the charset — `application/json; charset=utf-8` — so
-     * this is not a {@link \NeuroSYS\Http\MimeType} rendered on the fly: it is the string the
+     * this is not a {@link \Phpanta\Http\MimeType} rendered on the fly: it is the string the
      * provider's own examples send, and it is the provider's to change.
      */
     case Accept = 'Accept';

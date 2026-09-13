@@ -5,14 +5,15 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Site;
-use NeuroSYS\Support\UrlScheme;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Node;
+use Phpanta\Support\UrlScheme;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\Node;
+use Phpanta\View\View;
 
 /**
  * The ImprintView class. Renders the legally required imprint, in German and English.
@@ -23,7 +24,7 @@ use NeuroSYS\View\Html\Node;
  *
  * **Both halves are always rendered; only their order changes**, by the language the request is
  * answered in — the visitor's `lang` cookie, else their `Accept-Language`; see
- * {@link \NeuroSYS\Http\Request::language()}. The German half is the one
+ * {@link \Phpanta\Http\Request::language()}. The German half is the one
  * that discharges the obligation, so it is never the half left out; what the language decides is
  * only which one a visitor reads first. Each carries its own `lang`, so a screen reader changes
  * voice at the boundary rather than reading German aloud in English.

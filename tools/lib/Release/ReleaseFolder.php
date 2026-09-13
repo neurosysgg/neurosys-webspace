@@ -7,10 +7,10 @@ namespace NeuroSYS\Tool\Release;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The ReleaseFolder class. Everything a prepared release folder says about itself.

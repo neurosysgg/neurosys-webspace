@@ -10,7 +10,8 @@
     },
     "autoload": {
         "psr-4": {
-            "NeuroSYS\\": "src/NeuroSYS/"
+            "NeuroSYS\\": "src/NeuroSYS/",
+            "Phpanta\\": "phpanta/src/"
         }
     },
     "autoload-dev": {

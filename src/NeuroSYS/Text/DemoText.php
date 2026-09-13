@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Text;
 
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
+
 /**
  * The DemoText enum. The words of a demo's page.
  *

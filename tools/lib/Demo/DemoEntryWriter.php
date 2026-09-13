@@ -6,13 +6,13 @@ namespace NeuroSYS\Tool\Demo;
 
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\PasswordHash;
 use NeuroSYS\Tool\Php\Argument;
 use NeuroSYS\Tool\Php\Call;
 use NeuroSYS\Tool\Php\ClassConstant;
 use NeuroSYS\Tool\Php\Entry;
 use NeuroSYS\Tool\Php\Value;
+use Phpanta\Support\Collection;
+use Phpanta\Support\PasswordHash;
 
 /**
  * The DemoEntryWriter class. Renders the `data/demos.php` entry for a staged demo.

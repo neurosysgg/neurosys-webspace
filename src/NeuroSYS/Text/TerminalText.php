@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Text;
 
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
+
 /**
  * The TerminalText enum. The terminal rows the release page and the demo page share.
  *

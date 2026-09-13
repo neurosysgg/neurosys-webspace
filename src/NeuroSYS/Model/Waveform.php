@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 
 /**
  * The Waveform class. A demo mix's whole shape, in two kilobytes.
@@ -84,7 +84,7 @@ final readonly class Waveform
     /**
      * Builds one from the columns an analysis produced.
      *
-     * A variadic rather than a {@link \NeuroSYS\Support\Collection}, per the rule in docs/collections.md: a
+     * A variadic rather than a {@link \Phpanta\Support\Collection}, per the rule in docs/collections.md: a
      * collection replaces a hand-rolled type check on data crossing a public boundary, and it does
      * not replace a variadic, which PHP already enforces at the same boundary.
      *

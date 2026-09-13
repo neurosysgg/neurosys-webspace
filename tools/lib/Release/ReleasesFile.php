@@ -6,7 +6,7 @@ namespace NeuroSYS\Tool\Release;
 
 use NeuroSYS\DataFile;
 use NeuroSYS\Site;
-use NeuroSYS\Support\File;
+use Phpanta\Support\File;
 
 /**
  * The ReleasesFile class. The file a staged entry is pasted into.

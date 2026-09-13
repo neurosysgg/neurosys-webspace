@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Http\HttpStatusCode;
+use Phpanta\Http\HttpStatusCode;
 use ReflectionProperty;
 
 /**
@@ -20,9 +20,9 @@ use ReflectionProperty;
  * - **Build archives `TarWriter` will not.** That writer — deliberately — cannot produce a symlink,
  *   a device node, or a name with `..` in it, so a fixture built by it could only ever exercise the
  *   refusals that do not matter. These are raw ustar bytes, assembled by hand.
- * - **Read a response's status and body.** Both are private on {@link \NeuroSYS\Http\PlainTextResponse},
+ * - **Read a response's status and body.** Both are private on {@link \Phpanta\Http\PlainTextResponse},
  *   because `send()` ends the request and there is nothing to assert against afterwards. That is
- *   the same split {@link \NeuroSYS\Service\Auth::accepts()} makes, seen from the test's side.
+ *   the same split {@link \Phpanta\Service\Auth::accepts()} makes, seen from the test's side.
  */
 final class UpdateFixture
 {

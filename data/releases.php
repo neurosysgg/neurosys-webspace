@@ -13,7 +13,7 @@ use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 use NeuroSYS\Text\Texts;
 
 return [

@@ -10,26 +10,27 @@ use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Site;
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\Text\Texts;
-use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\ArrangementAttribute;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\Fragment;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\LinkAttribute;
-use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
 use NeuroSYS\View\Terminal\TerminalTone;
+use Phpanta\Support\BareArray;
+use Phpanta\Support\Collection;
+use Phpanta\Text\Translatable;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\Fragment;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\LinkAttribute;
+use Phpanta\View\Html\Node;
+use Phpanta\View\View;
 
 /**
  * The ReleaseView class. Renders the detail page for a single release.

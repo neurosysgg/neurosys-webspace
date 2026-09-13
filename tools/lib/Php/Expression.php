@@ -17,7 +17,7 @@ namespace NeuroSYS\Tool\Php;
  * The emitter composes values instead and one renderer writes the syntax, so `Genre::Dubstep` comes
  * out of a real `Genre`, and a name that does not exist cannot be written down.
  *
- * **It is the same protocol as {@link \NeuroSYS\View\Html\Node}, and deliberately not the same
+ * **It is the same protocol as {@link \Phpanta\View\Html\Node}, and deliberately not the same
  * type.** Both say: the first line carries no indent, every line after it is indented to where the
  * caller put this one, and a child is rendered one step deeper. The two differ only in how the
  * caller names that column — a `string` here, an `int` of two-space steps there — and either form

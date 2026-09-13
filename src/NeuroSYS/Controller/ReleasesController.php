@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\ReleasesView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ViewResponse;
 
 /**
  * The ReleasesController class. Handles requests to the releases listing page.

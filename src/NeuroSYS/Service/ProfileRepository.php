@@ -8,9 +8,9 @@ use NeuroSYS\DataFile;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Site;
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\File;
+use Phpanta\Support\BareArray;
+use Phpanta\Support\Collection;
+use Phpanta\Support\File;
 
 /**
  * The ProfileRepository class. Loads the site's external profile links.

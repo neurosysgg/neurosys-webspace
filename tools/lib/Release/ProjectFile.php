@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Flp\FlpException;
 use NeuroSYS\Tool\Flp\FlpFile;
 use NeuroSYS\Tool\Flp\Project;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 use ZipArchive;
 
 /**

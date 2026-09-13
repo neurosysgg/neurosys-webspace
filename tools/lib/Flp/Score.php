@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Flp;
 
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Support\Collection;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The Score class. The notes in a project, and where the playlist says each one plays.

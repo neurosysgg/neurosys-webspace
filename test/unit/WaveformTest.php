@@ -8,8 +8,8 @@ use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Model\WaveformBand;
 use NeuroSYS\Model\WaveformColumn;
-use NeuroSYS\Support\Directory;
 use NeuroSYS\Tool\Dsp\Analyze;
+use Phpanta\Support\Directory;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -54,7 +54,7 @@ final class WaveformTest extends TestCase
     /**
      * Everything a sidecar can be that is not a waveform, answered the same way.
      *
-     * `null` is in the list because it is what {@link \NeuroSYS\Support\File::read()} answers for a
+     * `null` is in the list because it is what {@link \Phpanta\Support\File::read()} answers for a
      * file that is absent *and* for one that cannot be read, and a demo staged before waveforms
      * existed is the ordinary case rather than a fault.
      *

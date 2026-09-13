@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Support\Collection;
 use NeuroSYS\Tool\Flp\EventId;
 use NeuroSYS\Tool\Flp\FlpFile;
 use NeuroSYS\Tool\Flp\Note;
@@ -17,6 +16,7 @@ use NeuroSYS\Tool\Midi\MidiNote;
 use NeuroSYS\Tool\Midi\MidiTrack;
 use NeuroSYS\Tool\Midi\TimeSignature;
 use NeuroSYS\Tool\Midi\VariableLength;
+use Phpanta\Support\Collection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

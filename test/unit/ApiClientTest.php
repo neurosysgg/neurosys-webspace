@@ -6,19 +6,6 @@ namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
 use BackedEnum;
-use NeuroSYS\Http\Api\ApiAction;
-use NeuroSYS\Http\Api\ApiService;
-use NeuroSYS\Http\Api\ApiVersion;
-use NeuroSYS\Http\Api\CapabilityAction;
-use NeuroSYS\Http\Api\HealthAction;
-use NeuroSYS\Http\Api\UpdateAction;
-use NeuroSYS\Http\AuthScheme;
-use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Http\Request as SiteRequest;
-use NeuroSYS\Model\Api\VerifiedRequest;
-use NeuroSYS\Service\ApiGate;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Api\PrivateKey;
 use NeuroSYS\Tool\Api\SignedRequest;
 use NeuroSYS\Tool\Http\OutboundHeader;
@@ -26,6 +13,19 @@ use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Response;
 use NeuroSYS\Tool\Http\Transport;
 use NeuroSYS\Tool\Http\Url;
+use Phpanta\Http\Api\ApiAction;
+use Phpanta\Http\Api\ApiService;
+use Phpanta\Http\Api\ApiVersion;
+use Phpanta\Http\Api\CapabilityAction;
+use Phpanta\Http\Api\HealthAction;
+use Phpanta\Http\Api\UpdateAction;
+use Phpanta\Http\AuthScheme;
+use Phpanta\Http\HttpMethod;
+use Phpanta\Http\Request as SiteRequest;
+use Phpanta\Model\Api\VerifiedRequest;
+use Phpanta\Service\ApiGate;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -126,7 +126,7 @@ final class ApiClientTest extends TestCase
      *
      * The two are built in one place and in that order, so they cannot disagree — but the *reason*
      * they cannot is worth pinning, because {@link \NeuroSYS\Support\SitePath::to()} `rawurlencode`s
-     * each value and is therefore not the inverse of {@link \NeuroSYS\Support\Route::matches()}. A
+     * each value and is therefore not the inverse of {@link \Phpanta\Support\Route::matches()}. A
      * later action whose name needs encoding would still agree; one rebuilt from the router's
      * captures on the server side would not.
      *
@@ -149,8 +149,8 @@ final class ApiClientTest extends TestCase
     /**
      * Every other service needs nothing of this client, which is the claim the client makes.
      *
-     * {@link SignedRequest} takes an {@link \NeuroSYS\Http\Api\ApiService}, an
-     * {@link \NeuroSYS\Http\Api\ApiVersion} and an `ApiAction&BackedEnum`, and derives the path,
+     * {@link SignedRequest} takes an {@link \Phpanta\Http\Api\ApiService}, an
+     * {@link \Phpanta\Http\Api\ApiVersion} and an `ApiAction&BackedEnum`, and derives the path,
      * the method and the scheme from them — so `health` and `capability` are signed and addressed
      * by the same code that signs a push, with no branch anywhere naming a service. That is easy to
      * believe and was worth a row each: `ApiCall` also refuses an action it cannot resolve *before*

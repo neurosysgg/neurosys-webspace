@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Support\BareString;
+use Phpanta\Support\BareString;
 
 /**
  * The DemoTrack class. One mix of a demo — the file behind it, and the name it is reached by.

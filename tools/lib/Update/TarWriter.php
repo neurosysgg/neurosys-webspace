@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Update;
 
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
 use NeuroSYS\Tool\Cli\UsageException;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
 
 /**
  * The TarWriter class. Packs a set of directories and files into a ustar archive.
  *
- * **The other half of {@link \NeuroSYS\Support\TarArchive}, and deliberately not the same class.**
+ * **The other half of {@link \Phpanta\Support\TarArchive}, and deliberately not the same class.**
  * That one lives under `src/` because the server needs it; this one lives here because the server
  * must not have it. `deploy.sh` uploads `src/` with `--delete`, so a writer over there would ship
  * to Strato and sit in the webroot's tree as code that builds archives — next to the endpoint that
@@ -43,8 +43,8 @@ final readonly class TarWriter
     /**
      * The modes written into the header.
      *
-     * The server ignores both — {@link \NeuroSYS\Support\File::write()} and
-     * {@link \NeuroSYS\Support\Directory::create()} set their own — so these exist for `tar x`,
+     * The server ignores both — {@link \Phpanta\Support\File::write()} and
+     * {@link \Phpanta\Support\Directory::create()} set their own — so these exist for `tar x`,
      * which does not. A directory written 0644 lists fine and cannot be entered, so an archive that
      * looks perfectly good to `tar t` fails to extract; being readable by the ordinary tools is
      * half of why this format was chosen, so it is worth getting right.

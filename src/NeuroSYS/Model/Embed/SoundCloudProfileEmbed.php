@@ -6,9 +6,9 @@ namespace NeuroSYS\Model\Embed;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Platform;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Tag;
+use Phpanta\Support\Collection;
+use Phpanta\View\Html\Element;
 
 /**
  * The SoundCloudProfileEmbed class. The whole account's latest tracks, rather than one track.

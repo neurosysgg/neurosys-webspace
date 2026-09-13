@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Api;
 
-use NeuroSYS\Support\Diagnostics;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Cli\UsageException;
 use OpenSSLAsymmetricKey;
+use Phpanta\Support\Diagnostics;
+use Phpanta\Support\File;
 
 /**
  * The PrivateKey class. The half of the pair that can make a signature.
  *
- * The counterpart to {@link \NeuroSYS\Support\PublicKey}, and deliberately on this side of the
+ * The counterpart to {@link \Phpanta\Support\PublicKey}, and deliberately on this side of the
  * boundary: `deploy.sh` uploads `src/` and never `tools/`, so the server holds a class that can
  * only ever *check* a signature and has no way to make one. **That asymmetry is the whole security
  * argument for `/api`**, and it is worth noticing that it is enforced by where the files are rather

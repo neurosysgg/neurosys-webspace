@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace NeuroSYS\Model;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\PasswordHash;
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Verbatim;
+use Phpanta\Support\Collection;
+use Phpanta\Support\PasswordHash;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Verbatim;
 
 /**
  * The Demo class. Something unreleased, put in front of one person at a time.

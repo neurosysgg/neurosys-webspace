@@ -4,47 +4,44 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use FilesystemIterator;
-use NeuroSYS\Exception\SecurityPolicyException;
-use NeuroSYS\Http\AcceptRanges;
-use NeuroSYS\Http\Allow;
-use NeuroSYS\Http\BasicChallenge;
-use NeuroSYS\Http\ByteRange;
-use NeuroSYS\Http\CacheControl;
-use NeuroSYS\Http\CacheDirective;
-use NeuroSYS\Http\ContentLanguage;
-use NeuroSYS\Http\ContentLength;
-use NeuroSYS\Http\ContentRange;
-use NeuroSYS\Http\ETag;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HeaderValue;
-use NeuroSYS\Http\Location;
-use NeuroSYS\Http\MimeType;
-use NeuroSYS\Http\RequestHeader;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\RobotsPolicy;
-use NeuroSYS\Http\Security\ContentSecurityPolicy;
-use NeuroSYS\Http\Security\ContentTypeOptions;
-use NeuroSYS\Http\Security\CspDirective;
-use NeuroSYS\Http\Security\CspHost;
-use NeuroSYS\Http\Security\CspKeyword;
-use NeuroSYS\Http\Security\CspScheme;
-use NeuroSYS\Http\Security\CspSource;
-use NeuroSYS\Http\Security\CspSourceList;
-use NeuroSYS\Http\Security\PermissionsPolicy;
-use NeuroSYS\Http\Security\PermissionsPolicyFeature;
-use NeuroSYS\Http\Security\ReferrerPolicy;
-use NeuroSYS\Http\Security\StrictTransportSecurity;
-use NeuroSYS\Http\SecurityHeader;
-use NeuroSYS\Http\SecurityHeaders;
-use NeuroSYS\Http\SetCookie;
-use NeuroSYS\Http\Vary;
-use NeuroSYS\Text\Language;
+use Phpanta\Exception\SecurityPolicyException;
+use Phpanta\Http\AcceptRanges;
+use Phpanta\Http\Allow;
+use Phpanta\Http\BasicChallenge;
+use Phpanta\Http\ByteRange;
+use Phpanta\Http\CacheControl;
+use Phpanta\Http\CacheDirective;
+use Phpanta\Http\ContentLanguage;
+use Phpanta\Http\ContentLength;
+use Phpanta\Http\ContentRange;
+use Phpanta\Http\ETag;
+use Phpanta\Http\Header;
+use Phpanta\Http\HeaderValue;
+use Phpanta\Http\Location;
+use Phpanta\Http\MimeType;
+use Phpanta\Http\RequestHeader;
+use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\RobotsPolicy;
+use Phpanta\Http\Security\ContentSecurityPolicy;
+use Phpanta\Http\Security\ContentTypeOptions;
+use Phpanta\Http\Security\CspDirective;
+use Phpanta\Http\Security\CspHost;
+use Phpanta\Http\Security\CspKeyword;
+use Phpanta\Http\Security\CspScheme;
+use Phpanta\Http\Security\CspSource;
+use Phpanta\Http\Security\CspSourceList;
+use Phpanta\Http\Security\PermissionsPolicy;
+use Phpanta\Http\Security\PermissionsPolicyFeature;
+use Phpanta\Http\Security\ReferrerPolicy;
+use Phpanta\Http\Security\StrictTransportSecurity;
+use Phpanta\Http\SecurityHeader;
+use Phpanta\Http\SecurityHeaders;
+use Phpanta\Http\SetCookie;
+use Phpanta\Http\Vary;
+use Phpanta\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 
 #[CoversClass(ContentSecurityPolicy::class)]
 #[CoversClass(CspHost::class)]
@@ -470,7 +467,7 @@ final class SecurityPolicyTest extends TestCase
      * A realm may hold `qdtext` and nothing else.
      *
      * This was the one header value carrying something other than a fixed vocabulary that did not
-     * check it, and the gap mattered because {@link \NeuroSYS\Service\Auth::demoRealm()} builds a
+     * check it, and the gap mattered because {@link \Phpanta\Service\Auth::demoRealm()} builds a
      * realm out of a **URL segment**: a `"` in a demo's slug closed the quoted-string early and
      * left the rest as
      * trailing rubbish in a `WWW-Authenticate` header. Never header injection — `header()` refuses
@@ -556,24 +553,24 @@ final class SecurityPolicyTest extends TestCase
 
         self::assertSame(
             [
-                'NeuroSYS\Http\AcceptRanges',
-                'NeuroSYS\Http\Allow',
-                'NeuroSYS\Http\BasicChallenge',
-                'NeuroSYS\Http\CacheControl',
-                'NeuroSYS\Http\ContentLanguage',
-                'NeuroSYS\Http\ContentLength',
-                'NeuroSYS\Http\ContentRange',
-                'NeuroSYS\Http\ETag',
-                'NeuroSYS\Http\Location',
-                'NeuroSYS\Http\MimeType',
-                'NeuroSYS\Http\RobotsPolicy',
-                'NeuroSYS\Http\Security\ContentSecurityPolicy',
-                'NeuroSYS\Http\Security\ContentTypeOptions',
-                'NeuroSYS\Http\Security\PermissionsPolicy',
-                'NeuroSYS\Http\Security\ReferrerPolicy',
-                'NeuroSYS\Http\Security\StrictTransportSecurity',
-                'NeuroSYS\Http\SetCookie',
-                'NeuroSYS\Http\Vary',
+                'Phpanta\Http\AcceptRanges',
+                'Phpanta\Http\Allow',
+                'Phpanta\Http\BasicChallenge',
+                'Phpanta\Http\CacheControl',
+                'Phpanta\Http\ContentLanguage',
+                'Phpanta\Http\ContentLength',
+                'Phpanta\Http\ContentRange',
+                'Phpanta\Http\ETag',
+                'Phpanta\Http\Location',
+                'Phpanta\Http\MimeType',
+                'Phpanta\Http\RobotsPolicy',
+                'Phpanta\Http\Security\ContentSecurityPolicy',
+                'Phpanta\Http\Security\ContentTypeOptions',
+                'Phpanta\Http\Security\PermissionsPolicy',
+                'Phpanta\Http\Security\ReferrerPolicy',
+                'Phpanta\Http\Security\StrictTransportSecurity',
+                'Phpanta\Http\SetCookie',
+                'Phpanta\Http\Vary',
             ],
             $found,
         );
@@ -614,28 +611,10 @@ final class SecurityPolicyTest extends TestCase
      */
     private static function classesUnderSrc(): array
     {
-        $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
-        );
-
-        $classes = [];
-
-        foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
-            $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
-
-            if (class_exists($class) || enum_exists($class)) {
-                /** @var class-string $class */
-                $classes[] = $class;
-            }
-        }
-
-        return $classes;
+        return array_values(array_filter(
+            SourceTree::classes(),
+            static fn(string $class): bool => class_exists($class) || enum_exists($class),
+        ));
     }
 
     /**

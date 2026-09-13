@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Flp;
 
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 
 /**
  * The Pattern class. One of a project's patterns, and the notes written into it.

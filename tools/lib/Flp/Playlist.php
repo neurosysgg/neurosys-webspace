@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Flp;
 
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 
 /**
  * The Playlist class. Every clip on the playlist, read out of the one event that holds them all.
@@ -31,7 +31,7 @@ use NeuroSYS\Support\Collection;
  * written a clip smaller than 32 — without that floor a pathological file could match at a width
  * that cannot hold the fields being read out of it. And a project whose playlist matches at no
  * width at all comes back **null** rather than half-read, the way
- * {@link \NeuroSYS\Http\Request::path()} answers null rather than guessing.
+ * {@link \Phpanta\Http\Request::path()} answers null rather than guessing.
  */
 final readonly class Playlist
 {

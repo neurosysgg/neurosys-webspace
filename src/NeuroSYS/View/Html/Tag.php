@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use Phpanta\View\Html\TagName;
+
 /**
  * The Tag enum. Every custom element the site emits or builds.
  *

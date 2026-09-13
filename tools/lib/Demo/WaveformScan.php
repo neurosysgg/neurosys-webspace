@@ -6,10 +6,10 @@ namespace NeuroSYS\Tool\Demo;
 
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Model\WaveformColumn;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Dsp\Analyze;
 use NeuroSYS\Tool\Dsp\Spectrum;
 use NeuroSYS\Tool\Release\Probe;
+use Phpanta\Support\File;
 
 /**
  * The WaveformScan class. Reads one staged mix and answers the shape of it.

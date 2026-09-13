@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Translatable;
+use Phpanta\Support\BareArray;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
 
 /**
  * The TerminalField class. One key/value row of terminal output.

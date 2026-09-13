@@ -15,7 +15,7 @@ use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Production\SectionKind;
 use NeuroSYS\Model\Production\SectionPosition;
 use NeuroSYS\Model\Release;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

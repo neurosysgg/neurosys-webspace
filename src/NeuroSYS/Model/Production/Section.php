@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Production;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Support\BareString;
+use Phpanta\Support\BareString;
 
 /**
  * The Section class. One named part of a release's arrangement.

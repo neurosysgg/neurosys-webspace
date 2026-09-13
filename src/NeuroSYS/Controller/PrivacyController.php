@@ -5,11 +5,12 @@ declare(strict_types=1);
 namespace NeuroSYS\Controller;
 
 use NeuroSYS\DataFile;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Site;
 use NeuroSYS\View\PrivacyView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ViewResponse;
 
 class PrivacyController implements Controller
 {
@@ -31,7 +32,7 @@ class PrivacyController implements Controller
     /**
      * The policy document, or an empty string if it is not there.
      *
-     * Read through {@link \NeuroSYS\Support\File::read()}, which answers null for a file that is
+     * Read through {@link \Phpanta\Support\File::read()}, which answers null for a file that is
      * absent and for one that is present and unreadable. `is_file()` would guard only the first,
      * and `file_get_contents()` on the second emits a **warning** — after the response headers
      * have gone out, so it would print into the page ahead of the doctype rather than anywhere a

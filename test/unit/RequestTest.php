@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Http\AcceptedLanguages;
-use NeuroSYS\Http\AuthScheme;
-use NeuroSYS\Http\BasicChallenge;
-use NeuroSYS\Http\CookieName;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\RequestCookies;
-use NeuroSYS\Http\RequestedWith;
-use NeuroSYS\Http\RequestHeader;
-use NeuroSYS\Http\ServerVariable;
-use NeuroSYS\Text\Language;
+use Phpanta\Http\AcceptedLanguages;
+use Phpanta\Http\AuthScheme;
+use Phpanta\Http\BasicChallenge;
+use Phpanta\Http\CookieName;
+use Phpanta\Http\Request;
+use Phpanta\Http\RequestCookies;
+use Phpanta\Http\RequestedWith;
+use Phpanta\Http\RequestHeader;
+use Phpanta\Http\ServerVariable;
+use Phpanta\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -262,7 +262,7 @@ final class RequestTest extends TestCase
      * The body is read from `php://input`, and the read is bounded by the limit it is given.
      *
      * No more than that many bytes are ever pulled in, which is what keeps
-     * {@link \NeuroSYS\Service\ApiGate} from inheriting `post_max_size` as its true ingress cap.
+     * {@link \Phpanta\Service\ApiGate} from inheriting `post_max_size` as its true ingress cap.
      * Null reads whatever is there, and asking twice is allowed — the stream is re-readable, which
      * is why {@link Request::body()} is a method rather than a memoised property.
      *
@@ -360,7 +360,7 @@ final class RequestTest extends TestCase
      *
      * {@link ServerVariable::ServerSoftware} and {@link ServerVariable::ServerProtocol} are two
      * more of that kind — CGI's names rather than HTTP's — and they are read by something with no
-     * {@link \NeuroSYS\Http\Request} to ask, which is the enum's other membership clause. Both
+     * {@link \Phpanta\Http\Request} to ask, which is the enum's other membership clause. Both
      * are absent on CLI, so this asserts the spelling and nothing about the value; what a real
      * server puts in them is `test/basic_test.sh`'s to see.
      *

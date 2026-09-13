@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Midi;
 
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\File;
+use Phpanta\Support\Collection;
+use Phpanta\Support\File;
 
 /**
  * The MidiFile class. A standard MIDI file, header and all.

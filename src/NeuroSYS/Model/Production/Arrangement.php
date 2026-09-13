@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Production;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 
 /**
  * The Arrangement class. How a release is laid out in time.

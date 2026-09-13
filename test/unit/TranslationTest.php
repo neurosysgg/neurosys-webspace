@@ -6,11 +6,11 @@ namespace NeuroSYS\Test\Unit;
 
 use FilesystemIterator;
 use MessageFormatter;
-use NeuroSYS\Text\Language;
 use NeuroSYS\Text\ReleaseDescription;
 use NeuroSYS\Text\Texts;
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Translated;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -85,17 +85,9 @@ final class TranslationTest extends TestCase
      */
     public function testTheIndexReachesEveryTranslatedEnum(): void
     {
-        $root  = NEUROSYS_ROOT . '/src/';
         $found = [];
-        $files = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS));
 
-        foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $class = str_replace('/', '\\', substr($file->getPathname(), strlen($root), -4));
-
+        foreach (SourceTree::classes() as $class) {
             if (enum_exists($class) && in_array(Translated::class, class_uses($class), true)) {
                 $found[] = $class;
             }

@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use FilesystemIterator;
 use NoDiscard;
 use PHPUnit\Framework\Attributes\CoversNothing;
 use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionMethod;
 
@@ -29,7 +26,7 @@ use ReflectionMethod;
  * right either way. Adding a copy-returning builder means adding it here too.
  *
  * `WaveformBand::bands()` is the odd one out among the pure members: it neither copies nor
- * queries, it *is* three cases. It answers with a {@link \NeuroSYS\Support\Collection} because
+ * queries, it *is* three cases. It answers with a {@link \Phpanta\Support\Collection} because
  * {@link GuidelineTest} found it was the one group under `src/` that had stayed a bare array with
  * no door and no variadic behind it — and once it is a collection it belongs here, on the same
  * terms as everything else that answers with one.
@@ -38,7 +35,7 @@ use ReflectionMethod;
  * builders, and they are the ones where dropping the result is not merely useless but unsafe: each
  * is a gate's entire decision. The two on `Auth` are two rather than one because the credential
  * comes from two different places — a `data/` file for the site and admin gates, a
- * {@link \NeuroSYS\Support\PasswordHash} on the demo itself for the third — and the three
+ * {@link \Phpanta\Support\PasswordHash} on the demo itself for the third — and the three
  * `require*` methods are only the challenge wrapped around them.
  *
  * `ApiGate::accepts()` is a fourth of that kind and the strictest: it is the whole of the
@@ -51,7 +48,7 @@ use ReflectionMethod;
  * The one on `Route` is the *method* gate rather than a credential gate. Each route answers for
  * itself, so a discarded `accepts()` is a POST reaching a controller that only reads — nothing
  * else stands in front of it. `Route::methods()` beside it carries no
- * attribute: it hands back what it was given, like {@link \NeuroSYS\Http\Request::path()}, and
+ * attribute: it hands back what it was given, like {@link \Phpanta\Http\Request::path()}, and
  * dropping it decides nothing.
  *
  * The deliberate discards are all in the tests — proving that a builder did not mutate what it was
@@ -67,7 +64,7 @@ final class NoDiscardTest extends TestCase
      * The copy-returning builders, the collections' query methods, and the auth gate's decision.
      *
      * **The eleven query methods appear three times each**, and that is this test working rather than
-     * failing. They are declared once in {@link \NeuroSYS\Support\TypedItems}; PHP flattens a
+     * failing. They are declared once in {@link \Phpanta\Support\TypedItems}; PHP flattens a
      * trait's members into each using class, so reflection reports them on `Collection` and
      * `SearchableCollection` as well as on the trait itself — which is exactly what
      * {@link self::classesUnderSrc()} says it prefers, since the direction this test can survive is
@@ -88,63 +85,63 @@ final class NoDiscardTest extends TestCase
     {
         self::assertSame(
             [
-                'NeuroSYS\Http\Security\ContentSecurityPolicy::allow',
-                'NeuroSYS\Model\Health\HealthResult::render',
-                'NeuroSYS\Model\Health\HealthResult::status',
-                'NeuroSYS\Model\Update\UpdateReport::dryRun',
-                'NeuroSYS\Model\Update\UpdateReport::failed',
-                'NeuroSYS\Model\Update\UpdateReport::isComplete',
-                'NeuroSYS\Model\Update\UpdateReport::kept',
-                'NeuroSYS\Model\Update\UpdateReport::removed',
-                'NeuroSYS\Model\Update\UpdateReport::render',
-                'NeuroSYS\Model\Update\UpdateReport::wrote',
                 'NeuroSYS\Model\WaveformBand::bands',
-                'NeuroSYS\Service\ApiGate::accept',
-                'NeuroSYS\Service\ApiGate::accepts',
-                'NeuroSYS\Service\Auth::accepts',
                 'NeuroSYS\Service\DemoGate::admits',
-                'NeuroSYS\Service\UpdateApplier::apply',
-                'NeuroSYS\Support\Collection::first',
-                'NeuroSYS\Support\Collection::isEmpty',
-                'NeuroSYS\Support\Collection::join',
-                'NeuroSYS\Support\Collection::last',
-                'NeuroSYS\Support\Collection::map',
-                'NeuroSYS\Support\Collection::settled',
-                'NeuroSYS\Support\Collection::toArray',
-                'NeuroSYS\Support\Collection::toKeys',
-                'NeuroSYS\Support\Collection::toValues',
-                'NeuroSYS\Support\Collection::unique',
-                'NeuroSYS\Support\Collection::where',
-                'NeuroSYS\Support\Collection::with',
-                'NeuroSYS\Support\Route::accepts',
-                'NeuroSYS\Support\SearchableCollection::first',
-                'NeuroSYS\Support\SearchableCollection::isEmpty',
-                'NeuroSYS\Support\SearchableCollection::join',
-                'NeuroSYS\Support\SearchableCollection::last',
-                'NeuroSYS\Support\SearchableCollection::map',
-                'NeuroSYS\Support\SearchableCollection::settled',
-                'NeuroSYS\Support\SearchableCollection::toArray',
-                'NeuroSYS\Support\SearchableCollection::toKeys',
-                'NeuroSYS\Support\SearchableCollection::toValues',
-                'NeuroSYS\Support\SearchableCollection::unique',
-                'NeuroSYS\Support\SearchableCollection::where',
-                'NeuroSYS\Support\SearchableCollection::with',
-                'NeuroSYS\Support\TypedItems::first',
-                'NeuroSYS\Support\TypedItems::isEmpty',
-                'NeuroSYS\Support\TypedItems::join',
-                'NeuroSYS\Support\TypedItems::last',
-                'NeuroSYS\Support\TypedItems::map',
-                'NeuroSYS\Support\TypedItems::settled',
-                'NeuroSYS\Support\TypedItems::toArray',
-                'NeuroSYS\Support\TypedItems::toKeys',
-                'NeuroSYS\Support\TypedItems::toValues',
-                'NeuroSYS\Support\TypedItems::unique',
-                'NeuroSYS\Support\TypedItems::where',
-                'NeuroSYS\View\Html\Element::attr',
-                'NeuroSYS\View\Html\Element::containing',
-                'NeuroSYS\View\Html\Element::containingHtml',
-                'NeuroSYS\View\Html\Vocabulary::withAttributes',
-                'NeuroSYS\View\Html\Vocabulary::withTags',
+                'Phpanta\Http\Security\ContentSecurityPolicy::allow',
+                'Phpanta\Model\Health\HealthResult::render',
+                'Phpanta\Model\Health\HealthResult::status',
+                'Phpanta\Model\Update\UpdateReport::dryRun',
+                'Phpanta\Model\Update\UpdateReport::failed',
+                'Phpanta\Model\Update\UpdateReport::isComplete',
+                'Phpanta\Model\Update\UpdateReport::kept',
+                'Phpanta\Model\Update\UpdateReport::removed',
+                'Phpanta\Model\Update\UpdateReport::render',
+                'Phpanta\Model\Update\UpdateReport::wrote',
+                'Phpanta\Service\ApiGate::accept',
+                'Phpanta\Service\ApiGate::accepts',
+                'Phpanta\Service\Auth::accepts',
+                'Phpanta\Service\UpdateApplier::apply',
+                'Phpanta\Support\Collection::first',
+                'Phpanta\Support\Collection::isEmpty',
+                'Phpanta\Support\Collection::join',
+                'Phpanta\Support\Collection::last',
+                'Phpanta\Support\Collection::map',
+                'Phpanta\Support\Collection::settled',
+                'Phpanta\Support\Collection::toArray',
+                'Phpanta\Support\Collection::toKeys',
+                'Phpanta\Support\Collection::toValues',
+                'Phpanta\Support\Collection::unique',
+                'Phpanta\Support\Collection::where',
+                'Phpanta\Support\Collection::with',
+                'Phpanta\Support\Route::accepts',
+                'Phpanta\Support\SearchableCollection::first',
+                'Phpanta\Support\SearchableCollection::isEmpty',
+                'Phpanta\Support\SearchableCollection::join',
+                'Phpanta\Support\SearchableCollection::last',
+                'Phpanta\Support\SearchableCollection::map',
+                'Phpanta\Support\SearchableCollection::settled',
+                'Phpanta\Support\SearchableCollection::toArray',
+                'Phpanta\Support\SearchableCollection::toKeys',
+                'Phpanta\Support\SearchableCollection::toValues',
+                'Phpanta\Support\SearchableCollection::unique',
+                'Phpanta\Support\SearchableCollection::where',
+                'Phpanta\Support\SearchableCollection::with',
+                'Phpanta\Support\TypedItems::first',
+                'Phpanta\Support\TypedItems::isEmpty',
+                'Phpanta\Support\TypedItems::join',
+                'Phpanta\Support\TypedItems::last',
+                'Phpanta\Support\TypedItems::map',
+                'Phpanta\Support\TypedItems::settled',
+                'Phpanta\Support\TypedItems::toArray',
+                'Phpanta\Support\TypedItems::toKeys',
+                'Phpanta\Support\TypedItems::toValues',
+                'Phpanta\Support\TypedItems::unique',
+                'Phpanta\Support\TypedItems::where',
+                'Phpanta\View\Html\Element::attr',
+                'Phpanta\View\Html\Element::containing',
+                'Phpanta\View\Html\Element::containingHtml',
+                'Phpanta\View\Html\Vocabulary::withAttributes',
+                'Phpanta\View\Html\Vocabulary::withTags',
             ],
             array_keys(self::noDiscardMethods()),
         );
@@ -214,31 +211,7 @@ final class NoDiscardTest extends TestCase
      */
     private static function classesUnderSrc(): array
     {
-        $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
-        );
-
-        $classes = [];
-
-        foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
-            $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
-
-            if (
-                class_exists($class)
-                || interface_exists($class)
-                || enum_exists($class)
-                || trait_exists($class)
-            ) {
-                /** @var class-string $class */
-                $classes[] = $class;
-            }
-        }
+        $classes = array_values(SourceTree::classes());
 
         sort($classes);
 

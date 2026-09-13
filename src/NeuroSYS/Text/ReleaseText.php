@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Text;
 
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
+
 /**
  * The ReleaseText enum. The words of the catalogue and of a release's own page.
  */

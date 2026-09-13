@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
-use NeuroSYS\View\Html\AttributeName;
+use Phpanta\View\Html\AttributeName;
 
 /**
  * The TerminalAttribute enum. What {@link Terminal} tells `<terminal-window>`.

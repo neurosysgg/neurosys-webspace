@@ -5,17 +5,18 @@ declare(strict_types=1);
 namespace NeuroSYS\View;
 
 use NeuroSYS\Model\Release;
-use NeuroSYS\Support\SearchableCollection;
 use NeuroSYS\Support\SitePath;
 use NeuroSYS\Text\Texts;
-use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\Tag;
+use Phpanta\Support\SearchableCollection;
+use Phpanta\Text\Translatable;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\Node;
+use Phpanta\View\View;
 
 /**
  * The ReleasesView class. Renders the full list of releases.
@@ -57,7 +58,7 @@ class ReleasesView extends View
      * catalogue. The card wraps it and names which release it is for.
      *
      * The release first and its slug second, which is the order
-     * {@link \NeuroSYS\Support\TypedItems::map()} hands them over — so this stays a first-class
+     * {@link \Phpanta\Support\TypedItems::map()} hands them over — so this stays a first-class
      * callable at its one call site rather than growing a closure to reverse it.
      *
      * The meta line is several children rather than one joined string, because the tempo is

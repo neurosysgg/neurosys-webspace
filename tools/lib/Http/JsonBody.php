@@ -17,7 +17,7 @@ use BackedEnum;
  *
  * That shape appeared nine times across {@link \NeuroSYS\Tool\SoundCloud\UploadedTrack} and
  * {@link \NeuroSYS\Tool\SoundCloud\AccessToken}, spelling the key twice each time, and it is the
- * kind of repetition {@link \NeuroSYS\Support\TypedItems}'s `guard()` was written to end elsewhere.
+ * kind of repetition {@link \Phpanta\Support\TypedItems}'s `guard()` was written to end elsewhere.
  *
  * **The key is a {@link BackedEnum} and never a string**, which is the whole point rather than a
  * convenience: `FormField::of()` accepts either because a field name is sometimes an OAuth parameter

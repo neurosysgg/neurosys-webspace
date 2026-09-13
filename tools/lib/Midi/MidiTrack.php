@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Midi;
 
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 
 /**
  * The MidiTrack class. One `MTrk` chunk — a name, a channel, and the notes on it.

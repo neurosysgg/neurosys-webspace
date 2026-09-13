@@ -69,7 +69,7 @@ return (new Config())
             // not describe. This fixer has no such carve-out, so adding the directory would not
             // report that disagreement, it would *rewrite* data/releases.php to settle it. Reading
             // the catalogue is what a check is for; reformatting it is not.
-            ->in([__DIR__ . '/src', __DIR__ . '/public', __DIR__ . '/test', __DIR__ . '/tools'])
+            ->in([__DIR__ . '/src', __DIR__ . '/phpanta', __DIR__ . '/public', __DIR__ . '/test', __DIR__ . '/tools'])
             // in() takes directories, so the two PHP files at the repo root need naming. autoload.php
             // is the file every request loads through, and neither linter had ever seen it. This file
             // is the second, and it had the same gap for the same reason — with nobody noticing that

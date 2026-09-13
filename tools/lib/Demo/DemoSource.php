@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Demo;
 
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Release\AudioStream;
 use NeuroSYS\Tool\Release\Probe;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 
 /**
  * The DemoSource class. One master named on the command line, and what becomes of it.

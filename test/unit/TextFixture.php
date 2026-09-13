@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Translated;
-use NeuroSYS\Text\Translation;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
 
 /**
  * A catalog for the tests: one case of each shape a real one has, and one it must never have.

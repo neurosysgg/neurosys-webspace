@@ -7,8 +7,8 @@ namespace NeuroSYS\Service;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Site;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Support\File;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The ReleaseRepository class. Loads and provides access to the site's release catalogue.

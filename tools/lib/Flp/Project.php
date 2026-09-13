@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Flp;
 
 use NeuroSYS\Model\MusicalKey;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\File;
+use Phpanta\Support\Collection;
+use Phpanta\Support\File;
 
 /**
  * The Project class. Everything a `.flp` says about the music in it.

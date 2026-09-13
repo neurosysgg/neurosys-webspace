@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Demo;
 
-use NeuroSYS\Support\File;
+use Phpanta\Support\File;
 
 /**
  * The Encoding enum. What is done to a master on its way into `data/demos/`.

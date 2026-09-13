@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Api;
 
-use NeuroSYS\Http\AuthScheme;
-use NeuroSYS\Http\HeaderValue;
-use NeuroSYS\Model\Api\ApiCredential;
+use Phpanta\Http\AuthScheme;
+use Phpanta\Http\HeaderValue;
+use Phpanta\Model\Api\ApiCredential;
 
 /**
  * The SignedCredential class. The writing half of {@link ApiCredential}, which is the reading half.
  *
  * The layout is stated once — there — and this builds to that description; nothing here restates
- * the offsets. It is a {@link HeaderValue} so that {@link \NeuroSYS\Http\Header} formats it exactly
+ * the offsets. It is a {@link HeaderValue} so that {@link \Phpanta\Http\Header} formats it exactly
  * as every other header value on either side of the wire, which is what keeps `NS1 ` from being a
  * prefix somebody concatenates at a call site.
  *

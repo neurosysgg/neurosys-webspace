@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Model\Embed;
 
 use NeuroSYS\Model\Platform;
-use NeuroSYS\View\Html\Element;
+use Phpanta\View\Html\Element;
 
 /**
  * The Embed interface. A third-party media player attached to a release.

@@ -11,13 +11,13 @@ use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
-use NeuroSYS\Support\Collection;
 use NeuroSYS\Tool\Flp\TimeMarker;
 use NeuroSYS\Tool\Php\Argument;
 use NeuroSYS\Tool\Php\Call;
 use NeuroSYS\Tool\Php\ClassConstant;
 use NeuroSYS\Tool\Php\Entry;
 use NeuroSYS\Tool\Php\Value;
+use Phpanta\Support\Collection;
 
 /**
  * The EntryWriter class. Renders the `data/releases.php` entry for a folder.

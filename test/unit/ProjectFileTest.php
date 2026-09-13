@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Flp\EventId;
 use NeuroSYS\Tool\Flp\FlpException;
 use NeuroSYS\Tool\Flp\FlpFile;
 use NeuroSYS\Tool\Flp\Project;
 use NeuroSYS\Tool\Release\ProjectFile;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 use PHPUnit\Framework\TestCase;
 use ZipArchive;
 

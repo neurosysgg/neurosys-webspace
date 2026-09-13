@@ -10,114 +10,59 @@ use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
 /**
- * The line between Phpanta and this site, drawn before either side of it moves.
+ * The line between Phpanta and this site: nothing under `phpanta/src/` names a site class.
  *
- * `test/framework-files.txt` names every file under `src/` that is headed for the framework. The
- * framework cannot know about the site that uses it, so none of those files may reach a class that
- * is not on the list — whether by an import, a qualified name, or an unqualified one that PHP
- * resolves against the file's own namespace. The last is why this reads tokens and resolves names
- * the way {@link GuidelineTest} does, rather than grepping `use` lines: `Site::NAME` written in
- * `NeuroSYS\Service` imports nothing and still reaches the site.
+ * The framework cannot know about the site that uses it — a second site built on it would have none
+ * of this one's classes — so no framework file may reach one, whether by an import, a qualified
+ * name, or an unqualified one that PHP resolves against the file's own namespace. The last is why
+ * this reads tokens and resolves names the way {@link GuidelineTest} does, rather than grepping
+ * `use` lines.
  *
- * **Comments do not count.** A docblock that says `{@link App::dataFile()}` is a sentence about
- * the site, and it is read and rewritten when the files move; the tokenizer hands comments over as
- * their own tokens, so they never reach the resolver.
+ * The line was drawn before either side of it moved: the files headed for the framework were
+ * listed, every reach from them into the site was pinned, and the list was worked down to nothing
+ * while everything still lived under `src/NeuroSYS/`. Then they moved. What is left to guard is
+ * that it stays at nothing.
  *
- * The violations that exist today are pinned in {@link self::STILL_REACHING}, in both directions:
- * a new one fails, and so does one that has been fixed but not crossed off. The list only shrinks,
- * and the move waits until it is empty.
+ * **Comments do not count here.** A docblock that mentions the site is a sentence, not a
+ * dependency; the tokenizer hands comments over as their own tokens, so they never reach the
+ * resolver.
  */
 #[CoversNothing]
 final class BoundaryTest extends TestCase
 {
     /**
-     * Every place a framework file still reaches the site, as `file → class`.
-     *
-     * @var list<string>
-     */
-    private const array STILL_REACHING = [];
-
-    /**
-     * Every file on the list exists, and every one of them names a class the autoloader can load.
-     *
-     * A stale line would be a file the boundary claims to guard and does not.
-     *
      * @return void
      */
-    public function testEveryListedFileIsAClassThatExists(): void
+    public function testNothingInTheFrameworkNamesTheSite(): void
     {
-        $missing = [];
+        $reaches = [];
 
-        foreach (self::framework() as $path => $class) {
-            if ($class === null) {
-                $missing[] = $path;
-            }
-        }
-
-        $this->assertSame([], $missing, 'Listed in test/framework-files.txt, but no class loads from it.');
-    }
-
-    /**
-     * No framework file reaches a class outside the framework, except the ones still pinned.
-     *
-     * @return void
-     */
-    public function testNoFrameworkFileReachesTheSite(): void
-    {
-        $this->assertSame(
-            self::STILL_REACHING,
-            self::reaching(),
-            'A framework file reaches a site class, or a pinned reach has been removed and should be '
-            . 'crossed off. The list only shrinks.',
-        );
-    }
-
-    /**
-     * Every framework file's reach into the site, sorted.
-     *
-     * @return list<string>
-     */
-    private static function reaching(): array
-    {
-        $framework = self::framework();
-        $inside    = array_flip(array_filter($framework));
-        $reaches   = [];
-
-        foreach ($framework as $path => $class) {
-            if ($class === null) {
+        foreach (SourceTree::classes() as $path => $class) {
+            if (!str_starts_with($class, 'Phpanta\\')) {
                 continue;
             }
 
-            foreach (self::referenced(NEUROSYS_ROOT . '/' . $path, $class) as $name) {
-                if (!isset($inside[$name])) {
-                    $reaches[] = $path . ' → ' . $name;
-                }
+            foreach (self::referenced($path, $class) as $name) {
+                $reaches[] = substr($path, strlen(NEUROSYS_ROOT) + 1) . ' → ' . $name;
             }
         }
 
-        $reaches = array_values(array_unique($reaches));
-        sort($reaches);
-
-        return $reaches;
+        $this->assertSame([], $reaches, 'A framework file names a site class. Phpanta cannot know about the site.');
     }
 
     /**
-     * The list, as `path => class-string`, with null for a path no class loads from.
+     * The framework's own tree is not empty — a walk that found nothing would pass the test above.
      *
-     * @return array<string, ?class-string>
+     * @return void
      */
-    private static function framework(): array
+    public function testTheFrameworkTreeIsWhereTheWalkLooks(): void
     {
-        $framework = [];
-        $lines     = file(NEUROSYS_ROOT . '/test/framework-files.txt', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $framework = array_filter(
+            SourceTree::classes(),
+            static fn(string $class): bool => str_starts_with($class, 'Phpanta\\'),
+        );
 
-        foreach ($lines as $path) {
-            $class = 'NeuroSYS\\' . str_replace('/', '\\', substr($path, strlen('src/NeuroSYS/'), -strlen('.php')));
-
-            $framework[$path] = self::exists($class) ? new ReflectionClass($class)->getName() : null;
-        }
-
-        return $framework;
+        $this->assertGreaterThan(100, count($framework));
     }
 
     /**
@@ -144,10 +89,10 @@ final class BoundaryTest extends TestCase
             $token = $tokens[$i];
 
             if ($token->id === T_USE && self::isImport($tokens, $i)) {
-                [$name, $alias, $i] = self::import($tokens, $i);
-                $short             = substr($name, (int) strrpos($name, '\\') + (str_contains($name, '\\') ? 1 : 0));
+                [$name, $alias, $i]        = self::import($tokens, $i);
+                $short                     = self::shortName($name);
                 $imports[$alias ?? $short] = $name;
-                $names[] = $name;
+                $names[]                   = $name;
                 continue;
             }
 
@@ -164,8 +109,8 @@ final class BoundaryTest extends TestCase
                 continue;
             }
 
-            $first  = strtok($token->text, '\\');
-            $rest   = substr($token->text, strlen($first));
+            $first   = strtok($token->text, '\\');
+            $rest    = substr($token->text, strlen($first));
             $names[] = isset($imports[$first]) ? $imports[$first] . $rest : $namespace . '\\' . $token->text;
         }
 
@@ -183,11 +128,8 @@ final class BoundaryTest extends TestCase
     }
 
     /**
-     * Whether the `use` at $i is an import, rather than a trait's or a closure's.
-     *
-     * An import is a top-level statement: nothing but whitespace, a comment or a `;`/`}` before it
-     * on the way back to the previous statement. A closure's `use` follows a `)`; a trait's sits in
-     * a class body, which the brace depth answers.
+     * Whether the `use` at $i is an import, rather than a trait's or a closure's: an import sits at
+     * brace depth zero.
      *
      * @param list<PhpToken> $tokens
      * @param int            $i
@@ -268,6 +210,19 @@ final class BoundaryTest extends TestCase
         // A named argument, `name: value` — but not the `?:` or `? :` of a ternary, whose colon
         // follows an expression rather than a bare name inside an argument list.
         return $after?->text === ':' && $before !== null && ($before->text === '(' || $before->text === ',');
+    }
+
+    /**
+     * The last segment of a qualified name, or the name itself when it has none.
+     *
+     * @param string $name
+     * @return string
+     */
+    private static function shortName(string $name): string
+    {
+        $separator = strrpos($name, chr(92));
+
+        return $separator === false ? $name : substr($name, $separator + 1);
     }
 
     /**

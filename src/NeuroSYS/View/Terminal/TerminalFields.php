@@ -6,10 +6,10 @@ namespace NeuroSYS\View\Terminal;
 
 use JsonException;
 use NeuroSYS\Exception\TerminalException;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Translatable;
 use NeuroSYS\View\Html\Tag;
+use Phpanta\Support\Collection;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
 
 /**
  * The TerminalFields class. The rows of a terminal, as the JSON `<terminal-window>` reads — in

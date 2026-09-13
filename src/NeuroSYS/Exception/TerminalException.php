@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Exception;
 
+use Phpanta\Exception\MarkupException;
+
 /**
  * The TerminalException class. Thrown when a terminal's rows cannot be handed to the element that
  * draws them.

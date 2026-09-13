@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Exception\TranslationException;
-use NeuroSYS\Text\Joined;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Phrase;
-use NeuroSYS\Text\Translated;
-use NeuroSYS\Text\Translation;
-use NeuroSYS\Text\Verbatim;
+use Phpanta\Exception\TranslationException;
+use Phpanta\Text\Joined;
+use Phpanta\Text\Language;
+use Phpanta\Text\Phrase;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
+use Phpanta\Text\Verbatim;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;

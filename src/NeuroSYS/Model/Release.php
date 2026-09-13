@@ -10,9 +10,9 @@ use NeuroSYS\Model\Link\FileLink;
 use NeuroSYS\Model\Production\Arrangement;
 use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\ProductionTime;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Verbatim;
+use Phpanta\Support\Collection;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Verbatim;
 
 /**
  * The Release class. Represents a music release with metadata and available download formats.
@@ -88,7 +88,7 @@ readonly class Release
     /**
      * Throws unless this release's two collections hold what they say they hold.
      *
-     * {@link \NeuroSYS\Support\Collection::with()} already rejects a wrong *item*, so what is
+     * {@link \Phpanta\Support\Collection::with()} already rejects a wrong *item*, so what is
      * left is the **element type** — the one thing a PHP generic cannot say, since `@template T` is
      * a docblock and erased at runtime. This is the canonical form of that guard; `Terminal`,
      * `Demo`, `Arrangement` and both embeds carry the same one and point at this docblock for why.

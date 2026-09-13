@@ -12,7 +12,7 @@ use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

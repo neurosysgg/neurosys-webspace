@@ -74,7 +74,7 @@ see [deployment.md](deployment.md#probing-the-live-host). ([history](history/api
 
 ## Declaring a requirement
 
-Every requirement is declared in one place, `src/NeuroSYS/Support/RequirementInitialization.php`,
+Every requirement is declared in one place, `phpanta/src/Support/RequirementInitialization.php`,
 the same way `RouteInitialization` declares routes. **It is code in `src/`, never a file in
 `data/`.** A requirement exists because some code needs it, so the two have to deploy together.
 Every push ships `src/` and none ships `data/`, so a floor declared in a data file could take effect

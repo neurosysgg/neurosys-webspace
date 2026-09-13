@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Http;
 
-use NeuroSYS\Http\MimeType;
-use NeuroSYS\Http\TopLevelType;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Support\File;
+use Phpanta\Http\MimeType;
+use Phpanta\Http\TopLevelType;
+use Phpanta\Support\File;
 
 /**
  * The FilePart class. One field of a multipart request whose value is a file on disk.

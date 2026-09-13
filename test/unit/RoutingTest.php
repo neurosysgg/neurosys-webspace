@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\App;
 use NeuroSYS\Controller\DownloadController;
 use NeuroSYS\Controller\HomeController;
 use NeuroSYS\Controller\ImprintController;
@@ -12,13 +11,14 @@ use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
-use NeuroSYS\Exception\RouteException;
 use NeuroSYS\Site;
-use NeuroSYS\Support\ApiPath;
-use NeuroSYS\Support\Path;
-use NeuroSYS\Support\Route;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
+use Phpanta\App;
+use Phpanta\Exception\RouteException;
+use Phpanta\Support\ApiPath;
+use Phpanta\Support\Path;
+use Phpanta\Support\Route;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -305,7 +305,7 @@ final class RoutingTest extends TestCase
 
     /**
      * A placeholder matches anything at all, malformed included — which is the fact
-     * {@link \NeuroSYS\Http\Request::normalisePath()} spent a paragraph assuming the opposite of.
+     * {@link \Phpanta\Http\Request::normalisePath()} spent a paragraph assuming the opposite of.
      *
      * That docblock argued its verbatim fallback was safe because "no route pattern matches a
      * malformed target, so handing it through unchanged 404s the way every other unknown path

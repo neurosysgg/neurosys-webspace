@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\SoundCloud;
 
 use NeuroSYS\Model\Genre;
-use NeuroSYS\Support\Collection;
 use NeuroSYS\Tool\Http\FilePart;
 use NeuroSYS\Tool\Http\FormField;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use Phpanta\Support\Collection;
 
 /**
  * The TrackUpload class. One `POST /tracks`, as facts rather than as form fields.

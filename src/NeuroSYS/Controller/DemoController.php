@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\CacheControl;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\RobotsPolicy;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\DemoGate;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Service\WaveformRepository;
-use NeuroSYS\Support\Collection;
 use NeuroSYS\View\DemoView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\CacheControl;
+use Phpanta\Http\Header;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\RobotsPolicy;
+use Phpanta\Http\ViewResponse;
+use Phpanta\Support\Collection;
 
 /**
  * The DemoController class. Handles a demo's page, behind that demo's own password.

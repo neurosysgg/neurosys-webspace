@@ -26,11 +26,11 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\MimeType;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\TopLevelType;
-use NeuroSYS\Support\Charset;
+use Phpanta\Http\Header;
+use Phpanta\Http\MimeType;
+use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\TopLevelType;
+use Phpanta\Support\Charset;
 
 // The site's own autoloader, so a served asset declares its type the way a served document does.
 // `public/index.php` requires the same file; this adds no dependency the dev server did not have.

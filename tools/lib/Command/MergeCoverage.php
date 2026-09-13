@@ -155,11 +155,14 @@ final readonly class MergeCoverage implements Command
     private function filter(): Filter
     {
         $sources = [];
-        $walk    = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->root . '/src'));
+        // Both source trees: the site's and the framework's.
+        foreach (['/src', '/phpanta/src'] as $tree) {
+            $walk = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($this->root . $tree));
 
-        foreach ($walk as $file) {
-            if ($file->getExtension() === 'php') {
-                $sources[] = $file->getPathname();
+            foreach ($walk as $file) {
+                if ($file->getExtension() === 'php') {
+                    $sources[] = $file->getPathname();
+                }
             }
         }
 

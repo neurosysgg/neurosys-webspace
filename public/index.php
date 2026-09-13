@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-use NeuroSYS\Exception\SiteException;
 use NeuroSYS\Site;
+use Phpanta\Exception\SiteException;
 
 require __DIR__ . '/../autoload.php';
 

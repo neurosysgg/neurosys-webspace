@@ -31,14 +31,17 @@ declare(strict_types=1);
 
     xdebug_start_code_coverage();
 
-    $source = dirname(__DIR__) . '/src/';
+    $sources = [dirname(__DIR__) . '/src/', dirname(__DIR__) . '/phpanta/src/'];
 
-    register_shutdown_function(static function () use ($directory, $source): void {
+    register_shutdown_function(static function () use ($directory, $sources): void {
         // Only this site's own code: the dumps are written per request, and carrying the whole
         // include tree in each of them turns a hundred requests into tens of megabytes.
         $coverage = array_filter(
             xdebug_get_code_coverage(),
-            static fn(string $file): bool => str_starts_with($file, $source),
+            static fn(string $file): bool => array_any(
+                $sources,
+                static fn(string $source): bool => str_starts_with($file, $source),
+            ),
             ARRAY_FILTER_USE_KEY,
         );
 

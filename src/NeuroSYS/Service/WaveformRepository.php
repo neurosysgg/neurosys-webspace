@@ -8,8 +8,8 @@ use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The WaveformRepository class. Reads a demo's waveform sidecars, keyed by the mix they belong to.

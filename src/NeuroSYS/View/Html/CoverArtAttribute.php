@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
+use Phpanta\View\Html\AttributeName;
+
 /**
  * The CoverArtAttribute enum. What a view tells `<cover-art>`.
  *

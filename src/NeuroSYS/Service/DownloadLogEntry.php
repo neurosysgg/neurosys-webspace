@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use JsonSerializable;
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\JsonDeserializable;
+use Phpanta\Support\BareArray;
+use Phpanta\Support\JsonDeserializable;
 use stdClass;
 use Stringable;
 

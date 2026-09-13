@@ -233,13 +233,13 @@ echo "=== Production autoloader ==="
 # PHPUnit runs against Composer's autoloader; these exercise the one that actually ships.
 
 php_ok "autoload.php resolves a Support class" \
-    "class_exists('NeuroSYS\Support\Collection', true) or exit(1);"
+    "class_exists('Phpanta\Support\Collection', true) or exit(1);"
 
 php_ok "autoload.php resolves a nested-namespace class" \
     "class_exists('NeuroSYS\Model\Link\HiDriveLink', true) or exit(1);"
 
 php_ok "autoload.php resolves an enum" \
-    "NeuroSYS\Http\HttpStatusCode::NotFound->value === 404 or exit(1);"
+    "Phpanta\Http\HttpStatusCode::NotFound->value === 404 or exit(1);"
 
 php_ok "autoload.php ignores classes outside the NeuroSYS prefix" \
     "class_exists('Some\Other\Vendor\Thing', true) === false or exit(1);"
@@ -254,6 +254,23 @@ php_ok "every class under src/ actually loads" \
          if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class) && !trait_exists(\$class)) \$bad[] = \$class;
      }
      \$bad === [] or exit(1);"
+
+php_ok "every class under phpanta/src/ actually loads, as Phpanta" \
+    "\$bad = [];
+     \$it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator('$REPO/phpanta/src'));
+     foreach (\$it as \$f) {
+         if (\$f->getExtension() !== 'php') continue;
+         \$rel = substr(\$f->getPathname(), strlen('$REPO/phpanta/src/'));
+         \$class = 'Phpanta' . chr(92) . str_replace('/', chr(92), substr(\$rel, 0, -4));
+         if (!class_exists(\$class) && !interface_exists(\$class) && !enum_exists(\$class) && !trait_exists(\$class)) \$bad[] = \$class;
+     }
+     \$bad === [] or exit(1);"
+
+# TEMPORARY, with the alias in autoload.php: a moved class's old name is still how the server's data/
+# files name it until deploy.sh ships the new ones, so it has to resolve — to the framework's class,
+# never to an old copy. Both go when data/ has been redeployed.
+php_ok "autoload.php aliases a moved class's old name to the framework's" \
+    "new ReflectionClass('Neuro' . 'SYS' . chr(92) . 'Support' . chr(92) . 'Collection')->getName() === 'Phpanta' . chr(92) . 'Support' . chr(92) . 'Collection' or exit(1);"
 
 # The same question of the development tooling, which has an autoloader of its own — `tools/` is not
 # deployed, so the site's must not know about it. Nothing else reaches these classes: the CLI layer
@@ -324,7 +341,7 @@ echo "=== Repo hygiene ==="
 # Every page is a tree of View\Html nodes, so markup written as a string is markup that skipped the
 # escaping. The only two files allowed to hold a '<' in a literal are the ones whose job is to turn a
 # tree into text — Element and Doctype. A heredoc anywhere under src/ is the same finding.
-markup=$(grep -rlE "'[^']*<[a-zA-Z/!]|<<<'?HTML" "$REPO/src" 2>/dev/null \
+markup=$(grep -rlE "'[^']*<[a-zA-Z/!]|<<<'?HTML" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null \
          | grep -v "/View/Html/Element.php$" | grep -v "/View/Html/Doctype.php$" || true)
 if [[ -z "$markup" ]]; then
     pass "no markup is built from strings outside View/Html/"
@@ -347,7 +364,7 @@ fi
 # requests and never issues one — and it is what the privacy policy rests on: no server-side call to
 # a third party means no visitor's address reaching one. The SoundCloud client is tooling, and
 # tools/ is never deployed.
-phoning=$(grep -rlE "curl_(init|exec|setopt)|fsockopen|stream_socket_client" "$REPO/src" 2>/dev/null || true)
+phoning=$(grep -rlE "curl_(init|exec|setopt)|fsockopen|stream_socket_client" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null || true)
 if [[ -z "$phoning" ]]; then
     pass "nothing under src/ makes an outbound request"
 else
@@ -359,7 +376,7 @@ fi
 # comparison itself. openssl_verify() returns 1, 0 or -1, and only 1 is a pass — a call site that
 # wrote `if (openssl_verify(...))` would accept the error case as success and let an unsigned
 # payload overwrite src/. PublicKey asks `=== 1` in one place so no second place can ask it wrongly.
-verifying=$(grep -rl "openssl_" "$REPO/src" 2>/dev/null | grep -v "/Support/PublicKey.php$" || true)
+verifying=$(grep -rl "openssl_" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null | grep -v "/Support/PublicKey.php$" || true)
 if [[ -z "$verifying" ]]; then
     pass "openssl is called in one place under src/"
 else
@@ -369,7 +386,7 @@ fi
 # The site signs nothing. It holds the public half of the update key and can only ever check a
 # signature; the private half never enters this repository at all. A signing call under src/ would
 # mean a key had, or was about to.
-signing=$(grep -rlE "openssl_(sign|pkey_get_private|pkey_new)" "$REPO/src" 2>/dev/null || true)
+signing=$(grep -rlE "openssl_(sign|pkey_get_private|pkey_new)" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null || true)
 if [[ -z "$signing" ]]; then
     pass "nothing under src/ signs anything"
 else
@@ -396,7 +413,7 @@ fi
 # Comment lines are stripped before the two are located, because the paragraph above the code says
 # both names in prose — a check that read those would be asserting the explanation rather than the
 # thing explained, and would pass on a method that had been rewritten the wrong way round.
-write_body=$(sed -n '/public function write(/,/^    }$/p' "$REPO/src/NeuroSYS/Support/File.php" \
+write_body=$(sed -n '/public function write(/,/^    }$/p' "$REPO/phpanta/src/Support/File.php" \
     | grep -vE '^[[:space:]]*(//|\*|/\*)')
 narrowed_at=$(echo "$write_body" | grep -n "chmod(" | head -1 | cut -d: -f1)
 filled_at=$(echo "$write_body" | grep -n "file_put_contents(" | head -1 | cut -d: -f1)
@@ -799,7 +816,7 @@ printf '0123456789' > "$DEMO_DIR/v1.mp3"
 php -r "require '$REPO/autoload.php';
     \$columns = array_fill(0, NeuroSYS\Model\Waveform::COLUMNS,
         new NeuroSYS\Model\WaveformColumn(0.5, -6.0, -18.0, -30.0));
-    NeuroSYS\Model\Waveform::fileIn(new NeuroSYS\Support\Directory('$DEMO_DIR'), 'v1')
+    NeuroSYS\Model\Waveform::fileIn(new Phpanta\Support\Directory('$DEMO_DIR'), 'v1')
         ->write(NeuroSYS\Model\Waveform::of(...\$columns)->bytes());"
 
 cat > "$DEMOS_FILE" <<PHPFIXTURE
@@ -808,8 +825,8 @@ declare(strict_types=1);
 return [
     '$DEMO_SLUG' => new NeuroSYS\Model\Demo(
         'verify fixture',
-        new NeuroSYS\Support\PasswordHash('$DEMO_HASH'),
-        new NeuroSYS\Support\Collection(NeuroSYS\Model\DemoTrack::class)->with(
+        new Phpanta\Support\PasswordHash('$DEMO_HASH'),
+        new Phpanta\Support\Collection(NeuroSYS\Model\DemoTrack::class)->with(
             new NeuroSYS\Model\DemoTrack('v1', 'v1.mp3', 10),
         ),
     ),

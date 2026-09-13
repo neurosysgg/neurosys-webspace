@@ -4,17 +4,18 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\PlainTextResponse;
-use NeuroSYS\Http\RedirectResponse;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Service\DownloadLogger;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Text\Texts;
 use NeuroSYS\View\NotFoundView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\PlainTextResponse;
+use Phpanta\Http\RedirectResponse;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ViewResponse;
 
 /**
  * The DownloadController class. Handles release download requests.

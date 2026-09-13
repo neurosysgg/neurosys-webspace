@@ -4,40 +4,40 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Controller\ApiController;
-use NeuroSYS\Controller\UnroutedController;
-use NeuroSYS\Http\Allow;
-use NeuroSYS\Http\Api\ApiService;
-use NeuroSYS\Http\Api\ApiVersion;
-use NeuroSYS\Http\Api\CapabilityAction;
-use NeuroSYS\Http\Api\HealthAction;
-use NeuroSYS\Http\Api\UpdateAction;
-use NeuroSYS\Http\AuthScheme;
-use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\PlainTextResponse;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\ViewResponse;
-use NeuroSYS\Model\Api\ApiCredential;
-use NeuroSYS\Model\Api\ApiEnvelope;
-use NeuroSYS\Model\Api\VerifiedRequest;
-use NeuroSYS\Model\Update\Deployment;
-use NeuroSYS\Router;
-use NeuroSYS\Service\Api\HealthCheck;
-use NeuroSYS\Service\Api\UpdatePatch;
-use NeuroSYS\Service\Api\UpdateVersion;
-use NeuroSYS\Service\ApiGate;
-use NeuroSYS\Service\UpdateApplier;
 use NeuroSYS\Site;
-use NeuroSYS\Support\ApiPath;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\MethodPolicy;
-use NeuroSYS\Support\PublicKey;
-use NeuroSYS\Support\RequirementInitialization;
-use NeuroSYS\Support\Route;
 use NeuroSYS\Support\SitePath;
 use OpenSSLAsymmetricKey;
+use Phpanta\Controller\ApiController;
+use Phpanta\Controller\UnroutedController;
+use Phpanta\Http\Allow;
+use Phpanta\Http\Api\ApiService;
+use Phpanta\Http\Api\ApiVersion;
+use Phpanta\Http\Api\CapabilityAction;
+use Phpanta\Http\Api\HealthAction;
+use Phpanta\Http\Api\UpdateAction;
+use Phpanta\Http\AuthScheme;
+use Phpanta\Http\HttpMethod;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\PlainTextResponse;
+use Phpanta\Http\Request;
+use Phpanta\Http\ViewResponse;
+use Phpanta\Model\Api\ApiCredential;
+use Phpanta\Model\Api\ApiEnvelope;
+use Phpanta\Model\Api\VerifiedRequest;
+use Phpanta\Model\Update\Deployment;
+use Phpanta\Router;
+use Phpanta\Service\Api\HealthCheck;
+use Phpanta\Service\Api\UpdatePatch;
+use Phpanta\Service\Api\UpdateVersion;
+use Phpanta\Service\ApiGate;
+use Phpanta\Service\UpdateApplier;
+use Phpanta\Support\ApiPath;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
+use Phpanta\Support\MethodPolicy;
+use Phpanta\Support\PublicKey;
+use Phpanta\Support\RequirementInitialization;
+use Phpanta\Support\Route;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -524,7 +524,7 @@ final class ApiTest extends TestCase
     #[DataProvider('badEnvelopeProvider')]
     public function testAMalformedEnvelopeIsRefused(string $json): void
     {
-        $this->expectException(\NeuroSYS\Exception\ApiException::class);
+        $this->expectException(\Phpanta\Exception\ApiException::class);
 
         ApiEnvelope::parse($json);
     }
@@ -562,14 +562,14 @@ final class ApiTest extends TestCase
      * A verified request reaches the handler its address names.
      *
      * **Both actions, and neither reaches a real deployment**, which is the boundary this file
-     * stops at rather than a gap. {@link \NeuroSYS\Service\UpdateApplier} takes its
+     * stops at rather than a gap. {@link \Phpanta\Service\UpdateApplier} takes its
      * {@link Deployment} as a constructor argument precisely so a test cannot reach the live tree,
-     * and {@link \NeuroSYS\Http\Api\ApiAction::handler()} has nowhere to pass one — so a push
+     * and {@link \Phpanta\Http\Api\ApiAction::handler()} has nowhere to pass one — so a push
      * through the controller resolves the real webroot, and on a CLI run there is none. Adding a
      * seam for it would put an update-specific parameter on the general controller.
      *
      * So the chain is tested a link at a time: the gate above, resolution below, this for the
-     * delegation, and {@link UpdateTest} for {@link \NeuroSYS\Service\Api\UpdatePatch} against a
+     * delegation, and {@link UpdateTest} for {@link \Phpanta\Service\Api\UpdatePatch} against a
      * sandboxed applier. What proves the patch handler was built from the signed manifest and then
      * run is that its refusal comes back — see the 422 below.
      *
@@ -663,7 +663,7 @@ final class ApiTest extends TestCase
      * Past the signature the caller has proved it holds the private key, and there is nothing left
      * to hide from it: the decoy would only be a worse error message. It is also what proves the
      * patch handler was built from the signed manifest and then run, since this sentence is
-     * {@link \NeuroSYS\Service\UpdateApplier}'s.
+     * {@link \Phpanta\Service\UpdateApplier}'s.
      *
      * **And the refused payload has spent its serial**, because the guard is armed in front of the
      * action. Nothing is lost by it: a corrected payload is different bytes with a fresh `time()` on
@@ -755,7 +755,7 @@ final class ApiTest extends TestCase
      * The version action reports the serial, the build stamp and the PHP version.
      *
      * Asserted against the handler rather than through the controller, because
-     * {@link \NeuroSYS\Http\Api\ApiAction::handler()} has nowhere to pass a serial file — so a
+     * {@link \Phpanta\Http\Api\ApiAction::handler()} has nowhere to pass a serial file — so a
      * `version` through the controller reads the live one, which a test may not depend on. The
      * controller's half of the claim is above: that it delegates here at all.
      *
@@ -796,7 +796,7 @@ final class ApiTest extends TestCase
     {
         self::assertInstanceOf(PublicKey::class, PublicKey::fromPem((string) $this->keyFile->read()));
 
-        $this->expectException(\NeuroSYS\Exception\UpdateException::class);
+        $this->expectException(\Phpanta\Exception\UpdateException::class);
         PublicKey::fromPem('not a key at all');
     }
 
@@ -813,7 +813,7 @@ final class ApiTest extends TestCase
         $details = openssl_pkey_get_details($rsa);
         self::assertIsArray($details);
 
-        $this->expectException(\NeuroSYS\Exception\UpdateException::class);
+        $this->expectException(\Phpanta\Exception\UpdateException::class);
         PublicKey::fromPem((string) $details['key']);
     }
 

@@ -4,18 +4,19 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\CacheControl;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\ViewResponse;
-use NeuroSYS\Service\Auth;
 use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\File;
 use NeuroSYS\View\StatsView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\CacheControl;
+use Phpanta\Http\Header;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\ViewResponse;
+use Phpanta\Service\Auth;
+use Phpanta\Support\Collection;
+use Phpanta\Support\File;
 
 /**
  * The StatsController class. Handles requests to the admin stats page.

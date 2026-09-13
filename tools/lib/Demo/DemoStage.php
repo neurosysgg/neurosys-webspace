@@ -5,12 +5,12 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Demo;
 
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Release\FlacTag;
 use NeuroSYS\Tool\Release\Probe;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 
 /**
  * The DemoStage class. Everything one `stage-demo` run is about: which files, called what, as what.
@@ -90,7 +90,7 @@ final readonly class DemoStage
      * Writes every mix into `data/demos/{slug}/`, creating the directory if it is not there.
      *
      * **Creating it is asked for here rather than done quietly further down**, which is the rule
-     * {@link \NeuroSYS\Support\File} states in the negative: `write()` and `append()` both fail on a
+     * {@link \Phpanta\Support\File} states in the negative: `write()` and `append()` both fail on a
      * missing directory, because an `@mkdir` added to "fix" the downloads log once made a directory
      * on the live server that had to be deleted by hand. This is a caller that genuinely wants one.
      *
@@ -108,7 +108,7 @@ final readonly class DemoStage
 
         // `settled()` because this predicate *does* the staging rather than describing it: it is
         // the one side-effecting callback on the site, and a lazy filter cannot carry one. See
-        // {@link \NeuroSYS\Support\TypedItems::settled()}, which is named for this method.
+        // {@link \Phpanta\Support\TypedItems::settled()}, which is named for this method.
         return $this->sources->where(fn(DemoSource $source): bool => !$source->stage($directory))->settled();
     }
 

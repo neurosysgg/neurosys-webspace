@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Demo;
 
-use NeuroSYS\Support\PasswordHash;
+use Phpanta\Support\PasswordHash;
 
 /**
  * The Password class. One minted demo password: the plaintext, once, and its hash to keep.

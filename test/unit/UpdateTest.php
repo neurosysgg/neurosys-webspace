@@ -4,21 +4,21 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Exception\UpdateException;
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\PlainTextResponse;
-use NeuroSYS\Model\Update\Deployment;
-use NeuroSYS\Model\Update\UpdateFile;
-use NeuroSYS\Model\Update\UpdateManifest;
-use NeuroSYS\Model\Update\UpdateReport;
-use NeuroSYS\Model\Update\UpdateRoot;
-use NeuroSYS\Service\Api\UpdatePatch;
-use NeuroSYS\Service\UpdateApplier;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\TarArchive;
-use NeuroSYS\Support\TarEntry;
-use NeuroSYS\Support\TarMemberType;
+use Phpanta\Exception\UpdateException;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\PlainTextResponse;
+use Phpanta\Model\Update\Deployment;
+use Phpanta\Model\Update\UpdateFile;
+use Phpanta\Model\Update\UpdateManifest;
+use Phpanta\Model\Update\UpdateReport;
+use Phpanta\Model\Update\UpdateRoot;
+use Phpanta\Service\Api\UpdatePatch;
+use Phpanta\Service\UpdateApplier;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
+use Phpanta\Support\TarArchive;
+use Phpanta\Support\TarEntry;
+use Phpanta\Support\TarMemberType;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -32,7 +32,7 @@ use PHPUnit\Framework\TestCase;
  * of it from a typo. What is left is the half that refuses *out loud*, so these tests assert the
  * sentence, because past the signature the sentence is the only account of the run that exists.
  *
- * That split is why {@link UpdatePatch} appears here and {@link \NeuroSYS\Controller\ApiController}
+ * That split is why {@link UpdatePatch} appears here and {@link \Phpanta\Controller\ApiController}
  * does not: the handler is the applier's answer turned into a response, and it needs no credential
  * to be asked for one.
  *
@@ -141,7 +141,7 @@ final class UpdateTest extends TestCase
 
     /**
      * The single-file root is *not* caught by the rule above, which is the whole reason that rule
-     * asks {@link \NeuroSYS\Model\Update\UpdateRoot::isTree()}.
+     * asks {@link \Phpanta\Model\Update\UpdateRoot::isTree()}.
      *
      * `autoload.php` is a member whose name is exactly its root, and it is the one legitimate case
      * of that — a push that could not carry it would be a push that cannot replace the autoloader.
@@ -685,7 +685,7 @@ final class UpdateTest extends TestCase
      *
      * The signature is over the *manifest*, and the manifest vouches for the archive by digest —
      * so bytes that are not gzip at all can still be perfectly signed. What the caller then sees is
-     * a 422 with this sentence in it, which is {@link \NeuroSYS\Controller\ApiController}'s to
+     * a 422 with this sentence in it, which is {@link \Phpanta\Controller\ApiController}'s to
      * build and {@link ApiTest}'s to assert; what this file owns is that the handler refuses by
      * throwing rather than by answering, since a refusal that came back as a `Response` would be
      * indistinguishable from a push that ran.
@@ -789,7 +789,7 @@ final class UpdateTest extends TestCase
      * is the split rather than a shortcut: what these tests are about is the applier's report
      * becoming a response — a 422 for an archive that will not expand, a 500 for a run that could
      * not write everything — and none of that has anything to say about signatures. Reaching it
-     * through {@link \NeuroSYS\Controller\ApiController} would mean minting a credential to test
+     * through {@link \Phpanta\Controller\ApiController} would mean minting a credential to test
      * the shape of a sentence. {@link ApiTest} takes the same path end to end, once, which is where
      * a claim about the wiring belongs.
      *

@@ -7,14 +7,14 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\DataFile;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Site;
-use NeuroSYS\Text\Language;
 use NeuroSYS\View\HomeView;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\PrivacyView;
 use NeuroSYS\View\ReleasesView;
-use NeuroSYS\View\View;
 use NeuroSYS\View\Wordmark;
+use Phpanta\Text\Language;
+use Phpanta\View\View;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -38,7 +38,7 @@ final class PageTest extends TestCase
 
     /**
      * The reason {@link Wordmark::nodes()} returns pieces rather than one node: {@link
-     * \NeuroSYS\View\Html\Element} renders inline only when a child is text, so a wordmark wrapped
+     * \Phpanta\View\Html\Element} renders inline only when a child is text, so a wordmark wrapped
      * in a single node would be laid out as a block and gain a space either side of the dot. That
      * is a lookalike of the site's own name, rendered by the site itself.
      *
@@ -210,14 +210,14 @@ final class PageTest extends TestCase
 
     /**
      * The one view that *parses* a document instead of assembling one, and the reason
-     * {@link \NeuroSYS\View\Html\MarkupParser} exists: the policy is hand-authored, so its markup
+     * {@link \Phpanta\View\Html\MarkupParser} exists: the policy is hand-authored, so its markup
      * has to arrive as markup rather than as escaped text.
      *
      * **What is asserted is that the *markup* comes out as markup**, not that the bytes come out
      * untouched: the policy is parsed, so what is pinned is an `<h2>` with its `id`, and a `&amp;`
      * still an entity rather than a bare `&` or a doubled `&amp;amp;`. The second one is the round
      * trip worth pinning: the parser decodes that entity to a single `&` and
-     * {@link \NeuroSYS\View\Html\Text} escapes it back, so agreement here is agreement between two
+     * {@link \Phpanta\View\Html\Text} escapes it back, so agreement here is agreement between two
      * separate pieces of code.
      *
      * @return void
@@ -442,7 +442,7 @@ final class PageTest extends TestCase
 
     /**
      * No page varies on anything beyond the three every page varies on — `X-Requested-With`, and
-     * the two the language is read from — which {@link \NeuroSYS\Http\ViewResponse} names itself.
+     * the two the language is read from — which {@link \Phpanta\Http\ViewResponse} names itself.
      * The bilingual pages once named the language here; now every page is written in one, so
      * saying it per page would be saying it nine times.
      *

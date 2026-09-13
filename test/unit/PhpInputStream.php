@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 /**
- * A stand-in for `php://input`, so a test can give {@link \NeuroSYS\Http\Request::body()} a body.
+ * A stand-in for `php://input`, so a test can give {@link \Phpanta\Http\Request::body()} a body.
  *
  * **The alternative was a seam in production code, and it was worth avoiding.** `Request` is a
  * `readonly` class with a private constructor, so it cannot be subclassed or built with a body; the

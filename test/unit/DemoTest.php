@@ -6,34 +6,34 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Controller\DemoAudioController;
 use NeuroSYS\Controller\DemoController;
-use NeuroSYS\Exception\InvalidValueException;
-use NeuroSYS\Exception\MimeTypeException;
 use NeuroSYS\Exception\ReleaseVerificationException;
-use NeuroSYS\Exception\SecurityPolicyException;
-use NeuroSYS\Http\AcceptRanges;
-use NeuroSYS\Http\ByteRange;
-use NeuroSYS\Http\ContentLength;
-use NeuroSYS\Http\ContentRange;
-use NeuroSYS\Http\ETag;
-use NeuroSYS\Http\FileResponse;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\MimeType;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\RobotsDirective;
-use NeuroSYS\Http\RobotsPolicy;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Service\DemoGate;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\PasswordHash;
-use NeuroSYS\Text\Language;
 use NeuroSYS\View\DemoView;
+use Phpanta\Exception\InvalidValueException;
+use Phpanta\Exception\MimeTypeException;
+use Phpanta\Exception\SecurityPolicyException;
+use Phpanta\Http\AcceptRanges;
+use Phpanta\Http\ByteRange;
+use Phpanta\Http\ContentLength;
+use Phpanta\Http\ContentRange;
+use Phpanta\Http\ETag;
+use Phpanta\Http\FileResponse;
+use Phpanta\Http\Header;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\MimeType;
+use Phpanta\Http\Request;
+use Phpanta\Http\RobotsDirective;
+use Phpanta\Http\RobotsPolicy;
+use Phpanta\Http\ViewResponse;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
+use Phpanta\Support\PasswordHash;
+use Phpanta\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -409,8 +409,8 @@ final class DemoTest extends TestCase
             '<?php return ['
             . "'alien-house' => new \\NeuroSYS\\Model\\Demo("
             . "'alien house',"
-            . "new \\NeuroSYS\\Support\\PasswordHash(" . var_export(self::hash()->digest(), true) . '),'
-            . 'new \\NeuroSYS\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
+            . "new \\Phpanta\\Support\\PasswordHash(" . var_export(self::hash()->digest(), true) . '),'
+            . 'new \\Phpanta\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
             . "new \\NeuroSYS\\Model\\DemoTrack('v3', 'v3.mp3', 158)"
             . ')),'
             . '];',
@@ -479,7 +479,7 @@ final class DemoTest extends TestCase
      * `{slug}` matches anything, so `a"b` arrives here — and concatenated into a quoted-string it
      * would break out of it. See docs/history/security.md.
      *
-     * {@link \NeuroSYS\Http\BasicChallenge} refuses that, which is right for a realm written
+     * {@link \Phpanta\Http\BasicChallenge} refuses that, which is right for a realm written
      * wrong in this repository and would be wrong here: it would turn a hostile target into a 500
      * where a 401 belongs. So the slug is `rawurlencode`d and there is nothing left to refuse —
      * the same treatment {@link \NeuroSYS\Support\SitePath::to()} gives the same value on the way
@@ -511,7 +511,7 @@ final class DemoTest extends TestCase
      */
     private static function demoRealmOf(string $slug): string
     {
-        return new ReflectionProperty(\NeuroSYS\Http\BasicChallenge::class, 'realm')->getValue(
+        return new ReflectionProperty(\Phpanta\Http\BasicChallenge::class, 'realm')->getValue(
             new ReflectionMethod(DemoGate::class, 'realm')->invoke(null, $slug),
         );
     }
@@ -868,8 +868,8 @@ final class DemoTest extends TestCase
             '<?php return ['
             . "'never-staged' => new \\NeuroSYS\\Model\\Demo("
             . "'never staged',"
-            . 'new \\NeuroSYS\\Support\\PasswordHash(' . var_export(self::hash()->digest(), true) . '),'
-            . 'new \\NeuroSYS\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
+            . 'new \\Phpanta\\Support\\PasswordHash(' . var_export(self::hash()->digest(), true) . '),'
+            . 'new \\Phpanta\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
             . "new \\NeuroSYS\\Model\\DemoTrack('v3', 'nothing-wrote-this.mp3', 158)"
             . ')),'
             . '];',
@@ -949,8 +949,8 @@ final class DemoTest extends TestCase
             '<?php return ['
             . "'alien-house' => new \\NeuroSYS\\Model\\Demo("
             . "'alien house',"
-            . 'new \\NeuroSYS\\Support\\PasswordHash(' . var_export(self::hash()->digest(), true) . '),'
-            . 'new \\NeuroSYS\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
+            . 'new \\Phpanta\\Support\\PasswordHash(' . var_export(self::hash()->digest(), true) . '),'
+            . 'new \\Phpanta\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
             . "new \\NeuroSYS\\Model\\DemoTrack('v3', 'v3.mp3', 158)"
             . ')),'
             . '];',

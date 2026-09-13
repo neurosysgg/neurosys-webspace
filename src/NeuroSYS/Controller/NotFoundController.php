@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\View\NotFoundView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ViewResponse;
 
 /**
  * The NotFoundController class. Handles unmatched routes by rendering a 404 error page.

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS;
 
+use Phpanta\DataFileName;
+
 /**
  * The DataFile enum. Every file this site reads out of `data/`.
  *
@@ -49,7 +51,7 @@ enum DataFile: string implements DataFileName
      * a heading, which is the fragile way round.
      *
      * Both are tracked, so a clone has the policy it needs; a half that fails to read is an empty
-     * half rather than an error, which is what {@link \NeuroSYS\Support\File::read()} already
+     * half rather than an error, which is what {@link \Phpanta\Support\File::read()} already
      * answered for the single file.
      */
     case PrivacyGerman = 'privacy.de.html';

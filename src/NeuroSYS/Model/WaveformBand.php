@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model;
 
-use NeuroSYS\Support\Collection;
 use NoDiscard;
+use Phpanta\Support\Collection;
 
 /**
  * The WaveformBand enum. What each of a {@link Waveform} column's four bytes means.

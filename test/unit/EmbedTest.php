@@ -11,7 +11,7 @@ use NeuroSYS\Model\Embed\SoundCloudPlayerStyle;
 use NeuroSYS\Model\Embed\SoundCloudProfileEmbed;
 use NeuroSYS\Model\Platform;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

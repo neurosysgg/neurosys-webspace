@@ -7,8 +7,8 @@ namespace NeuroSYS\Service;
 use NeuroSYS\DataFile;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Site;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\SearchableCollection;
+use Phpanta\Support\File;
+use Phpanta\Support\SearchableCollection;
 
 /**
  * The DemoRepository class. Loads `data/demos.php` and finds one demo by its slug.

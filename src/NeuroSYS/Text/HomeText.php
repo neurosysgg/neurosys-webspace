@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Text;
 
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
+
 /**
  * The HomeText enum. The words of the home page, beyond the shell's.
  */

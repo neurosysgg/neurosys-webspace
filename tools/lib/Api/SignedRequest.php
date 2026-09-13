@@ -6,36 +6,36 @@ namespace NeuroSYS\Tool\Api;
 
 use BackedEnum;
 use JsonException;
-use NeuroSYS\Http\Api\ApiAction;
-use NeuroSYS\Http\Api\ApiService;
-use NeuroSYS\Http\Api\ApiVersion;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Support\ApiPath;
 use NeuroSYS\Tool\Cli\UsageException;
 use NeuroSYS\Tool\Http\OutboundHeader;
 use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Url;
+use Phpanta\Http\Api\ApiAction;
+use Phpanta\Http\Api\ApiService;
+use Phpanta\Http\Api\ApiVersion;
+use Phpanta\Http\Header;
+use Phpanta\Http\HttpMethod;
+use Phpanta\Support\ApiPath;
 
 /**
  * The SignedRequest class. One call to `/api`, signed and ready to send.
  *
- * It is the tooling half of {@link \NeuroSYS\Service\ApiGate}: it writes the manifest that gate
+ * It is the tooling half of {@link \Phpanta\Service\ApiGate}: it writes the manifest that gate
  * reads, and the two agree because **both sides use the same vocabulary rather than a copy of it**.
- * The path comes from {@link ApiPath::Api}, the scheme from {@link \NeuroSYS\Http\AuthScheme}, the
+ * The path comes from {@link ApiPath::Api}, the scheme from {@link \Phpanta\Http\AuthScheme}, the
  * method from the action's own {@link ApiAction::method()} — so there is no spelling of an address,
  * a token or a verb that exists only on this side and could drift from the other.
  *
  * **What it signs is exactly what it sends.** The URL is built from the path this puts in the
  * manifest, in that order, so the two cannot disagree by construction. That matters because
  * {@link SitePath::to()} `rawurlencode`s each value and is therefore *not* the inverse of
- * {@link \NeuroSYS\Support\Route::matches()} — for every service, version and action spelled in
+ * {@link \Phpanta\Support\Route::matches()} — for every service, version and action spelled in
  * `[a-z0-9]` it is exactly the identity, and for one that ever is not, signing the encoded form and
  * sending the encoded form still agree.
  *
  * The body is bound by digest rather than carried inside the credential, which is what lets a read
  * be signed on the same terms as a push: `sha256('')` over no bytes at all is a claim like any
- * other. See {@link \NeuroSYS\Model\Api\ApiEnvelope}.
+ * other. See {@link \Phpanta\Model\Api\ApiEnvelope}.
  */
 final readonly class SignedRequest
 {

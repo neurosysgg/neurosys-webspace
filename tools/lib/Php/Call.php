@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Php;
 
 use InvalidArgumentException;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\Collection;
 
 /**
  * The Call class. `new Release(…)`, `Section::named(…)`, or `…->with(…)`.

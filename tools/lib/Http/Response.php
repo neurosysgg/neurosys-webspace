@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Http;
 
 use JsonException;
-use NeuroSYS\Http\HttpStatusCode;
+use Phpanta\Http\HttpStatusCode;
 
 /**
  * The Response class. What came back.

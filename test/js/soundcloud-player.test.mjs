@@ -199,7 +199,7 @@ test('the Permissions-Policy denies nothing the player asks for', () => {
 
   // Read the header the app actually sends, rather than a copy of it kept here.
   const policy = execFileSync('php', ['-r', `require '${ROOT}/autoload.php';
-      echo NeuroSYS\\Http\\SecurityHeaders::headers()['Permissions-Policy'];`], { encoding: 'utf8' });
+      echo Phpanta\\Http\\SecurityHeaders::headers()['Permissions-Policy'];`], { encoding: 'utf8' });
 
   for (const feature of allow.split(';').map((f) => f.trim())) {
     assert.equal(

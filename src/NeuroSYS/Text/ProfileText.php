@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Text;
 
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
+
 /**
  * The ProfileText enum. How each external profile is labelled — the link's title, and its icon's
  * alt text.

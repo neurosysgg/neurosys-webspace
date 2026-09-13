@@ -7,21 +7,21 @@ namespace NeuroSYS\Test\Unit;
 use ArrayObject;
 use DateTime;
 use DateTimeImmutable;
-use NeuroSYS\Http\Security\CspSource;
-use NeuroSYS\Http\Security\CspSourceList;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Genre;
 use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Diagnostics;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\ErrorLog;
-use NeuroSYS\Support\File;
-use NeuroSYS\Support\SearchableCollection;
-use NeuroSYS\Support\TypedItems;
-use NeuroSYS\View\Html\Node;
+use Phpanta\Http\Security\CspSource;
+use Phpanta\Http\Security\CspSourceList;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Diagnostics;
+use Phpanta\Support\Directory;
+use Phpanta\Support\ErrorLog;
+use Phpanta\Support\File;
+use Phpanta\Support\SearchableCollection;
+use Phpanta\Support\TypedItems;
+use Phpanta\View\Html\Node;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\CoversTrait;
 use PHPUnit\Framework\TestCase;
@@ -566,7 +566,7 @@ final class SupportTest extends TestCase
      * A subclass is a claim about the element type, so `where()` keeps it and `map()` cannot.
      *
      * {@link CspSourceList} is the whole reason the distinction is worth a test: it exists to say
-     * its list holds {@link \NeuroSYS\Http\Security\CspSource}, which is exactly what stops
+     * its list holds {@link \Phpanta\Http\Security\CspSource}, which is exactly what stops
      * being true the moment a callback turns those into something else.
      *
      * @return void
@@ -1160,7 +1160,7 @@ final class SupportTest extends TestCase
      * A read stops at the byte limit it is given.
      *
      * This is what lets a caller reading an untrusted stream — the one being
-     * {@link \NeuroSYS\Http\Request::body()} over `php://input` — bound how much it pulls into memory
+     * {@link \Phpanta\Http\Request::body()} over `php://input` — bound how much it pulls into memory
      * rather than inheriting `post_max_size`. Null, the default every other caller uses, reads the
      * file whole; a limit past the end is the same, since there is no more to read.
      *

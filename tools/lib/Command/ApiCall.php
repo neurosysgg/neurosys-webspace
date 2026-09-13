@@ -5,11 +5,6 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use BackedEnum;
-use NeuroSYS\Http\Api\ApiService;
-use NeuroSYS\Http\Api\ApiVersion;
-use NeuroSYS\Http\HttpMethod;
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Api\PrivateKey;
 use NeuroSYS\Tool\Api\SignedRequest;
 use NeuroSYS\Tool\Cli\Command;
@@ -22,6 +17,11 @@ use NeuroSYS\Tool\Http\CurlTransport;
 use NeuroSYS\Tool\Http\Transport;
 use NeuroSYS\Tool\Http\TransportException;
 use NeuroSYS\Tool\Http\Url;
+use Phpanta\Http\Api\ApiService;
+use Phpanta\Http\Api\ApiVersion;
+use Phpanta\Http\HttpMethod;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Support\File;
 
 /**
  * The ApiCall command. One signed call to `/api`, named on the command line.

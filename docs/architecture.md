@@ -102,7 +102,7 @@ from this repository — and that is free, see [Exceptions](#exceptions).
 
 ### ① Security headers, before anything can fail
 
-[`SecurityHeaders::send()`](../src/NeuroSYS/Http/SecurityHeaders.php) runs *before* the request is
+[`SecurityHeaders::send()`](../phpanta/src/Http/SecurityHeaders.php) runs *before* the request is
 even parsed. That ordering is the whole design: the 401 that `Auth` exits with, the 405 the router
 refuses a POST with, and the 303 a download redirects with all get the full header set, because none
 of them can run before this line.
@@ -112,7 +112,7 @@ any of our code runs. See [security.md](security.md) for the policies themselves
 
 ### ② `$_SERVER` becomes a `Request`
 
-[`Request::fromGlobals()`](../src/NeuroSYS/Http/Request.php) is the only place a request is built
+[`Request::fromGlobals()`](../phpanta/src/Http/Request.php) is the only place a request is built
 from the superglobals. What comes out is `readonly` and typed, and three of its decisions are
 deliberate:
 
@@ -141,18 +141,18 @@ header lost an `r` in 1996 and the property it fills, `$referrer`, did not.
 
 ### ③ The pre-launch gate
 
-[`Auth::requireSiteAuth()`](../src/NeuroSYS/Service/Auth.php) checks for `data/site_auth.php`. If
+[`Auth::requireSiteAuth()`](../phpanta/src/Service/Auth.php) checks for `data/site_auth.php`. If
 the file is absent it returns immediately — *that absence is how the gate is switched off*, and the
 file is gitignored precisely so the repo copy cannot switch it on. It is also why a misspelled
 `DataFile` case there would not fail but stand the gate down; see [Data files](#data-files).
 
 ### ④ Routing
 
-[`Router::dispatch()`](../src/NeuroSYS/Router.php) does two things, in order:
+[`Router::dispatch()`](../phpanta/src/Router.php) does two things, in order:
 
-1. **The match.** Each [`Route`](../src/NeuroSYS/Support/Route.php) is a
+1. **The match.** Each [`Route`](../phpanta/src/Support/Route.php) is a
    [`SitePath`](../src/NeuroSYS/Support/SitePath.php) case, a factory closure and a
-   [`MethodPolicy`](../src/NeuroSYS/Support/MethodPolicy.php). `{param}` compiles to `([^/]+)`, and
+   [`MethodPolicy`](../phpanta/src/Support/MethodPolicy.php). `{param}` compiles to `([^/]+)`, and
    captures are passed positionally to the factory.
 2. **The method gate**, asked of the matched route rather than globally. Nine routes are
    `ReadOnly` and answer anything but `GET`/`HEAD` with a 405 whose `Allow` comes from
@@ -163,7 +163,7 @@ file is gitignored precisely so the repo copy cannot switch it on. It is also wh
    its own set would make its 405 name `POST`.
 
 An unmatched path falls through to
-[`UnroutedController`](../src/NeuroSYS/Controller/UnroutedController.php), which gives the 404 for a
+[`UnroutedController`](../phpanta/src/Controller/UnroutedController.php), which gives the 404 for a
 read verb and the 405 for a write one — and is the same object `ApiController` delegates to, so
 that no address under `/api` and an address that does not exist can answer differently.
 
@@ -198,7 +198,7 @@ The optional `?ReleaseRepository $releases = null` constructor parameter on the 
 controllers is a **test seam and nothing else** — it is how the "format staged, no link yet" branch
 gets exercised without a real release.
 
-Then [`ViewResponse::send()`](../src/NeuroSYS/Http/ViewResponse.php) makes the one branch that
+Then [`ViewResponse::send()`](../phpanta/src/Http/ViewResponse.php) makes the one branch that
 matters:
 
 - **full page** → `Layout::wrap($view)` → a `Document`

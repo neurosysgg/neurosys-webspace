@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model;
 
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Translated;
-use NeuroSYS\Text\Translation;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Translated;
+use Phpanta\Text\Translation;
 
 /**
  * The MusicalKey enum. All 24 standard Western musical keys (12 major + 12 minor).

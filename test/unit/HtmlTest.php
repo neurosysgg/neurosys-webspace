@@ -5,47 +5,46 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use BackedEnum;
-use FilesystemIterator;
 use NeuroSYS\DataFile;
-use NeuroSYS\Exception\MarkupException;
-use NeuroSYS\Exception\TranslationException;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Model\Production\SectionKind;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\SearchableCollection;
-use NeuroSYS\Support\UrlScheme;
-use NeuroSYS\Text\Language;
 use NeuroSYS\View\Html\ArrangementAttribute;
-use NeuroSYS\View\Html\Attribute;
-use NeuroSYS\View\Html\AttributeName;
-use NeuroSYS\View\Html\AttributeValue;
 use NeuroSYS\View\Html\CardAttribute;
 use NeuroSYS\View\Html\CoverArtAttribute;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Doctype;
-use NeuroSYS\View\Html\Document;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\Fragment;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\LinkAttribute;
-use NeuroSYS\View\Html\LinkRel;
-use NeuroSYS\View\Html\LinkTarget;
-use NeuroSYS\View\Html\MarkupParser;
-use NeuroSYS\View\Html\MediaPreload;
-use NeuroSYS\View\Html\MetaName;
-use NeuroSYS\View\Html\Node;
-use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\Tag;
-use NeuroSYS\View\Html\TagName;
-use NeuroSYS\View\Html\Text;
-use NeuroSYS\View\Html\TranslatedText;
-use NeuroSYS\View\Html\ViewportContent;
-use NeuroSYS\View\Html\ViewportWidth;
-use NeuroSYS\View\Html\Vocabulary;
 use NeuroSYS\View\Terminal\TerminalAttribute;
 use NeuroSYS\View\Terminal\TerminalTone;
+use Phpanta\Exception\MarkupException;
+use Phpanta\Exception\TranslationException;
+use Phpanta\Support\Collection;
+use Phpanta\Support\SearchableCollection;
+use Phpanta\Support\UrlScheme;
+use Phpanta\Text\Language;
+use Phpanta\View\Html\Attribute;
+use Phpanta\View\Html\AttributeName;
+use Phpanta\View\Html\AttributeValue;
+use Phpanta\View\Html\Doctype;
+use Phpanta\View\Html\Document;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\Fragment;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\LinkAttribute;
+use Phpanta\View\Html\LinkRel;
+use Phpanta\View\Html\LinkTarget;
+use Phpanta\View\Html\MarkupParser;
+use Phpanta\View\Html\MediaPreload;
+use Phpanta\View\Html\MetaName;
+use Phpanta\View\Html\Node;
+use Phpanta\View\Html\ScriptType;
+use Phpanta\View\Html\TagName;
+use Phpanta\View\Html\Text;
+use Phpanta\View\Html\TranslatedText;
+use Phpanta\View\Html\ViewportContent;
+use Phpanta\View\Html\ViewportWidth;
+use Phpanta\View\Html\Vocabulary;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -1498,7 +1497,7 @@ final class HtmlTest extends TestCase
      * Everything the parser refuses, refused for a reason it can name.
      *
      * The refusals are the point, so they are pinned exhaustively rather than illustratively — the
-     * same stance {@link \NeuroSYS\Support\TarArchive} takes about a member name off the network.
+     * same stance {@link \Phpanta\Support\TarArchive} takes about a member name off the network.
      * Each row is a thing a hand-edited document could plausibly grow, and each one is a
      * {@link MarkupException} at load time instead of markup nobody read.
      *
@@ -1609,25 +1608,10 @@ final class HtmlTest extends TestCase
      */
     private static function implementationsOf(string $interface): array
     {
-        $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
-        );
-
-        $found = [];
-
-        foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
-            $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
-
-            if (enum_exists($class) && is_a($class, $interface, true)) {
-                $found[] = $class;
-            }
-        }
+        $found = array_values(array_filter(
+            SourceTree::classes(),
+            static fn(string $class): bool => enum_exists($class) && is_a($class, $interface, true),
+        ));
 
         sort($found);
 
@@ -1672,21 +1656,13 @@ final class HtmlTest extends TestCase
      */
     private static function filesContaining(string $needle): array
     {
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator(NEUROSYS_ROOT . '/src', FilesystemIterator::SKIP_DOTS),
-        );
-
         $found = [];
 
-        foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $source = file_get_contents($file->getPathname());
+        foreach (SourceTree::files() as $path) {
+            $source = file_get_contents($path);
 
             if ($source !== false && str_contains($source, $needle)) {
-                $found[] = $file->getFilename();
+                $found[] = basename($path);
             }
         }
 

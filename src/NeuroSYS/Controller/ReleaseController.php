@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleaseView;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ViewResponse;
 
 /**
  * The ReleaseController class. Handles requests to a single release detail page.

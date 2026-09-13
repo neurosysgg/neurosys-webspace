@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Http;
 
 use CURLFile;
-use NeuroSYS\Http\Header;
+use Phpanta\Http\Header;
 
 /**
  * The CurlTransport class. Every network request this repo makes, in one place.

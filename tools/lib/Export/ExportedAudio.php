@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Export;
 
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Http\FilePart;
+use Phpanta\Support\File;
 
 /**
  * The ExportedAudio class. A file to upload, and how it came to exist.

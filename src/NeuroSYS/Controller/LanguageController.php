@@ -4,19 +4,20 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Controller;
 
-use NeuroSYS\Http\CacheControl;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\RedirectResponse;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\Response;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\SetCookie;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\SitePath;
-use NeuroSYS\Text\Language;
-use NeuroSYS\View\Html\Element;
+use Phpanta\Controller\Controller;
+use Phpanta\Http\CacheControl;
+use Phpanta\Http\Header;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\RedirectResponse;
+use Phpanta\Http\Request;
+use Phpanta\Http\Response;
+use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\SetCookie;
+use Phpanta\Support\Collection;
+use Phpanta\Text\Language;
+use Phpanta\View\Html\Element;
 use Uri\WhatWg\Url;
 
 /**

@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Support;
 
+use Phpanta\Support\FillsPlaceholders;
+use Phpanta\Support\Path;
+
 /**
  * The SitePath enum. Every address this site answers on.
  *

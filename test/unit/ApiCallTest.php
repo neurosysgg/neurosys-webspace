@@ -5,8 +5,6 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use ArrayObject;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Cli\Runner;
@@ -14,6 +12,8 @@ use NeuroSYS\Tool\Command\ApiCall;
 use NeuroSYS\Tool\Http\Request;
 use NeuroSYS\Tool\Http\Response;
 use NeuroSYS\Tool\Http\Transport;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
-use NeuroSYS\Support\File;
+use Phpanta\Support\File;
 
 /**
  * The Cover class. The image a release will publish, and which rung of the ladder it came off.

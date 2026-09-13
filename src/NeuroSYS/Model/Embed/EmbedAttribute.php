@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model\Embed;
 
-use NeuroSYS\View\Html\AttributeName;
+use Phpanta\View\Html\AttributeName;
 
 /**
  * The EmbedAttribute enum. What every consent-gated embed carries, whichever provider it is for.
@@ -34,7 +34,7 @@ enum EmbedAttribute: string implements AttributeName
      * Set on the embed once the visitor has consented, so the stylesheet can stop drawing a gate.
      *
      * The one case here that names an attribute the **server never writes** — the same arrangement
-     * as {@link \NeuroSYS\Http\ResponseHeader::PoweredBy}, and for the same reason: it is a real
+     * as {@link \Phpanta\Http\ResponseHeader::PoweredBy}, and for the same reason: it is a real
      * name with a real reader, and a name is worth having in one place even when only one side of
      * the wire writes it. `ConsentGatedEmbed.load()` sets it and `embed.css` selects on it.
      *

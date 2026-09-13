@@ -10,10 +10,10 @@ use NeuroSYS\Exception\ReleaseVerificationException;
  * The SectionPosition class. One {@link Section} and where along a timeline it is drawn.
  *
  * A pair, and it is a class rather than an `array{section: Section, offset: float}` for the reason
- * {@link \NeuroSYS\Support\Collection} exists at all: a two-slot array is a shape a docblock
+ * {@link \Phpanta\Support\Collection} exists at all: a two-slot array is a shape a docblock
  * promises and nothing checks, read back at the far end as `$p['offset']` — where a typo is a
  * warning and a null rather than an error naming the key. An array is also a thing
- * {@link \NeuroSYS\Support\TypedItems::SCALARS} will not let a collection hold, so naming it is
+ * {@link \Phpanta\Support\TypedItems::SCALARS} will not let a collection hold, so naming it is
  * what lets {@link Arrangement::positions()} answer with one.
  *
  * The offset is a **fraction of the arrangement** rather than a time, because that is what a

@@ -15,6 +15,9 @@ use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
+use Phpanta\Support\Collection;
+use Phpanta\Support\MethodPolicy;
+use Phpanta\Support\Route;
 
 /** Builds and returns the application route table. */
 class RouteInitialization

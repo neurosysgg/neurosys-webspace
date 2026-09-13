@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Http\ServerVariable;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Site;
-use NeuroSYS\Support\File;
+use Phpanta\Http\ServerVariable;
+use Phpanta\Support\File;
 
 /**
  * The DownloadLogger class. Appends a JSON log entry to the downloads log for each download.

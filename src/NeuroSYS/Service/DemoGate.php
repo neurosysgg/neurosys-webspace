@@ -4,12 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Service;
 
-use NeuroSYS\Http\BasicChallenge;
-use NeuroSYS\Http\Request;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Site;
-use NeuroSYS\Support\PasswordHash;
 use NoDiscard;
+use Phpanta\Http\BasicChallenge;
+use Phpanta\Http\Request;
+use Phpanta\Service\Auth;
+use Phpanta\Support\PasswordHash;
 
 /**
  * The DemoGate class. One demo's password, in front of its page and its audio.

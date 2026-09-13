@@ -13,36 +13,36 @@ use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\DataFile;
-use NeuroSYS\Exception\MimeTypeException;
-use NeuroSYS\Http\CacheControl;
-use NeuroSYS\Http\ETag;
-use NeuroSYS\Http\Header;
-use NeuroSYS\Http\HttpStatusCode;
-use NeuroSYS\Http\MimeType;
-use NeuroSYS\Http\PlainTextResponse;
-use NeuroSYS\Http\RedirectResponse;
-use NeuroSYS\Http\Request;
-use NeuroSYS\Http\ResponseHeader;
-use NeuroSYS\Http\TopLevelType;
-use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Site;
-use NeuroSYS\Support\Charset;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
-use NeuroSYS\Text\Language;
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Verbatim;
 use NeuroSYS\View\HomeView;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\ImprintView;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\PrivacyView;
 use NeuroSYS\View\ReleasesView;
-use NeuroSYS\View\View;
+use Phpanta\Exception\MimeTypeException;
+use Phpanta\Http\CacheControl;
+use Phpanta\Http\ETag;
+use Phpanta\Http\Header;
+use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\MimeType;
+use Phpanta\Http\PlainTextResponse;
+use Phpanta\Http\RedirectResponse;
+use Phpanta\Http\Request;
+use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\TopLevelType;
+use Phpanta\Http\ViewResponse;
+use Phpanta\Support\Charset;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Verbatim;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\Node;
+use Phpanta\View\View;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -550,7 +550,7 @@ final class ResponseTest extends TestCase
         $file->write(<<<'PHP'
             <?php
             use NeuroSYS\Model\{Format, Genre, MusicalKey, Release, ReleaseFormat};
-            use NeuroSYS\Support\Collection;
+            use Phpanta\Support\Collection;
             return ['staged' => new Release(
                 'staged.', 140, MusicalKey::CMajor, Genre::Dubstep, 'unreleased', null,
                 new Collection(Format::class)->with(new Format(ReleaseFormat::FLAC)),

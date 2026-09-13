@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Flp;
 
-use NeuroSYS\Support\File;
+use Phpanta\Support\File;
 
 /**
  * The FlpFile class. A parsed `.flp` — its header, and every event in its data chunk.

@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\PasswordHash;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Output;
 use NeuroSYS\Tool\Cli\Runner;
@@ -17,6 +15,8 @@ use NeuroSYS\Tool\Demo\DemoStage;
 use NeuroSYS\Tool\Demo\Encoding;
 use NeuroSYS\Tool\Demo\Password;
 use NeuroSYS\Tool\Release\Level;
+use Phpanta\Support\Directory;
+use Phpanta\Support\PasswordHash;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionMethod;
@@ -505,8 +505,8 @@ final class StageDemoTest extends TestCase
             [
                 'NeuroSYS\Model\Demo',
                 'NeuroSYS\Model\DemoTrack',
-                'NeuroSYS\Support\Collection',
-                'NeuroSYS\Support\PasswordHash',
+                'Phpanta\Support\Collection',
+                'Phpanta\Support\PasswordHash',
             ],
             DemoEntryWriter::imports($stage, Password::mint()),
         );

@@ -4,12 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Command;
 
-use NeuroSYS\Http\Api\ApiService;
-use NeuroSYS\Http\Api\ApiVersion;
-use NeuroSYS\Http\Api\UpdateAction;
-use NeuroSYS\Support\Collection;
-use NeuroSYS\Support\Directory;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Api\PrivateKey;
 use NeuroSYS\Tool\Api\SignedRequest;
 use NeuroSYS\Tool\Cli\Command;
@@ -24,6 +18,12 @@ use NeuroSYS\Tool\Http\TransportException;
 use NeuroSYS\Tool\Http\Url;
 use NeuroSYS\Tool\Update\PackedFile;
 use NeuroSYS\Tool\Update\TarWriter;
+use Phpanta\Http\Api\ApiService;
+use Phpanta\Http\Api\ApiVersion;
+use Phpanta\Http\Api\UpdateAction;
+use Phpanta\Support\Collection;
+use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 
 /**
  * The PushUpdate command. Deploys `public/`, `src/` and `autoload.php` in one signed HTTPS request.

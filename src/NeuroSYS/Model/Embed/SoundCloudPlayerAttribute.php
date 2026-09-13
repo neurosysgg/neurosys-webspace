@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Model\Embed;
 
-use NeuroSYS\View\Html\AttributeName;
+use Phpanta\View\Html\AttributeName;
 
 /**
  * The SoundCloudPlayerAttribute enum. What {@link SoundCloudEmbed} tells `<soundcloud-player>`.

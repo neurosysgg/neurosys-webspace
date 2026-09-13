@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Terminal;
 
-use NeuroSYS\Support\BareString;
-use NeuroSYS\Support\Collection;
+use Phpanta\Support\BareString;
+use Phpanta\Support\Collection;
 
 /**
  * The TerminalCommand class. The command line above a terminal's output, declared rather than typed.
@@ -56,9 +56,9 @@ final readonly class TerminalCommand
      * The command line as one string, for {@link TerminalAttribute::Command}.
      *
      * `render()` rather than `__toString()`, because that is what every other object here that
-     * produces a wire form is called — {@link \NeuroSYS\Http\Security\ContentSecurityPolicy},
-     * {@link \NeuroSYS\Http\Security\PermissionsPolicy}, {@link \NeuroSYS\Http\MimeType}. It also
-     * has to be a real method rather than a `Stringable`: {@link \NeuroSYS\View\Html\Element::attr()}
+     * produces a wire form is called — {@link \Phpanta\Http\Security\ContentSecurityPolicy},
+     * {@link \Phpanta\Http\Security\PermissionsPolicy}, {@link \Phpanta\Http\MimeType}. It also
+     * has to be a real method rather than a `Stringable`: {@link \Phpanta\View\Html\Element::attr()}
      * takes `string|int|bool|BackedEnum|null` and would refuse the object.
      *
      * @return string

@@ -6,7 +6,6 @@ namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
-use NeuroSYS\Support\File;
 use NeuroSYS\Tool\Cli\Command;
 use NeuroSYS\Tool\Cli\ExitCode;
 use NeuroSYS\Tool\Cli\Input;
@@ -31,6 +30,7 @@ use NeuroSYS\Tool\SoundCloud\SoundCloudException;
 use NeuroSYS\Tool\SoundCloud\TokenStore;
 use NeuroSYS\Tool\SoundCloud\TrackUpload;
 use NeuroSYS\Tool\SoundCloud\UploadedTrack;
+use Phpanta\Support\File;
 
 /**
  * The ReleaseTrack command. Gets the audio, puts it on SoundCloud, and prints the finished entry.

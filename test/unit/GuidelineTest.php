@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
-use FilesystemIterator;
 use InvalidArgumentException;
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\BareCall;
-use NeuroSYS\Support\BareString;
+use Phpanta\Support\BareArray;
+use Phpanta\Support\BareCall;
+use Phpanta\Support\BareString;
 use PhpToken;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionEnum;
 use ReflectionIntersectionType;
@@ -25,7 +22,7 @@ use ReflectionUnionType;
  * The two habits this codebase is built against, checked by asking PHP about itself.
  *
  * Everything under `src/` is an argument against two shapes. A **bare array** announces nothing
- * about what it holds, which is why {@link \NeuroSYS\Support\Collection} exists; a **bare string**
+ * about what it holds, which is why {@link \Phpanta\Support\Collection} exists; a **bare string**
  * is a name with no vocabulary, which is why there are fifty-odd enums. Both arguments were made
  * one class at a time and neither had anything watching it, so the only thing standing between the
  * codebase and a slow return to arrays-and-strings was whoever wrote the next method.
@@ -68,16 +65,16 @@ use ReflectionUnionType;
 final class GuidelineTest extends TestCase
 {
     /**
-     * The scalar types a {@link \NeuroSYS\Support\Collection} may be declared to hold — a value in
+     * The scalar types a {@link \Phpanta\Support\Collection} may be declared to hold — a value in
      * a class-string's place, and the one place a type name is genuinely a string.
      *
-     * Named here rather than read off {@link \NeuroSYS\Support\TypedItems}, because a test that
+     * Named here rather than read off {@link \Phpanta\Support\TypedItems}, because a test that
      * derives its expectation from the thing it is testing asserts nothing.
      */
     private const array SCALAR_TYPES = ['string', 'int', 'float', 'bool'];
 
     /**
-     * The array functions a {@link \NeuroSYS\Support\Collection} answers, and the member that
+     * The array functions a {@link \Phpanta\Support\Collection} answers, and the member that
      * answers each.
      *
      * This table *is* the rule. A function on it is one the collections can do, so a call to it
@@ -164,50 +161,50 @@ final class GuidelineTest extends TestCase
     {
         self::assertSame(
             [
-                'NeuroSYS\Http\AcceptedLanguages::$qualities',
-                'NeuroSYS\Http\AcceptedLanguages::__construct()',
-                'NeuroSYS\Http\AcceptedLanguages::entry()',
-                'NeuroSYS\Http\AuthScheme::credentials()',
-                'NeuroSYS\Http\SecurityHeaders::headers()',
-                'NeuroSYS\Http\Security\ContentSecurityPolicy::hosts()',
                 'NeuroSYS\Layout::modulePreloads()',
                 'NeuroSYS\Service\DownloadLogEntry::jsonSerialize()',
                 'NeuroSYS\Service\DownloadStats::counts()',
                 'NeuroSYS\Service\ProfileRepository::$links',
-                'NeuroSYS\Service\UpdateApplier::directories()',
-                'NeuroSYS\Service\UpdateApplier::entries()',
-                'NeuroSYS\Service\UpdateApplier::surplusIn()',
-                'NeuroSYS\Service\UpdateApplier::walk()',
-                'NeuroSYS\Support\Collection::$items',
-                'NeuroSYS\Support\Collection::$steps',
-                'NeuroSYS\Support\Collection::toArray()',
-                'NeuroSYS\Support\Collection::toKeys()',
-                'NeuroSYS\Support\Collection::toValues()',
-                'NeuroSYS\Support\File::lines()',
-                'NeuroSYS\Support\Route::createController()',
-                'NeuroSYS\Support\Route::matches()',
-                'NeuroSYS\Support\SearchableCollection::$items',
-                'NeuroSYS\Support\SearchableCollection::$steps',
-                'NeuroSYS\Support\SearchableCollection::toArray()',
-                'NeuroSYS\Support\SearchableCollection::toKeys()',
-                'NeuroSYS\Support\SearchableCollection::toValues()',
-                'NeuroSYS\Support\TarArchive::header()',
-                'NeuroSYS\Support\TarArchive::name()',
-                'NeuroSYS\Support\TypedItems::$items',
-                'NeuroSYS\Support\TypedItems::$steps',
-                'NeuroSYS\Support\TypedItems::toArray()',
-                'NeuroSYS\Support\TypedItems::toKeys()',
-                'NeuroSYS\Support\TypedItems::toValues()',
-                'NeuroSYS\Text\Phrase::$arguments',
-                'NeuroSYS\Text\Phrase::__construct()',
                 'NeuroSYS\View\Accented::accented()',
                 'NeuroSYS\View\DemoView::accented()',
                 'NeuroSYS\View\HomeView::accented()',
                 'NeuroSYS\View\ReleaseView::accented()',
                 'NeuroSYS\View\ReleaseView::terminalFields()',
                 'NeuroSYS\View\Terminal\TerminalField::row()',
-                'NeuroSYS\View\View::varyOn()',
                 'NeuroSYS\View\Wordmark::nodes()',
+                'Phpanta\Http\AcceptedLanguages::$qualities',
+                'Phpanta\Http\AcceptedLanguages::__construct()',
+                'Phpanta\Http\AcceptedLanguages::entry()',
+                'Phpanta\Http\AuthScheme::credentials()',
+                'Phpanta\Http\SecurityHeaders::headers()',
+                'Phpanta\Http\Security\ContentSecurityPolicy::hosts()',
+                'Phpanta\Service\UpdateApplier::directories()',
+                'Phpanta\Service\UpdateApplier::entries()',
+                'Phpanta\Service\UpdateApplier::surplusIn()',
+                'Phpanta\Service\UpdateApplier::walk()',
+                'Phpanta\Support\Collection::$items',
+                'Phpanta\Support\Collection::$steps',
+                'Phpanta\Support\Collection::toArray()',
+                'Phpanta\Support\Collection::toKeys()',
+                'Phpanta\Support\Collection::toValues()',
+                'Phpanta\Support\File::lines()',
+                'Phpanta\Support\Route::createController()',
+                'Phpanta\Support\Route::matches()',
+                'Phpanta\Support\SearchableCollection::$items',
+                'Phpanta\Support\SearchableCollection::$steps',
+                'Phpanta\Support\SearchableCollection::toArray()',
+                'Phpanta\Support\SearchableCollection::toKeys()',
+                'Phpanta\Support\SearchableCollection::toValues()',
+                'Phpanta\Support\TarArchive::header()',
+                'Phpanta\Support\TarArchive::name()',
+                'Phpanta\Support\TypedItems::$items',
+                'Phpanta\Support\TypedItems::$steps',
+                'Phpanta\Support\TypedItems::toArray()',
+                'Phpanta\Support\TypedItems::toKeys()',
+                'Phpanta\Support\TypedItems::toValues()',
+                'Phpanta\Text\Phrase::$arguments',
+                'Phpanta\Text\Phrase::__construct()',
+                'Phpanta\View\View::varyOn()',
             ],
             array_keys(self::bareArrays()['excused']),
         );
@@ -222,7 +219,7 @@ final class GuidelineTest extends TestCase
      * genuinely is a vocabulary written out:
      *
      * - **A word an enum in reach already spells.** If the file names {@link
-     *   \NeuroSYS\Http\HttpMethod} anywhere, `'GET'` in it is that enum's case as text. This is the
+     *   \Phpanta\Http\HttpMethod} anywhere, `'GET'` in it is that enum's case as text. This is the
      *   clause that found the one real drift here — `Request::fromGlobals()` defaulted to a
      *   `'GET'` that `HttpMethod::Get` had spelled all along.
      * - **A word written in two classes.** One occurrence is a value; the same one in another file
@@ -262,7 +259,7 @@ final class GuidelineTest extends TestCase
      *   \NeuroSYS\Support\SitePath} case.
      * - **Another grammar.** `%d:%02d` is a printf format, and `#^https://…#i` is a regex — the
      *   only entry here that is genuinely one fact in two files, kept apart on purpose. See
-     *   {@link \NeuroSYS\Http\Location}, where the argument is made and can be re-read.
+     *   {@link \Phpanta\Http\Location}, where the argument is made and can be re-read.
      * - **Someone else's vocabulary.** `int` and `string` are `get_debug_type()`'s spellings, in a
      *   class-string's place; `time` is a JSON key on one side of the pair and a caption on the
      *   other.
@@ -273,18 +270,18 @@ final class GuidelineTest extends TestCase
     {
         self::assertSame(
             [
-                'NeuroSYS\Http\Location #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
                 'NeuroSYS\Model\DemoTrack %d:%02d',
-                'NeuroSYS\Model\Health\HealthSection string',
                 'NeuroSYS\Model\Production\Section %d:%02d',
                 'NeuroSYS\Model\Profile #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
-                'NeuroSYS\Model\Update\UpdateReport string',
                 'NeuroSYS\Service\DownloadStats int',
-                'NeuroSYS\Support\Diagnostics string',
-                'NeuroSYS\Support\TypedItems int',
-                'NeuroSYS\Support\TypedItems string',
-                'NeuroSYS\View\Html\Vocabulary string',
                 'NeuroSYS\View\Terminal\TerminalCommand string',
+                'Phpanta\Http\Location #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
+                'Phpanta\Model\Health\HealthSection string',
+                'Phpanta\Model\Update\UpdateReport string',
+                'Phpanta\Support\Diagnostics string',
+                'Phpanta\Support\TypedItems int',
+                'Phpanta\Support\TypedItems string',
+                'Phpanta\View\Html\Vocabulary string',
             ],
             array_keys(self::bareStrings()['excused']),
         );
@@ -333,9 +330,9 @@ final class GuidelineTest extends TestCase
         self::assertSame(
             [
                 'NeuroSYS\Layout::modulePreloads array_map',
-                'NeuroSYS\Support\File::lines array_values',
-                'NeuroSYS\View\Html\Element::containing array_map',
-                'NeuroSYS\View\Html\Element::verifyUrl array_map',
+                'Phpanta\Support\File::lines array_values',
+                'Phpanta\View\Html\Element::containing array_map',
+                'Phpanta\View\Html\Element::verifyUrl array_map',
             ],
             array_keys(self::bareCalls()['excused']),
         );
@@ -392,7 +389,7 @@ final class GuidelineTest extends TestCase
      *
      * The one rule here with no excuse mechanism at all, because the replacement is strictly better
      * rather than merely tidier and there was nothing left to argue for.
-     * {@link \NeuroSYS\Support\Diagnostics} is what the twenty-one sites became.
+     * {@link \Phpanta\Support\Diagnostics} is what the twenty-one sites became.
      *
      * `@` cannot say which diagnostics it meant: it silences every one raised anywhere in the
      * expression, at any severity, from any call nested inside it — so a `@file_get_contents()`
@@ -441,8 +438,8 @@ final class GuidelineTest extends TestCase
      * a throw that reaches outside it is a condition nobody has bothered to say the name of.
      *
      * **The two that look like exceptions to it are not.** {@link
-     * \NeuroSYS\Exception\CollectionException} extends `TypeError` and {@link
-     * \NeuroSYS\Exception\GuidelineException} extends `InvalidArgumentException` — so what a caller
+     * \Phpanta\Exception\CollectionException} extends `TypeError` and {@link
+     * \Phpanta\Exception\GuidelineException} extends `InvalidArgumentException` — so what a caller
      * catches is unchanged and every `expectException` in this suite still matches. What changed is
      * only that the throw says which layer raised it. Extending an SPL class is how you keep a
      * promise; throwing one is how you avoid making one.
@@ -467,7 +464,7 @@ final class GuidelineTest extends TestCase
      * into something else.
      *
      * Only a *direct* throw is asked about. A method that propagates one from a callee is free to
-     * declare it or not, which is a judgement — {@link \NeuroSYS\View\Html\Element::containingHtml()}
+     * declare it or not, which is a judgement — {@link \Phpanta\View\Html\Element::containingHtml()}
      * declares the base of two, deliberately — and a test that made that judgement mechanically
      * would be wrong more often than the people are.
      *
@@ -490,8 +487,8 @@ final class GuidelineTest extends TestCase
      * **A catch names a concrete class.** `catch (Throwable)` and `catch (Exception)` are the
      * `mixed` of error handling: they catch the condition you thought of and every one you did not,
      * and the second kind is then indistinguishable from the first. Note that `Exception` would not
-     * even be the wide net it looks like here — {@link \NeuroSYS\Exception\CollectionException}
-     * extends `Error`, which is why {@link \NeuroSYS\Exception\SiteException} exists.
+     * even be the wide net it looks like here — {@link \Phpanta\Exception\CollectionException}
+     * extends `Error`, which is why {@link \Phpanta\Exception\SiteException} exists.
      *
      * **A wrap keeps its cause.** A `catch` that binds a variable and then throws must hand that
      * variable to the new exception, or the stack trace stops at the wrap and the actual failure —
@@ -616,39 +613,7 @@ final class GuidelineTest extends TestCase
      */
     private static function sourceTree(): array
     {
-        if (self::$tree !== null) {
-            return self::$tree;
-        }
-
-        $root  = NEUROSYS_ROOT . '/src/NeuroSYS/';
-        $files = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
-        );
-
-        $tree = [];
-
-        foreach ($files as $file) {
-            if ($file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $relative = substr($file->getPathname(), strlen($root), -strlen('.php'));
-            $class    = 'NeuroSYS\\' . str_replace('/', '\\', $relative);
-
-            if (
-                class_exists($class)
-                || interface_exists($class)
-                || enum_exists($class)
-                || trait_exists($class)
-            ) {
-                /** @var class-string $class */
-                $tree[$file->getPathname()] = $class;
-            }
-        }
-
-        ksort($tree);
-
-        return self::$tree = $tree;
+        return self::$tree ??= SourceTree::classes();
     }
 
     /**
@@ -685,7 +650,12 @@ final class GuidelineTest extends TestCase
             foreach (self::thrown($tokens) as [$name, $line]) {
                 $resolved = $imports[$name] ?? ltrim($namespace . '\\' . $name, '\\');
 
-                if (!str_starts_with($resolved, 'NeuroSYS\\Exception\\')) {
+                $ours = str_starts_with($resolved, 'NeuroSYS\\Exception\\')
+
+                    || str_starts_with($resolved, 'Phpanta\\Exception\\');
+
+
+                if (!$ours) {
                     $foreign[] = $class . ':' . $line . ' throws ' . $resolved;
                 }
 
@@ -897,29 +867,13 @@ final class GuidelineTest extends TestCase
      */
     private static function phpFiles(): array
     {
-        $paths = [];
-
-        foreach (['/src/NeuroSYS', '/tools/lib'] as $root) {
-            $files = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator(NEUROSYS_ROOT . $root, FilesystemIterator::SKIP_DOTS),
-            );
-
-            foreach ($files as $file) {
-                if ($file->getExtension() === 'php') {
-                    $paths[] = $file->getPathname();
-                }
-            }
-        }
-
-        sort($paths);
-
-        return $paths;
+        return SourceTree::files('/tools/lib');
     }
     /**
      * True if $type is, or contains, `array`.
      *
      * A union counts: `array|false` is still an array on the branch that matters, and
-     * {@link \NeuroSYS\Support\Route::matches()} is exactly that shape.
+     * {@link \Phpanta\Support\Route::matches()} is exactly that shape.
      *
      * @param ?ReflectionType $type
      * @return bool

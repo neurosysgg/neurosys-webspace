@@ -6,33 +6,33 @@ namespace NeuroSYS;
 
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Service\ProfileRepository;
-use NeuroSYS\Support\BareArray;
-use NeuroSYS\Support\BareCall;
-use NeuroSYS\Support\Charset;
 use NeuroSYS\Support\SitePath;
-use NeuroSYS\Support\UrlScheme;
-use NeuroSYS\Text\Joined;
-use NeuroSYS\Text\Language;
 use NeuroSYS\Text\Texts;
-use NeuroSYS\Text\Translatable;
-use NeuroSYS\Text\Verbatim;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Document;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\ElementId;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\LinkAttribute;
-use NeuroSYS\View\Html\LinkRel;
-use NeuroSYS\View\Html\LinkTarget;
-use NeuroSYS\View\Html\MetaName;
-use NeuroSYS\View\Html\Node;
-use NeuroSYS\View\Html\ScriptType;
-use NeuroSYS\View\Html\ViewportContent;
-use NeuroSYS\View\Html\ViewportWidth;
-use NeuroSYS\View\Shell;
-use NeuroSYS\View\View;
 use NeuroSYS\View\Wordmark;
+use Phpanta\Support\BareArray;
+use Phpanta\Support\BareCall;
+use Phpanta\Support\Charset;
+use Phpanta\Support\UrlScheme;
+use Phpanta\Text\Joined;
+use Phpanta\Text\Language;
+use Phpanta\Text\Translatable;
+use Phpanta\Text\Verbatim;
+use Phpanta\View\Html\Document;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\ElementId;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\LinkAttribute;
+use Phpanta\View\Html\LinkRel;
+use Phpanta\View\Html\LinkTarget;
+use Phpanta\View\Html\MetaName;
+use Phpanta\View\Html\Node;
+use Phpanta\View\Html\ScriptType;
+use Phpanta\View\Html\ViewportContent;
+use Phpanta\View\Html\ViewportWidth;
+use Phpanta\View\Shell;
+use Phpanta\View\View;
 
 /**
  * The Layout class. Renders the site shell — HTML document, header, footer, and scripts.
@@ -55,7 +55,7 @@ class Layout implements Shell
      * Wraps the given view's content in the full site shell, in $language.
      *
      * `<html lang>` is where a page states its language, and so where the tree takes it from:
-     * every translatable in the document renders in it — see {@link \NeuroSYS\View\Html\Node}.
+     * every translatable in the document renders in it — see {@link \Phpanta\View\Html\Node}.
      *
      * @param View     $view     The view whose content to embed.
      * @param Language $language The language the request is answered in.

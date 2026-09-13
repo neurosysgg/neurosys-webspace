@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View;
 
-use NeuroSYS\Support\BareArray;
 use NeuroSYS\View\Html\CssClass;
-use NeuroSYS\View\Html\Element;
-use NeuroSYS\View\Html\HtmlAttribute;
-use NeuroSYS\View\Html\HtmlTag;
-use NeuroSYS\View\Html\Node;
+use Phpanta\Support\BareArray;
+use Phpanta\View\Html\Element;
+use Phpanta\View\Html\HtmlAttribute;
+use Phpanta\View\Html\HtmlTag;
+use Phpanta\View\Html\Node;
 
 /**
  * The Accented trait. This site's typographic flourish: a trailing `!`, `.` or `?` set in the
