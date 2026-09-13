@@ -13,6 +13,7 @@ use NeuroSYS\Tool\Midi\TimeSignature;
 use NeuroSYS\Tool\Release\ProjectFile;
 use Phpanta\Support\Collection;
 use Phpanta\Support\File;
+use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Input;
@@ -90,20 +91,23 @@ final readonly class ExtractMidi implements Command
     }
 
     /**
+     * One project: a folder, a `.flp`, or a zip holding one.
+     *
+     * @return Arity
+     */
+    public function operands(): Arity
+    {
+        return Arity::exactly(1);
+    }
+
+    /**
      * @param Input  $input
      * @param Output $output
      * @return ExitCode
      */
     public function run(Input $input, Output $output): ExitCode
     {
-        $path = $input->operand(0);
-
-        if ($path === null) {
-            $output->error("extract-midi: name a project — a folder, a .flp, or a zip holding one\n");
-
-            return ExitCode::Usage;
-        }
-
+        $path  = (string) $input->operand(0);
         $found = ProjectFile::at($path);
 
         if ($found === null) {

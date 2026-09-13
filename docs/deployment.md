@@ -207,28 +207,50 @@ under `phpanta/src/`), or is not the commit the site's `HEAD` records, because e
 the server that no checkout of the site reproduces. The refusal comes before anything is signed, dry
 run or not, and says which of the three it is.
 
-`--url` points somewhere else and `--key` names a different private key. Both default sensibly:
-`https://neurosys.gg` and `~/.config/neurosys/update.key`. `--url` is an **origin**, not a full
-endpoint — the path is derived from the action, so there is one place that knows what the address is
-and it is the same `SitePath` case the router matches with. It must be `https`; `Url` refuses
-anything else, on the one request that carries a signature.
+`--url` points somewhere else; it defaults to `https://neurosys.gg`. It is an **origin** —
+`https://`, a host, a port if it has one, and nothing after it. A path, query, fragment or user part
+is refused where it is typed: the path is derived from the action, so there is one place that knows
+what the address is and it is the same `SitePath` case the router matches with. It must be `https`;
+`Url` refuses anything else, on the one request that carries a signature.
 
-### First-time setup: the keypair
+`--key` names a different private key; it defaults to **the origin's own key** —
+`~/.config/neurosys/update.key` for `https://neurosys.gg`, and `update-<host>.key` beside it for any
+other origin, a port joining the host with a dash (`update-localhost-8443.key`). **The production key
+is refused for any other origin**, even named with `--key`, and so is a copy of it under another name.
 
-Generate it once. The **private half never enters this repository** — it lives beside the SoundCloud
-refresh token, for the same reason.
+### First-time setup: one keypair per deployment
+
+**Every deployment has a key of its own.** A signed manifest names a method and a path but no host,
+and the replay guard is a counter per deployment — so a credential minted for one deployment verifies
+at any other holding the same public key, for as long as its serial is fresh there. Two deployments
+sharing a key share every credential, a push included. The tools enforce it (above); this is why.
+
+The **private halves never enter this repository** — they live beside the SoundCloud refresh token,
+for the same reason — and the tools refuse one that other users can read. The production pair, once:
 
 ```bash
-mkdir -p ~/.config/neurosys && openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update.key
+(umask 077; mkdir -p ~/.config/neurosys && openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update.key)
 ```
 
 ```bash
-chmod 600 ~/.config/neurosys/update.key && openssl pkey -in ~/.config/neurosys/update.key -pubout -out data/update.pub
+openssl pkey -in ~/.config/neurosys/update.key -pubout    # → the server's data/update.pub
 ```
 
-Then upload `data/update.pub` **by hand**, once, next to `admin.php` on the server. `deploy.sh`
-excludes it — there is no repo copy to sync and syncing a local test key over the live one would
-lock you out of the endpoint.
+Upload that public half **by hand**, once, as `data/update.pub` next to `admin.php` on the server.
+`deploy.sh` excludes it — there is no repo copy to sync, and syncing the local key over the live one
+would lock you out of the endpoint.
+
+The working tree's `data/update.pub` is the **local** deployment's, from a pair of its own:
+
+```bash
+(umask 077; openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update-neurosys.localhost.key)
+```
+
+```bash
+openssl pkey -in ~/.config/neurosys/update-neurosys.localhost.key -pubout -out data/update.pub
+```
+
+That is the key a call to `https://neurosys.localhost` resolves to.
 
 **Its absence is the off switch.** No key on the server, no endpoint: every address under `/api`
 answers exactly like an address that does not exist, for everyone, forever. That is the opposite
@@ -245,12 +267,17 @@ A refusal before the signature verifies is a **404** (or a 405 for a write metho
 what the endpoint answers to anyone it will not verify. It says nothing about why, deliberately, so
 check these in order:
 
-1. **The key.** Does `data/update.pub` on the server match your private half?
-   `openssl pkey -in ~/.config/neurosys/update.key -pubout` and compare.
+1. **The key.** Does `data/update.pub` on that server match the private half for its origin?
+   For production, `openssl pkey -in ~/.config/neurosys/update.key -pubout` and compare.
 2. **The clock.** The signed serial must be within five minutes of the server's.
-3. **A replay.** The same payload cannot be applied twice; rebuild it (any rebuild mints a new
-   serial). Note that a push which *failed* has still spent its serial — the replay guard is armed
-   before the archive is touched, so bytes that produced a failure can never be sent again either.
+3. **A replay.** A serial is the signing time in seconds and each is spent once, so two calls
+   signed in the same second collide — wait a second and run it again; every run signs anew. Note
+   that a push which *failed* has still spent its serial — the replay guard is armed before the
+   archive is touched, so a credential that produced a failure can never be sent again either.
+
+A **409** says another write is in progress. The server holds a lock for the length of a write, and
+a second one arriving meanwhile is refused without spending its serial or touching a file — two
+writes at once would each mirror over the other. Wait for the first, then run it again.
 
 A server that is not running the `/api` code at all — a fresh host, or one a push has broken —
 refuses exactly the same way, and the endpoint cannot fix that for itself. **The way back is
@@ -278,7 +305,12 @@ should say `written 1`, and a push that says `written 188` means something rebui
 would bury the three that did change. `deleted` and `failed` are always named in full.
 
 **A non-empty `failed` makes the response a 500** even though everything else applied, which is
-deliberate — a partial push is not a successful one.
+deliberate — a partial push is not a successful one. **It also mirrors nothing**: deleting the old
+tree's leftovers around a write that did not land would leave the server with neither version.
+
+**Only a root the push carries is mirrored.** A payload with no file under `phpanta/` leaves the
+server's `phpanta/` exactly as it is, rather than reading the absence as "delete all of it". Both
+decisions appear in the report as `note:` lines, so a dry run shows them before anything happens.
 
 #### The `.nfsXXXXXXXX` files, if you ever see one
 

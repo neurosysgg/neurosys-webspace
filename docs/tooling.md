@@ -27,7 +27,7 @@ tools/
     ├── Api/              ← the calling side: PrivateKey (the only signer in this repository),
     │                       SignedCredential, SignedRequest — one signed call, built out of the
     │                       site's own SitePath, AuthScheme and ApiAction rather than a copy
-    ├── Cli/              ← Command, Option, Input, Output, ExitCode, UsageException, Runner
+    ├── Cli/              ← Command, Option, Arity, Input, Output, ExitCode, UsageException, Runner
     ├── Command/          ← the seven commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share
     ├── Demo/             ← what puts unreleased work behind a password: Password, DemoSource,

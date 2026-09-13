@@ -7,11 +7,17 @@ namespace NeuroSYS\Service;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Site;
 use Phpanta\Http\ServerVariable;
+use Phpanta\Support\BareString;
 use Phpanta\Support\File;
 
 /**
  * The DownloadLogger class. Appends a JSON log entry to the downloads log for each download.
  */
+#[BareString(
+    'c',
+    'date()\'s ISO 8601 format character. FileLock writes the same letter as fopen()\'s mode, which '
+    . 'is a coincidence of one letter across two unrelated vocabularies rather than a shared name.',
+)]
 class DownloadLogger
 {
     private File $logFile;

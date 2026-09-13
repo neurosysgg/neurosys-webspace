@@ -477,6 +477,35 @@ final class AppTest extends TestCase
     }
 
     /**
+     * A `DOCUMENT_ROOT` ending in `.` or `..` is refused rather than grafted.
+     *
+     * Both satisfy containment, which reasons about the parent — and `…/deployment/.` *is* the
+     * deployment, the one webroot a push's mirror must never be pointed at.
+     *
+     * @param string $suffix
+     * @return void
+     */
+    #[DataProvider('dotSegmentDocumentRootProvider')]
+    public function testADocumentRootEndingInADotSegmentIsRefused(string $suffix): void
+    {
+        $this->expectException(UpdateException::class);
+        $this->expectExceptionMessage('ends in a dot segment');
+
+        self::withDocumentRoot(NEUROSYS_ROOT . $suffix, static fn(): string => Site::current()->webroot()->path);
+    }
+
+    /**
+     * @return iterable
+     */
+    public static function dotSegmentDocumentRootProvider(): iterable
+    {
+        yield 'the deployment itself'     => ['/.'];
+        yield 'with a trailing slash'     => ['/./'];
+        yield 'the directory above it'    => ['/..'];
+        yield 'the webroot, then back up' => ['/public/..'];
+    }
+
+    /**
      * The replay serial sits above the webroot, in neither tree a push mirrors and in no rsync.
      *
      * @return void

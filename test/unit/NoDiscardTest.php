@@ -39,11 +39,12 @@ use ReflectionMethod;
  * `require*` methods are only the challenge wrapped around them.
  *
  * `ApiGate::accepts()` is a fourth of that kind and the strictest: it is the whole of the
- * decision that lets a request overwrite `src/` and the webroot. `ApiGate::accept()` beside it
- * is not a decision but a *record* — dropping its result leaves the accepted serial unwritten, so
- * the payload just applied can be replayed. `UpdateApplier::apply()` and the six on `UpdateReport`
- * are the ordinary kind: copy-returning builders and the rendered result, where a dropped call
- * writes nothing into the only account of the run that exists.
+ * decision that lets a request overwrite `src/` and the webroot. `ApiGate::spend()` beside it
+ * is not a decision but a *record* and a lock — the lock it hands back is released the moment it
+ * is dropped, and a dropped refusal is a write run that the gate refused. `FileLock::exclusive()`
+ * is the same lock one level down. `UpdateApplier::apply()` and the ones on `UpdateReport` are the
+ * ordinary kind: copy-returning builders and the rendered result, where a dropped call writes
+ * nothing into the only account of the run that exists.
  *
  * The one on `Route` is the *method* gate rather than a credential gate. Each route answers for
  * itself, so a discarded `accepts()` is a POST reaching a controller that only reads — nothing
@@ -94,11 +95,12 @@ final class NoDiscardTest extends TestCase
                 'Phpanta\Model\Update\UpdateReport::failed',
                 'Phpanta\Model\Update\UpdateReport::isComplete',
                 'Phpanta\Model\Update\UpdateReport::kept',
+                'Phpanta\Model\Update\UpdateReport::noted',
                 'Phpanta\Model\Update\UpdateReport::removed',
                 'Phpanta\Model\Update\UpdateReport::render',
                 'Phpanta\Model\Update\UpdateReport::wrote',
-                'Phpanta\Service\ApiGate::accept',
                 'Phpanta\Service\ApiGate::accepts',
+                'Phpanta\Service\ApiGate::spend',
                 'Phpanta\Service\Auth::accepts',
                 'Phpanta\Service\UpdateApplier::apply',
                 'Phpanta\Support\Collection::first',
@@ -113,6 +115,7 @@ final class NoDiscardTest extends TestCase
                 'Phpanta\Support\Collection::unique',
                 'Phpanta\Support\Collection::where',
                 'Phpanta\Support\Collection::with',
+                'Phpanta\Support\FileLock::exclusive',
                 'Phpanta\Support\Route::accepts',
                 'Phpanta\Support\SearchableCollection::first',
                 'Phpanta\Support\SearchableCollection::isEmpty',

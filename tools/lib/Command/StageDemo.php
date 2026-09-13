@@ -17,6 +17,7 @@ use NeuroSYS\Tool\Demo\WaveformScan;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use Phpanta\Support\Directory;
+use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Input;
@@ -83,13 +84,24 @@ final readonly class StageDemo implements Command
     }
 
     /**
+     * Any number, because what they are depends on the mode — files to stage, slugs for
+     * `--waveforms`, none for `--rotate` — and {@link self::run()} holds each mode to its own.
+     *
+     * @return Arity
+     */
+    public function operands(): Arity
+    {
+        return Arity::atLeast(0);
+    }
+
+    /**
      * @param Input  $input
      * @param Output $output
      * @return ExitCode
      */
     public function run(Input $input, Output $output): ExitCode
     {
-        $paths    = self::operands($input);
+        $paths    = self::mixes($input);
         $rotating = $input->has(StageDemoOption::Rotate);
 
         // **Dispatched on the flags, and never on how many operands came with them.** Dispatched on
@@ -388,7 +400,7 @@ final readonly class StageDemo implements Command
      * @param Input $input
      * @return list<string>
      */
-    private static function operands(Input $input): array
+    private static function mixes(Input $input): array
     {
         $paths = [];
 

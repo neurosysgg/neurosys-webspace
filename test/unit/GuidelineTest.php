@@ -262,7 +262,7 @@ final class GuidelineTest extends TestCase
      *   {@link \Phpanta\Http\Location}, where the argument is made and can be re-read.
      * - **Someone else's vocabulary.** `int` and `string` are `get_debug_type()`'s spellings, in a
      *   class-string's place; `time` is a JSON key on one side of the pair and a caption on the
-     *   other.
+     *   other; `c` is `date()`'s ISO 8601 format on one side and `fopen()`'s mode on the other.
      *
      * @return void
      */
@@ -273,12 +273,14 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Model\DemoTrack %d:%02d',
                 'NeuroSYS\Model\Production\Section %d:%02d',
                 'NeuroSYS\Model\Profile #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
+                'NeuroSYS\Service\DownloadLogger c',
                 'NeuroSYS\Service\DownloadStats int',
                 'NeuroSYS\View\Terminal\TerminalCommand string',
                 'Phpanta\Http\Location #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
                 'Phpanta\Model\Health\HealthSection string',
                 'Phpanta\Model\Update\UpdateReport string',
                 'Phpanta\Support\Diagnostics string',
+                'Phpanta\Support\FileLock c',
                 'Phpanta\Support\Route string',
                 'Phpanta\Support\TypedItems int',
                 'Phpanta\Support\TypedItems string',

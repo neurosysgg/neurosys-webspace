@@ -24,6 +24,7 @@ use NeuroSYS\Tool\SoundCloud\TokenStore;
 use NeuroSYS\Tool\SoundCloud\TrackUpload;
 use NeuroSYS\Tool\SoundCloud\UploadedTrack;
 use Phpanta\Support\File;
+use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Input;
@@ -112,6 +113,17 @@ final readonly class ReleaseTrack implements Command
     public function options(): array
     {
         return ReleaseTrackOption::cases();
+    }
+
+    /**
+     * The release folder — or nothing, for `--authorize`, which is about the account rather than a
+     * release. A missing folder without it is {@link FolderReport}'s to say.
+     *
+     * @return Arity
+     */
+    public function operands(): Arity
+    {
+        return Arity::between(0, 1);
     }
 
     /**

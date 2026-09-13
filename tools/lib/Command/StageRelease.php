@@ -9,6 +9,7 @@ use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Fact;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Input;
@@ -62,6 +63,16 @@ final readonly class StageRelease implements Command
     public function options(): array
     {
         return StageReleaseOption::cases();
+    }
+
+    /**
+     * The release folder.
+     *
+     * @return Arity
+     */
+    public function operands(): Arity
+    {
+        return Arity::exactly(1);
     }
 
     /**

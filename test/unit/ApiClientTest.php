@@ -265,10 +265,26 @@ final class ApiClientTest extends TestCase
      */
     public function testAnUnusableKeyIsRefusedWithARecipe(): void
     {
-        self::assertTrue($this->keyFile->write('not a key'));
+        self::assertTrue($this->keyFile->write('not a key', 0o600));
 
         $this->expectException(\Phpanta\Tool\Cli\UsageException::class);
         $this->expectExceptionMessageMatches('/not a readable PEM private key/');
+
+        PrivateKey::fromFile($this->keyFile);
+    }
+
+    /**
+     * A key other users can read is refused before it signs anything, the way ssh refuses an
+     * unprotected identity.
+     *
+     * @return void
+     */
+    public function testAKeyOtherUsersCanReadIsRefused(): void
+    {
+        self::assertTrue($this->keyFile->write((string) $this->keyFile->read(), 0o644));
+
+        $this->expectException(\Phpanta\Tool\Cli\UsageException::class);
+        $this->expectExceptionMessageMatches('/can be read by other users \(mode 644\)/');
 
         PrivateKey::fromFile($this->keyFile);
     }

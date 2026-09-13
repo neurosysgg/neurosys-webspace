@@ -23,6 +23,7 @@ use Phpanta\Http\Request;
 use Phpanta\Http\ViewResponse;
 use Phpanta\Model\Api\ApiCredential;
 use Phpanta\Model\Api\ApiEnvelope;
+use Phpanta\Model\Api\SerialRefusal;
 use Phpanta\Model\Api\VerifiedRequest;
 use Phpanta\Model\Update\Deployment;
 use Phpanta\Router;
@@ -34,6 +35,7 @@ use Phpanta\Service\UpdateApplier;
 use Phpanta\Support\ApiPath;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Support\FileLock;
 use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\PublicKey;
 use Phpanta\Support\RequirementInitialization;
@@ -84,6 +86,8 @@ use stdClass;
 #[CoversClass(UpdateVersion::class)]
 #[CoversClass(Allow::class)]
 #[CoversClass(PublicKey::class)]
+#[CoversClass(FileLock::class)]
+#[CoversClass(SerialRefusal::class)]
 final class ApiTest extends TestCase
 {
     private const string PATCH      = '/api/update/v1/patch';
@@ -504,13 +508,71 @@ final class ApiTest extends TestCase
     public function testASerialIsAcceptedOnlyOnce(): void
     {
         $serial = time();
-        self::assertTrue($this->gate()->accept($serial));
+        $spent  = $this->gate()->spend($serial);
+        self::assertInstanceOf(FileLock::class, $spent);
+        $spent->release();
 
         self::assertNull($this->verdict(self::VERSION, HttpMethod::Get, '', serial: $serial));
         self::assertNull($this->verdict(self::VERSION, HttpMethod::Get, '', serial: $serial - 1));
         self::assertInstanceOf(
             VerifiedRequest::class,
             $this->verdict(self::VERSION, HttpMethod::Get, '', serial: $serial + 1),
+        );
+    }
+
+    /**
+     * A write that arrives while another holds the lock runs nothing, spends nothing, and says so.
+     *
+     * Two writes in flight at once would each write and mirror over the other — deleting the files
+     * the other had just written — so the second is refused rather than queued. Past the signature,
+     * so the refusal is a sentence rather than the decoy.
+     *
+     * @return void
+     */
+    public function testAWriteWhileAnotherHoldsTheLockIsRefused(): void
+    {
+        $held = FileLock::exclusive(new File($this->serialFile->path . '.lock'));
+        self::assertInstanceOf(FileLock::class, $held);
+
+        try {
+            $response = $this->respond(
+                self::PATCH,
+                HttpMethod::Post,
+                UpdateFixture::archive(['public/written.txt' => 'x']),
+            );
+
+            self::assertSame(HttpStatusCode::Conflict, self::statusOf($response));
+            self::assertStringContainsString('another write is in progress', self::bodyOf($response));
+            self::assertNull($this->serialFile->read(), 'a refused write spent its serial');
+            self::assertNull(new File($this->sandbox . '/public/written.txt')->read(), 'a refused write wrote');
+        } finally {
+            $held->release();
+        }
+    }
+
+    /**
+     * A serial overtaken between the gate's first look and the lock is refused under the lock.
+     *
+     * The check that keeps two overlapping writes from moving the record *backwards*: without it,
+     * both pass the gate, the older one's record lands last, and the newer credential can be
+     * replayed until its serial goes stale.
+     *
+     * @return void
+     */
+    public function testASerialOvertakenBeforeTheLockIsRefused(): void
+    {
+        $serial = time();
+        $gate   = $this->gate();
+
+        $newer = $gate->spend($serial + 1);
+        self::assertInstanceOf(FileLock::class, $newer);
+        $newer->release();
+
+        self::assertSame(SerialRefusal::Stale, $gate->spend($serial));
+        self::assertSame(
+            $serial + 1,
+            (int) trim((string) $this->serialFile->read()),
+            'the record moved backwards',
         );
     }
 
@@ -815,6 +877,25 @@ final class ApiTest extends TestCase
         self::assertIsArray($details);
 
         $this->expectException(\Phpanta\Exception\UpdateException::class);
+        PublicKey::fromPem((string) $details['key']);
+    }
+
+    /**
+     * An EC key on another curve is refused too: P-384 verifies a SHA-256 signature just as happily,
+     * so accepting it would widen the algorithm without anybody having decided to.
+     *
+     * @return void
+     */
+    public function testAnEcKeyOnAnotherCurveIsRefused(): void
+    {
+        $p384 = openssl_pkey_new(['private_key_type' => OPENSSL_KEYTYPE_EC, 'curve_name' => 'secp384r1']);
+        self::assertNotFalse($p384);
+
+        $details = openssl_pkey_get_details($p384);
+        self::assertIsArray($details);
+
+        $this->expectException(\Phpanta\Exception\UpdateException::class);
+        $this->expectExceptionMessage('not P-256');
         PublicKey::fromPem((string) $details['key']);
     }
 

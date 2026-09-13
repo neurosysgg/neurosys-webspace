@@ -7,6 +7,8 @@ namespace NeuroSYS\Test\Unit;
 use NeuroSYS\Tool\Command\ReleaseTrack;
 use NeuroSYS\Tool\Command\StageRelease;
 use NeuroSYS\Tool\Command\StageReleaseOption;
+use Phpanta\Support\Directory;
+use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Input;
@@ -16,6 +18,7 @@ use Phpanta\Tool\Cli\Runner;
 use Phpanta\Tool\Cli\UsageException;
 use Phpanta\Tool\Command\MergeCoverage;
 use Phpanta\Tool\Command\MergeCoverageOption;
+use Phpanta\Tool\Command\PushUpdate;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
@@ -25,7 +28,8 @@ use ReflectionProperty;
  *
  * Argument parsing is the part worth pinning, because its failure is silent: a flag the parser
  * does not recognise, dropped rather than refused, means a mistyped `--clover` reports success and
- * writes no report. See docs/history/tooling.md.
+ * writes no report — and a word it does not recognise, taken as an operand nobody reads, meant
+ * `push-update -n` was a real push. See docs/history/tooling.md.
  */
 final class CliTest extends TestCase
 {
@@ -35,11 +39,17 @@ final class CliTest extends TestCase
      * Anonymous, for two reasons: the real commands are `final`, as they should be, and `phpcs`
      * holds this file to one named class.
      *
+     * @param Arity|null $operands How many operands it takes; any number by default.
      * @return Command
      */
-    private function command(): Command
+    private function command(?Arity $operands = null): Command
     {
-        return new class () implements Command {
+        return new readonly class ($operands ?? Arity::atLeast(0)) implements Command {
+            /**
+             * @param Arity $arity
+             */
+            public function __construct(private Arity $arity) {}
+
             /**
              * @return string
              */
@@ -70,6 +80,14 @@ final class CliTest extends TestCase
             public function options(): array
             {
                 return [...StageReleaseOption::cases(), ...MergeCoverageOption::cases()];
+            }
+
+            /**
+             * @return Arity
+             */
+            public function operands(): Arity
+            {
+                return $this->arity;
             }
 
             /**
@@ -108,6 +126,20 @@ final class CliTest extends TestCase
         $this->assertNull($given->value(StageReleaseOption::Check));
 
         $this->assertFalse(Input::parse(['x'], $this->command())->has(StageReleaseOption::Check));
+    }
+
+    /**
+     * `--check=no` reads as a check switched off and would be one switched on, so a flag that takes
+     * no value refuses one rather than guessing.
+     *
+     * @return void
+     */
+    public function testABooleanFlagGivenAValueIsRefused(): void
+    {
+        $this->expectException(UsageException::class);
+        $this->expectExceptionMessage("option '--check' takes no value");
+
+        Input::parse(['x', '--check=no'], $this->command());
     }
 
     /**
@@ -167,6 +199,101 @@ final class CliTest extends TestCase
         $this->expectExceptionMessage("unknown option '--clovr'");
 
         Input::parse(['x', '--clovr', 'c.xml'], $this->command());
+    }
+
+    /**
+     * A short option is refused, not taken as an operand — which is what made `push-update -n` a
+     * real push.
+     *
+     * @return void
+     */
+    public function testAShortOptionIsRefused(): void
+    {
+        $this->expectException(UsageException::class);
+        $this->expectExceptionMessage("unknown option '-n'");
+
+        Input::parse(['-n'], $this->command());
+    }
+
+    /**
+     * `--` ends the options, so what follows is an operand however it is spelled; a lone `-` is one
+     * anyway.
+     *
+     * @return void
+     */
+    public function testADoubleDashEndsTheOptions(): void
+    {
+        $input = Input::parse(['-', '--', '-n', '--check'], $this->command());
+
+        $this->assertSame(['-', '-n', '--check'], [$input->operand(0), $input->operand(1), $input->operand(2)]);
+        $this->assertFalse($input->has(StageReleaseOption::Check));
+    }
+
+    /**
+     * The whole point of `Command::operands()`, in both directions.
+     *
+     * @param Arity $arity
+     * @param list<string> $arguments
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('refusedOperandsProvider')]
+    public function testOperandsTheCommandDoesNotTakeAreRefused(Arity $arity, array $arguments, string $expected): void
+    {
+        $this->expectException(UsageException::class);
+        $this->expectExceptionMessage($expected);
+
+        Input::parse($arguments, $this->command($arity));
+    }
+
+    /**
+     * @return iterable<string, array{Arity, list<string>, string}>
+     */
+    public static function refusedOperandsProvider(): iterable
+    {
+        yield 'one where none is taken'   => [Arity::none(), ['dry-run'], 'takes no operands, and 1 was given'];
+        yield 'none where one is needed'  => [Arity::exactly(1), [], 'takes exactly 1 operand, and 0 were given'];
+        yield 'too few'                   => [Arity::atLeast(2), ['a'], 'takes at least 2 operands, and 1 was given'];
+        yield 'too many'                  => [
+            Arity::between(0, 1),
+            ['a', 'b'],
+            'takes 0 to 1 operands, and 2 were given',
+        ];
+    }
+
+    /**
+     * The motivating case, end to end: a word `push-update` does not take is a usage error before the
+     * command so much as looks for a build — and so before anything is signed or sent.
+     *
+     * @param string $argument
+     * @param string $expected
+     * @return void
+     */
+    #[DataProvider('mistypedDryRunProvider')]
+    public function testAMistypedDryRunIsAUsageErrorNotAPush(string $argument, string $expected): void
+    {
+        $error = fopen('php://memory', 'rw+');
+
+        $code = Runner::execute(
+            new PushUpdate(new Directory('/nonexistent'), 'https://example.test', '.config/example/update.key'),
+            [$argument],
+            new Output(fopen('php://memory', 'rw+'), $error),
+        );
+
+        rewind($error);
+
+        $this->assertSame(ExitCode::Usage, $code);
+        $this->assertStringContainsString($expected, (string) stream_get_contents($error));
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function mistypedDryRunProvider(): iterable
+    {
+        yield 'a short flag'     => ['-n', "unknown option '-n'"];
+        yield 'a bare word'      => ['dry-run', 'takes no operands'];
+        yield 'a value it takes no value for' => ['--dry-run=no', "option '--dry-run' takes no value"];
     }
 
     /**
@@ -243,8 +370,7 @@ final class CliTest extends TestCase
     }
 
     /**
-     * A missing operand is the command's own judgement, not a parse failure, but it reads the same
-     * way to whoever typed it.
+     * A missing operand reads as a usage error to whoever typed it.
      *
      * @return void
      */
@@ -326,7 +452,8 @@ final class CliTest extends TestCase
     }
 
     /**
-     * Every command says the same four things about itself, which is what `Runner` renders.
+     * Every command says the same five things about itself, which is what `Runner` renders and
+     * `Input` checks against.
      *
      * @param Command $command
      * @return void
@@ -338,6 +465,7 @@ final class CliTest extends TestCase
         $this->assertNotSame('', $command->usage());
         $this->assertStringEndsWith('.', $command->description());
         $this->assertStringContainsString($command->usage(), Runner::usage($command));
+        $this->assertInstanceOf(Arity::class, $command->operands());
     }
 
     /**
