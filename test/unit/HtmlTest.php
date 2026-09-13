@@ -1427,6 +1427,8 @@ final class HtmlTest extends TestCase
         yield 'a page'        => ['/imprint'];
         yield 'a download'    => ['/releases/ill/flac'];
         yield 'an asset'      => ['/assets/css/style.css'];
+        yield 'an anchor'     => ['#five-habits'];
+        yield 'an anchor on another page' => ['/rules#five-habits'];
         yield 'mailto'        => ['mailto:neuro.sys@neurosys.gg'];
         yield 'the file host' => ['https://my.hidrive.com/api/sharelink/download?id=BXRsy9S7d'];
     }
