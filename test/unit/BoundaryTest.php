@@ -35,13 +35,7 @@ final class BoundaryTest extends TestCase
      *
      * @var list<string>
      */
-    private const array STILL_REACHING = [
-        'src/NeuroSYS/Http/Api/HealthAction.php → NeuroSYS\\Support\\RequirementInitialization',
-        'src/NeuroSYS/Http/SecurityHeaders.php → NeuroSYS\\Site',
-        'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Model\\Demo',
-        'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Site',
-        'src/NeuroSYS/Support/PasswordHash.php → NeuroSYS\\Exception\\ReleaseVerificationException',
-    ];
+    private const array STILL_REACHING = [];
 
     /**
      * Every file on the list exists, and every one of them names a class the autoloader can load.

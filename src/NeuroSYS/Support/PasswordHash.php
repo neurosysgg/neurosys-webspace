@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Support;
 
-use NeuroSYS\Exception\ReleaseVerificationException;
+use NeuroSYS\Exception\InvalidValueException;
 
 /**
  * The PasswordHash class. A bcrypt digest, checked to be one.
@@ -32,7 +32,7 @@ final readonly class PasswordHash
      *
      * @param string $digest A bcrypt digest — `$2y$…`, as `password_hash()` returns it.
      *
-     * @throws ReleaseVerificationException if $digest is not a bcrypt hash.
+     * @throws InvalidValueException if $digest is not a bcrypt hash.
      */
     public function __construct(private string $digest)
     {
@@ -51,7 +51,7 @@ final readonly class PasswordHash
      * @param string $digest
      * @return self|null
      *
-     * @throws ReleaseVerificationException if $digest is neither empty nor a bcrypt hash.
+     * @throws InvalidValueException if $digest is neither empty nor a bcrypt hash.
      */
     public static function configured(string $digest): ?self
     {
@@ -113,12 +113,12 @@ final readonly class PasswordHash
     /**
      *
      * @return void
-     * @throws ReleaseVerificationException
+     * @throws InvalidValueException
      */
     private function verify(): void
     {
         if (password_get_info($this->digest)['algo'] !== PASSWORD_BCRYPT) {
-            throw new ReleaseVerificationException(sprintf(
+            throw new InvalidValueException(sprintf(
                 "PasswordHash must be a bcrypt digest, got '%s'. "
                 . 'Mint one with: php -r "echo password_hash(\'…\', PASSWORD_BCRYPT);" — '
                 . 'and note a digest that is not one verifies as false against every password, '

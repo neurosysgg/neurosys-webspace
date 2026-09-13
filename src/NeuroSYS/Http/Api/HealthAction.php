@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http\Api;
 
+use NeuroSYS\App;
 use NeuroSYS\Http\HttpMethod;
 use NeuroSYS\Model\Api\VerifiedRequest;
 use NeuroSYS\Model\Health\Area;
 use NeuroSYS\Service\Api\HealthCheck;
-use NeuroSYS\Support\RequirementInitialization;
 
 /**
  * The HealthAction enum. What the `health` service can be asked to check.
@@ -76,6 +76,6 @@ enum HealthAction: string implements ApiAction
      */
     public function handler(VerifiedRequest $verified): ApiHandler
     {
-        return new HealthCheck(RequirementInitialization::requirements(), $this->area());
+        return new HealthCheck(App::current()->requirements(), $this->area());
     }
 }

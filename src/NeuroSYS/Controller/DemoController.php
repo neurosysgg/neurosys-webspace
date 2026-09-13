@@ -11,7 +11,7 @@ use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\ViewResponse;
-use NeuroSYS\Service\Auth;
+use NeuroSYS\Service\DemoGate;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Service\WaveformRepository;
 use NeuroSYS\Support\Collection;
@@ -22,7 +22,7 @@ use NeuroSYS\View\DemoView;
  *
  * **There is no not-found branch here**, and its absence is the design rather than an omission.
  * Every other controller answers an unknown slug with a 404; this one hands the null straight to
- * {@link Auth::requireDemoAuth()}, which refuses it identically to a wrong password. A 404 for a
+ * {@link DemoGate::requireAuth()}, which refuses it identically to a wrong password. A 404 for a
  * slug that names nothing and a 401 for one that names something is a catalogue of unreleased
  * tracks, readable one guess at a time — see that method for the rest of the reasoning, including
  * why the timing is levelled too.
@@ -51,7 +51,7 @@ readonly class DemoController implements Controller
      */
     public function handle(Request $request): Response
     {
-        $demo = Auth::requireDemoAuth(
+        $demo = DemoGate::requireAuth(
             $request,
             $this->slug,
             ($this->demos ?? new DemoRepository())->find($this->slug),

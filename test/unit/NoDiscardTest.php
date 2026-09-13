@@ -34,7 +34,7 @@ use ReflectionMethod;
  * no door and no variadic behind it — and once it is a collection it belongs here, on the same
  * terms as everything else that answers with one.
  *
- * `Auth::accepts()`, `Auth::admits()` and `Route::accepts()` are the three members that are not
+ * `Auth::accepts()`, `DemoGate::admits()` and `Route::accepts()` are the three members that are not
  * builders, and they are the ones where dropping the result is not merely useless but unsafe: each
  * is a gate's entire decision. The two on `Auth` are two rather than one because the credential
  * comes from two different places — a `data/` file for the site and admin gates, a
@@ -102,7 +102,7 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\Service\ApiGate::accept',
                 'NeuroSYS\Service\ApiGate::accepts',
                 'NeuroSYS\Service\Auth::accepts',
-                'NeuroSYS\Service\Auth::admits',
+                'NeuroSYS\Service\DemoGate::admits',
                 'NeuroSYS\Service\UpdateApplier::apply',
                 'NeuroSYS\Support\Collection::first',
                 'NeuroSYS\Support\Collection::isEmpty',

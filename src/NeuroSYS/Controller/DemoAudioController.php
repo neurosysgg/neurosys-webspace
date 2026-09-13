@@ -13,7 +13,7 @@ use NeuroSYS\Http\Response;
 use NeuroSYS\Http\ResponseHeader;
 use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\ViewResponse;
-use NeuroSYS\Service\Auth;
+use NeuroSYS\Service\DemoGate;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
@@ -57,7 +57,7 @@ readonly class DemoAudioController implements Controller
      */
     public function handle(Request $request): Response
     {
-        $demo = Auth::requireDemoAuth(
+        $demo = DemoGate::requireAuth(
             $request,
             $this->slug,
             ($this->demos ?? new DemoRepository())->find($this->slug),

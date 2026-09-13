@@ -9,6 +9,7 @@ src/NeuroSYS/Exception/AppException.php
 src/NeuroSYS/Exception/CollectionException.php
 src/NeuroSYS/Exception/ElementException.php
 src/NeuroSYS/Exception/GuidelineException.php
+src/NeuroSYS/Exception/InvalidValueException.php
 src/NeuroSYS/Exception/MarkupException.php
 src/NeuroSYS/Exception/MimeTypeException.php
 src/NeuroSYS/Exception/ParserException.php
@@ -132,6 +133,7 @@ src/NeuroSYS/Support/MethodPolicy.php
 src/NeuroSYS/Support/PasswordHash.php
 src/NeuroSYS/Support/Path.php
 src/NeuroSYS/Support/PublicKey.php
+src/NeuroSYS/Support/RequirementInitialization.php
 src/NeuroSYS/Support/Route.php
 src/NeuroSYS/Support/SearchableCollection.php
 src/NeuroSYS/Support/TarArchive.php

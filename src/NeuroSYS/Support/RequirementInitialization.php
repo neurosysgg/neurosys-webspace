@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Support;
 
+use NeuroSYS\App;
 use NeuroSYS\DataFileName;
 use NeuroSYS\Model\Health\ByteFloor;
 use NeuroSYS\Model\Health\ExtensionRequirement;
@@ -19,14 +20,14 @@ use NeuroSYS\Service\ApiGate;
 use NeuroSYS\Service\Health\DataFileRequirement;
 use NeuroSYS\Service\Health\LogDirectoryRequirement;
 use NeuroSYS\Service\Health\WebrootRequirement;
-use NeuroSYS\Site;
 
 /**
  * Builds and returns what this installation needs of its host — everything `health v1` checks.
  *
- * **The one place a requirement is declared, and the place to add one.** {@link RouteInitialization}
- * is the route table; this is the requirement table, and it is written in the same place for the
- * same reason: it is code, it ships with the code — `src/` is in every push, `data/` is in none —
+ * **The framework's floor, and the one place it is declared.** A site adds its own requirements in
+ * {@link \NeuroSYS\App::ownRequirements()}, and {@link \NeuroSYS\App::requirements()} puts the
+ * two together. Both are code for the same reason: code ships with the code — `src/` is in every
+ * push, `data/` is in none —
  * and a requirement exists because some code needs it, so the two have to arrive together. A floor
  * declared in a data file would reach the server only with `deploy.sh`, and could be in force a week
  * before or after the code that set it.
@@ -96,11 +97,11 @@ final class RequirementInitialization
                 new SettingRequirement(PhpSetting::RegisterArgcArgv->value, Toggle::Off, Level::Optional),
             )
             ->with(new WebrootRequirement())
-            ->with(...Site::current()->dataFiles()
+            ->with(...App::current()->dataFiles()
                 ->where(static fn(DataFileName $file): bool => $file->isTracked())
                 ->map(static fn(DataFileName $file): Requirement => new DataFileRequirement($file))
                 ->toValues())
             // Optional: without it the site is correct and its diagnostics go where nobody reads.
-            ->with(new LogDirectoryRequirement(Site::current()->logs()));
+            ->with(new LogDirectoryRequirement(App::current()->logs()));
     }
 }

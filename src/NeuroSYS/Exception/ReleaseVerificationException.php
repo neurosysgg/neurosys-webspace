@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Exception;
 
-use LogicException;
-
 /**
  * The ReleaseVerificationException class. Thrown when a value object is constructed with data it
  * cannot accept — a {@link \NeuroSYS\Model\Release} or one of the parts it is built from, and
@@ -15,7 +13,8 @@ use LogicException;
  * malformed profile URL stops the request there, with the offending value in the message, instead
  * of reaching a page and failing as a broken link nobody clicks.
  *
- * **Extends `LogicException`, and that is the classification rather than a detail.** Nothing on
+ * **A `LogicException`, by way of {@link InvalidValueException} — the framework's refusal of a value,
+ * of which this is the site's kind — and that is the classification rather than a detail.** Nothing on
  * this site recovers from it and nothing should try: this is not a condition a caller acts on, it is
  * "something in this repository is written wrong, go and fix it" — which is what SPL's
  * `LogicException` means. Saying it in the type rather than only the prose also settles a question
@@ -27,6 +26,6 @@ use LogicException;
  * reads as: it recovers nothing, it turns what would have been a PHP fatal into a 500 with an empty
  * body and a line in the log. See {@link SiteException}.
  */
-class ReleaseVerificationException extends LogicException implements SiteException
+class ReleaseVerificationException extends InvalidValueException
 {
 }

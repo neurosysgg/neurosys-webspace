@@ -7,6 +7,9 @@ namespace NeuroSYS;
 use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
+use NeuroSYS\Http\Security\CspDirective;
+use NeuroSYS\Http\Security\CspHost;
+use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Model\Embed\EmbedAttribute;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Support\Collection;
@@ -72,7 +75,7 @@ final class Site extends App
      * `virtual-riot-were-not-alone-neuro-sys-bootleg` from an address bar. It is not a secret and
      * is not meant to be — the password is the whole credential. What keeps one demo's saved
      * credentials from being offered for another is the **realm**, which
-     * {@link Service\Auth::requireDemoAuth()} builds per slug.
+     * {@link Service\DemoGate::requireAuth()} builds per slug.
      */
     public const string DEMO_USER = 'demo';
 
@@ -191,6 +194,23 @@ final class Site extends App
                 TerminalAttribute::class,
                 WaveformAttribute::class,
             );
+    }
+
+    /**
+     * The two third-party origins the site loads from: covers from the file host, and the player's
+     * iframe from SoundCloud's widget host. Each is also read by the code that builds its URLs,
+     * which is why they are constants above rather than written out here.
+     *
+     * @param CspDirective $directive
+     * @return Collection<CspSource>
+     */
+    public function contentHosts(CspDirective $directive): Collection
+    {
+        return new Collection(CspSource::class)->with(...match ($directive) {
+            CspDirective::ImgSrc   => [new CspHost(self::FILE_HOST)],
+            CspDirective::FrameSrc => [new CspHost(self::PLAYER_HOST)],
+            default                => [],
+        });
     }
 
     /**

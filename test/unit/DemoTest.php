@@ -6,6 +6,7 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Controller\DemoAudioController;
 use NeuroSYS\Controller\DemoController;
+use NeuroSYS\Exception\InvalidValueException;
 use NeuroSYS\Exception\MimeTypeException;
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Exception\SecurityPolicyException;
@@ -24,7 +25,7 @@ use NeuroSYS\Http\RobotsPolicy;
 use NeuroSYS\Http\ViewResponse;
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\DemoTrack;
-use NeuroSYS\Service\Auth;
+use NeuroSYS\Service\DemoGate;
 use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
@@ -202,7 +203,7 @@ final class DemoTest extends TestCase
     #[DataProvider('nonDigestProvider')]
     public function testSomethingThatIsNotABcryptDigestIsRefusedWhereItIsWritten(string $digest): void
     {
-        $this->expectException(ReleaseVerificationException::class);
+        $this->expectException(InvalidValueException::class);
 
         new PasswordHash($digest);
     }
@@ -428,14 +429,14 @@ final class DemoTest extends TestCase
     {
         $demo = self::demo();
 
-        self::assertTrue(Auth::admits(self::request(), $demo));
-        self::assertFalse(Auth::admits(self::request(password: 'wrong'), $demo));
-        self::assertFalse(Auth::admits(self::request(password: ''), $demo));
+        self::assertTrue(DemoGate::admits(self::request(), $demo));
+        self::assertFalse(DemoGate::admits(self::request(password: 'wrong'), $demo));
+        self::assertFalse(DemoGate::admits(self::request(password: ''), $demo));
 
         // The user name is fixed and public; it is still compared, so a request that omits it is
         // refused even carrying the right password.
-        self::assertFalse(Auth::admits(self::request(user: 'admin'), $demo));
-        self::assertFalse(Auth::admits(self::request(user: ''), $demo));
+        self::assertFalse(DemoGate::admits(self::request(user: 'admin'), $demo));
+        self::assertFalse(DemoGate::admits(self::request(user: ''), $demo));
     }
 
     /**
@@ -452,8 +453,8 @@ final class DemoTest extends TestCase
             tracks:   new Collection(DemoTrack::class)->with(new DemoTrack('v4', 'v4.mp3', 157)),
         );
 
-        self::assertTrue(Auth::admits(self::request(), self::demo()));
-        self::assertFalse(Auth::admits(self::request(), $other));
+        self::assertTrue(DemoGate::admits(self::request(), self::demo()));
+        self::assertFalse(DemoGate::admits(self::request(), $other));
     }
 
     /**
@@ -472,7 +473,7 @@ final class DemoTest extends TestCase
      * A slug is encoded on the way into the realm, because a slug is what a visitor writes.
      *
      * An unknown demo is challenged exactly like a known one — that is the whole point of
-     * {@link Auth::requireDemoAuth()} taking a nullable `Demo` — so **any** `/demos/…` target
+     * {@link DemoGate::requireAuth()} taking a nullable `Demo` — so **any** `/demos/…` target
      * reaches this, including one carrying bytes no route was meant to claim. `Request::path()`
      * hands a target the URI parser refused through with only its query and fragment cut, and
      * `{slug}` matches anything, so `a"b` arrives here — and concatenated into a quoted-string it
@@ -498,7 +499,7 @@ final class DemoTest extends TestCase
         // And the challenge still renders, which is the property the encoding exists to keep.
         self::assertSame(
             'Basic realm="neuro.SYS demo: a%22b"',
-            new ReflectionMethod(Auth::class, 'demoRealm')->invoke(null, 'a"b')->render(),
+            new ReflectionMethod(DemoGate::class, 'realm')->invoke(null, 'a"b')->render(),
         );
     }
 
@@ -511,7 +512,7 @@ final class DemoTest extends TestCase
     private static function demoRealmOf(string $slug): string
     {
         return new ReflectionProperty(\NeuroSYS\Http\BasicChallenge::class, 'realm')->getValue(
-            new ReflectionMethod(Auth::class, 'demoRealm')->invoke(null, $slug),
+            new ReflectionMethod(DemoGate::class, 'realm')->invoke(null, $slug),
         );
     }
 

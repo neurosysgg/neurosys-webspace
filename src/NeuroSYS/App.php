@@ -10,8 +10,11 @@ use NeuroSYS\Exception\AppException;
 use NeuroSYS\Exception\UpdateException;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
+use NeuroSYS\Http\Security\CspDirective;
+use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Http\SecurityHeaders;
 use NeuroSYS\Http\ServerVariable;
+use NeuroSYS\Model\Health\Requirement;
 use NeuroSYS\Service\Auth;
 use NeuroSYS\Support\ApiPath;
 use NeuroSYS\Support\Collection;
@@ -19,6 +22,7 @@ use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\ErrorLog;
 use NeuroSYS\Support\File;
 use NeuroSYS\Support\MethodPolicy;
+use NeuroSYS\Support\RequirementInitialization;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Text\Languages;
 use NeuroSYS\View\Html\Vocabulary;
@@ -189,6 +193,33 @@ abstract class App
      * @return string
      */
     abstract public function buildId(): string;
+
+    // ───────────────────────── what a site may add ─────────────────────────
+
+    /**
+     * The third-party origins the site loads from under $directive, beyond its own.
+     *
+     * Asked by {@link Http\SecurityHeaders::contentSecurityPolicy()} for the directives where a
+     * site can reasonably need one — images and frames — and nothing by default, which is the
+     * strict policy a site that loads nothing from anywhere else should have.
+     *
+     * @param CspDirective $directive
+     * @return Collection<CspSource>
+     */
+    public function contentHosts(CspDirective $directive): Collection
+    {
+        return new Collection(CspSource::class);
+    }
+
+    /**
+     * What the site needs of its host beyond the framework's floor. Nothing by default.
+     *
+     * @return Collection<Requirement>
+     */
+    protected function ownRequirements(): Collection
+    {
+        return new Collection(Requirement::class);
+    }
 
     /**
      * The files the site's own code reads out of `data/` — its catalogue, its pages, its logs.
@@ -361,6 +392,17 @@ abstract class App
         return new Collection(DataFileName::class)
             ->with(...CredentialFile::cases())
             ->with(...$this->ownDataFiles()->toValues());
+    }
+
+    /**
+     * Everything this deployment needs of its host — what `health v1` checks: the framework's
+     * floor, then whatever the site adds.
+     *
+     * @return Collection<Requirement>
+     */
+    final public function requirements(): Collection
+    {
+        return RequirementInitialization::requirements()->with(...$this->ownRequirements()->toValues());
     }
 
     /**

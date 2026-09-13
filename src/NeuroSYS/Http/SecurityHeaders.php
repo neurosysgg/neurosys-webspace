@@ -4,16 +4,15 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
+use NeuroSYS\App;
 use NeuroSYS\Http\Security\ContentSecurityPolicy;
 use NeuroSYS\Http\Security\ContentTypeOptions;
 use NeuroSYS\Http\Security\CspDirective;
-use NeuroSYS\Http\Security\CspHost;
 use NeuroSYS\Http\Security\CspKeyword;
 use NeuroSYS\Http\Security\PermissionsPolicy;
 use NeuroSYS\Http\Security\PermissionsPolicyFeature;
 use NeuroSYS\Http\Security\ReferrerPolicy;
 use NeuroSYS\Http\Security\StrictTransportSecurity;
-use NeuroSYS\Site;
 use NeuroSYS\Support\BareArray;
 use NeuroSYS\Support\Collection;
 
@@ -180,12 +179,20 @@ final class SecurityHeaders
      */
     public static function contentSecurityPolicy(): ContentSecurityPolicy
     {
+        $app    = App::current();
+        $frames = $app->contentHosts(CspDirective::FrameSrc);
+
         return new ContentSecurityPolicy()
             ->allow(CspDirective::DefaultSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::ScriptSrc, CspKeyword::SelfOrigin)
             ->allow(CspDirective::StyleSrc, CspKeyword::SelfOrigin)
-            ->allow(CspDirective::ImgSrc, CspKeyword::SelfOrigin, new CspHost(Site::FILE_HOST))
-            ->allow(CspDirective::FrameSrc, new CspHost(Site::PLAYER_HOST))
+            ->allow(
+                CspDirective::ImgSrc,
+                CspKeyword::SelfOrigin,
+                ...$app->contentHosts(CspDirective::ImgSrc)->toValues(),
+            )
+            // Nothing of the site's own is framed, so a site that frames nobody else frames nothing.
+            ->allow(CspDirective::FrameSrc, ...($frames->isEmpty() ? [CspKeyword::None] : $frames->toValues()))
             ->allow(CspDirective::BaseUri, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FormAction, CspKeyword::SelfOrigin)
             ->allow(CspDirective::FrameAncestors, CspKeyword::None)

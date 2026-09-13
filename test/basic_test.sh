@@ -750,7 +750,7 @@ check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"   
 echo ""
 echo "=== Demos ==="
 # The half of the site whose gate covers bytes rather than only a page — and almost none of it is
-# visible to PHPUnit. Auth::requireDemoAuth() calls exit, and header() is a no-op under CLI, so the
+# visible to PHPUnit. DemoGate::requireAuth() calls exit, and header() is a no-op under CLI, so the
 # 401, the 206, the 416 and every header below are invisible there. DemoTest covers the decisions;
 # this covers the responses.
 #
