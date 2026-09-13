@@ -207,6 +207,22 @@ live host — the optional requirement's first real `warn` — and the last unha
 was PHP 8.5's deprecation of deriving `$_SERVER['argv']` from the query string, raised at startup
 under `cgi-fcgi` because `register_argc_argv` is on.
 
+### 2026-09-13 — a push that replaced the code applying it (`0381de4`)
+
+*From deployment.md's paragraph on a push that answers 500 and has landed.*
+
+The push that shipped the Phpanta feature batch (serial 1789322381) reported `refused with 500`, and
+every other sign said it had landed. The new build stamp was live, `health v1 report` passed, and
+the two new cross-origin headers were on every page. The error log held one line: the old
+`App::run()` calling `PlainTextResponse::send()`. The batch had made every response return an
+`Answer` rather than send itself, so the class the push had just rewritten no longer had that
+method — and the request applying the push, still the old code, was the one that loaded it.
+
+A follow-up dry run read `written 0, unchanged 364`, and named only the `.nfs` stray the new
+`public/index.php` left behind. It was also the last push applied without a record of the release
+it replaced: the old applier did not take one, so the first push that can be rolled back is the
+next one.
+
 ## From the code comments
 
 *Moved out of comments under `tools/` and `test/` when those were brought to the present tense.

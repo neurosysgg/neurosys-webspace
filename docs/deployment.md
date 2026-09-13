@@ -319,6 +319,14 @@ would bury the three that did change. `deleted` and `failed` are always named in
 deliberate — a partial push is not a successful one. **It also mirrors nothing**: deleting the old
 tree's leftovers around a write that did not land would leave the server with neither version.
 
+**A push that rewrites code the applying request still has to load can answer 500 and have
+landed.** The request applying a push is the *old* code, and a class it has not loaded yet is read
+from disk after the push rewrote it. When the push changes that class's shape, the request dies
+mid-reply with nothing wrong on the server. The error log names the call, and the push reports
+`refused with 500`. The writes run in pack order with the manifest last, so a new build stamp from
+`update v1 version` is the first sign it landed. A follow-up `--dry-run` reading `written 0` is the
+proof. ([history](history/api.md#2026-09-13--a-push-that-replaced-the-code-applying-it-0381de4))
+
 **Only a root the push carries is mirrored.** A payload with no file under `phpanta/` leaves the
 server's `phpanta/` exactly as it is, rather than reading the absence as "delete all of it". Both
 decisions appear in the report as `note:` lines, so a dry run shows them before anything happens.

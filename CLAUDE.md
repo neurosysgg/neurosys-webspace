@@ -145,11 +145,15 @@ src/NeuroSYS/                  ← this site
 
 phpanta/src/                   ← Phpanta\, the framework — see phpanta/CLAUDE.md
 ├── Controller/     ← the Controller interface, the API's controller, UnroutedController
-├── Http/           ← Request, the Response types, every header as a typed name and value
+├── Http/           ← Request, Input, Session, Answer, the Response types, every header as a typed
+│   │                 name and value
 │   ├── Api/        ← what an /api address is made of: service, version, action, handler
-│   └── Security/   ← CSP, Permissions-Policy and HSTS as typed objects
-├── Model/          ← Api/ (a signed call), Update/ (a push), Health/ (requirements, verdicts)
-├── Service/        ← Auth, ApiGate, UpdateApplier; Api/ one handler per action; Health/
+│   └── Security/   ← CSP, Permissions-Policy, HSTS, COOP and CORP as typed objects
+├── Form/           ← a form as an enum of fields, its rules, a submission read and re-rendered
+├── Data/           ← SQLite through PDO: statements, typed rows, transactions, migrations
+├── Model/          ← Api/ (a signed call), Update/ (a push, the release it replaced), Health/
+├── Service/        ← Auth, Login, ApiGate, UpdateApplier, ReleaseRecord; Layer/ (the gates and
+│                     layers around a controller); Api/ one handler per action; Health/
 ├── Support/        ← Collection, SearchableCollection, File, Directory, Route + Path, ApiPath,
 │                     the requirement table, Diagnostics, TarArchive, PasswordHash, PublicKey, Bare*
 ├── Exception/      ← SiteException and every condition under it

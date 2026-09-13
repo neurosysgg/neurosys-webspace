@@ -79,7 +79,7 @@ as required requirements, and `health v1 extensions` proves them by using them.
 | pcre | `8.5.9` | `8.5.10` | `8.5.10` |
 | PDO | `8.5.9` | `8.5.10` | `8.5.10` |
 | pdo_mysql | `8.5.9` | — | — |
-| pdo_sqlite | `8.5.9` | — | — |
+| pdo_sqlite | `8.5.9` | — (installed; php-fpm not yet restarted) | `8.5.10` |
 | Phar | `8.5.9` | `8.5.10` | `8.5.10` |
 | posix | `8.5.9` | `8.5.10` | `8.5.10` |
 | random | `8.5.9` | `8.5.10` | `8.5.10` |
@@ -104,13 +104,16 @@ as required requirements, and `health v1 extensions` proves them by using them.
 | *Zend:* Zend OPcache | `8.5.9` (loaded, off) | `8.5.10` | `8.5.10` |
 | *Zend:* Xdebug | — | `3.5.3` | `3.5.3` |
 
-- **Strato has 20 extensions no local runtime has.** They are bcmath, bz2, calendar, dba, exif,
-  ftp, gd, gettext, gmp, imagick, imap, mailparse, mysqli, pdo_mysql, pdo_sqlite, soap, sodium,
-  sqlite3, tidy and xsl. **That is the dangerous direction**: code that reached for `sodium` would
-  work in production and fail every test. `intl` was the twenty-first, and left the list the way
-  any of these would: switched on locally (`extension=intl` in `/etc/php/php.ini`), then declared. An extension becomes something the site
-  uses only by being declared: in `composer.json`, as a `PhpExtension` case, and so as a required
-  requirement. That order also makes it fail locally first.
+- **Strato has 19 extensions no local runtime has.** They are bcmath, bz2, calendar, dba, exif,
+  ftp, gd, gettext, gmp, imagick, imap, mailparse, mysqli, pdo_mysql, soap, sodium, sqlite3, tidy
+  and xsl. **That is the dangerous direction**: code that reached for `sodium` would work in
+  production and fail every test. `intl` was the twenty-first, and left the list the way any of
+  these would: switched on locally (`extension=intl` in `/etc/php/php.ini`), then declared. An
+  extension becomes something the site uses only by being declared: in `composer.json`, as a
+  `PhpExtension` case, and so as a required requirement. That order also makes it fail locally
+  first. `pdo_sqlite` was the twentieth, switched on locally (`php-sqlite`, then `extension=pdo_sqlite`)
+  for the framework's `Data\` and its tests. The site keeps no database, so it declares nothing; a
+  site that does asks for it with `Database::requirement()`.
 - **Only the local runtimes have `readline` and Xdebug.** Nothing in `src/` uses either, and Xdebug
   is what `composer coverage` measures with, which is why coverage can only be taken locally.
 - **`ext/curl` is on all three**, and the site still makes no outbound request. It is `require-dev`,
