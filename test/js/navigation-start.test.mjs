@@ -70,6 +70,56 @@ test('an entry this file did not write is given a key of its own, and nothing mo
   }
 });
 
+/** Every element scrolled into view, in order. jsdom has no scrollIntoView at all. */
+let revealed = [];
+
+dom.window.Element.prototype.scrollIntoView = function scrollIntoView() { revealed.push(this); };
+
+beforeEach(() => { revealed = []; });
+
+/**
+ * Runs `body` with the document on `#anchored`, an element of that id on the page, and the entry
+ * holding `state` — then puts the address and the page back as they were.
+ */
+function onFragment(state, body) {
+  const anchored = document.createElement('h2');
+  const before = location.pathname + location.search;
+
+  anchored.id = 'anchored';
+  document.body.append(anchored);
+  history.replaceState(state, '', '#anchored');
+
+  try {
+    body(anchored);
+  } finally {
+    anchored.remove();
+    history.replaceState(history.state, '', before);
+  }
+}
+
+/**
+ * A heading's own link, reloaded. Manual restoration tells the browser to leave the scroll alone on
+ * a reload, and it then skips the fragment as well — so with no position on the entry, the element
+ * the fragment names is this file's to scroll to, as it is after a swap.
+ */
+test('a document loaded on a fragment, with no position left, lands on the element it names', () => {
+  onFragment({ key: 'anchor' }, (anchored) => {
+    start();
+
+    assert.deepEqual(revealed, [anchored]);
+    assert.deepEqual(scrolls, []);
+  });
+});
+
+test('where an entry was left wins over the fragment it names, as a reload of any page would', () => {
+  onFragment({ key: 'anchor-left', scrollY: 120 }, () => {
+    start();
+
+    assert.deepEqual(scrolls, [[0, 120]]);
+    assert.deepEqual(revealed, []);
+  });
+});
+
 test('the browser is told the scroll is restored here', () => {
   start();
 

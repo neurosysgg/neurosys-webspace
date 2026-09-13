@@ -35,9 +35,7 @@ export class Navigation {
         document.body.append(this.announcer);
         this.shown = Navigation.documentOf(location.href);
         this.adopt();
-        const position = Navigation.entryOf(history.state)?.scrollY;
-        if (position !== undefined)
-            window.scrollTo(0, position);
+        Navigation.land(location.hash, Navigation.entryOf(history.state)?.scrollY);
         document.addEventListener('click', (e) => { this.onClick(e); });
         window.addEventListener('popstate', () => { this.onPopState(); });
         window.addEventListener('pagehide', () => { this.remember(true); });
