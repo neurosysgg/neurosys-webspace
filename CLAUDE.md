@@ -258,8 +258,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 [docs/deployment.md](docs/deployment.md)
 - **`data/update.pub` absent means `/api` is off; `data/site_auth.php` absent means the site gate is
   off.** The two files look alike and have opposite polarity.
-- `public/api/` must never exist, and an API action never reads a query parameter — it would reach
-  the handler unsigned.
+- `public/api/` must never exist, and an API action never reads a query parameter or a form field — it
+  would reach the handler unsigned. The framework's `InputTest` reads the API's code and fails on either.
 - **`data/logs/` must exist and be writable by PHP, or the error log silently falls back to the
   host's own log** — PHP says nothing when it cannot open the file. `deploy.sh` never creates it;
   `health v1` warns. Locally php-fpm runs as `http`, so the directory is group `http`, `2775`.
