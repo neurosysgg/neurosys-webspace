@@ -69,6 +69,12 @@ data/demos/
 # repository entirely, the way the SoundCloud refresh token does.
 data/update.pub
 /.update-serial
+# What a signed write leaves beside the serial on the deployment it runs on, the working tree's own
+# local Apache included: the lock every write takes (created once, never deleted), the record of the
+# release a push replaced, and the scratch directory of a probe that died before it could clean up.
+/.update-serial.lock
+/.update-previous/
+/.update-probe-*/
 
 # The key sessions are sealed with, if this deployment ever keeps one. Per deployment, minted on the
 # host it serves, and never here: a committed key would let anyone who reads the repository forge a
