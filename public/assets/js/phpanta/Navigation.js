@@ -3,6 +3,7 @@ import { HtmlAttribute } from './model/HtmlAttribute.js';
 import { HtmlTag } from './model/HtmlTag.js';
 import { LinkAttribute } from './model/LinkAttribute.js';
 import { MediaType } from './model/MediaType.js';
+import { RegionAttribute } from './model/RegionAttribute.js';
 import { RequestHeader } from './model/RequestHeader.js';
 import { RequestedWith } from './model/RequestedWith.js';
 import { ResponseHeader } from './model/ResponseHeader.js';
@@ -13,6 +14,7 @@ export class Navigation {
     static TITLE = new RegExp(`<${HtmlTag.Title}>([\\s\\S]*?)</${HtmlTag.Title}>`);
     static DOCUMENT = /^\s*<!doctype html/i;
     static PARAMETERS = /;[\s\S]*/;
+    static REGION = `[${RegionAttribute.LanguageBound}]`;
     navigation = 0;
     inFlight = null;
     positions = new Map();
@@ -58,11 +60,12 @@ export class Navigation {
         if (url.hash !== '' && Navigation.documentOf(url.href) === Navigation.documentOf(location.href)) {
             return;
         }
+        const across = link.hreflang !== '' && link.hreflang !== document.documentElement.lang;
         e.preventDefault();
         this.remember(true);
         this.key = Navigation.freshKey();
         history.pushState({ key: this.key }, '', url.href);
-        void this.go(url.href, undefined);
+        void this.go(url.href, undefined, across);
     }
     onPopState() {
         this.remember(false);
@@ -74,7 +77,7 @@ export class Navigation {
         }
         Navigation.land(new URL(location.href).hash, position);
     }
-    async go(url, position) {
+    async go(url, position, whole = false) {
         this.inFlight?.abort();
         const controller = new AbortController();
         const navigation = ++this.navigation;
@@ -83,7 +86,7 @@ export class Navigation {
         try {
             const response = await fetch(url, {
                 credentials: 'same-origin',
-                headers: { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest },
+                headers: whole ? {} : { [RequestHeader.RequestedWith]: RequestedWith.XmlHttpRequest },
                 signal: controller.signal
             });
             if (navigation !== this.navigation)
@@ -95,8 +98,11 @@ export class Navigation {
             const html = await response.text();
             if (navigation !== this.navigation)
                 return;
-            const page = Navigation.page(html);
-            if (page === null) {
+            const page = Navigation.page(html, response.headers.get(ResponseHeader.ContentLanguage));
+            if (page === null
+                || (page.language !== null
+                    && page.language !== document.documentElement.lang
+                    && !Navigation.crossInto(page.language, page.regions))) {
                 location.replace(url);
                 return;
             }
@@ -191,19 +197,36 @@ export class Navigation {
         });
         return region;
     }
-    static page(html) {
+    static crossInto(language, regions) {
+        const current = document.querySelectorAll(Navigation.REGION);
+        if (regions === null || regions.length !== current.length)
+            return false;
+        current.forEach((region, at) => {
+            region.replaceWith(document.importNode(regions[at], true));
+        });
+        document.documentElement.lang = language;
+        return true;
+    }
+    static page(html, stated) {
         if (!Navigation.DOCUMENT.test(html)) {
             const title = html.match(Navigation.TITLE)?.[1];
             return {
                 title: title === undefined ? null : Navigation.decodeEntities(title),
                 content: html.replace(Navigation.TITLE, ''),
+                language: stated,
+                regions: null,
             };
         }
         const parsed = new DOMParser().parseFromString(html, 'text/html');
         const content = parsed.getElementById(ElementId.Content);
         if (content === null)
             return null;
-        return { title: parsed.title === '' ? null : parsed.title, content: content.innerHTML };
+        return {
+            title: parsed.title === '' ? null : parsed.title,
+            content: content.innerHTML,
+            language: parsed.documentElement.lang === '' ? null : parsed.documentElement.lang,
+            regions: [...parsed.querySelectorAll(Navigation.REGION)],
+        };
     }
     static decodeEntities(text) {
         const el = document.createElement(HtmlTag.Textarea);

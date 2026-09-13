@@ -63,18 +63,24 @@ function deferred() {
 
 /**
  * A response as fetch resolves it: a page's Content-Type unless a test says otherwise, and none at
- * all for a null one.
+ * all for a null one; a Content-Language only where a test gives one, as a fragment of a site in
+ * one language never states it.
  *
  * @param {() => Promise<string>} text
- * @param {{ ok?: boolean, type?: string | null }} [options]
+ * @param {{ ok?: boolean, type?: string | null, language?: string | null }} [options]
  */
-function response(text, { ok = true, type = 'text/html; charset=utf-8' } = {}) {
-  return { ok, headers: new Headers(type === null ? {} : { 'Content-Type': type }), text };
+function response(text, { ok = true, type = 'text/html; charset=utf-8', language = null } = {}) {
+  /** @type {Record<string, string>} */
+  const headers = type === null ? {} : { 'Content-Type': type };
+
+  if (language !== null) headers['Content-Language'] = language;
+
+  return { ok, headers: new Headers(headers), text };
 }
 
 /**
  * @param {string} body
- * @param {{ ok?: boolean, type?: string | null }} [options]
+ * @param {{ ok?: boolean, type?: string | null, language?: string | null }} [options]
  */
 const fragment = (body, options) => () =>
   Promise.resolve(response(() => Promise.resolve(body), options));
@@ -196,6 +202,8 @@ beforeEach(() => {
   scrolledTo(0);
   content.replaceChildren();
   document.body.querySelectorAll('a').forEach((a) => { a.remove(); });
+  document.querySelectorAll('[data-language-bound]').forEach((region) => { region.remove(); });
+  document.documentElement.removeAttribute('lang');
 });
 
 /**
@@ -796,4 +804,156 @@ test('there is no router on a page with no #content', () => {
 
 test('there is one on a page that has it', () => {
   assert.ok(Navigation.forDocument() instanceof Navigation);
+});
+
+// ───────────────────────── into another language ─────────────────────────
+
+/**
+ * A part of the shell written in the page's language — a header, a footer — which a navigation into
+ * another language replaces whole. `first` puts it before #content, as a header sits.
+ *
+ * @param {string} text
+ * @param {boolean} [first]
+ */
+function region(text, first = false) {
+  const part = document.createElement(first ? 'header' : 'footer');
+
+  part.setAttribute('data-language-bound', '');
+  part.textContent = text;
+  if (first) document.body.prepend(part);
+  else document.body.append(part);
+
+  return part;
+}
+
+/** The shell's language-bound parts, as their text, in order. */
+const regions = () =>
+  [...document.querySelectorAll('[data-language-bound]')].map((part) => part.textContent);
+
+/** The German page a static host serves whole, header and footer in German. */
+const german = (header = '<header data-language-bound>Kopf</header>') => fragment(
+  '<!DOCTYPE html><html lang="de"><head><title>Die Regeln</title></head><body>'
+  + `${header}<main id="content"><p>Regeln</p></main><footer data-language-bound>Fuß</footer>`
+  + '</body></html>',
+);
+
+/**
+ * A fragment carries only #content, so a link into another language asks for the whole document —
+ * the one answer that brings the new language's shell with it. A link to the language already
+ * showing is an ordinary one.
+ */
+test('a link into another language asks for the whole document, and one within it does not', async () => {
+  document.documentElement.lang = 'en';
+  respond = german();
+
+  await navigate(link('/rules.de.html', { hreflang: 'de' }));
+
+  assert.equal(requests[0].init.headers['X-Requested-With'], undefined);
+
+  // The German document brought a shell this page has none of, so the browser was handed it and the
+  // page is still in English — which makes a link to English one within it.
+  respond = fragment('<title>t</title><p>x</p>');
+  await navigate(link('/rules.en.html', { hreflang: 'en' }));
+
+  assert.equal(requests[1].init.headers['X-Requested-With'], 'XMLHttpRequest');
+});
+
+/**
+ * The swap a static host makes possible: the new content, its title, its language on <html lang>,
+ * and the shell written in the old language replaced by the new one's — or the header would go on
+ * reading English on a German page.
+ */
+test('a whole document in another language swaps its shell and says its language', async () => {
+  document.documentElement.lang = 'en';
+  region('Header', true);
+  region('Footer');
+  respond = german();
+
+  await navigate(link('/rules.de.html', { hreflang: 'de' }));
+
+  assert.deepEqual(handedBack, []);
+  assert.equal(document.documentElement.lang, 'de');
+  assert.deepEqual(regions(), ['Kopf', 'Fuß']);
+  assert.equal(document.title, 'Die Regeln');
+  assert.equal(content.innerHTML, '<p>Regeln</p>');
+});
+
+/** Back to a page in another language takes the same path as a link into one. */
+test('back into another language swaps the shell too', async () => {
+  document.documentElement.lang = 'en';
+  region('Header', true);
+  region('Footer');
+  respond = german();
+
+  // An address no other test has shown, or arriving on it would be a scroll rather than a fetch.
+  await arriveOn({}, '/back/rules.de.html');
+
+  assert.equal(document.documentElement.lang, 'de');
+  assert.deepEqual(regions(), ['Kopf', 'Fuß']);
+});
+
+/**
+ * A shell that cannot be put right here — a document whose language-bound parts do not pair with
+ * this one's, or a fragment, which has none — is the browser's to load, or the page would end up in
+ * two languages.
+ */
+test('a page in another language whose shell cannot be swapped becomes a real navigation', async (t) => {
+  await t.test('a document whose parts do not pair', async () => {
+    handedBack = [];
+    document.documentElement.lang = 'en';
+    region('Header', true);
+    region('Footer');
+    respond = german('');
+
+    await navigate(link('/rules.de.html', { hreflang: 'de' }));
+
+    assert.deepEqual(handedBack, ['https://neurosys.gg/rules.de.html']);
+    assert.equal(document.documentElement.lang, 'en');
+    assert.deepEqual(regions(), ['Header', 'Footer']);
+  });
+
+  await t.test('a fragment the server says is in another language', async () => {
+    handedBack = [];
+    content.replaceChildren();
+    document.documentElement.lang = 'en';
+    respond = fragment('<title>Die Regeln</title><p>Regeln</p>', { language: 'de' });
+
+    await navigate(link('/rules'));
+
+    assert.deepEqual(handedBack, ['https://neurosys.gg/rules']);
+    assert.equal(content.innerHTML, '');
+  });
+});
+
+/** The language showing, whole or fragment, changes nothing but #content, as it always has. */
+test('a page in the language already showing leaves the shell alone', async () => {
+  document.documentElement.lang = 'de';
+  region('Kopf', true);
+  region('Fuß');
+  respond = german('<header data-language-bound>anders</header>');
+
+  await navigate(link('/architecture.de.html'));
+
+  assert.deepEqual(regions(), ['Kopf', 'Fuß']);
+
+  respond = fragment('<title>t</title><p>x</p>', { language: 'de' });
+  await navigate(link('/rules.de.html'));
+
+  assert.deepEqual(handedBack, []);
+  assert.equal(content.innerHTML, '<p>x</p>');
+});
+
+/** A document that states no language is taken at its word: nothing to cross into. */
+test('a whole document that states no language swaps only its content', async () => {
+  document.documentElement.lang = 'en';
+  region('Header', true);
+  respond = fragment(
+    '<!DOCTYPE html><html><head><title>t</title></head><body><main id="content"><p>plain</p></main></body></html>',
+  );
+
+  await navigate(link('/plain'));
+
+  assert.equal(content.innerHTML, '<p>plain</p>');
+  assert.equal(document.documentElement.lang, 'en');
+  assert.deepEqual(regions(), ['Header']);
 });

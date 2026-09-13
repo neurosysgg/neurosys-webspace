@@ -25,6 +25,8 @@ import { EmbedAttribute } from '../../public/assets/js/model/EmbedAttribute.js';
 import { TerminalAttribute } from '../../public/assets/js/model/TerminalAttribute.js';
 import { CoverArtAttribute } from '../../public/assets/js/model/CoverArtAttribute.js';
 import { LinkAttribute } from '../../public/assets/js/phpanta/model/LinkAttribute.js';
+import { LinkRel } from '../../public/assets/js/phpanta/model/LinkRel.js';
+import { RegionAttribute } from '../../public/assets/js/phpanta/model/RegionAttribute.js';
 import { HtmlTag } from '../../public/assets/js/phpanta/model/HtmlTag.js';
 import { HtmlAttribute } from '../../public/assets/js/phpanta/model/HtmlAttribute.js';
 import { CssClass } from '../../public/assets/js/model/CssClass.js';
@@ -115,6 +117,8 @@ const MIRRORED_NAMES = [
   ['TerminalAttribute', TerminalAttribute, 'NeuroSYS\\View\\Terminal\\TerminalAttribute'],
   ['CoverArtAttribute', CoverArtAttribute, 'NeuroSYS\\View\\Html\\CoverArtAttribute'],
   ['LinkAttribute', LinkAttribute, 'Phpanta\\View\\Html\\LinkAttribute'],
+  ['LinkRel', LinkRel, 'Phpanta\\View\\Html\\LinkRel'],
+  ['RegionAttribute', RegionAttribute, 'Phpanta\\View\\Html\\RegionAttribute'],
   ['HtmlTag', HtmlTag, 'Phpanta\\View\\Html\\HtmlTag'],
   ['HtmlAttribute', HtmlAttribute, 'Phpanta\\View\\Html\\HtmlAttribute'],
   ['CssClass', CssClass, 'NeuroSYS\\View\\Html\\CssClass'],
