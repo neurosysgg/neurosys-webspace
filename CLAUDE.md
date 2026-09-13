@@ -145,8 +145,8 @@ src/NeuroSYS/                  ← this site
 
 phpanta/src/                   ← Phpanta\, the framework — see phpanta/CLAUDE.md
 ├── Controller/     ← the Controller interface, the API's controller, UnroutedController
-├── Http/           ← Request, Input, Session, Answer, the Response types, every header as a typed
-│   │                 name and value
+├── Http/           ← Request, Input, Upload, Session, Answer, the Response types, every header as
+│   │                 a typed name and value
 │   ├── Api/        ← what an /api address is made of: service, version, action, handler
 │   └── Security/   ← CSP, Permissions-Policy, HSTS, COOP and CORP as typed objects
 ├── Form/           ← a form as an enum of fields, its rules, a submission read and re-rendered

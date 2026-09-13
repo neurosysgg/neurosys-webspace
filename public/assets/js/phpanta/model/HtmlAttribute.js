@@ -23,6 +23,7 @@ export var HtmlAttribute;
     HtmlAttribute["AriaDescribedBy"] = "aria-describedby";
     HtmlAttribute["Action"] = "action";
     HtmlAttribute["Method"] = "method";
+    HtmlAttribute["Enctype"] = "enctype";
     HtmlAttribute["Value"] = "value";
     HtmlAttribute["For"] = "for";
     HtmlAttribute["Required"] = "required";
