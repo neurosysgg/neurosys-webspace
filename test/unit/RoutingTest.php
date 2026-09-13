@@ -105,9 +105,36 @@ final class RoutingTest extends TestCase
     }
 
     /**
-     * The pattern is interpolated straight into a regex, so a literal that happens to be
-     * a metacharacter would silently become a wildcard. Every pattern must therefore stay
-     * metacharacter-free — this asserts that, rather than the escaping.
+     * What comes out of a match is what went into `to()`: a value is encoded into its segment and
+     * decoded out of it, so the two are inverses — an encoded slash included, which is matched as
+     * part of its segment and only then becomes a slash in the value.
+     *
+     * @return void
+     */
+    public function testAValueComesBackAsItWentIntoTo(): void
+    {
+        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
+
+        self::assertSame('/releases/a%20b%2Fc', SitePath::Release->to('a b/c'));
+        self::assertSame(['a b/c'], $route->matches(SitePath::Release->to('a b/c')));
+    }
+
+    /**
+     * A slug that reads as a number is still a string: a capture is text, whatever it spells.
+     *
+     * @return void
+     */
+    public function testANumericSlugIsCapturedAsAString(): void
+    {
+        $route = new Route(SitePath::Release, fn($slug) => new ReleaseController($slug));
+
+        self::assertSame(['2024'], $route->matches('/releases/2024'));
+    }
+
+    /**
+     * Every pattern is plain segments and placeholders. `Route` quotes a pattern's static parts, so
+     * a metacharacter would match only itself now; this keeps the addresses the site names plain,
+     * which is a decision about URLs rather than a guard for the regex.
      *
      * Over both vocabularies' cases rather than over the registered routes, which is stricter in
      * the direction that matters now: a case is a pattern whether or not anything has registered
@@ -115,14 +142,13 @@ final class RoutingTest extends TestCase
      *
      * @return void
      */
-    public function testEveryPatternIsFreeOfRegexMetacharacters(): void
+    public function testEveryPatternIsPlainSegmentsAndPlaceholders(): void
     {
         foreach ([...SitePath::cases(), ...ApiPath::cases()] as $path) {
             self::assertMatchesRegularExpression(
                 '#^(/|(/[\w-]+|/\{\w+\})+)$#',
                 $path->value,
-                "{$path->name} contains something that is not a plain segment "
-                . 'or a {placeholder}; Route::matches() does not preg_quote it.',
+                "{$path->name} contains something that is not a plain segment or a {placeholder}.",
             );
         }
     }

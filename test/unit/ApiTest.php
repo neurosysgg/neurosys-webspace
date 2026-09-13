@@ -684,7 +684,7 @@ final class ApiTest extends TestCase
         // run has no webroot, so the declared set is a 503 here and a 200 on the live host — and
         // the controller has to pass it through untouched either way.
         $health = $this->respond(self::HEALTH, HttpMethod::Get, '');
-        $direct = new HealthCheck(RequirementInitialization::requirements())->handle();
+        $direct = new HealthCheck(RequirementInitialization::requirements(Site::current()))->handle();
 
         self::assertSame(self::statusOf($direct), self::statusOf($health));
         self::assertStringContainsString("extensions\n", self::bodyOf($health));

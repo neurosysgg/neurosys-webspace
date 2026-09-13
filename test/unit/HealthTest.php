@@ -225,7 +225,10 @@ final class HealthTest extends TestCase
      */
     public function testEveryDeclaredExtensionProvesItself(): void
     {
-        $response = new HealthCheck(RequirementInitialization::requirements(), Area::Extensions)->handle();
+        $response = new HealthCheck(
+            RequirementInitialization::requirements(Site::current()),
+            Area::Extensions,
+        )->handle();
 
         self::assertSame(HttpStatusCode::Ok, UpdateFixture::statusOf($response));
         self::assertStringNotContainsString(Verdict::Fail->label(), UpdateFixture::bodyOf($response));
@@ -351,10 +354,16 @@ final class HealthTest extends TestCase
     public function testAnUnmetRequirementIsA503CarryingTheReport(): void
     {
         unset($_SERVER['DOCUMENT_ROOT']);
-        $failing = new HealthCheck(RequirementInitialization::requirements(), Area::Deployment)->handle();
+        $failing = new HealthCheck(
+            RequirementInitialization::requirements(Site::current()),
+            Area::Deployment,
+        )->handle();
 
         $_SERVER['DOCUMENT_ROOT'] = dirname(__DIR__, 2) . '/public';
-        $passing = new HealthCheck(RequirementInitialization::requirements(), Area::Deployment)->handle();
+        $passing = new HealthCheck(
+            RequirementInitialization::requirements(Site::current()),
+            Area::Deployment,
+        )->handle();
 
         self::assertSame(HttpStatusCode::ServiceUnavailable, UpdateFixture::statusOf($failing));
         self::assertMatchesRegularExpression('/^  DOCUMENT_ROOT +FAIL /m', UpdateFixture::bodyOf($failing));
@@ -369,7 +378,7 @@ final class HealthTest extends TestCase
      */
     public function testTheReportChecksEveryArea(): void
     {
-        $response = new HealthCheck(RequirementInitialization::requirements())->handle();
+        $response = new HealthCheck(RequirementInitialization::requirements(Site::current()))->handle();
         $body     = UpdateFixture::bodyOf($response);
 
         self::assertInstanceOf(PlainTextResponse::class, $response);
@@ -390,7 +399,7 @@ final class HealthTest extends TestCase
      */
     private static function declared(Area $area): Collection
     {
-        return RequirementInitialization::requirements()
+        return RequirementInitialization::requirements(Site::current())
             ->where(static fn(Requirement $requirement): bool => $requirement->area() === $area);
     }
 

@@ -656,6 +656,150 @@ final class HtmlTest extends TestCase
     }
 
     /**
+     * A fragment holding text is inline content, so it keeps to one line: a newline between its
+     * nodes would be a space on the page.
+     *
+     * @return void
+     */
+    public function testAFragmentHoldingTextStaysOnOneLine(): void
+    {
+        self::assertSame(
+            'a<span>b</span>',
+            new Fragment(new Text('a'), new Element(HtmlTag::Span)->containing('b'))->render(),
+        );
+    }
+
+    /**
+     * And it puts the element around it on one line too, the way a text child does.
+     *
+     * @return void
+     */
+    public function testAFragmentHoldingTextPutsItsElementOnOneLine(): void
+    {
+        self::assertSame(
+            '<p>a<span>b</span></p>',
+            new Element(HtmlTag::P)->containing(
+                new Fragment(new Text('a'), new Element(HtmlTag::Span)->containing('b')),
+            )->render(),
+        );
+    }
+
+    /**
+     * A fragment of elements among inline content is rendered on its parent's line, however deep it
+     * nests. It broke its nodes onto lines of their own, and each newline was a space between two
+     * links on the page.
+     *
+     * @return void
+     */
+    public function testAFragmentAmongInlineContentAddsNoWhitespace(): void
+    {
+        $spans = new Fragment(
+            new Element(HtmlTag::Span)->containing('a'),
+            new Fragment(new Element(HtmlTag::Span)->containing('b')),
+        );
+
+        self::assertSame(
+            '<p>see <span>a</span><span>b</span></p>',
+            new Element(HtmlTag::P)->containing('see ', $spans)->render(),
+        );
+    }
+
+    // ───────────────────────────── shape ─────────────────────────────
+
+    /**
+     * An attribute is written under its own name, so one stored under another key is refused — a
+     * map built that way is an element that would write one attribute twice.
+     *
+     * @return void
+     */
+    public function testAnAttributeKeyedByAnotherNameIsRefused(): void
+    {
+        $attributes = new SearchableCollection(Attribute::class)
+            ->with('title', new Attribute(HtmlAttribute::Lang, 'en'))
+            ->with('lang', new Attribute(HtmlAttribute::Lang, 'de'));
+
+        $this->expectException(MarkupException::class);
+        $this->expectExceptionMessageIsOrContains('keyed by its own name');
+
+        new Element(HtmlTag::P, $attributes)->render();
+    }
+
+    /**
+     * containing() refuses a void element's children; the constructor takes them outright, and
+     * render() is where the refusal has to hold for an element however it was built.
+     *
+     * @return void
+     */
+    public function testAVoidElementBuiltWithChildrenIsRefusedWhenItRenders(): void
+    {
+        $element = new Element(HtmlTag::Meta, null, new Collection(Node::class)->with(new Text('x')));
+
+        $this->expectException(MarkupException::class);
+        $this->expectExceptionMessageIsOrContains('void element');
+
+        $element->render();
+    }
+
+    /**
+     * A path stays on this origin only when it names no host — including the base's own, which a
+     * parse lands on exactly where it started and which is still a protocol-relative URL.
+     *
+     * @param string $value
+     * @param bool   $expected
+     * @return void
+     */
+    #[DataProvider('ownHostProvider')]
+    public function testAPathStaysOnThisOriginOnlyWhenItNamesNoHost(string $value, bool $expected): void
+    {
+        self::assertSame($expected, Element::staysOnThisOrigin($value));
+    }
+
+    /**
+     * @return iterable<string, array{string, bool}>
+     */
+    public static function ownHostProvider(): iterable
+    {
+        yield 'a path'                       => ['/releases/ill', true];
+        yield 'an empty segment inside it'   => ['/a//b', true];
+        yield 'another host'                 => ['//evil.example/x', false];
+        yield 'a backslash for a slash'      => ['/\\evil.example/x', false];
+        yield 'a newline between the two'    => ["/\r\n/evil.example", false];
+        yield "the base's own host"          => ['//relative.invalid/x', false];
+        yield 'the same, with a backslash'   => ['/\\relative.invalid/x', false];
+        yield 'the same, backslash first'    => ['\\/relative.invalid/x', false];
+        yield 'the same, a tab between'      => ["/\t/relative.invalid/x", false];
+        yield 'the same, after a space'      => [' //relative.invalid/x', false];
+        yield 'the same, after a control'    => ["\x01//relative.invalid/x", false];
+    }
+
+    /**
+     * A document's own elements are refused wherever they appear. At the top of a fragment the
+     * parser hoists a title into the head, which was always checked; inside content it leaves one
+     * where it found it, and a view would render document metadata into the middle of a page.
+     *
+     * @param string $html
+     * @return void
+     */
+    #[DataProvider('insideContentProvider')]
+    public function testADocumentsOwnElementsAreRefusedInsideContent(string $html): void
+    {
+        $this->expectException(MarkupException::class);
+        $this->expectExceptionMessageIsOrContains('belongs to the document');
+
+        (void) MarkupParser::parse($html);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function insideContentProvider(): iterable
+    {
+        yield 'a title' => ['<div><title>x</title></div>'];
+        yield 'a meta'  => ['<div><meta></div>'];
+        yield 'a link'  => ['<p><link></p>'];
+    }
+
+    /**
      * @return void
      */
     public function testADocumentLeadsWithTheDoctype(): void

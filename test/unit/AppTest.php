@@ -201,7 +201,7 @@ final class AppTest extends TestCase
         $names = static fn(Requirement $requirement): string => $requirement->name();
 
         self::assertSame(
-            RequirementInitialization::requirements()->map($names)->toValues(),
+            RequirementInitialization::requirements(Site::current())->map($names)->toValues(),
             Site::current()->requirements()->map($names)->toValues(),
         );
     }

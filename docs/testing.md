@@ -416,8 +416,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **The `Allow` header says what the gate does.** It is derived from `HttpMethod::isReadOnly()`
   rather than written out, and `SecurityTest` asserts both halves — that the read-only cases are
   exactly GET and HEAD, and that a refused request's header matches.
-- **Every route pattern is metacharacter-free.** `Route::matches()` interpolates the pattern straight
-  into a regex without `preg_quote()`, so a `.` in a future pattern would silently become a wildcard.
+- **Every route pattern is plain segments and placeholders.** `Route` quotes a pattern's static parts,
+  so a `.` would match only itself; the check keeps the addresses the site names plain, which is a
+  decision about URLs rather than a guard for the regex.
 - **The committed JS is current with `assets/ts/`.** `deploy.sh` builds what it ships out of
   `public/` in the working tree, so editing a `.ts` and forgetting `npm run build` would deploy the
   previous JS in silence. The check rebuilds into a scratch `outDir` and diffs. That scratch
@@ -486,8 +487,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.46% of lines** (2959/2975), derived on 2026-09-13
-(on top of `8273746`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.47% of lines** (3014/3030), derived on 2026-09-13
+(on top of `3a915c5`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the

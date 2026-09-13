@@ -117,6 +117,7 @@ final class NoDiscardTest extends TestCase
                 'Phpanta\Support\Collection::with',
                 'Phpanta\Support\FileLock::exclusive',
                 'Phpanta\Support\Route::accepts',
+                'Phpanta\Support\SearchableCollection::find',
                 'Phpanta\Support\SearchableCollection::first',
                 'Phpanta\Support\SearchableCollection::isEmpty',
                 'Phpanta\Support\SearchableCollection::join',

@@ -740,6 +740,199 @@ final class SupportTest extends TestCase
         self::assertCount(2, $letters->toValues(), 'unique() must not touch what it was called on');
         self::assertInstanceOf(CspSourceList::class, new CspSourceList()->unique());
     }
+
+    /**
+     * An object is held while it is compared, not numbered. spl_object_id() gives a freed object's
+     * id to the next one made, so a stream of fresh objects, each let go after the step that used
+     * it, could meet a new object under a seen id — and drop it as a repeat of one already gone.
+     *
+     * @return void
+     */
+    public function testUniqueNeverMistakesAFreshObjectForAFreedOne(): void
+    {
+        $numbers = new Collection('int')
+            ->with(1, 2, 3, 4, 5, 6)
+            ->map(static function (int $n): stdClass {
+                $box    = new stdClass();
+                $box->n = $n;
+
+                return $box;
+            })
+            ->unique()
+            ->map(static fn(stdClass $box): int => $box->n);
+
+        self::assertSame([1, 2, 3, 4, 5, 6], $numbers->toValues());
+    }
+
+    /**
+     * `-0.0 === 0.0`, so the two are one item; NAN is `===` to nothing, itself included, so each
+     * NAN is its own. The strict identity unique() promises, kept at the two floats where marking
+     * a value by its printed form broke it.
+     *
+     * @return void
+     */
+    public function testUniqueTreatsTheZeroesAsOneAndEveryNanAsItsOwn(): void
+    {
+        $floats = new Collection('float')->with(0.0, -0.0, NAN, NAN, 1.5)->unique()->toValues();
+
+        self::assertCount(4, $floats);
+        self::assertSame(0.0, $floats[0]);
+        self::assertNan($floats[1]);
+        self::assertNan($floats[2]);
+        self::assertSame(1.5, $floats[3]);
+    }
+
+    // ─────────────────────── keys that read as integers ───────────────────────
+
+    /**
+     * PHP stores `'2024'` as the int 2024 in every array. A map hands it back as the string it was
+     * given as — to its iterator, to a step, to first() and to toKeys() — so a callback declaring a
+     * string key does not throw on a slug that happens to be a year.
+     *
+     * @return void
+     */
+    public function testAKeyThatReadsAsAnIntegerComesBackAsTheStringItWentInAs(): void
+    {
+        $map = new SearchableCollection('string')->with('2024', 'debut')->with('ill', 'single');
+
+        foreach ($map as $key => $item) {
+            self::assertIsString($key, "the key of $item");
+        }
+
+        self::assertSame(['2024', 'ill'], $map->toKeys());
+        self::assertSame('debut', $map->find('2024'));
+        self::assertSame(
+            'debut',
+            $map->first(static fn(string $item, string $key): bool => $key === '2024'),
+        );
+        self::assertSame(
+            ['2024: debut', 'ill: single'],
+            $map->map(static fn(string $item, string $key): string => "$key: $item")->toValues(),
+        );
+        self::assertSame(
+            ['2024'],
+            $map->map(static fn(string $item): string => $item)
+                ->where(static fn(string $item, string $key): bool => $key !== 'ill')
+                ->toKeys(),
+        );
+    }
+
+    // ─────────────────────── writing, listing, removing ───────────────────────
+
+    /**
+     * A rewrite with no mode keeps the mode of the file it replaces, so a key an earlier write
+     * narrowed to 0600 is not widened to the umask's by the next — and leaves no temporary behind.
+     *
+     * @return void
+     */
+    public function testARewriteKeepsTheModeOfTheFileItReplaces(): void
+    {
+        $directory = Directory::temporary('phpanta-write-');
+        $file      = $directory->file('key');
+
+        try {
+            self::assertTrue($file->write('first', 0o600));
+            self::assertTrue($file->write('second'));
+            clearstatcache();
+
+            self::assertSame(0o600, fileperms($file->path) & 0o777);
+            self::assertSame('second', $file->read());
+            self::assertSame(
+                ['key'],
+                $directory->files()->map(static fn(File $each): string => $each->name())->toValues(),
+            );
+        } finally {
+            $directory->remove();
+        }
+    }
+
+    /**
+     * A listing matches names and never the directory's own path — `glob()` read a `[` or a `*` in
+     * the directory's name as a pattern, and listed nothing. A leading dot is matched only by a
+     * pattern that writes one, as `glob()` had it; removing takes the dotfiles too.
+     *
+     * @return void
+     */
+    public function testAListingMatchesNamesAndRemovingTakesEveryFile(): void
+    {
+        $directory = Directory::temporary('phpanta-[draft]*-');
+        $names     = static fn(Collection $files): string => $files
+            ->map(static fn(File $file): string => $file->name())
+            ->join(' ');
+
+        try {
+            foreach (['a.flac', 'b.txt', '.hidden.flac'] as $name) {
+                $directory->file($name)->write('x');
+            }
+
+            $directory->directory('sub.flac')->create();
+
+            self::assertSame('a.flac', $names($directory->files('*.flac')));
+            self::assertSame('.hidden.flac', $names($directory->files('.*')));
+            self::assertFalse($directory->remove(), 'a subdirectory is not descended into');
+
+            $directory->directory('sub.flac')->remove();
+
+            self::assertTrue($directory->remove());
+            self::assertFalse($directory->exists());
+        } finally {
+            $directory->directory('sub.flac')->remove();
+            $directory->remove();
+        }
+    }
+
+    /**
+     * A link is refused rather than followed, so what it points to is left as it was.
+     *
+     * @return void
+     */
+    public function testRemovingALinkRefusesAndLeavesItsTargetAlone(): void
+    {
+        $target = Directory::temporary('phpanta-target-');
+        $link   = new Directory($target->path . '-link');
+
+        $target->file('keep')->write('x');
+        symlink($target->path, $link->path);
+
+        try {
+            self::assertFalse($link->remove());
+            self::assertTrue($target->file('keep')->exists());
+        } finally {
+            unlink($link->path);
+            $target->remove();
+        }
+    }
+
+    /**
+     * A deprecation is handed back to PHP rather than muted: it says a call will stop working, not
+     * that this one did not, and it is what `@` swallows by accident on a PHP upgrade. A warning —
+     * the failure a muted call exists to answer — is still muted.
+     *
+     * Seen through error_get_last(), which records what a handler hands back to PHP and nothing a
+     * handler keeps. Both severities are out of error_reporting for the length of the test, so the
+     * one handed back is recorded and printed nowhere.
+     *
+     * @return void
+     */
+    public function testADeprecationIsHandedBackAndAWarningIsNot(): void
+    {
+        $reporting = error_reporting(E_ALL & ~E_USER_DEPRECATED & ~E_USER_WARNING);
+
+        try {
+            error_clear_last();
+            Diagnostics::muted(static fn(): bool => trigger_error('muted', E_USER_WARNING));
+            self::assertNull(error_get_last());
+
+            Diagnostics::muted(static fn(): bool => trigger_error('handed back', E_USER_DEPRECATED));
+            self::assertSame(E_USER_DEPRECATED, error_get_last()['type'] ?? null);
+
+            $watched = Diagnostics::watched(static fn(): bool => trigger_error('handed back', E_USER_DEPRECATED));
+            self::assertTrue($watched->reported->isEmpty());
+        } finally {
+            error_reporting($reporting);
+            error_clear_last();
+        }
+    }
     // ─────────────────────────── One pass, fused ───────────────────────────
 
     /**
