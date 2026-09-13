@@ -5,6 +5,7 @@ export var HtmlAttribute;
     HtmlAttribute["Lang"] = "lang";
     HtmlAttribute["Title"] = "title";
     HtmlAttribute["Href"] = "href";
+    HtmlAttribute["HrefLang"] = "hreflang";
     HtmlAttribute["Src"] = "src";
     HtmlAttribute["Rel"] = "rel";
     HtmlAttribute["Target"] = "target";
