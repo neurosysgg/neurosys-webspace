@@ -10,6 +10,7 @@ use Phpanta\Controller\Controller;
 use Phpanta\Http\CacheControl;
 use Phpanta\Http\Header;
 use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\Location;
 use Phpanta\Http\RedirectResponse;
 use Phpanta\Http\Request;
 use Phpanta\Http\Response;
@@ -63,7 +64,7 @@ final readonly class LanguageController implements Controller
         }
 
         return new RedirectResponse(
-            self::back($request->referer()),
+            new Location(self::back($request->referer())),
             HttpStatusCode::SeeOther,
             new Collection(Header::class)->with(
                 new Header(ResponseHeader::SetCookie, SetCookie::language($language)),

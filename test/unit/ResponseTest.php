@@ -340,16 +340,67 @@ final class ResponseTest extends TestCase
      *
      * StatsController says `no-store, private` because its page sits behind a password. Adding a
      * validator to that would be offering to revalidate something we just asked not to be stored.
+     * The `Vary` stays: it says what the body depends on, which no `Cache-Control` changes.
      *
      * @return void
      */
-    public function testAResponseThatAlreadySaidHowItMayBeKeptIsLeftAlone(): void
+    public function testAResponseThatAlreadySaidHowItMayBeKeptGetsNoValidator(): void
     {
         $response = new ViewResponse(new HomeView(), HttpStatusCode::Ok, new Collection(Header::class)->with(
             new Header(ResponseHeader::CacheControl, CacheControl::doNotStore()),
         ));
 
-        self::assertSame([], $this->cacheHeadersOf($response, $this->request('/')));
+        self::assertSame(
+            ['Vary: X-Requested-With, Accept-Language, Cookie'],
+            $this->cacheHeadersOf($response, $this->request('/')),
+        );
+    }
+
+    /**
+     * A 404 is told to revalidate — left to its heuristics a browser may keep one, for a page that
+     * has since been published — and carries no validator, because only a success is one.
+     *
+     * @return void
+     */
+    public function testANotFoundPageRevalidatesAndCarriesNoValidator(): void
+    {
+        $response = new ViewResponse(new NotFoundView('/gone'), HttpStatusCode::NotFound);
+
+        self::assertSame(
+            ['Cache-Control: no-cache', 'Vary: X-Requested-With, Accept-Language, Cookie'],
+            $this->cacheHeadersOf($response, $this->request('/gone')),
+        );
+    }
+
+    /**
+     * And so a 404 is never a 304, whatever validator arrives with it.
+     *
+     * @return void
+     */
+    public function testANotFoundPageNeverAnswers304(): void
+    {
+        $response = new ViewResponse(new NotFoundView('/gone'), HttpStatusCode::NotFound);
+        $etag     = $this->etagFor($response, $this->request('/gone'));
+
+        self::assertStringStartsWith(
+            '<!DOCTYPE html>',
+            $this->render($response, $this->request('/gone', ifNoneMatch: $etag)),
+        );
+    }
+
+    /**
+     * What a browser holds behind mod_deflate is the tag with `-gzip` inside the quotes, and it
+     * validates: compared verbatim, no compressed page was ever answered with a 304.
+     *
+     * @return void
+     */
+    public function testAValidatorACompressingModuleSuffixedStillValidates(): void
+    {
+        $response = new ViewResponse(new HomeView());
+        $etag     = $this->etagFor($response, $this->request('/'));
+        $gzipped  = substr($etag, 0, -1) . '-gzip"';
+
+        self::assertSame('', $this->render($response, $this->request('/', ifNoneMatch: $gzipped)));
     }
 
     /**
@@ -446,7 +497,7 @@ final class ResponseTest extends TestCase
 
         self::assertInstanceOf(RedirectResponse::class, $response);
         self::assertSame(HttpStatusCode::SeeOther, self::peek($response, 'status'));
-        self::assertSame('/', self::peek($response, 'url'));
+        self::assertSame('/', self::peek($response, 'location')->render());
         self::assertSame(
             [
                 'Set-Cookie: lang=de; Path=/; Max-Age=31536000; SameSite=Lax; Secure; HttpOnly',
@@ -507,7 +558,7 @@ final class ResponseTest extends TestCase
         self::assertSame(HttpStatusCode::SeeOther, self::peek($response, 'status'));
         self::assertStringStartsWith(
             'https://my.hidrive.com/api/sharelink/download?id=',
-            self::peek($response, 'url'),
+            self::peek($response, 'location')->render(),
         );
     }
 

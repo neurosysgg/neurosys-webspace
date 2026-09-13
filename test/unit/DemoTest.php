@@ -557,10 +557,13 @@ final class DemoTest extends TestCase
         yield 'a suffix longer than the file' => ['bytes=-9000', 5000, 0, 4999];
         yield 'clamped to the end'    => ['bytes=4000-9999', 5000, 4000, 4999];
         yield 'surrounding space'     => [' bytes=0-9 ', 5000, 0, 9];
+        yield 'the unit in any case'  => ['Bytes=0-9', 5000, 0, 9];
+        yield 'leading zeros'         => ['bytes=0010-0019', 5000, 10, 19];
 
         // Understood, and unsatisfiable — a 416, which is a different answer from ignoring it.
         yield 'past the end'          => ['bytes=9000-', 5000, 9000, 4999];
         yield 'a zero-length suffix'  => ['bytes=-0', 5000, 1, 0];
+        yield 'a zero-length suffix of nothing' => ['bytes=-0', 0, 1, 0];
 
         // Not understood. Every one of these means "send the whole file", which is always legal.
         yield 'no header'             => ['', 5000, null, null];
@@ -571,6 +574,16 @@ final class DemoTest extends TestCase
         yield 'nothing at all'        => ['bytes=-', 5000, null, null];
         yield 'not a number'          => ['bytes=a-b', 5000, null, null];
         yield 'negative'              => ['bytes=--5', 5000, null, null];
+
+        // Numbers too long to be integers. Cast, they saturate at PHP_INT_MAX and name a different
+        // request from the one sent — the first would be a 416 for a position nobody asked for.
+        yield 'a start past any integer'  => ['bytes=99999999999999999999-', 5000, null, null];
+        yield 'an end past any integer'   => ['bytes=10-99999999999999999999', 5000, null, null];
+        yield 'a suffix past any integer' => ['bytes=-99999999999999999999', 5000, null, null];
+
+        // An empty file has no last 500 bytes, and a 206 has no way to say so; a non-zero suffix is
+        // satisfiable whatever the length, so not a 416 either. The whole of it — nothing — with a 200.
+        yield 'a suffix of an empty file' => ['bytes=-500', 0, null, null];
     }
 
     /**
@@ -789,8 +802,9 @@ final class DemoTest extends TestCase
 
         // And the consequence, which is the half that is easy to lose: a caller that has already
         // said how its response may be kept gets no validator, so there is no 304 to be had and a
-        // gated page cannot come back on a guessed ETag. Asked of the method rather than of the
-        // wire, because `header()` is a no-op under CLI — see test/basic_test.sh for the other end.
+        // gated page cannot come back on a guessed ETag. Only the Vary is added, because it says
+        // what the body depends on. Asked of the method rather than of the wire, because
+        // `header()` is a no-op under CLI — see test/basic_test.sh for the other end.
         ob_start();
         $response->send(self::request());
         $markup = (string) ob_get_clean();
@@ -799,7 +813,10 @@ final class DemoTest extends TestCase
         $cache = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')
             ->invoke($response, ETag::forBody($markup));
 
-        self::assertTrue($cache->isEmpty());
+        self::assertSame(
+            ['Vary: X-Requested-With, Accept-Language, Cookie'],
+            $cache->map(static fn(Header $header): string => $header->line())->toValues(),
+        );
     }
 
     /**

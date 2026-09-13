@@ -1099,7 +1099,34 @@ check_header "  which every page does, since every page is written in a language
     "^vary: X-Requested-With, Accept-Language, Cookie$"
 check_revalidates "an unchanged document comes back as a 304" "$BASE/"
 check_revalidates "  and so does a release page" "$BASE/releases/ill"
-check_revalidates "  and the 404, which is a document like any other" "$BASE/nope"
+
+# What a browser holds behind mod_deflate is the tag with -gzip inside the quotes. The built-in
+# server compresses nothing, so the suffix is added by hand — and it has to validate, or no
+# compressed page is ever a 304.
+GZIP_ETAG=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - "$BASE/" 2>/dev/null | tr -d '\r' \
+            | grep -i '^etag:' | sed 's/^[Ee][Tt][Aa][Gg]: //') || true
+GZIP_STATUS=$(curl "${CURL_ARGS[@]}" -H "If-None-Match: ${GZIP_ETAG%\"}-gzip\"" -o /dev/null \
+              -w "%{http_code}" "$BASE/" 2>/dev/null) || true
+if [[ "$GZIP_STATUS" == "304" ]]; then
+    pass "  and so does a validator a compressing module suffixed with -gzip"
+else
+    fail "  and so does a validator a compressing module suffixed with -gzip (got $GZIP_STATUS)"
+fi
+
+# Only a success is validated: RFC 9110 has a server ignore If-None-Match on a response that would
+# not otherwise be a 2xx. A 404 still says no-cache — left to its heuristics a browser may keep one,
+# for a page since published — and still names what its body depends on.
+check_no_header "a 404 hands out no validator" "$BASE/nope" "^etag:"
+check_header "  but is still revalidated" "$BASE/nope" "^cache-control: no-cache"
+check_header "  and still names the headers its body depends on" "$BASE/nope" \
+    "^vary: X-Requested-With, Accept-Language, Cookie$"
+NOPE_STATUS=$(curl "${CURL_ARGS[@]}" -H 'If-None-Match: *' -o /dev/null -w "%{http_code}" \
+              "$BASE/nope" 2>/dev/null) || true
+if [[ "$NOPE_STATUS" == "404" ]]; then
+    pass "  and is never a 304, whatever validator arrives"
+else
+    fail "  and is never a 304, whatever validator arrives (got $NOPE_STATUS)"
+fi
 
 # One URL, two bodies. Vary is what tells a cache; the validators differing is the belt to that
 # brace, and is what would still hold in a cache that ignored it.

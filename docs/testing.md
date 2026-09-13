@@ -486,8 +486,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.25% of lines** (2934/2956), derived on 2026-09-13
-(on top of `703fbd3`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.46% of lines** (2959/2975), derived on 2026-09-13
+(on top of `8273746`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
@@ -505,9 +505,8 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Twenty-two lines, in seven groups. Sixteen are deliberate — behind a switch that is off on purpose,
-behind a credential the repository does not hold, or on a failure no test can arrange — and six are
-a gap rather than a decision:
+Sixteen lines, in five groups, and every one of them deliberate — behind a switch that is off on
+purpose, behind a credential the repository does not hold, or on a failure no test can arrange:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Site::DOWNLOAD_LOGGING`, a `false`
   constant that both suites assert stays false. It is dead on purpose. Reaching it would mean making
@@ -537,23 +536,11 @@ a gap rather than a decision:
   that one mattered, because opening an unreadable file warns, and by then the headers have gone out,
   so the warning would print into the audio. `@fopen` is there for the reason `File::read()`'s is.
 
-#### Six more, which are a gap rather than a decision
-
-These are listed to be closed rather than justified:
-
-- **`CacheControl::of()` (3)** and **`Vary::on()` (3)** — guard clauses that throw
-  `SecurityPolicyException` on an empty value. `HiDriveLink`'s equivalent throw is tested by
-  `badShareIdProvider` in `ModelTest`, which is the shape these want, and `DemoTest` closes two of
-  the same kind — `ContentLength`'s negative length and `RobotsPolicy::of()`'s empty list — so the
-  pattern is written down twice.
-
-Two small tests in `ResponseTest` would close all six.
-
 #### Keeping the count honest
 
-The twenty-two are a property of what is *deliberately* untested, not a budget that grows with the
-code. Every pass since the figure was first written has held it there, and the way it did is the
-rule:
+The sixteen are a property of what is *deliberately* untested, not a budget that grows with the
+code. Every pass since the figure was first written has held it there or lowered it, and the way it
+did is the rule:
 
 - **A change that adds guard branches covers them in the same commit.** A class made of refusals is
   tested as one data-provider row per refusal — `MarkupParser`'s seventy lines are all covered that

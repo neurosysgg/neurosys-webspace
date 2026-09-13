@@ -60,6 +60,10 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ContentLanguage::class)]
 #[CoversClass(SetCookie::class)]
 #[CoversClass(Location::class)]
+// The empty-list refusals below are these two classes' only guards, and without the classes named
+// here the rows that drive them record nothing.
+#[CoversClass(CacheControl::class)]
+#[CoversClass(Vary::class)]
 final class SecurityPolicyTest extends TestCase
 {
     // ───────────────────────── StrictTransportSecurity ─────────────────────────

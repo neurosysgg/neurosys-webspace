@@ -92,6 +92,16 @@ final class RequestTest extends TestCase
         yield 'unparseable, fragment cut' => ['//host:notaport/x#top', '//host:notaport/x'];
         yield 'raw quote, query cut'      => ['/demos/x"y?a=1&b=2', '/demos/x"y'];
         yield 'query only'                => ['/?a=1', '/'];
+
+        // A target is a path, never an authority. Read as a relative reference, `//x/releases` is
+        // the host `x` and the path `/releases`, and the releases page answered at an address with
+        // a host inside it; `//whatever` was the host `whatever` and the path '', which is the root.
+        // Kept whole, both are paths no route has, and both 404.
+        yield 'a leading double slash is a path' => ['//whatever', '//whatever'];
+        yield 'and does not alias another page'  => ['//x/releases', '//x/releases'];
+        yield 'with its query cut'               => ['//x/releases?a=1', '//x/releases'];
+        yield 'an IPv6 literal is not a host'    => ['//[::1]/releases', '//[::1]/releases'];
+        yield 'two slashes stay the root'        => ['//', '/'];
     }
 
     /**
@@ -111,6 +121,22 @@ final class RequestTest extends TestCase
     public function testDefaultsToRootWhenRequestUriIsAbsent(): void
     {
         self::assertSame('/', $this->request([])->path());
+    }
+
+    /**
+     * A `Range` is read on a GET and nowhere else — RFC 9110 §14.2 — so a HEAD is answered as the
+     * GET without one would be: the whole length and a 200, never a 206 describing the part.
+     *
+     * @return void
+     */
+    public function testARangeIsReadOnAGetOnly(): void
+    {
+        $asked = ['REQUEST_URI' => '/demos/x/v1', 'HTTP_RANGE' => 'bytes=3-5'];
+
+        self::assertSame(3, $this->request($asked)->range(10)?->first);
+        self::assertSame(3, $this->request($asked + ['REQUEST_METHOD' => 'GET'])->range(10)?->first);
+        self::assertNull($this->request($asked + ['REQUEST_METHOD' => 'HEAD'])->range(10));
+        self::assertNull($this->request($asked + ['REQUEST_METHOD' => 'POST'])->range(10));
     }
 
     /**
@@ -496,8 +522,50 @@ final class RequestTest extends TestCase
     {
         self::assertFalse(AuthScheme::Basic->carries('Bearer abc123'));
         self::assertFalse(AuthScheme::Basic->carries('Basicxyz'));
+        self::assertFalse(AuthScheme::Basic->carries("Basic\txyz"));
         self::assertFalse(AuthScheme::Basic->carries(''));
         self::assertSame(['', ''], AuthScheme::Basic->credentials('Bearer abc123'));
+    }
+
+    /**
+     * The scheme is a case-insensitive token, separated from its parameters by one space or more —
+     * RFC 9110 §11.1 and §11.4. A client that wrote it any other way than `Basic` and one space was
+     * refused as though its password were wrong.
+     *
+     * @param string $authorization
+     * @return void
+     */
+    #[DataProvider('schemeSpellingProvider')]
+    public function testTheSchemeIsReadAsTheGrammarWritesIt(string $authorization): void
+    {
+        self::assertTrue(AuthScheme::Basic->carries($authorization));
+        self::assertSame(['admin', 'pw'], AuthScheme::Basic->credentials($authorization));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function schemeSpellingProvider(): iterable
+    {
+        $token = base64_encode('admin:pw');
+
+        yield 'as browsers send it' => ["Basic $token"];
+        yield 'lower case'          => ["basic $token"];
+        yield 'upper case'          => ["BASIC $token"];
+        yield 'two spaces'          => ["Basic  $token"];
+    }
+
+    /**
+     * The same for the signed scheme, whose parameters are everything after the spaces.
+     *
+     * @return void
+     */
+    public function testAnOpaqueSchemesParametersFollowItsSpaces(): void
+    {
+        self::assertSame('abc', AuthScheme::NS1->parameters('nS1   abc'));
+        self::assertSame('', AuthScheme::NS1->parameters('NS1 '));
+        self::assertNull(AuthScheme::NS1->parameters('NS1abc'));
+        self::assertNull(AuthScheme::NS1->parameters('Basic abc'));
     }
 
     /**
@@ -541,7 +609,13 @@ final class RequestTest extends TestCase
         yield 'a tie goes to the default' => ['en;q=0.5,de;q=0.5', Language::English];
         yield 'German refused'      => ['de;q=0', Language::English];
         yield 'whitespace and case' => ['  DE-at ; q=0.7 , en;q=0.2', Language::German];
-        yield 'unparseable weight'  => ['de;q=high', Language::German];
+        // A weight this cannot read drops its entry. Read as the 1.0 an absent weight means, as it
+        // once was, an unreadable entry became the strongest in the list.
+        yield 'unparseable weight'  => ['de;q=high', Language::English];
+        yield 'an unreadable weight drops only its entry' => ['en;q=high,de;q=0.1', Language::German];
+        yield 'a weight past 1'     => ['en;q=2,de;q=0.5', Language::German];
+        yield 'four decimals'       => ['en;q=0.5000,de;q=0.1', Language::German];
+        yield 'one, written longest' => ['de;q=1.000,en;q=0.9', Language::German];
         yield 'empty entries'       => [',,,', Language::English];
         yield 'a range that is not one' => ['12345678901,de', Language::German];
         // A range may carry parameters other than a weight. Rare in the wild, legal in the grammar,

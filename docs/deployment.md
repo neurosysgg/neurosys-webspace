@@ -101,8 +101,9 @@ Two things to confirm, in this order, because the second is hard to undo:
    domain until the max-age runs out, and the only thing that can shorten that is a smaller max-age
    delivered over HTTPS. A subdomain that cannot do TLS becomes unreachable rather than insecure.
 
-If either is in doubt, ship `StrictTransportSecurity::ONE_DAY` first — one constructor argument in
-`SecurityHeaders::strictTransportSecurity()` — confirm, then put it back to the default year.
+If either is in doubt, ship `StrictTransportSecurity::ONE_DAY` first — override
+`Site::strictTransportSecurity()` to return `new StrictTransportSecurity(StrictTransportSecurity::ONE_DAY)`
+— confirm, then delete the override to put it back to the default year.
 
 ## Regular deploy — the signed push
 

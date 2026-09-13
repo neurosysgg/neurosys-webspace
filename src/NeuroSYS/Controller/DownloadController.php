@@ -11,6 +11,7 @@ use NeuroSYS\Text\Texts;
 use NeuroSYS\View\NotFoundView;
 use Phpanta\Controller\Controller;
 use Phpanta\Http\HttpStatusCode;
+use Phpanta\Http\Location;
 use Phpanta\Http\PlainTextResponse;
 use Phpanta\Http\RedirectResponse;
 use Phpanta\Http\Request;
@@ -70,6 +71,6 @@ readonly class DownloadController implements Controller
 
         new DownloadLogger()->log($this->slug, $type);
 
-        return new RedirectResponse($format->link->url());
+        return new RedirectResponse(new Location($format->link->url()));
     }
 }
