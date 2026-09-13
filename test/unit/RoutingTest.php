@@ -352,4 +352,25 @@ final class RoutingTest extends TestCase
         self::assertSame(['a"b'], $demo->matches('/demos/a"b'));
         self::assertSame(['x?a=1'], $demo->matches('/demos/x?a=1'));
     }
+
+    /**
+     * The one read-only route without placeholders that is not a page. It is behind the admin
+     * password, so under the CLI its controller ends the process, and a static export that asked it
+     * would stop there — the route says it has no pages instead.
+     *
+     * @return void
+     */
+    public function testTheStatsPageIsNeverExported(): void
+    {
+        $exported = [];
+
+        foreach (Site::current()->routeTable() as $route) {
+            if (!$route->exportedPaths()->isEmpty()) {
+                $exported[] = $route->path()->value;
+            }
+        }
+
+        self::assertNotContains(SitePath::Stats->value, $exported);
+        self::assertContains(SitePath::Home->value, $exported, 'a route without an $exports closure is still a page');
+    }
 }

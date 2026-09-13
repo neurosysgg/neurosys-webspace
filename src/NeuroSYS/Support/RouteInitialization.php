@@ -44,7 +44,9 @@ class RouteInitialization
             // keep quiet — see DemoController.
             ->addRoute(SitePath::Demo, fn($slug) => new DemoController($slug))
             ->addRoute(SitePath::DemoAudio, fn($slug, $label) => new DemoAudioController($slug, $label))
-            ->addRoute(SitePath::Stats, fn() => new StatsController())
+            // Behind the admin password, so never a page of a static export: under the CLI its
+            // controller ends the process, and the export would stop there.
+            ->addRoute(SitePath::Stats, fn() => new StatsController(), exports: fn(): array => [])
             ->addRoute(SitePath::Imprint, fn() => new ImprintController())
             ->addRoute(SitePath::Privacy, fn() => new PrivacyController())
             ->addRoute(SitePath::Language, fn($language) => new LanguageController($language))
@@ -58,15 +60,18 @@ class RouteInitialization
      * @param Closure $factory
      * @param MethodPolicy $methods The default is what ten of the eleven routes want, and none of
      *                              them states it.
+     * @param Closure|null $exports Which pages a static export writes for it — see Route. Only a
+     *                              route behind a password needs one, to say it has none.
      * @return $this
      */
     private function addRoute(
         SitePath $pattern,
         Closure $factory,
         MethodPolicy $methods = MethodPolicy::ReadOnly,
+        ?Closure $exports = null,
     ): static {
         // Collection::with() copies rather than appends, so the result has to be kept.
-        $this->collection = $this->collection->with(new Route($pattern, $factory, $methods));
+        $this->collection = $this->collection->with(new Route($pattern, $factory, $methods, $exports));
         return $this;
     }
 }

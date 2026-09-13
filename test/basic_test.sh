@@ -539,10 +539,11 @@ else
 fi
 
 # public/.user.ini is hidden by the same kind of mirror: .htaccess rewrites it to the router, and the
-# dev router hands it to index.php, so both answer it as an address that does not exist. The HTTP
-# section below asks the dev server; this is what says production does the same.
+# dev router hands every dot segment — .user.ini among them — to index.php, so both answer it as an
+# address that does not exist. The HTTP section below asks the dev server; this is what says
+# production does the same.
 if grep -qE '^RewriteRule \^\\\.user\\\.ini\$ index\.php' "$REPO/public/.htaccess" \
-   && grep -q "const USER_INI = '/.user.ini';" "$REPO/phpanta/tools/dev-router.php"; then
+   && grep -qF "const DOT_SEGMENT = '#(?:^|/)(?:\.|%2e)#i';" "$REPO/phpanta/tools/dev-router.php"; then
     pass "public/.user.ini is sent to the router by both .htaccess and the dev router"
 else
     fail "public/.htaccess and phpanta/tools/dev-router.php no longer both hide public/.user.ini"
@@ -630,6 +631,26 @@ if [[ -x "$TSC" ]]; then
     #
     # This runs build-prod.mjs directly rather than `npm run build:prod`, because the block above
     # has already proven public/ current and rebuilding it here would just be slower.
+    # build-prod deletes --out before it builds, so it refuses one that holds the project or sits
+    # inside public/. Asked in a scratch project two levels down, so a guard that did not hold would
+    # delete scratch and nothing else.
+    GUARD=$(mktemp -d)
+    mkdir -p "$GUARD/project/public"
+    echo '{}' > "$GUARD/project/composer.json"
+    guard_held=1
+    for out in "$GUARD/project" "$GUARD" "$GUARD/project/public" "$GUARD/project/public/dist"; do
+        if (cd "$GUARD/project" && node "$REPO/phpanta/tools/build-prod.mjs" --out "$out" >/dev/null 2>&1) \
+           || [[ ! -f "$GUARD/project/composer.json" || ! -d "$GUARD/project/public" ]]; then
+            guard_held=0
+            fail "build-prod.mjs accepted --out $out, which it deletes before building"
+            break
+        fi
+    done
+    if [[ $guard_held == 1 ]]; then
+        pass "build-prod.mjs refuses an --out that holds the project or is inside public/"
+    fi
+    rm -rf "$GUARD"
+
     if node "$REPO/phpanta/tools/build-prod.mjs" >/dev/null 2>&1; then
         pass "the prod tree builds"
 
@@ -766,6 +787,21 @@ if curl -s "$BASE/.user.ini" | grep -q 'register_argc_argv'; then
 else
     pass "GET /.user.ini does not serve the file's contents"
 fi
+
+# The rest of what the built-in server would hand out on its own. Apache refuses .ht* and resolves
+# `..` before it looks for a file; php -S does neither, and before the router sent every dot segment
+# to the site, `../../index.php` under a stamp served the webroot's PHP source. Asked with
+# --path-as-is, because curl would otherwise resolve the dots itself and ask for something else.
+for target in "/.htaccess" "/%2euser.ini" "/assets/js/v-00000000/../../index.php" \
+              "/assets/js/v-00000000/%2e%2e/%2e%2e/index.php" "/assets/js/v-00000000/x%2F..%2F..%2Findex.php" \
+              "/assets/css/v-00000000/../../.user.ini"; do
+    answer=$(curl "${CURL_ARGS[@]}" --path-as-is -w '\n%{http_code}' "$BASE$target") || true
+    if [[ "${answer##*$'\n'}" == 404 ]] && ! grep -qE 'strict_types|register_argc_argv|DirectoryIndex' <<<"$answer"; then
+        pass "GET $target → 404, and none of the file"
+    else
+        fail "GET $target answered ${answer##*$'\n'} or served the file — the dev router let it through"
+    fi
+done
 
 # Targets parse_url() will not parse. It returns false on failure and `?? '/'` only catches null, so
 # read that way each of these is an uncaught TypeError in fromGlobals() — a 500 ahead of the router
