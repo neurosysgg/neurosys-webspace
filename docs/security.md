@@ -57,7 +57,7 @@ What is *not* in the surface, and the bug class each absence removes:
 | Not present | Class it removes |
 |---|---|
 | No database, no SQL | SQL injection |
-| No cookie, no session | session fixation/hijack; the ambient credential CSRF rides |
+| No session, and one cookie that is only a preference | session fixation/hijack; the ambient credential CSRF rides |
 | No `<form>`, no ambient credential | CSRF target; mass-assignment |
 | No user-facing upload, no user content | stored XSS |
 | No path built from a request | traversal — a demo's audio is addressed by a declared label, and an update's members are matched against an allowlist of three roots |
@@ -217,11 +217,18 @@ comparison, `Auth::matches()`.
   as well. See [Known and accepted](#known-and-accepted).
 
 **There is no CSRF surface, and that is a property rather than an oversight.** It rests on two
-facts, either of which would be enough: the site sets no cookie and starts no session, so there is
-no ambient credential for a cross-site request to ride; and there is no `<form>` anywhere, while the
+facts, either of which would be enough: the site starts no session, and its one cookie, `lang`, is a
+preference rather than a credential — it opens nothing, so a cross-site request that carries it gains
+nothing (and it is `SameSite=Lax` all the same); and there is no `<form>` anywhere, while the
 Basic-authenticated routes are ones the browser sends credentials to because of the realm rather
 than the origin. `/api` does accept a `POST`, and a cross-site `POST` to it cannot forge an ECDSA
-signature. So there is no token, no `SameSite` attribute, and nothing for them to protect.
+signature. So there is no form token, and nothing for one to protect.
+
+The framework has both halves of the other arrangement — a sealed cookie session, and the
+`CsrfGuard` layer that holds every write to the token that session handed out; see
+[phpanta/docs/security.md](../phpanta/docs/security.md#sessions-the-form-token-and-the-login). The
+day this site has a form and a login is the day this paragraph changes, and they are listed on the
+routes that take the writes.
 ([history](history/security.md))
 
 ### 5. The response — output safety in the markup tree
@@ -365,13 +372,15 @@ assessments turned up is fixed — see [history/security.md](history/security.md
 
 ## What is deliberately not here
 
-- **No web-application firewall, no rate limiting layer.** This is a static site on shared hosting;
-  the perimeter is the host's.
-- **No CSRF tokens, no `SameSite` cookies.** There is nothing for them to protect — see the CSRF
-  paragraph under [Authentication](#3-again-authentication). The CSP still carries
-  `form-action 'self'`, which on a site with no forms is belt over braces and stays because the day
-  a form appears is not the day anyone will remember to add it.
-- **No cookie or consent banner** for the site itself — it sets no cookie. The one consent gate is on
+- **No web-application firewall, and no rate limit listed.** This is a static site on shared hosting;
+  the perimeter is the host's. The framework ships a `RateLimit` layer; this site has no login and no
+  write for one to protect, and lists none.
+- **No form tokens and no session.** There is nothing for them to protect — see the CSRF paragraph
+  under [Authentication](#3-again-authentication). The CSP still carries `form-action 'self'`,
+  which on a site with no forms is belt over braces and stays because the day a form appears is not
+  the day anyone will remember to add it.
+- **No cookie or consent banner** for the site itself — its one cookie is the language a visitor
+  chose, set only when they click the switch. The one consent gate is on
   the SoundCloud embed, which contacts no third party until the visitor clicks: the served HTML
   contains no SoundCloud address at all for a browser to preconnect or prefetch, and the notice is
   written by the element that would do the loading.

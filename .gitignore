@@ -69,3 +69,8 @@ data/demos/
 # repository entirely, the way the SoundCloud refresh token does.
 data/update.pub
 /.update-serial
+
+# The key sessions are sealed with, if this deployment ever keeps one. Per deployment, minted on the
+# host it serves, and never here: a committed key would let anyone who reads the repository forge a
+# session. deploy.sh excludes it for the same reason.
+data/session.key

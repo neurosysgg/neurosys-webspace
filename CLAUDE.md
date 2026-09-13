@@ -408,9 +408,10 @@ php tools/api.php capability v1 extensions                  # what it has; also 
 
 - **The push is the regular deploy; `./deploy.sh` is the full one and the recovery path** — it owns
   `data/`, and it fixes a push that broke `src/`. Do not make the endpoint replace it.
-- **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php` and `data/update.pub`** — the repo's
-  `admin.php` is a placeholder with an empty hash, and the other two are gitignored and exist only
-  per deployment. All three hold live credentials; upload them by hand.
+- **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub` and
+  `data/session.key`** — the repo's `admin.php` is a placeholder with an empty hash, and the others
+  are gitignored and exist only per deployment. All four hold live credentials; upload or mint them
+  by hand. The site keeps no session today, so it has no `session.key`.
 - **`--delete` is on for `public/`, `src/` and `phpanta/src/`, off for `data/`**, so a gitignored demo on the server
   survives a deploy from a clone that never staged it — and a data file removed locally must be
   removed from the server by hand.

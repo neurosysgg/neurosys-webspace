@@ -392,10 +392,12 @@ bytes rather than the readable ones, which is correct — a stamp is a claim abo
 safe: the assets land before the manifest naming them, and `.htaccess` *strips* the version segment
 rather than resolving it, so a document cached with the previous stamp still finds the new files.
 
-**It deliberately excludes `data/admin.php`, `data/site_auth.php` and `data/update.pub`**, and
-`data/logs/`. The copies of the first two in the repo are placeholders — `admin.php` ships an empty
-`pass_hash` — so syncing them would overwrite the live hashes and lock `/admin/stats` out; the third
-has no repo copy at all. Upload those by hand when they actually change.
+**It deliberately excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub` and
+`data/session.key`**, and `data/logs/`. The copies of the first two in the repo are placeholders —
+`admin.php` ships an empty `pass_hash` — so syncing them would overwrite the live hashes and lock
+`/admin/stats` out; the other two have no repo copy at all, and each deployment holds its own. Upload
+those by hand when they actually change; a session key, if the site ever keeps sessions, is minted on
+the host it serves and never leaves it.
 
 **`--delete` is on for `public/` and `src/` and off for `data/`.** The two trees it deletes from are
 wholly generated or wholly committed, so the working tree is authoritative about what should be

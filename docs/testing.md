@@ -531,8 +531,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.56% of lines** (3380/3395), derived on 2026-09-13
-(with typed input, on top of `6619066`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.59% of lines** (3616/3631), derived on 2026-09-13
+(with sessions and rate limiting, on top of `d36c4cc`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, and however much it asserts

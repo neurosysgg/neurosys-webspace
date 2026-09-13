@@ -411,11 +411,15 @@ fi
 # comparison itself. openssl_verify() returns 1, 0 or -1, and only 1 is a pass — a call site that
 # wrote `if (openssl_verify(...))` would accept the error case as success and let an unsigned
 # payload overwrite src/. PublicKey asks `=== 1` in one place so no second place can ask it wrongly.
-verifying=$(grep -rl "openssl_" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null | grep -v "/Support/PublicKey.php$" || true)
+# SessionSeal is the one other caller, and a different operation entirely — AES-256-GCM, sealing and
+# opening a session cookie — kept in its own single class for the same reason: one place to get the
+# nonce, the tag and the associated data right.
+verifying=$(grep -rl "openssl_" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null \
+    | grep -v "/Support/PublicKey.php$" | grep -v "/Http/SessionSeal.php$" || true)
 if [[ -z "$verifying" ]]; then
-    pass "openssl is called in one place under src/"
+    pass "openssl is called in two places under src/: verifying a signature, sealing a session"
 else
-    fail "openssl called outside Support/PublicKey.php: $(echo "$verifying" | tr '\n' ' ')"
+    fail "openssl called outside Support/PublicKey.php and Http/SessionSeal.php: $(echo "$verifying" | tr '\n' ' ')"
 fi
 
 # The site signs nothing. It holds the public half of the update key and can only ever check a
