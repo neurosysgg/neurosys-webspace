@@ -1,8 +1,8 @@
 import { CssClass } from '../../model/CssClass.js';
 import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
-import { HtmlTag } from '../../model/HtmlTag.js';
-import { Language, pageLanguage } from '../../model/Language.js';
+import { HtmlTag } from '../../phpanta/model/HtmlTag.js';
+import { Language, pageLanguage } from '../../phpanta/model/Language.js';
 import { Platform, displayName } from '../../model/Platform.js';
 const GATE = {
     [Language.English]: {

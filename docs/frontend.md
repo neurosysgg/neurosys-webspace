@@ -464,7 +464,7 @@ click on a[href^="/"]
   → fetch with X-Requested-With: XMLHttpRequest
   → ViewResponse sends <title> + the fragment
   → read and decode the title, strip it, assign the rest to #content.innerHTML
-  → dispatch neurosys:navigate, scroll to top
+  → dispatch phpanta:navigate, scroll to top
 ```
 
 ### The four things to understand before touching it
@@ -492,7 +492,7 @@ deliberately, one microtask wide.
 
 **4. Nothing re-runs after a swap.** The browser upgrades any custom element it parses, including
 markup assigned through `innerHTML`, so the gate and the cover wire themselves on arrival. The
-`neurosys:navigate` event stays for anything that is *not* an element — subscribe with
+`phpanta:navigate` event stays for anything that is *not* an element — subscribe with
 `Navigation.onNavigate()` rather than the string.
 
 ### Failure is always "hand it back to the browser"

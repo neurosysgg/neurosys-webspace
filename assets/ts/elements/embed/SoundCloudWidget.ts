@@ -4,8 +4,8 @@ import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
 import { Config } from '../../Config.js';
-import { HtmlTag } from '../../model/HtmlTag.js';
-import { Language, pageLanguage } from '../../model/Language.js';
+import { HtmlTag } from '../../phpanta/model/HtmlTag.js';
+import { Language, pageLanguage } from '../../phpanta/model/Language.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
 
 /**

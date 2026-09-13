@@ -1,5 +1,5 @@
 import { CoverArtAttribute } from '../model/CoverArtAttribute.js';
-import { HtmlTag } from '../model/HtmlTag.js';
+import { HtmlTag } from '../phpanta/model/HtmlTag.js';
 import { Tag } from '../model/Tag.js';
 
 /**

@@ -14,7 +14,7 @@ import { test, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { dom } from './dom.mjs';
-import { Navigation } from '../../public/assets/js/Navigation.js';
+import { Navigation } from '../../public/assets/js/phpanta/Navigation.js';
 
 const content = document.getElementById('content');
 

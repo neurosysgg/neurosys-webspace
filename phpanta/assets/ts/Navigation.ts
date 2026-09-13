@@ -20,7 +20,7 @@ export class Navigation {
    * cannot break a listener in silence. Custom elements do not need it — the browser upgrades those
    * on its own. It is for anything that is not an element.
    */
-  private static readonly EVENT = 'neurosys:navigate';
+  private static readonly EVENT = 'phpanta:navigate';
 
   /**
    * An anchor pointing somewhere on this site.

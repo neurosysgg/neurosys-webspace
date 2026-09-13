@@ -1,5 +1,5 @@
 import { CustomProperty } from '../../model/CustomProperty.js';
-import { HtmlTag } from '../../model/HtmlTag.js';
+import { HtmlTag } from '../../phpanta/model/HtmlTag.js';
 import { Tag } from '../../model/Tag.js';
 import { WaveformAttribute } from '../../model/WaveformAttribute.js';
 import { STRIDE, WaveformBand } from '../../model/WaveformBand.js';

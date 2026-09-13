@@ -1,5 +1,5 @@
 import { Tag } from '../../model/Tag.js';
-import { NestedElement } from '../NestedElement.js';
+import { NestedElement } from '../../phpanta/elements/NestedElement.js';
 import { DownloadCard } from './DownloadCard.js';
 
 /** <download-meta> — the quality or licensing note under the name. */

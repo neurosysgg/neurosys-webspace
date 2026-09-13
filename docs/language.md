@@ -145,7 +145,7 @@ on something the view knows, name it in the message — `{title}` — and bind i
 
 ## Adding a language
 
-1. A `Language` case, and its `endonym()`; the same case in `assets/ts/model/Language.ts`.
+1. A `Language` case, and its `endonym()`; the same case in `phpanta/assets/ts/model/Language.ts`.
 2. A parameter on `Translation` — `fr:` — and its arm in `pattern()` and `has()`.
 3. Its words on every catalog case: `TranslationTest` lists each one missing.
 4. Its words in each client `Record`: `npm run check` lists each one missing.

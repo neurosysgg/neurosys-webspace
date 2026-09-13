@@ -30,6 +30,12 @@
     // A type error must never leave stale or half-written JS sitting in public/ waiting to deploy.
     "noEmitOnError": true,
 
+    // The framework's TypeScript is reached through assets/ts/phpanta, a symlink to
+    // phpanta/assets/ts. Kept as the path it was reached by, it compiles into
+    // public/assets/js/phpanta/ and its imports resolve beside the site's own modules; resolved
+    // to its real path, it would sit outside rootDir and refuse to compile.
+    "preserveSymlinks": true,
+
     // Comments are about half of what tsc emits, and a second copy of something already sent:
     // inlineSources below embeds the TypeScript — comments intact — in the map's sourcesContent, so
     // DevTools shows the commented source either way. Keeping them in the .js as well is a copy only

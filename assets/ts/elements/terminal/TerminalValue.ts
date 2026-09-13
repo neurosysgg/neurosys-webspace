@@ -1,5 +1,5 @@
 import { Tag } from '../../model/Tag.js';
-import { NestedElement } from '../NestedElement.js';
+import { NestedElement } from '../../phpanta/elements/NestedElement.js';
 import { TerminalField } from './TerminalField.js';
 
 /** <terminal-value> — the row's value. */

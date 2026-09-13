@@ -37,6 +37,6 @@ import './elements/release/ReleaseCard.js';
 import './elements/release/ReleaseTitle.js';
 import './elements/release/ReleaseMeta.js';
 
-import { Navigation } from './Navigation.js';
+import { Navigation } from './phpanta/Navigation.js';
 
 Navigation.forDocument()?.start();

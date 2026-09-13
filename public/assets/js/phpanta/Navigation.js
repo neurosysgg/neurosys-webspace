@@ -6,7 +6,7 @@ import { RequestHeader } from './model/RequestHeader.js';
 import { RequestedWith } from './model/RequestedWith.js';
 export class Navigation {
     content;
-    static EVENT = 'neurosys:navigate';
+    static EVENT = 'phpanta:navigate';
     static INTERNAL_LINK = `${HtmlTag.A}[${HtmlAttribute.Href}^="/"]`;
     static TITLE = new RegExp(`<${HtmlTag.Title}>([\\s\\S]*?)</${HtmlTag.Title}>`);
     navigation = 0;

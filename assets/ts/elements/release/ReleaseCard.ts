@@ -1,5 +1,5 @@
 import { Tag } from '../../model/Tag.js';
-import { NestedElement } from '../NestedElement.js';
+import { NestedElement } from '../../phpanta/elements/NestedElement.js';
 import { ReleaseList } from './ReleaseList.js';
 
 /** <release-card slug> — one catalogue entry. `slug` names the release it links to. */

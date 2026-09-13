@@ -1,5 +1,5 @@
 import { Tag } from '../../model/Tag.js';
-import { NestedElement } from '../NestedElement.js';
+import { NestedElement } from '../../phpanta/elements/NestedElement.js';
 import { DownloadList } from './DownloadList.js';
 export class DownloadCard extends NestedElement {
     parent() { return DownloadList; }
