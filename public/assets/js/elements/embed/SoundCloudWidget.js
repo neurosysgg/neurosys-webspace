@@ -42,7 +42,7 @@ export class SoundCloudWidget extends ConsentGatedEmbed {
         const iframe = document.createElement(HtmlTag.Iframe);
         iframe.width = '100%';
         iframe.height = this.getAttribute(EmbedAttribute.Height) ?? '';
-        iframe.title = `${this.subject()} ${ON[pageLanguage()]} ${displayName(this.platform())}`;
+        iframe.title = `${this.subject()} ${ON[pageLanguage(Config.LANGUAGES)]} ${displayName(this.platform())}`;
         iframe.src = this.playerUrl();
         iframe.setAttribute('allow', 'autoplay; encrypted-media');
         iframe.setAttribute('scrolling', 'no');

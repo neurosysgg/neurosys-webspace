@@ -3,7 +3,7 @@ import { SoundCloudOption } from '../../model/SoundCloudOption.js';
 import { SoundCloudPlayerAttribute } from '../../model/SoundCloudPlayerAttribute.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
 import { SoundCloudPlayerStyle, isVisual } from '../../model/SoundCloudPlayerStyle.js';
-import { Config } from '../../Config.js';
+import { Config, type SiteLanguage } from '../../Config.js';
 import { HtmlTag } from '../../phpanta/model/HtmlTag.js';
 import { Language, pageLanguage } from '../../phpanta/model/Language.js';
 import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
@@ -12,7 +12,7 @@ import { ConsentGatedEmbed } from './ConsentGatedEmbed.js';
  * The word between what is playing and where, in the iframe's title — `ill. on SoundCloud`. A
  * Record over the enum, for the reason ConsentGatedEmbed's words are one.
  */
-const ON: Record<Language, string> = {
+const ON: Record<SiteLanguage, string> = {
   [Language.English]: 'on',
   [Language.German]: 'auf',
 };
@@ -123,7 +123,7 @@ export abstract class SoundCloudWidget extends ConsentGatedEmbed {
 
     iframe.width  = '100%';
     iframe.height = this.getAttribute(EmbedAttribute.Height) ?? '';
-    iframe.title  = `${this.subject()} ${ON[pageLanguage()]} ${displayName(this.platform())}`;
+    iframe.title  = `${this.subject()} ${ON[pageLanguage(Config.LANGUAGES)]} ${displayName(this.platform())}`;
     iframe.src    = this.playerUrl();
 
     // allow, scrolling and frameborder are set as attributes rather than properties: the last two

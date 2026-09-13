@@ -142,9 +142,10 @@ The absence of a constant is a decision here, not an oversight.
 - **The platform's own vocabulary** — `'click'`, `'error'`, `'popstate'`, `'same-origin'`.
   TypeScript's DOM types already carry those.
 - **User-facing copy.** The consent notice's wording lives where it is written and is asserted
-  there — in each language, as a `Record<Language, …>`, so a language the server gains is a
-  compile error in the element until its words are written. The language itself is a contract
-  (`model/Language.ts`, above); the words are not.
+  there — in each language, as a `Record<SiteLanguage, …>` over `Config.LANGUAGES`, so a language
+  the site gains is a compile error in the element until its words are written. The language itself
+  is a contract (`model/Language.ts`, above), and so is the list the site offers (`Config`, checked
+  against `Site::languages()`); the words are not.
 - **SoundCloud's furniture.** The player reproduces the embed dialog's output exactly — `allow`,
   `scrolling`, `frameborder`, the `url`/`color`/`visual` query keys, the accent, the attribution's
   font stack. None of it is a contract with our own code. `SoundCloudOption` is enumerated only

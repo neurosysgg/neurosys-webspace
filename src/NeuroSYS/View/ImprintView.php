@@ -79,8 +79,8 @@ class ImprintView extends View
     public function content(): Node
     {
         // A match rather than a sort: there are two halves, both are always rendered, and the only
-        // question is which leads. It is also what makes a third Language case a loud failure here
-        // rather than a page quietly missing a third of itself.
+        // question is which leads. It is also what makes a third language offered a loud failure
+        // here rather than a page quietly missing a third of itself.
         $halves = match ($this->language) {
             Language::German  => [self::german(), self::english()],
             Language::English => [self::english(), self::german()],

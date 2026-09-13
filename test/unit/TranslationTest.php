@@ -6,9 +6,9 @@ namespace NeuroSYS\Test\Unit;
 
 use FilesystemIterator;
 use MessageFormatter;
+use NeuroSYS\Site;
 use NeuroSYS\Text\ReleaseDescription;
 use NeuroSYS\Text\Texts;
-use Phpanta\Text\Language;
 use Phpanta\Text\Translatable;
 use Phpanta\Text\Translated;
 use PHPUnit\Framework\Attributes\CoversTrait;
@@ -20,19 +20,19 @@ use ReflectionClass;
 use UnitEnum;
 
 /**
- * Every word the site says, in both languages.
+ * Every word the site says, in every language it offers.
  *
  * The catalogs are code, so this checks what a compiler would check if PHP had one for text: every
- * case carries its words, both languages read as the ICU message they are, a phrase names the same
- * arguments in German as in English, and German is actually written rather than falling back. A
+ * case carries its words, each language reads as the ICU message it is, a phrase names the same
+ * arguments in each as in the default, and each is actually written rather than falling back. A
  * missed translation is this test failing, not an English word on a German page.
  */
 #[CoversTrait(Translated::class)]
 final class TranslationTest extends TestCase
 {
     /**
-     * The catalogs whose German may fall back to the English: text a release's author writes,
-     * possibly before the German exists. See {@link ReleaseDescription}.
+     * The catalogs that need only the default language, and may fall back from the rest: text a
+     * release's author writes, possibly before the German exists. See {@link ReleaseDescription}.
      */
     private const array FALLS_BACK = [ReleaseDescription::class];
 
@@ -55,26 +55,27 @@ final class TranslationTest extends TestCase
      * @return void
      */
     #[DataProvider('caseProvider')]
-    public function testEveryCaseIsWrittenInBothLanguagesAsAMessageIcuCanRead(UnitEnum&Translatable $case): void
+    public function testEveryCaseIsWrittenInEveryLanguageAsAMessageIcuCanRead(UnitEnum&Translatable $case): void
     {
         $translation = $case->translation();
+        $languages   = Site::current()->languages();
+        $fallsBack   = in_array($case::class, self::FALLS_BACK, true);
 
-        if (!in_array($case::class, self::FALLS_BACK, true)) {
-            self::assertTrue($translation->has(Language::German), 'no German: it would fall back to English');
-        }
+        foreach ($languages->offered()->toValues() as $language) {
+            if (!$fallsBack || $language === $languages->default()) {
+                self::assertTrue($translation->has($language), "no {$language->name}: it would fall back");
+            }
 
-        foreach (Language::cases() as $language) {
             self::assertNotNull(
                 MessageFormatter::create($language->value, $translation->pattern($language)),
                 "not a message ICU can read in {$language->name}",
             );
+            self::assertSame(
+                self::arguments($translation->pattern($languages->default())),
+                self::arguments($translation->pattern($language)),
+                "{$language->name} names different arguments from the default",
+            );
         }
-
-        self::assertSame(
-            self::arguments($translation->pattern(Language::English)),
-            self::arguments($translation->pattern(Language::German)),
-            'the two languages name different arguments',
-        );
     }
 
     /**

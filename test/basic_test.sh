@@ -1124,6 +1124,8 @@ check_header "  the site may not be framed"           "$BASE/"             "fram
 check_header "Referrer-Policy is set"                 "$BASE/"             "^referrer-policy: strict-origin-when-cross-origin"
 check_header "X-Content-Type-Options is set"          "$BASE/"             "^x-content-type-options: nosniff"
 check_header "Permissions-Policy is set"              "$BASE/"             "^permissions-policy:"
+check_header "Cross-Origin-Opener-Policy is set"      "$BASE/"             "^cross-origin-opener-policy: same-origin"
+check_header "Cross-Origin-Resource-Policy is set"    "$BASE/"             "^cross-origin-resource-policy: same-origin"
 # PHP appends this before any of our code runs, so SecurityHeaders::send() removes it. Only visible
 # on a real server -- header() and header_remove() are both no-ops under CLI, so PHPUnit cannot see
 # either. expose_php is On in this dev server's ini, which is what makes the assertion mean anything.

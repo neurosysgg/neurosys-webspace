@@ -170,11 +170,20 @@ test('WaveformBand mirrors NeuroSYS\\Model\\WaveformBand, offsets included', () 
  */
 test('Config mirrors the part of NeuroSYS\\Site the client reads', () => {
   assert.deepEqual(
-    { NAME: Config.NAME, HANDLE: Config.HANDLE, PLAYER_HOST: Config.PLAYER_HOST },
+    {
+      NAME: Config.NAME,
+      HANDLE: Config.HANDLE,
+      PLAYER_HOST: Config.PLAYER_HOST,
+      LANGUAGES: [...Config.LANGUAGES],
+    },
     php(`echo json_encode([
         'NAME'        => NeuroSYS\\Site::NAME,
         'HANDLE'      => NeuroSYS\\Site::HANDLE,
         'PLAYER_HOST' => NeuroSYS\\Site::PLAYER_HOST,
+        'LANGUAGES'   => array_map(
+            fn ($l) => $l->value,
+            NeuroSYS\\Site::current()->languages()->offered()->toValues(),
+        ),
     ]);`),
   );
 });

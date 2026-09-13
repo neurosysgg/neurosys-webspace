@@ -531,8 +531,9 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.59% of lines** (3616/3631), derived on 2026-09-13
-(with sessions and rate limiting, on top of `d36c4cc`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.63% of lines** (4402/4418), derived on 2026-09-13
+(with forms, the database, rollback and any language, on top of `ef4a693`, with `pdo_sqlite`
+loaded — without it the database tests skip and `Data/` reads as untested). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, and however much it asserts
@@ -549,7 +550,7 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Fifteen lines, in four groups, and every one of them deliberate — behind a switch that is off on
+Sixteen lines, in five groups, and every one of them deliberate — behind a switch that is off on
 purpose, behind a credential the repository does not hold, or on a failure no test can arrange:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Site::DOWNLOAD_LOGGING`, a `false`
@@ -575,10 +576,15 @@ purpose, behind a credential the repository does not hold, or on a failure no te
   beside it *is* covered, by deleting the file between answering and reading the body — and that one
   mattered, because opening an unreadable file warns, and by then the headers have gone out, so the
   warning would print into the audio. The `fopen` is muted for the reason `File::read()`'s is.
+- **`ReleaseRecord::take()`'s failed completion (1 line)** fires when the push's record of the
+  release it replaces cannot be marked complete — the second write of an index whose first write,
+  moments before in the same call, succeeded. Only a disk or quota filling mid-push arranges that.
+  It stays because without it a record left marked incomplete would pass for one taken, and the push
+  would go ahead with no way back; every other way the record can fail to be taken *is* covered.
 
 #### Keeping the count honest
 
-The fifteen are a property of what is *deliberately* untested, not a budget that grows with the
+The sixteen are a property of what is *deliberately* untested, not a budget that grows with the
 code. Every pass since the figure was first written has held it there or lowered it, and the way it
 did is the rule:
 

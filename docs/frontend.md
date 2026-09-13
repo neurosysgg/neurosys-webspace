@@ -444,8 +444,9 @@ translated; see [architecture.md](architecture.md#language).
 Three checks hold the words:
 
 - **`TranslationTest`** reads `Texts`, and in turn every catalog a catalog names. It asserts that
-  every case has a `#[Translation]`, that both languages parse as ICU messages and name the same
-  arguments, and that the German is written, except a release description's. It also walks `src/`
+  every case has a `#[Translation]`, and that every language `Site::languages()` offers parses as an
+  ICU message, names the same arguments as the default, and is written — except a release
+  description's, which needs only the default. It also walks `src/`
   for every enum that uses `Translated`, and fails on one the index cannot reach. And it reads every
   view's tokens for a word written as a literal: a string with a letter in it, passed straight to
   `containing()` or as an `alt`, `title` or `aria-label`.

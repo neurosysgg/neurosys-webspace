@@ -72,7 +72,7 @@ class PrivacyView extends View
         $english = self::half(Language::English, $this->english);
 
         // The preferred half first, the other one after it — never one without the other. A match
-        // rather than a sort, for the reason ImprintView::content() gives: a third Language case
+        // rather than a sort, for the reason ImprintView::content() gives: a third language offered
         // should fail here loudly rather than drop a half.
         $halves = match ($this->language) {
             Language::German  => [$german, $english],

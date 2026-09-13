@@ -295,7 +295,8 @@ refuses exactly the same way, and the endpoint cannot fix that for itself. **The
 appends the action's path. ([history](history/api.md))
 
 A refusal *after* the signature verifies is a **422** with a full sentence saying which member of
-the archive was wrong — by then you have proved you hold the key, so there is nothing left to hide.
+the archive was wrong, or why the release it replaces could not be recorded — by then you have
+proved you hold the key, so there is nothing left to hide.
 An address the API does not have is a **404** with a sentence too, and a verb the action does not
 answer on is a **405** naming the one it does; both are visible only to the key holder.
 
@@ -356,6 +357,33 @@ because the host and account name are not this repository's to publish:
 source <(grep -E '^(SFTP_USER|SFTP_MOUNT)=' deploy.sh) && rm -v "$SFTP_MOUNT/cgi-bin/neurosys/".nfs*
 ```
 
+### Rolling back a push
+
+```bash
+php tools/api.php update v1 rollback --dry-run   # what it would restore and remove
+php tools/api.php update v1 rollback
+```
+
+Every push records the release it replaces before it writes anything — the old bytes of each file it
+overwrites or the mirror deletes, and the names of the files it adds — in `cgi-bin/.update-previous/`
+beside `.update-serial`. The push's report says so in a `note:` line. A rollback puts exactly that
+back: `+` lines are files restored byte for byte, `-` lines are files the push had added and the
+rollback removed. Files the push left alone are not touched.
+
+- **One step back, never two.** The record holds the last push only. Each push replaces it (a push
+  that changes nothing keeps it), and a completed rollback clears it, so a second rollback is a 422
+  saying there is nothing to roll back.
+- **It refuses a tree that has moved on.** If anything it would touch no longer holds what the push
+  left — a `./deploy.sh` since, a hand edit over the mount — it refuses whole with a 422 naming the
+  paths, and writes nothing. It never mixes two releases.
+- **A push whose record cannot be written is refused** with a 422 and nothing written. If that
+  happens, PHP cannot write beside `.update-serial`, or an old record there is unreadable.
+- Like the push, it never touches `data/`. It runs the code it is rolling back *from*, and a rollback
+  that restores `public/index.php` strands one `.nfs` file the same way a push does (above).
+
+**`./deploy.sh` remains the full recovery path** — for anything more than one step back, for a tree
+the rollback refuses, and for a push that broke the endpoint the rollback would be sent to.
+
 ### What it does not do
 
 It never touches `data/`. That tree is 8.6 MB of demo audio, it is rsynced deliberately *without*
@@ -369,7 +397,7 @@ The entry naming it is in `data/releases.php`, which only `./deploy.sh` carries.
 ships both, and a push alone leaves the live catalogue without the entry.
 
 **`deploy.sh` remains, and remains the recovery path.** A push that breaks `src/` breaks the endpoint
-that would fix it; the way back is the mount. Every previous tree is in git, so recovery is
+that would fix it — `update v1 rollback` included; the way back is the mount. Every previous tree is in git, so recovery is
 `git checkout <ref> -- src public && ./deploy.sh`.
 
 ## Full deploy

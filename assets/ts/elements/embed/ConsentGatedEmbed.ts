@@ -1,3 +1,4 @@
+import { Config, type SiteLanguage } from '../../Config.js';
 import { CssClass } from '../../model/CssClass.js';
 import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
@@ -16,11 +17,11 @@ interface GateWords {
  * The gate's words, in each language the site is written in.
  *
  * Written here rather than sent by the server, for the reason the gate is built here at all: it is
- * the client's to show, before anything of the provider's exists. A Record over the enum, so a
- * language the server gains without its words here is a compile error rather than an English gate
- * on a German page.
+ * the client's to show, before anything of the provider's exists. A Record over the languages the
+ * site offers, so a language the site gains without its words here is a compile error rather than
+ * an English gate on a German page.
  */
-const GATE: Record<Language, GateWords> = {
+const GATE: Record<SiteLanguage, GateWords> = {
   [Language.English]: {
     label: (provider) => `${provider} player`,
     load: 'Load player',
@@ -85,7 +86,7 @@ export abstract class ConsentGatedEmbed extends HTMLElement {
 
   private renderGate(): void {
     const provider = displayName(this.platform());
-    const words    = GATE[pageLanguage()];
+    const words    = GATE[pageLanguage(Config.LANGUAGES)];
 
     const label = document.createElement(HtmlTag.P);
     label.textContent = words.label(provider);

@@ -35,5 +35,12 @@ export var HtmlTag;
     HtmlTag["Table"] = "table";
     HtmlTag["Tr"] = "tr";
     HtmlTag["Td"] = "td";
+    HtmlTag["Form"] = "form";
+    HtmlTag["Input"] = "input";
+    HtmlTag["Label"] = "label";
+    HtmlTag["Select"] = "select";
+    HtmlTag["Option"] = "option";
+    HtmlTag["Fieldset"] = "fieldset";
+    HtmlTag["Legend"] = "legend";
 })(HtmlTag || (HtmlTag = {}));
 //# sourceMappingURL=HtmlTag.js.map

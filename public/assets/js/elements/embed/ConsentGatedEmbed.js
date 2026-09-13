@@ -1,3 +1,4 @@
+import { Config } from '../../Config.js';
 import { CssClass } from '../../model/CssClass.js';
 import { CustomProperty } from '../../model/CustomProperty.js';
 import { EmbedAttribute } from '../../model/EmbedAttribute.js';
@@ -33,7 +34,7 @@ export class ConsentGatedEmbed extends HTMLElement {
     }
     renderGate() {
         const provider = displayName(this.platform());
-        const words = GATE[pageLanguage()];
+        const words = GATE[pageLanguage(Config.LANGUAGES)];
         const label = document.createElement(HtmlTag.P);
         label.textContent = words.label(provider);
         const button = document.createElement(HtmlTag.Button);

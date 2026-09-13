@@ -20,5 +20,15 @@ export var HtmlAttribute;
     HtmlAttribute["Preload"] = "preload";
     HtmlAttribute["AriaLabel"] = "aria-label";
     HtmlAttribute["AriaLive"] = "aria-live";
+    HtmlAttribute["AriaDescribedBy"] = "aria-describedby";
+    HtmlAttribute["Action"] = "action";
+    HtmlAttribute["Method"] = "method";
+    HtmlAttribute["Value"] = "value";
+    HtmlAttribute["For"] = "for";
+    HtmlAttribute["Required"] = "required";
+    HtmlAttribute["MaxLength"] = "maxlength";
+    HtmlAttribute["Autocomplete"] = "autocomplete";
+    HtmlAttribute["Checked"] = "checked";
+    HtmlAttribute["Selected"] = "selected";
 })(HtmlAttribute || (HtmlAttribute = {}));
 //# sourceMappingURL=HtmlAttribute.js.map
