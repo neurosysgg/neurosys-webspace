@@ -74,6 +74,7 @@ data/update.pub
 # release a push replaced, and the scratch directory of a probe that died before it could clean up.
 /.update-serial.lock
 /.update-previous/
+/.update-stage/
 /.update-probe-*/
 
 # The key sessions are sealed with, if this deployment ever keeps one. Per deployment, minted on the

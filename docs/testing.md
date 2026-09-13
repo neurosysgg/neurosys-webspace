@@ -531,7 +531,7 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.66% of lines** (4712/4728), derived on 2026-09-13
+clover XML and a browsable HTML report. **99.66% of lines** (4765/4781), derived on 2026-09-13
 (with forms, the database, rollback and any language, on top of `ef4a693`, with `pdo_sqlite`
 loaded — without it the database tests skip and `Data/` reads as untested). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.

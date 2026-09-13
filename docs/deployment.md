@@ -13,7 +13,9 @@ cgi-bin/                 ← App::above()
 ├── src/                 ← src/, with the prod AssetManifest.php laid over it
 ├── autoload.php
 ├── data/                ← NOT web-exposed; releases, profiles, credentials, demos
-└── .update-serial       ← the API's replay counter; in no mirrored or rsynced tree
+├── .update-serial       ← the API's replay counter; in no mirrored or rsynced tree
+├── .update-previous/    ← what the last push replaced, for `update v1 rollback`
+└── .update-stage/       ← where a push stages what it writes; empty between pushes
 ```
 
 `data/.htaccess` (`Require all denied`) goes up with `data/` as a fallback for a host where the
@@ -315,15 +317,24 @@ should say `written 1`, and a push that says `written 188` means something rebui
 `unchanged` is counted rather than listed: nothing happened to those files, and 185 lines of them
 would bury the three that did change. `deleted` and `failed` are always named in full.
 
+**Nothing live changes until every changed file is staged.** A push writes what it will change into
+`cgi-bin/.update-stage/` first, and asks the live tree whether each destination can take a file — a
+directory where a file goes, or a file where a directory must be, refuses the push with a 422 and
+nothing written. Only then does it rename each staged file into place, so a failure while writing
+cannot leave half a release live, and the note `staged N files beside the roots, then renamed them
+into place` says it happened.
+
 **A non-empty `failed` makes the response a 500** even though everything else applied, which is
-deliberate — a partial push is not a successful one. **It also mirrors nothing**: deleting the old
-tree's leftovers around a write that did not land would leave the server with neither version.
+deliberate — a partial push is not a successful one. After staging, only a rename can fail: a live
+directory PHP may not write into, or a disk that filled in between. **It also mirrors nothing**:
+deleting the old tree's leftovers around a file that did not land would leave the server with
+neither version.
 
 **A push that rewrites code the applying request still has to load can answer 500 and have
 landed.** The request applying a push is the *old* code, and a class it has not loaded yet is read
 from disk after the push rewrote it. When the push changes that class's shape, the request dies
 mid-reply with nothing wrong on the server. The error log names the call, and the push reports
-`refused with 500`. The writes run in pack order with the manifest last, so a new build stamp from
+`refused with 500`. The renames run in pack order with the manifest last, so a new build stamp from
 `update v1 version` is the first sign it landed. A follow-up `--dry-run` reading `written 0` is the
 proof. ([history](history/api.md#2026-09-13--a-push-that-replaced-the-code-applying-it-0381de4))
 
