@@ -30,14 +30,27 @@ use NeuroSYS\View\Html\Node;
 use NeuroSYS\View\Html\ScriptType;
 use NeuroSYS\View\Html\ViewportContent;
 use NeuroSYS\View\Html\ViewportWidth;
+use NeuroSYS\View\Shell;
 use NeuroSYS\View\View;
 use NeuroSYS\View\Wordmark;
 
 /**
  * The Layout class. Renders the site shell — HTML document, header, footer, and scripts.
  */
-class Layout
+class Layout implements Shell
 {
+    /**
+     * The {@link Shell} a response asks for: {@link self::wrap()}, reached through the app.
+     *
+     * @param View     $view
+     * @param Language $language
+     * @return Document
+     */
+    public function document(View $view, Language $language): Document
+    {
+        return self::wrap($view, $language);
+    }
+
     /**
      * Wraps the given view's content in the full site shell, in $language.
      *

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Http;
 
-use NeuroSYS\Layout;
+use NeuroSYS\App;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\View\Html\Element;
 use NeuroSYS\View\Html\Fragment;
@@ -70,7 +70,7 @@ readonly class ViewResponse implements Response
                 new Element(HtmlTag::Title)->containing($this->view->pageTitle()),
                 $this->view->content(),
             )
-            : Layout::wrap($this->view, $language);
+            : App::current()->shell()->document($this->view, $language);
 
         // The language is passed in as well as stated on <html lang>, because a fragment has no
         // <html>: without it, the first translated text in the fragment would have no scope.

@@ -20,6 +20,8 @@ use NeuroSYS\View\Html\Node;
  */
 class HomeView extends View
 {
+    use Accented;
+
     /**
      * @return Translatable
      */

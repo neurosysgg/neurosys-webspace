@@ -21,6 +21,8 @@ use NeuroSYS\Support\File;
 use NeuroSYS\Support\MethodPolicy;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Text\Languages;
+use NeuroSYS\View\Html\Vocabulary;
+use NeuroSYS\View\Shell;
 
 /**
  * The App class. What a site tells the framework about itself, and the one place it is told.
@@ -162,6 +164,31 @@ abstract class App
      * @return Languages
      */
     abstract public function languages(): Languages;
+
+    /**
+     * The document every page is rendered inside. The site's to draw — see {@link Shell}.
+     *
+     * @return Shell
+     */
+    abstract public function shell(): Shell;
+
+    /**
+     * Every tag and attribute hand-authored markup may be parsed into: {@link Vocabulary::standard()}
+     * and the site's own custom elements and their attributes.
+     *
+     * @return Vocabulary
+     */
+    abstract public function vocabulary(): Vocabulary;
+
+    /**
+     * Which build this deployment is serving, as `update v1 version` reports it.
+     *
+     * The site's to say, because the build is the site's: what changes when it is rebuilt is the
+     * site's own assets, and the framework has no build of its own to name.
+     *
+     * @return string
+     */
+    abstract public function buildId(): string;
 
     /**
      * The files the site's own code reads out of `data/` — its catalogue, its pages, its logs.

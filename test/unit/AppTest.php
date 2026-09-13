@@ -15,12 +15,15 @@ use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
 use NeuroSYS\Http\Security\CspHost;
+use NeuroSYS\Layout;
 use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Text\Language;
 use NeuroSYS\Text\Languages;
+use NeuroSYS\View\Html\Vocabulary;
+use NeuroSYS\View\Shell;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -522,6 +525,24 @@ final class AppTest extends TestCase
             public function languages(): Languages
             {
                 return new Languages(Language::English);
+            }
+
+            /** @return Shell */
+            public function shell(): Shell
+            {
+                return new Layout();
+            }
+
+            /** @return Vocabulary */
+            public function vocabulary(): Vocabulary
+            {
+                return Vocabulary::standard();
+            }
+
+            /** @return string */
+            public function buildId(): string
+            {
+                return 'other';
             }
         };
     }

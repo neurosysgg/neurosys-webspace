@@ -50,6 +50,8 @@ use NeuroSYS\View\Terminal\TerminalTone;
  */
 class DemoView extends View
 {
+    use Accented;
+
     /**
      * Constructs an instance of {@link self}.
      *

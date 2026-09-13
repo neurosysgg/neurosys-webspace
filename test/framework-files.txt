@@ -171,4 +171,6 @@ src/NeuroSYS/View/Html/Text.php
 src/NeuroSYS/View/Html/TranslatedText.php
 src/NeuroSYS/View/Html/ViewportContent.php
 src/NeuroSYS/View/Html/ViewportWidth.php
+src/NeuroSYS/View/Html/Vocabulary.php
+src/NeuroSYS/View/Shell.php
 src/NeuroSYS/View/View.php

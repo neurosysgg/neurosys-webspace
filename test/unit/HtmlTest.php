@@ -50,7 +50,6 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use ReflectionClass;
 use TypeError;
 
 /**
@@ -1568,9 +1567,9 @@ final class HtmlTest extends TestCase
      */
     public function testTheParserKnowsEveryVocabularyEnum(): void
     {
-        $registries = new ReflectionClass(MarkupParser::class)->getConstants();
-        $tags       = $registries['TAG_NAMES'];
-        $attributes = $registries['ATTRIBUTE_NAMES'];
+        $vocabulary = Site::current()->vocabulary();
+        $tags       = $vocabulary->tags()->toValues();
+        $attributes = $vocabulary->attributes()->toValues();
 
         sort($tags);
         sort($attributes);

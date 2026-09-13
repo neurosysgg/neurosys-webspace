@@ -143,6 +143,8 @@ final class NoDiscardTest extends TestCase
                 'NeuroSYS\View\Html\Element::attr',
                 'NeuroSYS\View\Html\Element::containing',
                 'NeuroSYS\View\Html\Element::containingHtml',
+                'NeuroSYS\View\Html\Vocabulary::withAttributes',
+                'NeuroSYS\View\Html\Vocabulary::withTags',
             ],
             array_keys(self::noDiscardMethods()),
         );

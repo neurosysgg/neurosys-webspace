@@ -4,17 +4,14 @@ declare(strict_types=1);
 
 namespace NeuroSYS\View\Html;
 
-use BackedEnum;
 use Dom\HTMLDocument;
 use Dom\HTMLElement;
 use Dom\Node as DomNode;
 use Dom\Text as DomText;
+use NeuroSYS\App;
 use NeuroSYS\Exception\ParserException;
-use NeuroSYS\Model\Embed\EmbedAttribute;
-use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Diagnostics;
-use NeuroSYS\View\Terminal\TerminalAttribute;
 
 /**
  * The MarkupParser class. Reads the grammar {@link Element} writes, back into the tree.
@@ -58,41 +55,6 @@ use NeuroSYS\View\Terminal\TerminalAttribute;
  */
 final readonly class MarkupParser
 {
-    /**
-     * The enums that spell an element name.
-     *
-     * Two, split the way {@link TagName} describes: {@link HtmlTag} is what the browser already
-     * knows, {@link Tag} is this site's own vocabulary. Listed here rather than discovered by
-     * reflection so that the set is a decision somebody made — and `HtmlTest` pins it against
-     * reflection in both directions, so a third implementation that nobody adds here is a failing
-     * test rather than an element that mysteriously will not parse.
-     *
-     * @var list<class-string<TagName&BackedEnum>>
-     */
-    private const array TAG_NAMES = [HtmlTag::class, Tag::class];
-
-    /**
-     * The enums that spell an attribute name.
-     *
-     * Nine, one per element that has attributes of its own plus {@link HtmlAttribute} for the
-     * standard ones. Pinned against reflection exactly as {@link self::TAG_NAMES} is, and for a
-     * sharper reason: a tenth enum left off this list would make every one of its attributes
-     * unparseable, which reads as the *markup* being wrong.
-     *
-     * @var list<class-string<AttributeName&BackedEnum>>
-     */
-    private const array ATTRIBUTE_NAMES = [
-        ArrangementAttribute::class,
-        CardAttribute::class,
-        CoverArtAttribute::class,
-        EmbedAttribute::class,
-        HtmlAttribute::class,
-        LinkAttribute::class,
-        SoundCloudPlayerAttribute::class,
-        TerminalAttribute::class,
-        WaveformAttribute::class,
-    ];
-
     /**
      * Parses $html into nodes, refusing anything the tree cannot hold.
      *
@@ -242,7 +204,7 @@ final readonly class MarkupParser
         $tag = self::tagNamed($element->localName) ?? throw new ParserException(sprintf(
             '<%s> is not an element this site emits. Add its case to one of: %s.',
             $element->localName,
-            implode(', ', self::TAG_NAMES),
+            App::current()->vocabulary()->tags()->join(', '),
         ));
 
         // The one element refused for what it is rather than for being unknown, and the reason is
@@ -267,7 +229,7 @@ final readonly class MarkupParser
                     . 'handler. Add its case to one of: %s.',
                     $element->localName,
                     $attribute->localName,
-                    implode(', ', self::ATTRIBUTE_NAMES),
+                    App::current()->vocabulary()->attributes()->join(', '),
                 )),
                 $attribute->value,
             );
@@ -290,15 +252,7 @@ final readonly class MarkupParser
      */
     private static function tagNamed(string $name): ?TagName
     {
-        foreach (self::TAG_NAMES as $enum) {
-            $case = $enum::tryFrom($name);
-
-            if ($case !== null) {
-                return $case;
-            }
-        }
-
-        return null;
+        return App::current()->vocabulary()->tagNamed($name);
     }
 
     /**
@@ -309,14 +263,6 @@ final readonly class MarkupParser
      */
     private static function attributeNamed(string $name): ?AttributeName
     {
-        foreach (self::ATTRIBUTE_NAMES as $enum) {
-            $case = $enum::tryFrom($name);
-
-            if ($case !== null) {
-                return $case;
-            }
-        }
-
-        return null;
+        return App::current()->vocabulary()->attributeNamed($name);
     }
 }

@@ -38,20 +38,9 @@ final class BoundaryTest extends TestCase
     private const array STILL_REACHING = [
         'src/NeuroSYS/Http/Api/HealthAction.php → NeuroSYS\\Support\\RequirementInitialization',
         'src/NeuroSYS/Http/SecurityHeaders.php → NeuroSYS\\Site',
-        'src/NeuroSYS/Http/ViewResponse.php → NeuroSYS\\Layout',
-        'src/NeuroSYS/Service/Api/UpdateVersion.php → NeuroSYS\\AssetManifest',
         'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Model\\Demo',
         'src/NeuroSYS/Service/Auth.php → NeuroSYS\\Site',
         'src/NeuroSYS/Support/PasswordHash.php → NeuroSYS\\Exception\\ReleaseVerificationException',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\Model\\Embed\\EmbedAttribute',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\Model\\Embed\\SoundCloudPlayerAttribute',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\ArrangementAttribute',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\CardAttribute',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\CoverArtAttribute',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\Tag',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Html\\WaveformAttribute',
-        'src/NeuroSYS/View/Html/MarkupParser.php → NeuroSYS\\View\\Terminal\\TerminalAttribute',
-        'src/NeuroSYS/View/View.php → NeuroSYS\\View\\Html\\CssClass',
     ];
 
     /**

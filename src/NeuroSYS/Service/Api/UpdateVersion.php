@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace NeuroSYS\Service\Api;
 
 use NeuroSYS\App;
-use NeuroSYS\AssetManifest;
 use NeuroSYS\Http\Api\ApiHandler;
 use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
@@ -74,7 +73,7 @@ final readonly class UpdateVersion implements ApiHandler
             // Trimmed rather than cast: a deployment that has never accepted a push has no record,
             // and `0` would be a serial it is claiming to have seen. The dash says there is none.
             trim($recorded ?? '') ?: '-',
-            AssetManifest::SCRIPT,
+            App::current()->buildId(),
             PHP_VERSION,
         ));
     }

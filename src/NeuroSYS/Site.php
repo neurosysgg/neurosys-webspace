@@ -7,6 +7,8 @@ namespace NeuroSYS;
 use NeuroSYS\Controller\NotFoundController;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
+use NeuroSYS\Model\Embed\EmbedAttribute;
+use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
 use NeuroSYS\Support\File;
@@ -14,6 +16,14 @@ use NeuroSYS\Support\Route;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Text\Language;
 use NeuroSYS\Text\Languages;
+use NeuroSYS\View\Html\ArrangementAttribute;
+use NeuroSYS\View\Html\CardAttribute;
+use NeuroSYS\View\Html\CoverArtAttribute;
+use NeuroSYS\View\Html\Tag;
+use NeuroSYS\View\Html\Vocabulary;
+use NeuroSYS\View\Html\WaveformAttribute;
+use NeuroSYS\View\Shell;
+use NeuroSYS\View\Terminal\TerminalAttribute;
 
 /**
  * The Site class. This site, as the {@link App} the framework runs, and the facts about it.
@@ -153,6 +163,45 @@ final class Site extends App
     public function languages(): Languages
     {
         return new Languages(Language::English, Language::German);
+    }
+
+    /**
+     * @return Shell
+     */
+    public function shell(): Shell
+    {
+        return new Layout();
+    }
+
+    /**
+     * The standard vocabulary, this site's custom elements, and the attributes they read.
+     *
+     * @return Vocabulary
+     */
+    public function vocabulary(): Vocabulary
+    {
+        return Vocabulary::standard()
+            ->withTags(Tag::class)
+            ->withAttributes(
+                ArrangementAttribute::class,
+                CardAttribute::class,
+                CoverArtAttribute::class,
+                EmbedAttribute::class,
+                SoundCloudPlayerAttribute::class,
+                TerminalAttribute::class,
+                WaveformAttribute::class,
+            );
+    }
+
+    /**
+     * The entry script's stamped URL: the stamp is a hash over every module and the stylesheet, so
+     * it changes exactly when a build does.
+     *
+     * @return string
+     */
+    public function buildId(): string
+    {
+        return AssetManifest::SCRIPT;
     }
 
     /**
