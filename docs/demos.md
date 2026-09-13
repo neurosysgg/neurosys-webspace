@@ -176,7 +176,7 @@ behind it right now:
 
 ### A demo is unreachable while the pre-launch site gate is on
 
-`Auth::requireSiteAuth()` runs on every request that reaches PHP, and both gates are HTTP Basic — a
+`Auth::siteGate()` runs on every request that reaches PHP, and both gates are HTTP Basic — a
 request carries exactly **one** `Authorization` header. So while `data/site_auth.php` exists, a
 request can satisfy the site gate or a demo gate and never both, and `/demos/{slug}` answers `401`
 whatever you send it.

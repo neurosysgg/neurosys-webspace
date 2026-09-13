@@ -96,17 +96,18 @@ npm run check      # tsc over all three trees: assets/ts/, tools/*.mjs, test/js/
 ```
 
 Two suites for two things: `test/unit/` for logic and edge cases, `test/basic_test.sh` for the real
-autoloader, real HTTP, the `exit`-ing auth code and repo hygiene. Separately neither coverage number
-means much — PHPUnit cannot see `header()` or anything past an `exit` — so `composer coverage`
-merges them. **The coverage figure is stated in exactly one place,
+autoloader, real HTTP, what `header()` really sends and repo hygiene. Separately neither coverage number
+means much — `header()` is a no-op under CLI, so `App::run()` and `Answer::send()` are the verify
+script's alone — and `composer coverage` merges them. **The coverage figure is stated in exactly one place,
 [docs/testing.md](docs/testing.md#php)**; re-derive it rather than copying it here.
 
 - **A test that declares any `#[CoversClass]` records coverage for only those classes.** Name every
   class it exercises, including one it only calls — or that class reads 0% while running constantly.
 - **Uncovered lines are a decision, not a budget.** A change that adds a guard covers it in the same
   commit; a guard no test can reach is deleted rather than covered by reflection.
-- **Whatever ends the request is split from what decides it** — `Auth::accepts()` beside the
-  `require*` methods, `SecurityHeaders::headers()` beside `send()` — so the decision can be asserted.
+- **Every answer is asserted in-process.** `TestRequest::get('/admin/stats')->answer()` is
+  `App::handle()` — gate, router, controller, security headers, nothing sent — so a 401, a 303 or a
+  405 is a status, headers and a body a test reads, with no `$_SERVER` and no reflection.
 - **The client tests run against the compiled JS** in `public/assets/js/`, so a build that never ran
   is a failing test. The verify script also runs them against the shipped bundle.
 - **`npm run coverage` is a gate**, run with `--test-coverage-include-all` so a module nothing
@@ -209,8 +210,9 @@ the code looks the way it does; follow them in new code without being asked.
 - **`Site`'s constants hold identity, environment, and facts otherwise stated twice** — nothing else;
   its methods answer what Phpanta asks of a site. A fact that means something only inside one class
   stays in that class, where its docblock can say why.
-- **A method that ends the request has a public twin that decides it**, so the decision can be
-  asserted: `Auth::accepts()`, `SecurityHeaders::headers()`.
+- **Nothing ends the request but `App::run()`; every decision returns.** A response becomes an
+  `Answer` in `App::handle()`, and a gate's refusal is a value it returns, `#[\NoDiscard]` —
+  `Auth::siteGate()`, `DemoGate::enter()` — which the caller returns in turn. Never `exit`.
 
 ## Traps
 

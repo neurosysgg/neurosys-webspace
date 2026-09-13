@@ -21,6 +21,7 @@ use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\PrivacyView;
 use NeuroSYS\View\ReleasesView;
 use Phpanta\Exception\MimeTypeException;
+use Phpanta\Http\Answer;
 use Phpanta\Http\CacheControl;
 use Phpanta\Http\ETag;
 use Phpanta\Http\Header;
@@ -30,12 +31,15 @@ use Phpanta\Http\PlainTextResponse;
 use Phpanta\Http\RedirectResponse;
 use Phpanta\Http\Request;
 use Phpanta\Http\ResponseHeader;
+use Phpanta\Http\SecurityHeader;
+use Phpanta\Http\TextBody;
 use Phpanta\Http\TopLevelType;
 use Phpanta\Http\ViewResponse;
 use Phpanta\Support\Charset;
 use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Test\TestRequest;
 use Phpanta\Text\Language;
 use Phpanta\Text\Translatable;
 use Phpanta\Text\Verbatim;
@@ -53,6 +57,8 @@ use ReflectionProperty;
 #[CoversClass(ViewResponse::class)]
 #[CoversClass(RedirectResponse::class)]
 #[CoversClass(PlainTextResponse::class)]
+#[CoversClass(Answer::class)]
+#[CoversClass(TextBody::class)]
 #[CoversClass(HttpStatusCode::class)]
 #[CoversClass(MimeType::class)]
 #[CoversClass(Charset::class)]
@@ -149,9 +155,7 @@ final class ResponseTest extends TestCase
      */
     private function render(ViewResponse $response, Request $request): string
     {
-        ob_start();
-        $response->send($request);
-        return (string) ob_get_clean();
+        return $response->answer($request)->body();
     }
 
     /**
@@ -493,18 +497,22 @@ final class ResponseTest extends TestCase
      */
     public function testASwitchToALanguageTheSiteHasSetsTheCookieAndRedirects(): void
     {
-        $response = new LanguageController('de')->handle($this->request('/language/de'));
+        $answer = TestRequest::get('/language/de')->answer();
+        $own    = $answer->headers()
+            ->where(static fn(Header $header): bool => !$header->name instanceof SecurityHeader)
+            ->map(static fn(Header $header): string => $header->line())
+            ->toValues();
 
-        self::assertInstanceOf(RedirectResponse::class, $response);
-        self::assertSame(HttpStatusCode::SeeOther, self::peek($response, 'status'));
-        self::assertSame('/', self::peek($response, 'location')->render());
+        self::assertSame(HttpStatusCode::SeeOther, $answer->status());
         self::assertSame(
             [
                 'Set-Cookie: lang=de; Path=/; Max-Age=31536000; SameSite=Lax; Secure; HttpOnly',
                 'Cache-Control: no-store, private',
+                'Location: /',
             ],
-            self::peek($response, 'headers')->map(static fn(Header $header): string => $header->line())->toValues(),
+            $own,
         );
+        self::assertSame('', $answer->body());
     }
 
     /**

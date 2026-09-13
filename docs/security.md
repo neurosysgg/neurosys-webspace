@@ -78,10 +78,13 @@ set_exception_handler(...);   // 0. the last resort — logs, and answers a bare
 Site::current()->run();       // the app autoload.php booted — Phpanta's App::run(), which is:
 
 ErrorLog::install($this->errorLog());    // 0. …into a file under data/logs/ this repository can read
-SecurityHeaders::send();                 // 1. headers first — cover every response
-$request = Request::fromGlobals();       // 2. parse the request defensively
-Auth::requireSiteAuth($request);         // 3. the pre-launch gate
-new Router($this->routeTable())->dispatch($request)->send($request);  // 4 + 5. route, respond
+SecurityHeaders::send();                 // 1. headers first — even the last-resort 500 carries them
+$this->handle(Request::fromGlobals())->send();  // 2–5. parse, gate, route, answer; then send
+
+// handle(), which sends nothing — what a test calls:
+$response = Auth::siteGate($request)     // 3. the pre-launch gate's 401, or null
+    ?? new Router($this->routeTable())->dispatch($request);  // 4. route
+return $response->answer($request)->withHeadersFirst(SecurityHeaders::all($this));  // 5. answer
 ```
 
 The handler comes first because it is the one that has to work when nothing else did: an uncaught
@@ -161,10 +164,11 @@ Two of the Basic gates — the pre-launch site gate and the admin gate — ask t
 same shape of credentials file, so they ask it in one place: `Auth::accepts()`. The third is a
 demo's, whose credential is a `PasswordHash` on the `Demo` object itself rather than in a file; it
 is `DemoGate::admits()`, the site's gate built on the framework's. Both are public and return a
-`bool`, and both are the *decision* separated from the `401` that follows it, the way
-`SecurityHeaders::headers()` is separate from `send()` — a method that ends the request cannot be
-asserted against, so everything worth testing lives in the pair that does not. All three end up in
-one comparison, `Auth::matches()`.
+`bool`, and both are the *decision* separated from the `401` that follows it. The `401` is a value
+too: `Auth::siteGate()`, `Auth::adminGate()` and `DemoGate::enter()` return it rather than ending
+the request, the caller returns it in turn, and each carries `#[\NoDiscard]` — a call whose result
+goes nowhere is the one way to leave the door open, and it fails the suite. All three end up in one
+comparison, `Auth::matches()`.
 
 - **Every comparison is constant-time, and neither is skipped when the other fails.** The password is
   `password_verify()`; the user name is `hash_equals()`, compared on every request just the same.
@@ -197,7 +201,7 @@ one comparison, `Auth::matches()`.
   code *and* in elapsed time. A `404` for an unknown slug and a `401` for a known one is a catalogue
   of unreleased tracks, readable one guess at a time; and returning early on the unknown one would
   answer in microseconds where a real comparison pays bcrypt, so the uniform `401` would be undone by
-  a stopwatch. `DemoGate::requireAuth()` verifies against `PasswordHash::unmatchable()` — a real
+  a stopwatch. `DemoGate::enter()` verifies against `PasswordHash::unmatchable()` — a real
   digest with no preimage — and then refuses. Same reasoning as the no-short-circuit rule above, one
   level out.
 - **A demo's password gates the bytes, not only the page.** Its audio is under `data/`, which the web
@@ -344,7 +348,7 @@ assessments turned up is fixed — see [history/security.md](history/security.md
 - **No audience field.** Cross-deployment replay is closed by key separation; if two deployments
   ever share a key, an `aud` field is what to add.
 - **While the pre-launch site gate is on, no signed API call and no demo can be reached.**
-  `requireSiteAuth()` runs before the router and is HTTP Basic on the same `Authorization` header,
+  `siteGate()` runs before the router and is HTTP Basic on the same `Authorization` header,
   so while `data/site_auth.php` exists the API credential is in the wrong scheme, the gate sees an
   empty user, and the request is a `401`. That is the interaction demos already have, and it leaks
   nothing — that gate answers `401` for *every* path alike, so `/api` is no more visible than
@@ -354,7 +358,7 @@ assessments turned up is fixed — see [history/security.md](history/security.md
   the site gate down whenever an `NS1` header is merely **present** would make `/api` answer `404`
   where every other path answers `401` — a perfect oracle. It has to stand down only for a request
   whose signature has already **verified**, which means running the gate once, before
-  `requireSiteAuth()`, and handing the result on.
+  `siteGate()`, and handing the result on.
 
 ## What is deliberately not here
 

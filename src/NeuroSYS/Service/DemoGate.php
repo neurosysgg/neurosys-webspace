@@ -9,6 +9,7 @@ use NeuroSYS\Site;
 use NoDiscard;
 use Phpanta\Http\BasicChallenge;
 use Phpanta\Http\Request;
+use Phpanta\Http\Response;
 use Phpanta\Service\Auth;
 use Phpanta\Support\PasswordHash;
 
@@ -16,12 +17,12 @@ use Phpanta\Support\PasswordHash;
  * The DemoGate class. One demo's password, in front of its page and its audio.
  *
  * This site's gate, built on the framework's: {@link Auth::matches()} is still the only place a
- * credential is compared, and {@link Auth::challenge()} the only place a 401 is sent. What is this
+ * credential is compared, and {@link Auth::challenge()} the only place a 401 is built. What is this
  * site's is everything that knows what a {@link Demo} is — a password per demo, a realm per slug,
  * and a refusal that cannot tell a missing demo from a wrong password.
  *
  * The decision and the 401 are split the way {@link Auth} splits them: {@link self::admits()} is
- * what a test can assert, and {@link self::requireAuth()} is only the challenge around it.
+ * what a test can assert, and {@link self::enter()} is only the challenge around it.
  */
 final class DemoGate
 {
@@ -69,29 +70,28 @@ final class DemoGate
      * demo pays bcrypt, so the uniform 401 would be undone by a stopwatch. Same reasoning as
      * {@link Auth::matches()}'s refusal to short-circuit, applied one level out.
      *
-     * It returns the demo because the `never` below is something the type system cannot see past:
-     * a caller that has been let through holds a non-null {@link Demo}, and saying so here is
-     * better than re-checking for a null that cannot occur.
+     * It answers the demo, or the 401 to return in its place. A caller that has been let through
+     * holds a non-null {@link Demo} and never re-checks for a null that cannot occur; a caller that
+     * has not holds the refusal and returns it — `if ($demo instanceof Response) { return $demo; }`
+     * — which the attribute makes impossible to drop without a failing test.
      *
      * @param Request   $request The incoming request.
      * @param string    $slug    The demo's slug, which is what its realm is named for.
      * @param Demo|null $demo    The demo being asked for, or null where the slug names none.
-     * @return Demo
+     * @return Demo|Response
      */
-    public static function requireAuth(Request $request, string $slug, ?Demo $demo): Demo
+    #[NoDiscard('the refusal is only sent if it is returned; dropping it is a door left open')]
+    public static function enter(Request $request, string $slug, ?Demo $demo): Demo|Response
     {
         if ($demo === null) {
             // Spend what a real comparison would have. See the note above; the (void) is there to
             // say the answer is not the point, because the answer is always false.
             (void) Auth::matches($request, Site::DEMO_USER, PasswordHash::unmatchable());
-            Auth::challenge(self::realm($slug));
+
+            return Auth::challenge(self::realm($slug));
         }
 
-        if (!self::admits($request, $demo)) {
-            Auth::challenge(self::realm($slug));
-        }
-
-        return $demo;
+        return self::admits($request, $demo) ? $demo : Auth::challenge(self::realm($slug));
     }
 
     /**

@@ -58,11 +58,15 @@ readonly class DemoAudioController implements Controller
      */
     public function handle(Request $request): Response
     {
-        $demo = DemoGate::requireAuth(
+        $demo = DemoGate::enter(
             $request,
             $this->slug,
             ($this->demos ?? new DemoRepository())->find($this->slug),
         );
+
+        if ($demo instanceof Response) {
+            return $demo;
+        }
 
         $track = $demo->findTrack($this->label);
 

@@ -10,6 +10,7 @@ use NeuroSYS\Site;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleaseView;
 use Phpanta\Http\Allow;
+use Phpanta\Http\Answer;
 use Phpanta\Http\Header;
 use Phpanta\Http\HttpMethod;
 use Phpanta\Http\HttpStatusCode;
@@ -24,6 +25,7 @@ use Phpanta\Http\SecurityHeaders;
 use Phpanta\Http\ViewResponse;
 use Phpanta\Router;
 use Phpanta\Support\Collection;
+use Phpanta\Test\TestRequest;
 use Phpanta\Text\Language;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -31,6 +33,7 @@ use PHPUnit\Framework\TestCase;
 use ReflectionProperty;
 
 #[CoversClass(SecurityHeaders::class)]
+#[CoversClass(Answer::class)]
 #[CoversClass(Router::class)]
 #[CoversClass(Request::class)]
 #[CoversClass(HttpMethod::class)]
@@ -214,6 +217,70 @@ final class SecurityTest extends TestCase
             ['Allow: GET, HEAD'],
             $headers->map(static fn(Header $h): string => $h->line())->toValues(),
         );
+    }
+
+    /**
+     * Every answer leads with the security headers — the refusals and the redirect as much as the
+     * page. They used to be sent before anything else so that a 401 or a 405 ending the process
+     * still carried them; now every answer carries them, first, and this asserts it in-process
+     * rather than only over curl.
+     *
+     * @param string         $method
+     * @param string         $path
+     * @param HttpStatusCode $status
+     * @return void
+     */
+    #[DataProvider('answerProvider')]
+    public function testEveryAnswerLeadsWithTheSecurityHeaders(
+        string $method,
+        string $path,
+        HttpStatusCode $status,
+    ): void {
+        $answer   = TestRequest::to($method, $path)->answer();
+        $expected = SecurityHeaders::all()->map(static fn(Header $header): string => $header->line())->toValues();
+
+        self::assertSame($status, $answer->status());
+        self::assertSame($expected, array_slice(self::lines($answer), 0, count($expected)));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, HttpStatusCode}>
+     */
+    public static function answerProvider(): iterable
+    {
+        yield 'a page'                => ['GET', '/', HttpStatusCode::Ok];
+        yield 'a page that is not'    => ['GET', '/no-such-page', HttpStatusCode::NotFound];
+        yield 'a redirect'            => ['GET', '/language/de', HttpStatusCode::SeeOther];
+        yield 'a password asked for'  => ['GET', '/admin/stats', HttpStatusCode::Unauthorized];
+        yield 'a write refused'       => ['POST', '/', HttpStatusCode::MethodNotAllowed];
+        yield 'a verb nobody knows'   => ['BREW', '/', HttpStatusCode::MethodNotAllowed];
+        yield 'an unsigned API write' => ['POST', '/api/update/v1/patch', HttpStatusCode::MethodNotAllowed];
+    }
+
+    /**
+     * A write is answered with a 405 naming the methods that would have worked, in plain text, and
+     * the unsigned API write is answered identically — the endpoint is not announced by its refusal.
+     *
+     * @return void
+     */
+    public function testAWriteIsRefusedIdenticallyWhereverItIsSent(): void
+    {
+        $page = TestRequest::to(HttpMethod::Post, '/')->answer();
+        $api  = TestRequest::to(HttpMethod::Post, '/api/update/v1/patch')->answer();
+
+        self::assertSame('GET, HEAD', $page->header(ResponseHeader::Allow)?->value->render());
+        self::assertSame('text/plain; charset=utf-8', $page->header(ResponseHeader::ContentType)?->value->render());
+        self::assertSame(self::lines($page), self::lines($api));
+        self::assertSame($page->body(), $api->body());
+    }
+
+    /**
+     * @param Answer $answer
+     * @return list<string>
+     */
+    private static function lines(Answer $answer): array
+    {
+        return $answer->headers()->map(static fn(Header $header): string => $header->line())->toValues();
     }
 
     /**
@@ -441,7 +508,7 @@ final class SecurityTest extends TestCase
 
     /**
      * The fall-through after every route has been tried. A router that returned null here would
-     * hand a null to Response::send(); a 404 is the only answer that is still a response.
+     * hand a null to Response::answer(); a 404 is the only answer that is still a response.
      *
      * @return void
      */

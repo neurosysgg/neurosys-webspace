@@ -204,7 +204,7 @@ loud, but for a reason nobody would guess from the message.
 ```
 Navigation.go()   →  X-Requested-With: XMLHttpRequest
 Request::fromGlobals()  →  $ajax
-ViewResponse::send()    →  <title>…</title> + the content fragment, not a Document
+ViewResponse::answer()  →  <title>…</title> + the content fragment, not a Document
                         →  Vary: X-Requested-With
 ```
 

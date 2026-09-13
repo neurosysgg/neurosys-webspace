@@ -745,7 +745,7 @@ echo "=== HTTP routes ==="
 #
 # With PHPANTA_COVERAGE_DIR set, the server runs under Xdebug with phpanta/tools/coverage-prepend.php
 # loaded, so the checks below contribute to a coverage report instead of being invisible to one.
-# That is the only way the exit-ing auth code, the header() calls and the send() methods are ever
+# That is the only way the front controller, the header() calls and Answer::send() are ever
 # measured -- they are a no-op or a different process everywhere else. See `composer coverage`.
 if [[ -n "${PHPANTA_COVERAGE_DIR:-}" ]]; then
     mkdir -p "$PHPANTA_COVERAGE_DIR"
@@ -830,17 +830,16 @@ check_status "GET /// is the root                → 200" "$BASE///"            
 check_status "GET //host:notaport/x              → 404" "$BASE//host:notaport/x"               404
 check_method "POST /// is still refused          → 405" POST "$BASE///"                        405
 
-# Auth::requireAdminAuth() calls exit, so only a real request can prove it gates.
+# AdminTest asserts the 401 in-process; this is the one that proves it reaches the wire.
 check_status "GET /admin/stats (no creds)        → 401" "$BASE/admin/stats"                    401
 check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"                    401
 
 
 echo ""
 echo "=== Demos ==="
-# The half of the site whose gate covers bytes rather than only a page — and almost none of it is
-# visible to PHPUnit. DemoGate::requireAuth() calls exit, and header() is a no-op under CLI, so the
-# 401, the 206, the 416 and every header below are invisible there. DemoTest covers the decisions;
-# this covers the responses.
+# The half of the site whose gate covers bytes rather than only a page. DemoTest asserts the 401,
+# the 206, the 416 and their headers in-process, as answers; header() is a no-op under CLI, so this
+# is what proves they reach the wire, through the dev router and the real stack.
 #
 # It writes its own data/demos.php and puts back whatever was there. That is not laziness about
 # fixtures: the real file is gitignored, so there is not reliably one to test against, and the

@@ -10,12 +10,16 @@ use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Site;
 use NeuroSYS\View\StatsView;
 use Phpanta\CredentialFile;
+use Phpanta\Http\BasicChallenge;
 use Phpanta\Http\Header;
+use Phpanta\Http\HttpStatusCode;
 use Phpanta\Http\Request;
+use Phpanta\Http\ResponseHeader;
 use Phpanta\Service\Auth;
 use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
+use Phpanta\Test\TestRequest;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -231,11 +235,7 @@ final class AdminTest extends TestCase
      */
     public function testTheSiteGateDoesNothingWhenThereIsNoCredentialsFile(): void
     {
-        Auth::requireSiteAuth($this->request('', ''), new File('/nonexistent/site_auth.php'));
-
-        // Reaching this line is the assertion: the gate ends the request when it refuses, so a
-        // wrong outcome here would take the whole suite down with it rather than fail one test.
-        self::assertTrue(true);
+        self::assertNull(Auth::siteGate($this->request('', ''), new File('/nonexistent/site_auth.php')));
     }
 
     /**
@@ -245,9 +245,33 @@ final class AdminTest extends TestCase
     #[DataProvider('gateProvider')]
     public function testAGateLetsTheRightCredentialsThrough(string $method): void
     {
-        Auth::{$method}($this->request('preview', 'hunter2'), $this->credentials('preview', 'hunter2'));
+        self::assertNull(
+            Auth::{$method}($this->request('preview', 'hunter2'), $this->credentials('preview', 'hunter2')),
+        );
+    }
 
-        self::assertTrue(true);
+    /**
+     * A gate that refuses answers with the challenge, in the site's own realm, and nothing else —
+     * the prompt is the whole of what a visitor sees.
+     *
+     * @param string $method
+     * @return void
+     */
+    #[DataProvider('gateProvider')]
+    public function testAGateRefusesTheWrongCredentialsWithTheSitesChallenge(string $method): void
+    {
+        $refusal = Auth::{$method}($this->request('preview', 'wrong'), $this->credentials('preview', 'hunter2'));
+
+        self::assertNotNull($refusal);
+
+        $answer = $refusal->answer($this->request('preview', 'wrong'));
+
+        self::assertSame(HttpStatusCode::Unauthorized, $answer->status());
+        self::assertSame(
+            new BasicChallenge(Site::current()->name())->render(),
+            $answer->header(ResponseHeader::WwwAuthenticate)?->value->render(),
+        );
+        self::assertSame('', $answer->body());
     }
 
     /**
@@ -255,8 +279,24 @@ final class AdminTest extends TestCase
      */
     public static function gateProvider(): iterable
     {
-        yield 'site'  => ['requireSiteAuth'];
-        yield 'admin' => ['requireAdminAuth'];
+        yield 'site'  => ['siteGate'];
+        yield 'admin' => ['adminGate'];
+    }
+
+    /**
+     * The stats page, asked for without a password, answers the challenge — end to end, through the
+     * router and the controller, in-process. The shipped `data/admin.php` has an empty hash, so no
+     * credential opens it here; the refusal is the whole of what can be asserted, and it is enough.
+     *
+     * @return void
+     */
+    public function testTheStatsPageAnswersAChallengeWithoutThePassword(): void
+    {
+        $answer = TestRequest::get('/admin/stats')->withCredentials('admin', 'admin')->answer();
+
+        self::assertSame(HttpStatusCode::Unauthorized, $answer->status());
+        self::assertNotNull($answer->header(ResponseHeader::WwwAuthenticate));
+        self::assertStringNotContainsString('<main', $answer->body());
     }
 
     /**
@@ -264,8 +304,8 @@ final class AdminTest extends TestCase
      * kept. `no-store` keeps it out of the disk cache a shared or borrowed machine would leave it
      * in, and `private` says the same to anything in between.
      *
-     * Reached through reflection because handle() calls
-     * requireAdminAuth() against `data/admin.php`, whose shipped pass_hash is empty, so nothing in
+     * Reached through reflection because handle() asks
+     * adminGate() against `data/admin.php`, whose shipped pass_hash is empty, so nothing in
      * this repository can get past the gate to the response behind it. The header is the part worth
      * asserting, and it does not need the gate opened to be asserted.
      *

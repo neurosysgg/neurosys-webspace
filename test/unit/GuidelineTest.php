@@ -178,6 +178,8 @@ final class GuidelineTest extends TestCase
                 'Phpanta\Http\AuthScheme::credentials()',
                 'Phpanta\Http\SecurityHeaders::headers()',
                 'Phpanta\Http\Security\ContentSecurityPolicy::hosts()',
+                'Phpanta\Http\ServerParameters::$values',
+                'Phpanta\Http\ServerParameters::__construct()',
                 'Phpanta\Service\UpdateApplier::directories()',
                 'Phpanta\Service\UpdateApplier::entries()',
                 'Phpanta\Service\UpdateApplier::surplusIn()',

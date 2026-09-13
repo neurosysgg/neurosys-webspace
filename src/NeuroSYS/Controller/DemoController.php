@@ -23,7 +23,7 @@ use Phpanta\Support\Collection;
  *
  * **There is no not-found branch here**, and its absence is the design rather than an omission.
  * Every other controller answers an unknown slug with a 404; this one hands the null straight to
- * {@link DemoGate::requireAuth()}, which refuses it identically to a wrong password. A 404 for a
+ * {@link DemoGate::enter()}, which refuses it identically to a wrong password. A 404 for a
  * slug that names nothing and a 401 for one that names something is a catalogue of unreleased
  * tracks, readable one guess at a time — see that method for the rest of the reasoning, including
  * why the timing is levelled too.
@@ -52,11 +52,15 @@ readonly class DemoController implements Controller
      */
     public function handle(Request $request): Response
     {
-        $demo = DemoGate::requireAuth(
+        $demo = DemoGate::enter(
             $request,
             $this->slug,
             ($this->demos ?? new DemoRepository())->find($this->slug),
         );
+
+        if ($demo instanceof Response) {
+            return $demo;
+        }
 
         // Fetched here rather than in the view, and after the gate rather than before it: reading
         // these is one file read per mix, and a request that has not answered the challenge should

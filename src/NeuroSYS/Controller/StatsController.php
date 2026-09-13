@@ -49,7 +49,9 @@ class StatsController implements Controller
      */
     public function handle(Request $request): Response
     {
-        Auth::requireAdminAuth($request);
+        if (($refusal = Auth::adminGate($request)) !== null) {
+            return $refusal;
+        }
 
         // Logging off means the log is not read at all, not even a stale one left over from a
         // previous machine — and the view is handed null rather than an empty tally, because

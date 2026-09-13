@@ -17,15 +17,18 @@ use Phpanta\Exception\InvalidValueException;
 use Phpanta\Exception\MimeTypeException;
 use Phpanta\Exception\SecurityPolicyException;
 use Phpanta\Http\AcceptRanges;
+use Phpanta\Http\Answer;
+use Phpanta\Http\BasicChallenge;
 use Phpanta\Http\ByteRange;
 use Phpanta\Http\ContentLength;
 use Phpanta\Http\ContentRange;
-use Phpanta\Http\ETag;
+use Phpanta\Http\FileBody;
 use Phpanta\Http\FileResponse;
 use Phpanta\Http\Header;
 use Phpanta\Http\HttpStatusCode;
 use Phpanta\Http\MimeType;
 use Phpanta\Http\Request;
+use Phpanta\Http\ResponseHeader;
 use Phpanta\Http\RobotsDirective;
 use Phpanta\Http\RobotsPolicy;
 use Phpanta\Http\ViewResponse;
@@ -71,6 +74,8 @@ use ReflectionProperty;
 #[CoversClass(AcceptRanges::class)]
 #[CoversClass(RobotsPolicy::class)]
 #[CoversClass(FileResponse::class)]
+#[CoversClass(FileBody::class)]
+#[CoversClass(Answer::class)]
 #[CoversClass(MimeType::class)]
 final class DemoTest extends TestCase
 {
@@ -172,10 +177,7 @@ final class DemoTest extends TestCase
      */
     private static function body(FileResponse $response, Request $request): string
     {
-        ob_start();
-        $response->send($request);
-
-        return (string) ob_get_clean();
+        return $response->answer($request)->body();
     }
 
     // ───────────────────────────── PasswordHash ─────────────────────────────
@@ -470,10 +472,46 @@ final class DemoTest extends TestCase
     }
 
     /**
+     * A demo that exists, asked for with the wrong password, and one that does not, asked for at
+     * all, are answered alike: the same 401, each in its own slug's realm, with nothing else on the
+     * wire to tell them apart. A 404 for the second would be the catalogue, one guess at a time.
+     *
+     * @return void
+     */
+    public function testAWrongPasswordAndAnUnknownDemoAreRefusedAlike(): void
+    {
+        $demos = $this->oneDemoRepository();
+        $asked = [
+            'alien-house'  => self::request(password: 'wrong'),
+            'no-such-demo' => self::request(),
+        ];
+
+        $answers = [];
+
+        foreach ($asked as $slug => $request) {
+            $answer = new DemoController($slug, $demos)->handle($request)->answer($request);
+
+            self::assertSame(HttpStatusCode::Unauthorized, $answer->status(), $slug);
+            self::assertSame(
+                new BasicChallenge('neuro.SYS demo: ' . $slug)->render(),
+                $answer->header(ResponseHeader::WwwAuthenticate)?->value->render(),
+            );
+            self::assertSame('', $answer->body());
+
+            $answers[] = $answer->headers()
+                ->where(static fn(Header $header): bool => $header->name !== ResponseHeader::WwwAuthenticate)
+                ->map(static fn(Header $header): string => $header->line())
+                ->toValues();
+        }
+
+        self::assertSame($answers[0], $answers[1], 'the two refusals differ beyond their realm');
+    }
+
+    /**
      * A slug is encoded on the way into the realm, because a slug is what a visitor writes.
      *
      * An unknown demo is challenged exactly like a known one — that is the whole point of
-     * {@link DemoGate::requireAuth()} taking a nullable `Demo` — so **any** `/demos/…` target
+     * {@link DemoGate::enter()} taking a nullable `Demo` — so **any** `/demos/…` target
      * reaches this, including one carrying bytes no route was meant to claim. `Request::path()`
      * hands a target the URI parser refused through with only its query and fragment cut, and
      * `{slug}` matches anything, so `a"b` arrives here — and concatenated into a quoted-string it
@@ -511,7 +549,7 @@ final class DemoTest extends TestCase
      */
     private static function demoRealmOf(string $slug): string
     {
-        return new ReflectionProperty(\Phpanta\Http\BasicChallenge::class, 'realm')->getValue(
+        return new ReflectionProperty(BasicChallenge::class, 'realm')->getValue(
             new ReflectionMethod(DemoGate::class, 'realm')->invoke(null, $slug),
         );
     }
@@ -803,19 +841,13 @@ final class DemoTest extends TestCase
         // And the consequence, which is the half that is easy to lose: a caller that has already
         // said how its response may be kept gets no validator, so there is no 304 to be had and a
         // gated page cannot come back on a guessed ETag. Only the Vary is added, because it says
-        // what the body depends on. Asked of the method rather than of the wire, because
-        // `header()` is a no-op under CLI — see test/basic_test.sh for the other end.
-        ob_start();
-        $response->send(self::request());
-        $markup = (string) ob_get_clean();
+        // what the body depends on.
+        $answer = $response->answer(self::request());
 
-        /** @var Collection<Header> $cache */
-        $cache = new ReflectionMethod(ViewResponse::class, 'cacheHeaders')
-            ->invoke($response, ETag::forBody($markup));
-
+        self::assertNull($answer->header(ResponseHeader::ETag));
         self::assertSame(
-            ['Vary: X-Requested-With, Accept-Language, Cookie'],
-            $cache->map(static fn(Header $header): string => $header->line())->toValues(),
+            'X-Requested-With, Accept-Language, Cookie',
+            $answer->header(ResponseHeader::Vary)?->value->render(),
         );
     }
 

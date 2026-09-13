@@ -35,8 +35,13 @@ use ReflectionMethod;
  * builders, and they are the ones where dropping the result is not merely useless but unsafe: each
  * is a gate's entire decision. The two on `Auth` are two rather than one because the credential
  * comes from two different places — a `data/` file for the site and admin gates, a
- * {@link \Phpanta\Support\PasswordHash} on the demo itself for the third — and the three
- * `require*` methods are only the challenge wrapped around them.
+ * {@link \Phpanta\Support\PasswordHash} on the demo itself for the third.
+ *
+ * The gates wrapped around them are the same kind, one step on: `Auth::siteGate()`,
+ * `Auth::adminGate()`, `Auth::challenge()` and `DemoGate::enter()` *return* the 401 rather than
+ * ending the request, so the caller has to return it in turn, and a call whose result goes nowhere
+ * is the refusal thrown away and the door left open. `Response::answer()` on every response and
+ * `App::handle()` are the builders of that value, where a dropped one answered no one.
  *
  * `ApiGate::accepts()` is a fourth of that kind and the strictest: it is the whole of the
  * decision that lets a request overwrite `src/` and the webroot. `ApiGate::spend()` beside it
@@ -88,7 +93,15 @@ final class NoDiscardTest extends TestCase
             [
                 'NeuroSYS\Model\WaveformBand::bands',
                 'NeuroSYS\Service\DemoGate::admits',
+                'NeuroSYS\Service\DemoGate::enter',
+                'Phpanta\App::handle',
+                'Phpanta\Http\Answer::header',
+                'Phpanta\Http\Answer::withHeadersFirst',
+                'Phpanta\Http\FileResponse::answer',
+                'Phpanta\Http\PlainTextResponse::answer',
+                'Phpanta\Http\RedirectResponse::answer',
                 'Phpanta\Http\Security\ContentSecurityPolicy::allow',
+                'Phpanta\Http\ViewResponse::answer',
                 'Phpanta\Model\Health\HealthResult::render',
                 'Phpanta\Model\Health\HealthResult::status',
                 'Phpanta\Model\Update\UpdateReport::dryRun',
@@ -102,6 +115,9 @@ final class NoDiscardTest extends TestCase
                 'Phpanta\Service\ApiGate::accepts',
                 'Phpanta\Service\ApiGate::spend',
                 'Phpanta\Service\Auth::accepts',
+                'Phpanta\Service\Auth::adminGate',
+                'Phpanta\Service\Auth::challenge',
+                'Phpanta\Service\Auth::siteGate',
                 'Phpanta\Service\UpdateApplier::apply',
                 'Phpanta\Support\Collection::first',
                 'Phpanta\Support\Collection::isEmpty',

@@ -24,11 +24,13 @@ request
        └─ Site::current()->run()       the app autoload.php booted — Phpanta's App::run(), in this order:
             │
             ├─ ErrorLog::install(…)         ⓪ every diagnostic, at E_ALL, into data/logs/php-YYYY-MM.log
-            ├─ SecurityHeaders::send()      ① headers first, so they cover every exit below
+            ├─ SecurityHeaders::send()      ① headers first, so even the last-resort 500 has them
             ├─ Request::fromGlobals()       ② $_SERVER → a typed, readonly Request
-            ├─ Auth::requireSiteAuth()      ③ pre-launch gate; may exit 401
-            ├─ Router::dispatch()           ④ URL → Controller, then the method gate → Response
-            └─ Response::send()             ⑤ headers + body, or a redirect, or plain text
+            ├─ App::handle()                the request → an Answer, sending nothing — what a test calls
+            │    ├─ Auth::siteGate()          ③ pre-launch gate; may answer 401
+            │    ├─ Router::dispatch()        ④ URL → Controller, then the method gate → Response
+            │    └─ Response::answer()        ⑤ status, headers, body — security headers put first
+            └─ Answer::send()               the one place anything is sent
 ```
 
 Everything below the front controller is plain classes on **Phpanta**, the framework this site grew

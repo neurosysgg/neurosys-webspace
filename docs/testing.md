@@ -27,8 +27,8 @@ How the count moved, and what each checker found on its first run, is in
 | | `test/unit/` (PHPUnit) | `test/js/` (node --test) | `test/basic_test.sh` (verify) |
 |---|---|---|---|
 | **Runs against** | Composer's autoloader | the compiled JS in `public/assets/js/`, in a jsdom DOM | the real `autoload.php`, over real HTTP |
-| **Good at** | branches, edge cases, escaping, error paths | what the elements build, and the enum mirrors | integration, `exit`-ing code, the deployed shape |
-| **Blind to** | anything that calls `exit`, `header()`, or needs a server | real layout, real CSS, real network | anything with no observable output |
+| **Good at** | branches, edge cases, escaping, error paths — and every answer, in-process | what the elements build, and the enum mirrors | integration, what reaches the wire, the deployed shape |
+| **Blind to** | what the server does around an answer: `header()` is a no-op under CLI | real layout, real CSS, real network | anything with no observable output |
 
 `test/js/` runs the *built* files rather than the TypeScript, so a build that never ran is a failing
 test rather than a passing one, as well as a failure in the drift check. It loads them through
@@ -39,20 +39,21 @@ is built in and `jsdom` supplies the DOM; both are dev-only.
 
 The division matters in a few concrete places:
 
-- **`Auth::requireSiteAuth()` / `requireAdminAuth()` call `exit`.** A unit test can't observe that
-  without process isolation, so the verify script asserts `/admin/stats` really returns 401 over HTTP.
-  The *decision* is a different matter and is unit-tested: `Auth::accepts()` is public and returns a
-  bool, so `AdminTest` can ask it about a wrong password without the answer ending the process. That
-  split is the same one `SecurityHeaders` makes between `headers()` and `send()`, for the same reason:
-  a method that ends the request cannot be asserted against, so everything worth asserting lives
-  beside it rather than inside it.
-- **The demo gate is the same split, twice over.** `DemoGate::requireAuth()` calls `exit`, so the
-  `401` is the verify script's — and so is everything about the audio route, because `header()` is a
-  no-op under CLI and that route's whole answer is a status code and four headers. The decision half
-  is `DemoGate::admits()`, which `DemoTest` asks about a wrong password without the answer ending the
-  process. What only real HTTP can show is worth listing, because it is most of the feature: the
-  `401`, that an **unknown slug is refused identically to a known one**, the realm naming the demo,
-  the `206` with its `Content-Range`, the `416`, and the absence of an `ETag`.
+- **Nothing ends the request but `App::run()`, so every answer is a value.** `Auth::siteGate()`,
+  `Auth::adminGate()` and `DemoGate::enter()` return their `401` rather than exiting, and
+  `App::handle()` answers a whole request — gate, router, controller, security headers — without
+  sending it. `TestRequest`, from `phpanta/test/`, builds a request without touching `$_SERVER` and
+  asks for that answer. So `AdminTest` asserts that `/admin/stats` answers the challenge,
+  `SecurityTest` that every answer — the `401`, the `303` and the `405` included — leads with the
+  security headers, and `ResponseTest` that `/language/de` is a `303` with its cookie, all in-process.
+  The verify script asserts the same over real HTTP, because only a real server shows what `header()`
+  actually put on the wire.
+- **The demo gate keeps the decision beside the refusal.** `DemoGate::admits()` is the bool, asked
+  about a wrong password directly; `DemoGate::enter()` is the challenge around it. `DemoTest` asserts
+  in-process that an **unknown slug is refused identically to a known one** — the same `401`, each
+  in its own slug's realm, nothing else on the wire to tell them apart — and reads the `206`, the
+  `416` and the missing `ETag` off the answers. The verify script still curls each of them, for the
+  real stack in front.
 - **`data/demos.php` is gitignored, so no test may assume one exists.** `DemoTest` writes its own and
   hands it to `DemoRepository` through the optional `File` parameter; the verify script swaps in a
   fixture of its own and restores whatever was there **in the EXIT trap**, so an interrupt cannot
@@ -239,7 +240,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
 - **An unknown demo is indistinguishable from a wrong password.** A `404` for a slug that names
   nothing and a `401` for one that names something is a catalogue of unreleased tracks, readable one
   guess at a time. The verify script asserts both answer `401`; `DemoTest` asserts the reason it is
-  also true of the *timing* — `DemoGate::requireAuth()` verifies against
+  also true of the *timing* — `DemoGate::enter()` verifies against
   `PasswordHash::unmatchable()` before refusing, so the unknown case pays the same bcrypt the known
   one does. A uniform status code undone by a stopwatch is not uniform.
 - **No URL segment can name a file.** A demo's audio is addressed by a label the demo declares, never
@@ -528,26 +529,25 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.47% of lines** (3018/3034), derived on 2026-09-13
-(on top of `db3393a`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.51% of lines** (3055/3070), derived on 2026-09-13
+(with the returning responses, on top of `67e4ace`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
-Merging is the point. PHPUnit measures `test/unit/` and nothing else, so the code that only the
-verify script reaches — `Auth`'s 401, `PlainTextResponse::send()`, `RedirectResponse::send()`,
-`SecurityHeaders::send()` — read as untested when they are among the most exercised paths on the
-site. They are invisible to PHPUnit twice over: `header()` is a no-op under CLI, and a `send()`
-ends in `exit`.
+Merging is the point. PHPUnit measures `test/unit/` and nothing else, and however much it asserts
+about an answer, the lines that put one on the wire — `App::run()`, `Answer::send()`,
+`SecurityHeaders::send()` — only the verify script reaches, because `header()` is a no-op under CLI.
+Unmerged, they read as untested when they run on every request.
 
 So the verify script's dev server collects its own. With `PHPANTA_COVERAGE_DIR` set it starts
 under `XDEBUG_MODE=coverage` with `phpanta/tools/coverage-prepend.php` as `auto_prepend_file`, which
 records line coverage and writes it out **from a shutdown function** — the whole trick, because a
-shutdown function still runs when a request ends in `exit`, and every response here does. That is
+shutdown function runs however the request ends, a fatal included. That is
 one dump per request; `tools/merge-coverage.php` unions them with PHPUnit's `--coverage-php` output
 and renders the combined report. `composer verify` on its own is untouched and sets nothing.
 
 #### What is deliberately not covered
 
-Sixteen lines, in five groups, and every one of them deliberate — behind a switch that is off on
+Fifteen lines, in four groups, and every one of them deliberate — behind a switch that is off on
 purpose, behind a credential the repository does not hold, or on a failure no test can arrange:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Site::DOWNLOAD_LOGGING`, a `false`
@@ -560,9 +560,6 @@ purpose, behind a credential the repository does not hold, or on a failure no te
   `data/admin.php` in the repository is a placeholder with an empty `pass_hash` — the real
   credentials are uploaded by hand and `deploy.sh` excludes the file. The counting is all in
   `DownloadStats::fromLines()`, which is fully unit-tested against a log file on disk.
-- **`Auth::requireSiteAuth()`'s challenge (1 line)** is only reachable when `data/site_auth.php`
-  exists, and it is gitignored precisely so the repository copy cannot switch pre-launch auth on.
-  The admin gate's identical branch *is* covered, over HTTP, by the verify script.
 - **`File::write()`'s two abandon-the-temp-file branches (4 lines)** fire when a file this process
   just created cannot have its mode set, or cannot be filled. `chmod()` on a file you own fails only
   under conditions a test would have to be root to arrange; `file_put_contents()` on a path `touch()`
@@ -570,17 +567,17 @@ purpose, behind a credential the repository does not hold, or on a failure no te
   never left behind under the temp name — and the first also so a credential is never left readable.
   The **rename** branch beside them *is* covered, by writing at a name a directory already holds,
   which is also what the update applier's "could not be written" report is asserted through.
-- **`FileResponse::stream()`'s short-read break (1 line)** fires when `fread()` returns nothing on a
+- **`FileBody::chunks()`'s short-read break (1 line)** fires when `fread()` returns nothing on a
   handle that is not at EOF — a file truncated between the `size()` that set the `Content-Length` and
   the read that fills it. Same kind of branch as the chmod one above: it exists so a truncated file
   ends the response rather than looping, and there is no way to arrange it from a test. The guard
-  beside it *is* covered, by deleting the file between constructing the response and sending it — and
-  that one mattered, because opening an unreadable file warns, and by then the headers have gone out,
-  so the warning would print into the audio. `@fopen` is there for the reason `File::read()`'s is.
+  beside it *is* covered, by deleting the file between answering and reading the body — and that one
+  mattered, because opening an unreadable file warns, and by then the headers have gone out, so the
+  warning would print into the audio. The `fopen` is muted for the reason `File::read()`'s is.
 
 #### Keeping the count honest
 
-The sixteen are a property of what is *deliberately* untested, not a budget that grows with the
+The fifteen are a property of what is *deliberately* untested, not a budget that grows with the
 code. Every pass since the figure was first written has held it there or lowered it, and the way it
 did is the rule:
 

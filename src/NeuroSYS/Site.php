@@ -77,7 +77,7 @@ final class Site extends App
      * `virtual-riot-were-not-alone-neuro-sys-bootleg` from an address bar. It is not a secret and
      * is not meant to be — the password is the whole credential. What keeps one demo's saved
      * credentials from being offered for another is the **realm**, which
-     * {@link Service\DemoGate::requireAuth()} builds per slug.
+     * {@link Service\DemoGate::enter()} builds per slug.
      */
     public const string DEMO_USER = 'demo';
 
