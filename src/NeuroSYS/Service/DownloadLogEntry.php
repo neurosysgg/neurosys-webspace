@@ -70,10 +70,10 @@ readonly class DownloadLogEntry implements JsonSerializable, JsonDeserializable,
      * Builds an entry from one log line, or null if that line is not one.
      *
      * The only place on this site where a value object is built out of text nothing on this side
-     * wrote, so it is the only place the shape has to be *checked* rather than known.
-     * {@link \NeuroSYS\Controller\StatsController} skips whatever comes back null, and the whole
-     * job of this method is to make sure a line it cannot use comes back that way instead of some
-     * other way. Two lines look usable and are not, and both are refused:
+     * wrote, so it is the only place the shape has to be *checked* rather than known. A reader of
+     * the log skips whatever comes back null, and the whole job of this method is to make sure a
+     * line it cannot use comes back that way instead of some other way. Two lines look usable and
+     * are not, and both are refused:
      *
      * - **An array that is not an object.** `assoc: true` decodes `{}` and `[]` to the same empty
      *   array, so a log line of `[1,2,3]` would pass an `is_array()` guard and hydrate into an entry

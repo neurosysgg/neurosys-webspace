@@ -24,8 +24,6 @@ use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
 use NeuroSYS\Model\Waveform;
 use NeuroSYS\Model\WaveformColumn;
-use NeuroSYS\Service\DownloadLogEntry;
-use NeuroSYS\Service\DownloadStats;
 use NeuroSYS\Site;
 use NeuroSYS\View\DemoView;
 use NeuroSYS\View\HomeView;
@@ -33,7 +31,6 @@ use NeuroSYS\View\Html\Tag;
 use NeuroSYS\View\NotFoundView;
 use NeuroSYS\View\ReleasesView;
 use NeuroSYS\View\ReleaseView;
-use NeuroSYS\View\StatsView;
 use NeuroSYS\View\Terminal\Terminal;
 use NeuroSYS\View\Terminal\TerminalCommand;
 use NeuroSYS\View\Terminal\TerminalField;
@@ -53,7 +50,6 @@ use PHPUnit\Framework\TestCase;
 #[CoversClass(ReleasesView::class)]
 #[CoversClass(DemoView::class)]
 #[CoversClass(NotFoundView::class)]
-#[CoversClass(StatsView::class)]
 #[CoversClass(Layout::class)]
 #[CoversClass(Terminal::class)]
 #[CoversClass(TerminalField::class)]
@@ -652,45 +648,6 @@ final class ViewTest extends TestCase
         self::assertStringContainsString('320 kbps', $html);
     }
 
-    // ───────────────────────────── stats ─────────────────────────────
-
-    /**
-     * @return void
-     */
-    public function testStatsSaysLoggingIsOffRatherThanShowingAnEmptyTable(): void
-    {
-        $html = new StatsView()->content()->render(0, Language::English);
-
-        self::assertStringContainsString('switched off', $html);
-        self::assertStringNotContainsString('<table', $html);
-    }
-
-    /**
-     * @return void
-     */
-    public function testStatsDistinguishesOffFromOnButEmpty(): void
-    {
-        self::assertStringContainsString(
-            'No downloads logged yet',
-            new StatsView(DownloadStats::fromLines([]))->content()->render(0, Language::English),
-        );
-    }
-
-    /**
-     * @return void
-     */
-    public function testStatsEscapesLogDerivedKeys(): void
-    {
-        // Through a real log line rather than a hand-built tally: the key on that page is
-        // `slug/format`, and the slug is the one part of it a request ever influenced.
-        $html = new StatsView(DownloadStats::fromLines([
-            new DownloadLogEntry('2026-09-06T00:00:00+00:00', '<script>x</script>', 'flac', '')->toJson(),
-        ]))->content()->render(0, Language::English);
-
-        self::assertStringNotContainsString('<script>x</script>', $html);
-        self::assertStringContainsString('&lt;script&gt;', $html);
-    }
-
     // ───────────────────────────── layout ─────────────────────────────
 
     /**
@@ -931,13 +888,5 @@ final class ViewTest extends TestCase
             'releases — ' . Site::NAME,
             new ReleasesView($this->catalogue())->pageTitle()->in(Language::English),
         );
-    }
-
-    /**
-     * @return void
-     */
-    public function testTheStatsPageIsTitledForTheSection(): void
-    {
-        self::assertSame('stats — ' . Site::NAME, new StatsView()->pageTitle()->in(Language::English));
     }
 }

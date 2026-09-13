@@ -208,12 +208,12 @@ else
 fi
 
 # ext/openssl verifies the update signature and ext/zlib unpacks the payload, so between them they
-# are the whole of what /api needs beyond core. Both are in composer.json, and composer never
+# are the whole of what /admin needs beyond core. Both are in composer.json, and composer never
 # runs on the server — vendor/ is not deployed — so this is the only place the question gets asked
 # where it matters. The failure is a fatal on a push rather than on a page, which is the quietest
-# kind: the endpoint answers as though it is not there for every other reason too.
+# kind: a stranger is answered the same way whether or not the admin could verify anything.
 if php -r 'exit(extension_loaded("openssl") && extension_loaded("zlib") ? 0 : 1);'; then
-    pass "ext/openssl and ext/zlib are present — /api can verify and unpack a payload"
+    pass "ext/openssl and ext/zlib are present — /admin can verify and unpack a payload"
 else
     fail "ext/openssl or ext/zlib is missing; PublicKey::verify() and UpdateApplier need them"
 fi
@@ -834,9 +834,9 @@ check_status "GET /// is the root                → 200" "$BASE///"            
 check_status "GET //host:notaport/x              → 404" "$BASE//host:notaport/x"               404
 check_method "POST /// is still refused          → 405" POST "$BASE///"                        405
 
-# AdminTest asserts the 401 in-process; this is the one that proves it reaches the wire.
-check_status "GET /admin/stats (no creds)        → 401" "$BASE/admin/stats"                    401
-check_status "GET /admin/stats (wrong creds)     → 401" "$BASE/admin/stats"                    401
+# ApiTest asserts a stranger's answers in-process; these prove they reach the wire.
+check_status "GET /admin is the entrance         → 200" "$BASE/admin"                          200
+check_status "GET /admin/update sends it back    → 303" "$BASE/admin/update"                   303
 
 
 echo ""
@@ -1132,7 +1132,7 @@ check_header "Cross-Origin-Resource-Policy is set"    "$BASE/"             "^cro
 check_no_header "no PHP version is disclosed"         "$BASE/"             "^x-powered-by:"
 # A download redirect is where the Referer would otherwise leak to the file host.
 check_header "headers reach a 303 too"                "$BASE/releases/ill/flac" "^referrer-policy:"
-check_header "transport policy reaches a 401 too"     "$BASE/admin/stats"  "^strict-transport-security:"
+check_header "transport policy reaches the admin too" "$BASE/admin/update" "^strict-transport-security:"
 check_header "headers reach a 404 too"                "$BASE/nope"         "^content-security-policy:"
 
 # ViewResponse sends Content-Type itself rather than inheriting PHP's default_mimetype, which is
@@ -1198,9 +1198,9 @@ else
     fail "the fragment and the document share a validator ($DOC_ETAG)"
 fi
 
-# The gated page opts out of all of it, and the three responses that never become a ViewResponse
-# carry none of it either.
-check_no_header "the gated page hands out no validator"   "$BASE/admin/stats"        "^etag:"
+# The admin opts out of all of it, and the three responses that never become a ViewResponse carry
+# none of it either.
+check_no_header "the admin hands out no validator"        "$BASE/admin"              "^etag:" GET
 check_no_header "a 303 is not cacheable"                  "$BASE/releases/ill/flac"  "^cache-control:"
 check_no_header "  and neither is the 405"                "$BASE/"                   "^cache-control:" "POST"
 
@@ -1370,7 +1370,6 @@ echo "=== Read-only method gate ==="
 check_method "POST   /                    → 405" POST   "$BASE/"                           405
 check_method "POST   /releases/ill/flac   → 405" POST   "$BASE/releases/ill/flac"          405
 check_method "DELETE /releases/ill/flac   → 405" DELETE "$BASE/releases/ill/flac"          405
-check_method "PUT    /admin/stats         → 405" PUT    "$BASE/admin/stats"                405
 check_method "HEAD   /                    → 200" HEAD   "$BASE/"                           200
 check_header "the 405 names the allowed methods" "$BASE/" "^allow: GET, HEAD" POST
 
@@ -1383,101 +1382,115 @@ check_spa_fragment "AJAX /releases/ill returns fragment only" "$BASE/releases/il
 
 
 echo ""
-echo "=== The API ==="
-# /api is the one address family that writes, and its whole design is that an unsigned caller cannot
-# tell any of it from an address that does not exist. That is a claim about real responses — status,
-# headers and body — so only this suite can check it. Compared against a path that genuinely is not
-# there rather than against a remembered expectation, because what must hold is that the two agree.
-#
-# Every depth is swept, not just the real endpoint. `/api` and `/api/update` match no route at all
-# and reach UnroutedController through the router; `/api/update/v1/patch` matches and reaches it
-# through ApiController. Two code paths that must not be distinguishable — and `nope` is the one
-# that looks exactly like the real address and is not.
+echo "=== The admin ==="
+# /admin is the one address family that writes. A stranger may learn that it is there — the site
+# links to it — and nothing about what is in it: below the entrance, every depth answers one way,
+# whether the address exists or not, under every verb. A page request is sent back to the entrance
+# (303), a request for data is challenged for a signature (401), and neither names a method. That is
+# a claim about real responses, so only this suite can check it over the wire.
 #
 # BREW is in the verb list on purpose: Request::method() is null for a verb the site does not
-# recognise, and a gate that read `$method->value` without asking would answer 500 where an absent
-# address answers 405.
-#
-# Every service is swept, and the later ones are not a formality: `update` writes and `health` and
-# `capability` only read, so a refusal that leaked the difference would leak which kind an address
-# is. It cannot — ApiController hands anything it will not verify to UnroutedController before it
-# has resolved a service at all — and that is precisely why the rows are cheap to keep.
-api_paths=(/api /api/update /api/update/v1 /api/update/v1/patch /api/update/v1/version /api/update/v1/nope
-           /api/health /api/health/v1 /api/health/v1/report /api/health/v1/settings /api/health/v1/nope
-           /api/capability /api/capability/v1 /api/capability/v1/extensions /api/capability/v1/nope)
+# recognise, and a controller that read `$method->value` without asking would answer 500 where
+# every other verb is answered alike. `nope` at each depth is the address that looks real and is not.
+admin_paths=(/admin/update /admin/update/v1 /admin/update/v1/patch /admin/update/v1/version /admin/update/v1/nope
+             /admin/health /admin/health/v1/report /admin/capability/v1/extensions
+             /admin/nope /admin/nope/v1 /admin/nope/v1/nope)
 
 for method in GET HEAD POST PUT DELETE PATCH OPTIONS BREW; do
+    # php -S refuses a verb it does not know itself, with a 501, before any PHP runs — so where the
+    # server answers /no-such-page that way, every depth must answer the same, and ApiTest is what
+    # sees the controller's half in-process. Everywhere else the controller answers.
+    server=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/no-such-page")
+    if [[ "$server" == "501" ]]; then
+        want_page=501; want_data=501
+    else
+        want_page=303; want_data=401
+    fi
+
+    mismatch=""
+
+    for path in "${admin_paths[@]}"; do
+        page=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE$path")
+        data=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" -H 'Accept: application/json' "$BASE$path")
+        [[ "$page" == "$want_page" && "$data" == "$want_data" ]] || mismatch="$mismatch $path→$page/$data"
+    done
+
+    if [[ -z "$mismatch" ]]; then
+        pass "$method /admin/* answers a stranger alike ($want_page for a page, $want_data for data)"
+    else
+        fail "$method /admin/* answered a stranger differently:$mismatch"
+    fi
+done
+
+check_header    "the entrance is kept by no cache"      "$BASE/admin"                  "^cache-control: no-store" GET
+check_header    "  and asks not to be indexed"          "$BASE/admin"                  "^x-robots-tag: noindex" GET
+check_header    "a page request below it is sent to it" "$BASE/admin/update/v1/patch"  "^location: /admin$" POST
+check_no_header "  and that 303 names no method"        "$BASE/admin/update/v1/patch"  "^allow:" PUT
+
+admin_challenge=$(curl "${CURL_ARGS[@]}" -o /dev/null -D - -H 'Accept: application/json' "$BASE/admin/update/v1/version" \
+    | tr -d '\r' | grep -i '^www-authenticate:')
+if [[ "${admin_challenge,,}" == "www-authenticate: ns1" ]]; then
+    pass "a request for data is challenged for a signature ($admin_challenge)"
+else
+    fail "a request for data was answered '$admin_challenge', where 'WWW-Authenticate: NS1' was expected"
+fi
+
+admin_other=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -H 'Accept: text/plain' "$BASE/admin/update/v1/version")
+if [[ "$admin_other" == "406" ]]; then
+    pass "a request for a type the admin does not write is told so (406)"
+else
+    fail "a request for text/plain → $admin_other, where a 406 was expected"
+fi
+
+# Neither a body that is not a payload nor a credential that is not ours changes that answer. The
+# second matters more than it looks: a malformed credential reaching strlen() as `false` would be an
+# uncaught TypeError — a 500, where every stranger is otherwise sent to the entrance.
+for probe in "--data-binary|not a payload" "-H|Authorization: NS1 !!!!" "-H|Authorization: NS1 " \
+             "-H|Authorization: NS1abc" "-H|Authorization: Basic YTpi" "-H|Authorization: NS1 $(printf 'A%.0s' {1..9000})"; do
+    flag=${probe%%|*}
+    value=${probe#*|}
+    got=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST "$flag" "$value" "$BASE/admin/update/v1/patch")
+
+    # A credential over the header size limit is refused by Apache before PHP sees it, which is a
+    # 400 rather than our 303 — a refusal from the wrong layer, and one that says nothing more.
+    if [[ "$got" == "303" || "$got" == "400" || "$got" == "431" ]]; then
+        pass "  refused the same way: ${value:0:28}"
+    else
+        fail "  '${value:0:28}' → $got, where a stranger is sent to the entrance (303)"
+    fi
+done
+
+# Where the admin used to be is an address that is not there: no route claims anything under /api,
+# and there is no alias.
+for method in GET POST BREW; do
     absent=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE/no-such-page")
     mismatch=""
 
-    for path in "${api_paths[@]}"; do
+    for path in /api /api/update/v1/patch /api/health/v1/report; do
         got=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X "$method" "$BASE$path")
         [[ "$got" == "$absent" ]] || mismatch="$mismatch $path→$got"
     done
 
     if [[ -z "$mismatch" ]]; then
-        pass "$method /api/* answers like an address that is not there ($absent)"
+        pass "$method /api/* is an address that is not there ($absent)"
     else
-        fail "$method /no-such-page → $absent but$mismatch, so the endpoint announces itself"
+        fail "$method /no-such-page → $absent but$mismatch"
     fi
 done
 
-# The Allow header is the subtler half. The route accepts POST, so a 405 naming its own methods
-# would read `GET, HEAD, POST` — and that POST is exactly the fact being hidden.
-api_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/api/update/v1/patch" | grep -i '^allow:' | tr -d '\r')
-absent_allow=$(curl "${CURL_ARGS[@]}" -D - -o /dev/null -X POST "$BASE/no-such-page" | grep -i '^allow:' | tr -d '\r')
-if [[ "$api_allow" == "$absent_allow" && "$api_allow" == *"GET, HEAD"* && "$api_allow" != *"POST"* ]]; then
-    pass "  and its 405 never names POST"
+# Nothing may exist under public/admin. The webroot passes real files and directories straight
+# through (RewriteCond !-f / !-d), so a directory there would be answered by Apache — a listing or a
+# 403 — before the admin could give its own answer.
+if [[ -e "$REPO/public/admin" ]]; then
+    fail "  public/admin exists, so Apache answers /admin before the router ever sees it"
 else
-    fail "  /api/update/v1/patch sent '$api_allow' where /no-such-page sent '$absent_allow'"
-fi
-
-# Neither a body that is not a payload nor a credential that is not ours changes that answer. The
-# second matters more than it looks: the credential now rides in Authorization, and a malformed one
-# reaching strlen() as `false` would be an uncaught TypeError — a 500, on the one route built to be
-# indistinguishable from a typo.
-absent_post=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST "$BASE/no-such-page")
-for probe in "--data-binary|not a payload" "-H|Authorization: NS1 !!!!" "-H|Authorization: NS1 " \
-             "-H|Authorization: NS1abc" "-H|Authorization: Basic YTpi" "-H|Authorization: NS1 $(printf 'A%.0s' {1..9000})"; do
-    flag=${probe%%|*}
-    value=${probe#*|}
-    got=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X POST "$flag" "$value" "$BASE/api/update/v1/patch")
-
-    # A credential over the header size limit is refused by Apache before PHP sees it, which is a
-    # 400 rather than our 405 — a refusal from the wrong layer, but not one that says /api is there.
-    if [[ "$got" == "$absent_post" || "$got" == "400" || "$got" == "431" ]]; then
-        pass "  refused the same way: ${value:0:28}"
-    else
-        fail "  '${value:0:28}' → $got, where an absent path → $absent_post"
-    fi
-done
-
-# The GET half of the same claim: a read action is as invisible as the write one. Asked of every
-# service, because a service made entirely of reads is the one somebody would be tempted to leave
-# open — and the whole of `/api` is that nothing under it answers differently from a typo.
-absent_get=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -X GET "$BASE/no-such-page")
-for read_path in /api/update/v1/version /api/health/v1/report /api/capability/v1/runtime; do
-    read_get=$(curl "${CURL_ARGS[@]}" -o /dev/null -w '%{http_code}' -H 'Authorization: NS1 abcd' "$BASE$read_path")
-    if [[ "$read_get" == "$absent_get" ]]; then
-        pass "  an unsigned read of $read_path is refused the same way ($read_get)"
-    else
-        fail "  an unsigned read of $read_path → $read_get, where an absent path → $absent_get"
-    fi
-done
-
-# Nothing may exist under public/api. The webroot passes real files and directories straight through
-# (RewriteCond !-f / !-d), so a directory there would be answered by Apache — a listing or a 403 —
-# and /api would stop looking like a typo without a line of PHP being involved.
-if [[ -e "$REPO/public/api" ]]; then
-    fail "  public/api exists, so Apache answers /api before the router ever sees it"
-else
-    pass "  nothing exists under public/api, so every /api request reaches the router"
+    pass "  nothing exists under public/admin, so every /admin request reaches the router"
 fi
 
 if [[ -f "$REPO/data/update.pub" ]]; then
     pass "  a key is installed, so this deployment can accept a signed call"
 else
-    echo "  SKIP the endpoint is switched off here — no data/update.pub, which is the safe default"
+    echo "  SKIP signed calls are switched off here — no data/update.pub, which is the safe default"
 fi
 
 echo ""

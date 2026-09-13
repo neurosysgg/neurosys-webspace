@@ -27,8 +27,8 @@ use Phpanta\Support\Collection;
  */
 #[BareString(
     'string',
-    'the declared type of the collection this builds; see DownloadStats, which writes int for '
-    . 'the same reason',
+    "the declared type of the collection this builds: a scalar type name standing in a class-string's "
+    . 'place, spelled the way get_debug_type() spells it',
 )]
 final readonly class TerminalCommand
 {

@@ -12,29 +12,29 @@ of vulnerability are not mitigated here — they are structurally absent. What r
 type boundaries and at the single place markup is rendered, so the failure mode of a mistake is a
 build error or a thrown exception, not a silently shipped hole.
 
-**One address family writes.** `/api` accepts a signed `POST` carrying a gzipped tarball and writes
-it into `src/` and the webroot — it is the deploy path, and it is described in full under
-[The API](#the-api). Everything else is read-only, accepts no upload and persists nothing a request
+**One address family writes.** `/admin/update/v1/patch` accepts a signed `POST` carrying a gzipped
+tarball and writes it into `src/` and the webroot — it is the deploy path, and the admin it belongs
+to is described in full under [The admin](#the-admin). Everything else is read-only, accepts no upload and persists nothing a request
 sends.
 
 ## The attack surface
 
 Everything an attacker can reach:
 
-- **Ten routes.** Nine are `GET`/`HEAD`: `/`, `/releases`, `/releases/{slug}`,
+- **Nine routes of the site's, every one `GET`/`HEAD`**: `/`, `/releases`, `/releases/{slug}`,
   `/releases/{slug}/{format}`, `/demos/{slug}` and `/demos/{slug}/{label}` (each behind that demo's
-  own HTTP Basic password), `/admin/stats` (behind HTTP Basic), `/imprint`, `/privacy`.
-  There is deliberately no `/demos` index — see [demos.md](demos.md).
-- **The tenth is `/api/{service}/{version}/{action}`**, which accepts a `POST` and answers every
-  method exactly as an address that does not exist, unless the request carries an ECDSA signature
-  this deployment's public key verifies. It is unreachable without the private key and invisible
-  without it, at every depth. `/api`, `/api/update`, `/api/update/v1`, `/api/health`,
-  `/api/health/v1`, `/api/capability` and `/api/capability/v1` match no route at all, because the
-  pattern is four segments. **Three services answer under it**: `update`, which writes, and
-  `health` and `capability`, which only read. That difference is deliberately not observable.
-  `ApiController` hands anything it will not verify to `UnroutedController` *before* it has
-  resolved a service at all, so a read-only service is exactly as invisible as the writing one.
-  Both suites sweep all three.
+  own HTTP Basic password), `/imprint`, `/privacy` and `/language/{language}`. There is
+  deliberately no `/demos` index — see [demos.md](demos.md).
+- **Four more are the framework's admin**: `/admin`, `/admin/{service}`,
+  `/admin/{service}/{version}` and `/admin/{service}/{version}/{action}`, the last of which accepts
+  a `POST`. A caller whose ECDSA signature this deployment's public key does not verify sees the
+  entrance at `/admin` and nothing else: every depth below it, existing or not, under every verb,
+  gives one answer — a `303` back to the entrance for a page, a `401` challenging for `NS1` for
+  data. **Three services answer under it**: `update`, which writes, and `health` and `capability`,
+  which only read. That difference is visible only past the gate: `ApiController` asks the gate
+  before it has resolved a service at all, so a stranger learns that there is an admin and nothing
+  about what is in it. Both suites sweep all three. `/api`, where the admin used to be, matches no
+  route and answers exactly like `/no-such-page`.
 - **Static assets** under `/assets/`, served by the web server, never by PHP. The one exception is a
   demo's audio, which PHP serves itself precisely so that it is *not* static — see below.
 - Everything else answers `404` or `405`.
@@ -45,7 +45,7 @@ headers the app reads — `Authorization`, and the six `RequestHeader` cases: `X
 written in the language they pick; of the cookies only `lang` is read, and only as one of the
 `Language` cases — anything else falls through), and `Referer` (`/language/{language}` alone, where
 only its path is used — see [the language cookie](#the-language-cookie)) — plus the referrer once
-more when download logging is on, which it is not; and, under `/api` alone, a **request body**.
+more when download logging is on, which it is not; and, under `/admin` alone, a **request body**.
 
 That body is read at one call site, and **it is not read at all until a signature has verified**.
 The credential arrives in `Authorization` rather than framed into the body, so an unsigned caller is
@@ -129,15 +129,19 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 - **No `report-uri`**, on the terms download logging is off on: a report's `document-uri` and
   `blocked-uri` are data neither half of the privacy policy claims. `SecurityTest` pins the hosts
   the policy names instead.
-- **`/admin/stats` says `no-store, private`**, which is also what keeps an `ETag` off it; a demo's
-  responses do the same — see [Authentication](#3-again-authentication).
+- **Every admin answer says `no-store, private`**, which is also what keeps an `ETag` off it, and
+  asks not to be indexed; a demo's responses do the same — see
+  [Authentication](#3-again-authentication).
 
 ### 3 + 4. The method gate
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#3--4-the-method-gate).
-Here that is nine `ReadOnly` routes and `/api`, `Delegated`. The verify script sweeps `BREW`
-alongside every real verb, at every depth, so the one route the router has no opinion about answers
-an unknown verb exactly as `/no-such-page` does. ([history](history/api.md))
+Here that is the site's nine `ReadOnly` routes and the framework's four admin routes, `Delegated`.
+The verify script sweeps `BREW` alongside every real verb at every admin depth, existing or not, and
+holds each to one answer everywhere: a `303` for a page, a `401` for data. Under `php -S` an unknown
+verb never reaches PHP — the server refuses it with a `501` itself, identically at every depth and
+at `/no-such-page` — so the controller's half of that is the framework's `ApiTest`, in-process.
+([history](history/api.md))
 
 **`TRACE` never reaches the router on the live host.** Strato's Apache refuses it itself — `405`, an
 empty `Allow`, Apache's own body, nothing echoed — on every path including static files (checked
@@ -158,19 +162,18 @@ The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#4
 
 ### 3 (again). Authentication
 
-Four gates. Three are HTTP Basic; the fourth is a signature, described under [The API](#the-api).
+Three gates. Two are HTTP Basic — the pre-launch site gate and each demo's; the third is a
+signature, described under [The admin](#the-admin). The framework's Basic admin gate, `AdminGate`,
+stands on no route here, and `RoutingTest` asserts that none carries it.
 
-Two of the Basic gates — the pre-launch site gate and the admin gate — ask the same question of the
-same shape of credentials file, so they ask it in one place: `Auth::accepts()`. The third is a
-demo's, whose credential is a `PasswordHash` on the `Demo` object itself rather than in a file; it
-is `DemoGate::admits()`, the site's gate built on the framework's. Both are public and return a
+The site gate asks the framework's question of a credentials file, `Auth::accepts()`. A demo's
+credential is a `PasswordHash` on the `Demo` object itself rather than in a file; its gate is
+`DemoGate::admits()`, the site's gate built on the framework's. Both are public and return a
 `bool`, and both are the *decision* separated from the `401` that follows it. The `401` is a value
-too — and the admin gate is its route's, `->through(new AdminGate())` on `/admin/stats`, which
-`RoutingTest` asserts is the one gated route. `Auth::siteGate()`, `Auth::adminGate()` and
-`DemoGate::enter()` return it rather than ending
-the request, the caller returns it in turn, and each carries `#[\NoDiscard]` — a call whose result
-goes nowhere is the one way to leave the door open, and it fails the suite. All three end up in one
-comparison, `Auth::matches()`.
+too: `Auth::siteGate()` and `DemoGate::enter()` return it rather than ending the request, the caller
+returns it in turn, and each carries `#[\NoDiscard]` — a call whose result goes nowhere is the one
+way to leave the door open, and it fails the suite. Both end up in one comparison,
+`Auth::matches()`.
 
 - **Every comparison is constant-time, and neither is skipped when the other fails.** The password is
   `password_verify()`; the user name is `hash_equals()`, compared on every request just the same.
@@ -179,8 +182,9 @@ comparison, `Auth::matches()`.
   difference measurable across a network that tells an attacker which half of the credential they
   already have. Both run every time; the results are combined afterwards.
 - **An empty hash is an unconfigured gate, not one that accepts an empty password.** The repo ships
-  `data/admin.php` with an empty `pass_hash`, and the guard refuses it out loud rather than relying on
-  `password_verify('', '')` happening to be false.
+  `data/admin.php` with an empty `pass_hash` — an inert placeholder no route reads — and the guard
+  refuses an empty hash out loud rather than relying on `password_verify('', '')` happening to be
+  false.
 - **The token is spelled once, at both ends.** `BasicChallenge` writes `Basic realm="…"` into the
   `401` and `Request::fromGlobals()` reads `Basic ` on the way back in, and both say
   `AuthScheme::Basic`. A mismatch there would make both gates refuse everything, identically, with
@@ -195,9 +199,9 @@ comparison, `Auth::matches()`.
   percent-encoding a hostile target before PHP sees it — a bare Apache 2.4 does not.
   ([history](history/security.md))
 - The **pre-launch** gate is switched off by the *absence* of `data/site_auth.php`, and that file is
-  gitignored precisely so the repo copy cannot switch it on. The **admin** gate has no absent-file
-  case: a missing `data/admin.php` is a broken deployment, and `require` says so loudly rather than
-  leaving `/admin/stats` open. A **demo** gate has no absent case at all — a `Demo` cannot be
+  gitignored precisely so the repo copy cannot switch it on. `data/admin.php` has no absent case
+  either, though no route reads it: the framework tracks it, so a deployment without it fails
+  `health v1 deployment`. A **demo** gate has no absent case at all — a `Demo` cannot be
   constructed without a `PasswordHash`, so a demo that is reachable is a demo that is gated.
 - **A demo that does not exist is refused identically to one whose password is wrong**, in status
   code *and* in elapsed time. A `404` for an unknown slug and a `401` for a known one is a catalogue
@@ -213,15 +217,15 @@ comparison, `Auth::matches()`.
   carry `no-store, private`, no `ETag` (so no `304` on a guessed validator) and
   `X-Robots-Tag: noindex, nofollow, noarchive`. See [demos.md](demos.md).
 - **Only one credential fits in a request.** While `data/site_auth.php` exists, the pre-launch gate
-  claims the `Authorization` header and no request can satisfy a demo gate — or a signed API call —
-  as well. See [Known and accepted](#known-and-accepted).
+  claims the `Authorization` header and no request can satisfy a demo gate — or a signed admin
+  call — as well. See [Known and accepted](#known-and-accepted).
 
 **There is no CSRF surface, and that is a property rather than an oversight.** It rests on two
 facts, either of which would be enough: the site starts no session, and its one cookie, `lang`, is a
 preference rather than a credential — it opens nothing, so a cross-site request that carries it gains
 nothing (and it is `SameSite=Lax` all the same); and there is no `<form>` anywhere, while the
 Basic-authenticated routes are ones the browser sends credentials to because of the realm rather
-than the origin. `/api` does accept a `POST`, and a cross-site `POST` to it cannot forge an ECDSA
+than the origin. `/admin` does accept a `POST`, and a cross-site `POST` to it cannot forge an ECDSA
 signature. So there is no form token, and nothing for one to protect.
 
 The framework has both halves of the other arrangement — a sealed cookie session, and the
@@ -289,10 +293,15 @@ and no personal data is ever placed in a URL or query string. Turning logging on
 privacy-policy decision before a code one — neither half of the policy (`data/privacy.de.html`,
 `data/privacy.en.html`) makes a download-tracking claim, so both would have to be amended first.
 
-## The API
+## The admin
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#the-api).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#the-admin).
 What is this site's about it:
+
+- **That it exists is public, by decision.** The source is open, so an address pretending not to be
+  there would hide nothing a reader could not look up; what the gate keeps is what is *in* the
+  admin. Nothing on the site links to `/admin` yet, and a browser, which cannot sign, sees only the
+  entrance. ([history](history/api.md#2026-09-14--the-admin-moves-to-admin-and-says-that-it-is-there))
 
 - **Why it exists here.** Deploying with `rsync -c` over a GVFS SFTP mount costs **480 ms** a
   `stat` and **3.7 s** to walk `src/` alone, across 269 files, for a payload that is **250 KB
@@ -316,13 +325,12 @@ What is this site's about it:
   basename. A push leaves byte-identical files alone for the NFS reason in
   [deployment.md](deployment.md).
 - **The verify script holds the framework to its claims over real HTTP**: every method, `BREW`
-  included, at every depth, against `/no-such-page`; six malformed-credential probes, the one over
-  the header limit refused by Apache with a `400`; nothing under `public/api/`; and `openssl_` only
-  in `PublicKey`, with no signing or key-minting call under `src/` or `phpanta/src/`, the way it pins
-  `curl_` to `CurlTransport` under `tools/lib/`.
-- **About 180 µs** separates the `/api` shape from a typo for a caller already sending an `NS1`
-  credential, measured on localhost in the 2026-09-09 pentest — see
-  [Known and accepted](#known-and-accepted).
+  included, at every admin depth, existing or not — a `303` for a page and a `401` for data; the
+  entrance's headers, the `NS1` challenge and the `406`; six malformed-credential probes, each a
+  `303`, or Apache's `400` or a `431` for the one over the header limit; `/api/*` answering exactly
+  like `/no-such-page`; nothing under `public/admin/`; and `openssl_` only in `PublicKey`, with no
+  signing or key-minting call under `src/` or `phpanta/src/`, the way it pins `curl_` to
+  `CurlTransport` under `tools/lib/`.
 
 ## Known and accepted
 
@@ -350,25 +358,23 @@ assessments turned up is fixed — see [history/security.md](history/security.md
   for correctness rather than fired at a running server: the 256 KB chunked stream never holds a
   whole file in memory, and the `min(chunk, remaining)` read cannot overshoot a range's end. It is
   the one newer parser no pass has reached without a credential.
-- **About 180 µs separates `/api` from a typo for a caller already sending an `NS1` credential.**
-  Not a usable oracle; see [It answers as though it is not there](../phpanta/docs/security.md#it-answers-as-though-it-is-not-there).
 - **A captured read credential replays within the ±300 s skew window**, yielding the answer to a
   read to somebody who has already broken TLS. See
   [What a signature covers](../phpanta/docs/security.md#what-a-signature-covers-and-why-replay-is-closed).
 - **No audience field.** Cross-deployment replay is closed by key separation; if two deployments
   ever share a key, an `aud` field is what to add.
-- **While the pre-launch site gate is on, no signed API call and no demo can be reached.**
+- **While the pre-launch site gate is on, no signed admin call and no demo can be reached.**
   `siteGate()` runs before the router and is HTTP Basic on the same `Authorization` header,
-  so while `data/site_auth.php` exists the API credential is in the wrong scheme, the gate sees an
-  empty user, and the request is a `401`. That is the interaction demos already have, and it leaks
-  nothing — that gate answers `401` for *every* path alike, so `/api` is no more visible than
-  `/imprint`. It is moot today, because the gate is off.
+  so while `data/site_auth.php` exists the admin's credential is in the wrong scheme, the gate sees
+  an empty user, and the request is a `401`. That is the interaction demos already have, and it
+  leaks nothing — that gate answers `401` for *every* path alike, the admin's included. It is moot
+  today, because the gate is off.
 
   The fix, if it is ever needed, is a decision rather than a patch, and the shape matters: standing
-  the site gate down whenever an `NS1` header is merely **present** would make `/api` answer `404`
-  where every other path answers `401` — a perfect oracle. It has to stand down only for a request
-  whose signature has already **verified**, which means running the gate once, before
-  `siteGate()`, and handing the result on.
+  the site gate down whenever an `NS1` header is merely **present** would let anybody who sends one
+  past the pre-launch gate. It has to stand down only for a request whose signature has already
+  **verified**, which means running the admin's gate once, before `siteGate()`, and handing the
+  result on.
 
 ## What is deliberately not here
 

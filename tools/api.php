@@ -3,7 +3,7 @@
 /**
  * Entry point for the `api` command — see {@link \Phpanta\Tool\Command\ApiCall}.
  *
- * Usage: php tools/api.php <service> <version> <action> [--dry-run] [--url <origin>] [--key <file>]
+ * Usage: php tools/api.php [<service> [<version> [<action>]]] [--dry-run] [--url <origin>] [--key <file>]
  *
  * Declares nothing and runs one thing, which is the shape `phpcs` wants of a file with side
  * effects. Both autoloaders: the site's, because the vocabulary an address is built from is the

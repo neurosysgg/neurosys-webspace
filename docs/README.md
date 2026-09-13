@@ -52,7 +52,7 @@ neurosys/
 │   ├── profiles.php     ← footer profile links
 │   ├── privacy.de.html  ← Datenschutzerklärung — one half, served by PrivacyController
 │   ├── privacy.en.html  ← Privacy Policy — the other; the visitor's language leads
-│   ├── admin.php        ← stats page credentials (bcrypt hash)
+│   ├── admin.php        ← the framework's Basic admin credential — an inert placeholder no route reads
 │   ├── demos.php        ← unreleased demos + their password hashes (gitignored, deployed)
 │   ├── demos/{slug}/    ← their audio — the only bytes PHP serves itself
 │   └── logs/            ← downloads.log — see "Download logging" below
@@ -79,7 +79,7 @@ neurosys/
 | `/language/{language}` | the language switch: sets the `lang` cookie and 303s back — see [language.md](../phpanta/docs/language.md) |
 | `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
 | `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |
-| `/admin/stats` | download stats (HTTP basic auth) |
+| `/admin` … `/admin/{service}/{version}/{action}` | the framework's admin: an entrance anyone may see, and below it listings and actions for a signed caller only — see [security.md](security.md#the-admin) |
 
 Any format declared on a release without a `HiDriveLink` returns a plain-text 503 instead of redirecting.
 
@@ -99,8 +99,7 @@ Any format declared on a release without a `HiDriveLink` returns a plain-text 50
 ## Download logging
 
 **Off, deliberately, for legal reasons.** `Site::DOWNLOAD_LOGGING` is `false` and `log()` returns on it before the
-entry is built, so the referrer is never read and nothing is written. `/admin/stats` says so rather than showing an
-empty table, and the verify script asserts the switch stays off.
+entry is built, so the referrer is never read and nothing is written. The verify script asserts the switch stays off.
 
 Turning it on is a privacy-policy decision before a code one — the policy makes no download-tracking claim, in either language.
 Note also that `data/logs/` is **not** auto-created: `fopen(…, 'ab')` creates the file but not its directory, and

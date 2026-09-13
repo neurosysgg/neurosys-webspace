@@ -28,8 +28,5 @@ export var CssClass;
     CssClass["DemoTrack"] = "demo-track";
     CssClass["DemoLabel"] = "demo-label";
     CssClass["DemoTime"] = "demo-time";
-    CssClass["StatsSub"] = "stats-sub";
-    CssClass["StatsTable"] = "stats-table";
-    CssClass["StatsCount"] = "stats-count";
 })(CssClass || (CssClass = {}));
 //# sourceMappingURL=CssClass.js.map

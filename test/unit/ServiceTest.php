@@ -299,8 +299,8 @@ final class ServiceTest extends TestCase
      *
      * Every field is typed `string`, and under `strict_types=1` a number, a bool or a nested object
      * reaching that constructor is an uncaught TypeError — not a null the caller can skip, a fatal.
-     * {@link \NeuroSYS\Controller\StatsController} reads the log line by line and skips whatever
-     * comes back null, which is what keeps a single malformed line from 500ing the whole stats page.
+     * A reader of the log goes line by line and skips whatever comes back null, which is what keeps
+     * a single malformed line from failing the whole read.
      *
      * @param string $json
      * @return void

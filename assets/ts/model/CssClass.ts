@@ -34,8 +34,4 @@ export enum CssClass {
   DemoTrack    = 'demo-track',
   DemoLabel    = 'demo-label',
   DemoTime     = 'demo-time',
-
-  StatsSub     = 'stats-sub',
-  StatsTable   = 'stats-table',
-  StatsCount   = 'stats-count',
 }

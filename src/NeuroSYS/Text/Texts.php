@@ -41,9 +41,6 @@ final class Texts
     /** A demo's page. */
     public const string Demo = DemoText::class;
 
-    /** The download statistics. */
-    public const string Stats = StatsText::class;
-
     /** What the site says when it cannot do what was asked. */
     public const string Errors = ErrorText::class;
 

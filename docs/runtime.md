@@ -238,7 +238,7 @@ Three of these decide things:
 
 ## Re-reading them
 
-For Strato, the API answers directly:
+For Strato, the admin answers directly:
 
 ```bash
 php tools/api.php capability v1 runtime
@@ -263,8 +263,10 @@ echo $request->header(OutboundHeader::Authorization)?->line();
 ```
 
 ```bash
-curl -H 'X-Forwarded-Proto: https' -H "$AUTHORIZATION_LINE" http://neurosys.localhost/api/capability/v1/settings
+curl -H 'X-Forwarded-Proto: https' -H 'Accept: application/json' -H "$AUTHORIZATION_LINE" \
+    http://neurosys.localhost/admin/capability/v1/settings
 ```
 
-The header is what lets the request past `.htaccess`'s HTTPS redirect. The CLI's own values are
+The first header is what lets the request past `.htaccess`'s HTTPS redirect; the second asks for
+data, where no `Accept` at all would be answered with a page. The CLI's own values are
 `php -i`, or the same three handlers constructed in-process.

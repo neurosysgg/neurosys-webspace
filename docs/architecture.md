@@ -92,8 +92,8 @@ Two rules hold the arrows straight, and both are worth knowing before you add a 
 The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architecture.md#the-request-traced),
 which follows its test app's one route. What this site puts on that road:
 
-- **The table.** Ten routes of the site's, every one `ReadOnly`, then the framework's `/api` —
-  eleven in all. Every address is a `SitePath` case, filled by `SitePath::X->to(…)`:
+- **The table.** Nine routes of the site's, every one `ReadOnly`, then the framework's four admin
+  routes — thirteen in all. Every address is a `SitePath` case, filled by `SitePath::X->to(…)`:
   `SitePath::Release->to('ill')` is `/releases/ill`, and a filler written with `fn()` would make
   `/releases/ill/ill` of a two-placeholder path — well formed, matching a route, and the wrong page.
   `RoutingTest` pins that one by name, and still writes its paths out in full, because
@@ -124,12 +124,7 @@ The framework's — see [phpanta/docs/architecture.md](../phpanta/docs/architect
 
 ### `Controller/` — one class per route group
 
-A controller is thin by construction: fetch, decide, return. The only one with real logic is
-[`StatsController`](../src/NeuroSYS/Controller/StatsController.php), which parses the download log —
-and that log is not written, because logging is off. See
-[Download logging](README.md#download-logging).
-
-Every controller implements `Controller::handle(Request): Response`. There is no base class, because
+A controller is thin by construction: fetch, decide, return. Every controller implements `Controller::handle(Request): Response`. There is no base class, because
 there is nothing to share.
 
 ### `Service/` — the outside world
@@ -142,7 +137,7 @@ there is nothing to share.
 | `WaveformRepository` | `data/demos/{slug}/{label}.wave` — a missing sidecar is a card without a picture |
 | `DemoGate` | each demo's password hash, checked on the framework's `Auth` primitives |
 | `DownloadLogger` | `data/logs/downloads.log` — returns before doing anything, see below |
-| `Auth`, `ApiGate`, `UpdateApplier` | Phpanta's: `data/site_auth.php` and `data/admin.php`; every check a signed call passes, and the writing a push does — see [security.md](security.md) |
+| `Auth`, `ApiGate`, `UpdateApplier` | Phpanta's: `data/site_auth.php` (and `data/admin.php`, which no route here asks for); every check a signed call passes, and the writing a push does — see [security.md](security.md) |
 
 The repositories load lazily and cache, and take an optional path so a test can point them somewhere
 else. Each reads a PHP file that `return`s typed objects — there is no parser, no schema, no
@@ -156,8 +151,7 @@ it. Both credential comparisons run every time and are combined afterwards — c
 
 **Download logging is deliberately off, for legal reasons.** `Site::DOWNLOAD_LOGGING` is `false`,
 and `log()` returns on it before the `DownloadLogEntry` is built — so the referrer is never read and
-nothing is written. `StatsController` skips reading the log entirely and `/admin/stats` says logging
-is switched off rather than showing an empty table. Both suites assert the switch stays off, and the
+nothing is written. Both suites assert the switch stays off, and the
 unit test additionally asserts the referrer is never read. Turning it on is a privacy-policy decision
 before a code one — the policy makes no download-tracking claim in either language — and
 `data/logs/` must exist on the server first: `fopen(…, 'ab')` creates the file but not its directory,
@@ -284,8 +278,7 @@ site meets them.
   `ReleaseFolder`'s audio files (keyed by `ReleaseFormat` value, in catalogue order), and in `tools/`,
   `Project::$markers` and `DemoStage::$sources`. `Demo::verify()` is `unique()`'s second caller.
 - **What stays a plain array.** `Preflight`'s findings, `ReleaseFolder::missing()`'s filter over
-  `Fact::cases()` and `FlpFile::all()` cross no public boundary. `DownloadStats`'s tally accumulator
-  is written to in a loop, where `with()` would copy. **`tools/lib/Dsp/` keeps raw arrays**:
+  `Fact::cases()` and `FlpFile::all()` cross no public boundary. **`tools/lib/Dsp/` keeps raw arrays**:
   `Fft::transform()`'s butterfly is the in-place mutation collections.md measures, and `hann()`,
   `magnitude()`, `Analyze::mono()` and `Spectrum::bars()` build fresh arrays already, and stay arrays
   because the port's contract is that the caller owns the buffer.
@@ -297,8 +290,7 @@ is the rule. This site's own excuses:
 
 - **`#[BareArray]`** on a variadic's argument spread into a call — `accented()`, `Wordmark::nodes()`,
   `terminalFields()`, `TerminalField::row()` — on a door, `DownloadLogEntry::jsonSerialize()`'s
-  contract and `ProfileRepository`'s required data file, and on the `counts()` accumulator in
-  `DownloadStats`.
+  contract and `ProfileRepository`'s required data file.
 - **`#[BareString]`** on another grammar — the printf format `%d:%02d` in `DemoTrack` and `Section`,
   which render the same shape from different arithmetic, `Profile`'s URL regex, and `DownloadLogger`'s
   `fopen()` mode `c` — and on `int` and `string` as `get_debug_type()` spells them.

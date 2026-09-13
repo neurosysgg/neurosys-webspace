@@ -43,8 +43,8 @@ The division matters in a few concrete places:
   `Auth::adminGate()` and `DemoGate::enter()` return their `401` rather than exiting, and
   `App::handle()` answers a whole request — gate, router, controller, security headers — without
   sending it. `TestRequest`, from `phpanta/test/`, builds a request without touching `$_SERVER` and
-  asks for that answer. So `AdminTest` asserts that `/admin/stats` answers the challenge,
-  `SecurityTest` that every answer — the `401`, the `303` and the `405` included — leads with the
+  asks for that answer. So the framework's `ApiTest` asserts that a stranger below `/admin` is sent
+  to the entrance, `SecurityTest` that every answer — the `401`, the `303` and the `405` included — leads with the
   security headers, and `ResponseTest` that `/language/de` is a `303` with its cookie, all in-process.
   The verify script asserts the same over real HTTP, because only a real server shows what `header()`
   actually put on the wire.
@@ -120,7 +120,7 @@ Drop a `*Test.php` into `test/unit/`, namespace `NeuroSYS\Test\Unit`. `NEUROSYS_
 
 Files are grouped by layer or by feature, not one-per-class. The site's are `ModelTest`,
 `ProductionTest`, `WaveformTest`, `EmbedTest`, `HtmlTest`, `ViewTest`, `PageTest`, `ServiceTest`,
-`ResponseTest`, `RoutingTest`, `AppTest`, `SecurityTest`, `AdminTest`, `DemoTest`, `HealthTest`,
+`ResponseTest`, `RoutingTest`, `AppTest`, `SecurityTest`, `DemoTest`, `HealthTest`,
 `LanguagesTest`, `TranslationTest`, `BoundaryTest`, `NoDiscardTest` and `GuidelineTest`. `SourceTree`
 is a helper rather than a suite, and so are the framework's fixtures (`UpdateFixture`, `TextFixture`,
 `PhpInputStream`), which `test/bootstrap.php` loads from `phpanta/test/`. The tooling's tests are
@@ -129,14 +129,13 @@ listed under [The development tooling](#the-development-tooling).
 A test that names no class of this site belongs to the framework, and lives in `phpanta/test/unit/`
 — collections and files, the request and every answer, every header value, the router, the markup
 tree, auth, the API and its gate, health, the CLI layer. The files here that share a name with one
-there keep only what is this site's own: `AppTest` its paths and facts, `AdminTest` its shipped
-placeholder and its stats page, `DemoTest` its demos, `ResponseTest` its controllers, `SecurityTest`
+there keep only what is this site's own: `AppTest` its paths and facts, `DemoTest` its demos, `ResponseTest` its controllers, `SecurityTest`
 its routes behind the gate and the hosts its policy names, `RoutingTest` its route table, `HtmlTest`
 its tags, stylesheet and privacy page. See [phpanta/docs/testing.md](../phpanta/docs/testing.md).
 
 Several are named for something other than a layer, because that is what they are about: `PageTest`
-covers the pages that are only content — the home hero, the imprint, the privacy policy —
-`AdminTest` covers the gate and the log it protects, and `NoDiscardTest` and `GuidelineTest` are
+covers the pages that are only content — the home hero, the imprint, the privacy policy — and
+`NoDiscardTest` and `GuidelineTest` are
 named for facts that span every namespace at once and belong to none of them. Those last two read
 the codebase rather than running it.
 
@@ -256,10 +255,9 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   parser, so the answer covers spellings nobody wrote down. (history: [history/markup.md](../phpanta/docs/history/markup.md))
 - **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
-- **A wrong admin password is refused.** `data/admin.php` ships with an empty `pass_hash`, so
-  `Auth::accepts()` short-circuits on its first operand and neither `hash_equals()` nor
-  `password_verify()` is reached — the verify script's two `/admin/stats → 401` checks prove the
-  route is gated without ever comparing a credential. The framework's `AuthTest` is what compares one: it supplies a
+- **A wrong password is refused.** `data/admin.php` ships with an empty `pass_hash` and no route
+  reads it; the verify script checks only that it is shaped the way `Auth` expects. The framework's
+  `AuthTest` is what compares a credential: it supplies a
   real bcrypt hash (cost 4, so the suite stays fast) and walks a dozen near-misses past it: wrong
   case, a prefix of the right password, the right password with a character appended.
 - **An unconfigured gate is closed, not open.** An empty `pass_hash` accepts nobody, including
@@ -267,9 +265,8 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   the explicit guard is documentation rather than behaviour — and the test asserts the behaviour, so
   it holds whichever of the two is doing the work.
 - **A truncated log line costs that line and nothing else.** The downloads log is append-only and a
-  crash can cut it mid-write, so `DownloadStats::fromLines()` skips what
-  `DownloadLogEntry::fromJson()` rejects rather than failing the page that reads it — the only place
-  anyone would find out.
+  crash can cut it mid-write, so `DownloadLogEntry::fromJson()` answers null for a line it cannot
+  read rather than throwing, and `ServiceTest` has the truncated row.
 - **A falsy setting is still an answer.** `max_execution_time` is `'0'` on a runtime with no limit,
   and `'0'` is falsy, so `?:` would print the most interesting answer that directive has as "nothing
   to say". `HealthFact` asks `=== ''`, and `SecondsFloor` is told which value means no limit
@@ -366,7 +363,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   verify script greps `src/` for `curl_*`, `fsockopen` and `stream_socket_client`. Proved by
   dropping an `fsockopen` into `src/` and watching it fail.
 - **curl is called in one place, `phpanta/tools/lib/Http/CurlTransport.php`.** The SoundCloud upload
-  and the signed `/api` calls are the only outbound requests this repo makes, and that class is the
+  and the signed admin calls are the only outbound requests this repo makes, and that class is the
   only one that makes them — the verify script greps both `tools/lib/` trees for `curl_` — the same
   arrangement `Release\Probe` has for shelling out. Options set once cannot disagree between call
   sites, and two of them matter: certificates are verified, and redirects are not followed with a
@@ -531,8 +528,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.67% of lines** (4952/4968), derived on 2026-09-13
-(with the admin answering as a page or as data, on top of `751918d`, with `pdo_sqlite`
+clover XML and a browsable HTML report. **99.68% of lines** (5050/5066), derived on 2026-09-14
+(with the admin at `/admin`, discoverable, on top of `3761654`, with `pdo_sqlite`
 loaded — without it the database tests skip and `Data/` reads as untested). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
@@ -652,8 +649,9 @@ contrived tests to prop it up.
   they agree, with nothing in between restating the format.
 - `phpanta/test/unit/ApiCallTest.php` — what `tools/api.php` shows and exits with. The exit code is the
   answer's, so a failed `health` check — a 503 carrying its report — can stop a script; and only a
-  404 is explained as a refusal, because telling someone to check their key about a 503 would send
-  them looking in exactly the wrong place.
+  401 is explained as a refusal, and an answer that is not the admin's as a server older than
+  `/admin`, because telling someone to check their key about a 503 would send them looking in
+  exactly the wrong place.
 - `test/unit/StageDemoTest.php` — `stage-demo`, which is the only command here that mints a
   credential. The tests that matter are not about the entry it prints: that a password verifies
   against its own hash and nothing else does, that two hundred draws are two hundred different

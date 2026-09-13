@@ -14,9 +14,7 @@ use NeuroSYS\Controller\LanguageController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
-use NeuroSYS\Controller\StatsController;
 use Phpanta\Controller\Layer;
-use Phpanta\Service\Layer\AdminGate;
 use Phpanta\Support\Collection;
 use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\Route;
@@ -46,18 +44,10 @@ class RouteInitialization
             // keep quiet — see DemoController.
             ->addRoute(SitePath::Demo, fn($slug) => new DemoController($slug))
             ->addRoute(SitePath::DemoAudio, fn($slug, $label) => new DemoAudioController($slug, $label))
-            // Behind the admin password, which the route carries rather than the controller — and so
-            // never a page of a static export, whose anonymous request would only be answered 401.
-            ->addRoute(
-                SitePath::Stats,
-                fn() => new StatsController(),
-                exports: fn(): array => [],
-                through: new AdminGate(),
-            )
             ->addRoute(SitePath::Imprint, fn() => new ImprintController())
             ->addRoute(SitePath::Privacy, fn() => new PrivacyController())
             ->addRoute(SitePath::Language, fn($language) => new LanguageController($language))
-            // No API route: /api/{service}/{version}/{action} is the framework's, and
+            // No admin route: /admin and everything under it is the framework's, and
             // App::routeTable() appends it after these.
             ->collection;
     }
@@ -65,12 +55,13 @@ class RouteInitialization
     /**
      * @param SitePath $pattern
      * @param Closure $factory
-     * @param MethodPolicy $methods The default is what ten of the eleven routes want, and none of
-     *                              them states it.
+     * @param MethodPolicy $methods The default is what every route here wants, and none of them
+     *                              states it.
      * @param Closure|null $exports Which pages a static export writes for it — see Route. Only a
      *                              route behind a password needs one, to say it has none.
-     * @param Layer|null   $through What stands around the route's controller — the admin gate, on
-     *                              the one page behind it.
+     * @param Layer|null   $through What stands around the route's controller. No route here has a
+     *                              gate of its own today; a demo's is in its controllers, because it
+     *                              needs the demo it looks up.
      * @return $this
      */
     private function addRoute(

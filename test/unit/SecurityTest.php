@@ -85,12 +85,10 @@ final class SecurityTest extends TestCase
         yield ['POST', '/releases/hello-world/flac'];
         yield ['DELETE', '/releases/hello-world/flac'];
         yield ['PUT', '/'];
-        yield ['POST', '/admin/stats'];
         yield ['POST', '/no-such-page'];
 
-        // The one route that does accept a POST, unsigned. It refuses exactly as the others do
-        // rather than exactly as it would for a signature it verified — which is the whole design,
-        // and is why this row belongs beside the routes that simply do not write.
+        // Where the admin used to be. Nothing is there any more, so a write to it is a write to an
+        // address that does not exist — no alias, and nothing to say it ever was.
         yield ['POST', '/api/update/v1/patch'];
         yield ['PUT', '/api/update/v1/patch'];
     }
@@ -127,15 +125,16 @@ final class SecurityTest extends TestCase
         yield 'a page'                => ['GET', '/', HttpStatusCode::Ok];
         yield 'a page that is not'    => ['GET', '/no-such-page', HttpStatusCode::NotFound];
         yield 'a redirect'            => ['GET', '/language/de', HttpStatusCode::SeeOther];
-        yield 'a password asked for'  => ['GET', '/admin/stats', HttpStatusCode::Unauthorized];
+        yield 'the admin entrance'    => ['GET', '/admin', HttpStatusCode::Ok];
+        yield 'the admin, unsigned'   => ['POST', '/admin/update/v1/patch', HttpStatusCode::SeeOther];
         yield 'a write refused'       => ['POST', '/', HttpStatusCode::MethodNotAllowed];
         yield 'a verb nobody knows'   => ['BREW', '/', HttpStatusCode::MethodNotAllowed];
-        yield 'an unsigned API write' => ['POST', '/api/update/v1/patch', HttpStatusCode::MethodNotAllowed];
+        yield 'the old API'           => ['POST', '/api/update/v1/patch', HttpStatusCode::MethodNotAllowed];
     }
 
     /**
      * A write is answered with a 405 naming the methods that would have worked, in plain text, and
-     * the unsigned API write is answered identically — the endpoint is not announced by its refusal.
+     * a write to where the admin used to be is answered identically — nothing is there any more.
      *
      * @return void
      */

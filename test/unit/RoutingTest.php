@@ -10,14 +10,13 @@ use NeuroSYS\Controller\ImprintController;
 use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
-use NeuroSYS\Controller\StatsController;
 use NeuroSYS\Site;
 use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
 use Phpanta\App;
 use Phpanta\Http\HttpMethod;
 use Phpanta\Service\Layer\AdminGate;
-use Phpanta\Support\ApiPath;
+use Phpanta\Support\AdminPath;
 use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\Route;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -32,7 +31,7 @@ use PHPUnit\Framework\TestCase;
  * address written out in full, so a wrong case fails — and what its table does with it.
  */
 #[CoversClass(App::class)]
-#[CoversClass(ApiPath::class)]
+#[CoversClass(AdminPath::class)]
 #[CoversClass(Route::class)]
 #[CoversClass(MethodPolicy::class)]
 #[CoversClass(RouteInitialization::class)]
@@ -76,7 +75,7 @@ final class RoutingTest extends TestCase
     /**
      * Every path a view can build is one the router answers on. That is the whole reason the
      * patterns are an enum: one vocabulary for both, rather than two files that nothing compares.
-     * The site's come first, in declaration order, and the framework's API last.
+     * The site's come first, in declaration order, and the framework's admin last.
      *
      * @return void
      */
@@ -88,7 +87,7 @@ final class RoutingTest extends TestCase
             $registered[] = $route->path();
         }
 
-        self::assertSame([...SitePath::cases(), ...ApiPath::cases()], $registered);
+        self::assertSame([...SitePath::cases(), ...AdminPath::cases()], $registered);
     }
 
     /**
@@ -100,7 +99,6 @@ final class RoutingTest extends TestCase
         yield ['/releases', ReleasesController::class];
         yield ['/releases/ill', ReleaseController::class];
         yield ['/releases/ill/flac', DownloadController::class];
-        yield ['/admin/stats', StatsController::class];
         yield ['/imprint', ImprintController::class];
         yield ['/privacy', PrivacyController::class];
     }
@@ -148,14 +146,13 @@ final class RoutingTest extends TestCase
     {
         yield ['/nope'];
         yield ['/releases/ill/flac/extra'];
-        yield ['/admin'];
-        yield ['/admin/stats/extra'];
         yield ['/imprints'];
 
-        // Every depth short of `/api`'s four segments, and one past it. The framework asserts its
-        // own pattern matches none of these; over this table they also say no route of the site's
-        // claims one, which is what keeps `/api` falling through to the same 404 as any other
-        // address that is not there. See ApiPath::Api.
+        // One past the admin's four depths, and every depth of `/api`, where the admin used to be.
+        // The framework asserts its own patterns match none of these; over this table they also say
+        // no route of the site's claims one, so `/api` falls through to the same 404 as any other
+        // address that is not there. See AdminPath.
+        yield ['/admin/update/v1/patch/extra'];
         yield ['/api'];
         yield ['/api/update'];
         yield ['/api/update/v1'];
@@ -178,13 +175,13 @@ final class RoutingTest extends TestCase
     }
 
     /**
-     * The one read-only route without placeholders that is not a page. It is behind the admin
-     * password, so a static export that asked it would be answered with a 401 — the route says it
-     * has no pages instead.
+     * The admin's entrance is the one route without placeholders that is not a page: an export asks
+     * anonymously, and the admin has nothing to show an anonymous visitor — the route says it has no
+     * pages instead.
      *
      * @return void
      */
-    public function testTheStatsPageIsNeverExported(): void
+    public function testTheAdminIsNeverExported(): void
     {
         $exported = [];
 
@@ -194,17 +191,17 @@ final class RoutingTest extends TestCase
             }
         }
 
-        self::assertNotContains(SitePath::Stats->value, $exported);
+        self::assertNotContains(AdminPath::Index->value, $exported);
         self::assertContains(SitePath::Home->value, $exported, 'a route without an $exports closure is still a page');
     }
 
     /**
-     * The stats page's password is its route's, not its controller's — so the route table is where
-     * it is asserted, and it is the one route that carries a gate.
+     * No route carries the Basic admin gate: the page it stood in front of went when the admin moved
+     * to `/admin`, and a gate is its route's — so the route table is where its absence is asserted.
      *
      * @return void
      */
-    public function testTheStatsPageIsTheOneRouteBehindTheAdminGate(): void
+    public function testNoRouteCarriesTheBasicAdminGate(): void
     {
         $gated = [];
 
@@ -216,11 +213,11 @@ final class RoutingTest extends TestCase
             }
         }
 
-        self::assertSame([SitePath::Stats], $gated);
+        self::assertSame([], $gated);
     }
 
     /**
-     * `/api` is the one route that accepts a write method, and the only one.
+     * The admin's routes are the ones that accept a write method, and the only ones.
      *
      * Asserted over the real table rather than by reading the registration, because what matters is
      * what the router will do and not what anybody wrote down. Both directions: a second route
@@ -229,7 +226,7 @@ final class RoutingTest extends TestCase
      *
      * @return void
      */
-    public function testOnlyTheApiRouteAcceptsAWriteMethod(): void
+    public function testOnlyTheAdminRoutesAcceptAWriteMethod(): void
     {
         $accepting = [];
         $delegated = [];
@@ -244,7 +241,7 @@ final class RoutingTest extends TestCase
             }
         }
 
-        self::assertSame([ApiPath::Api], $accepting);
-        self::assertSame([ApiPath::Api], $delegated, 'a second route stopped being method-gated');
+        self::assertSame(AdminPath::cases(), $accepting);
+        self::assertSame(AdminPath::cases(), $delegated, 'another route stopped being method-gated');
     }
 }

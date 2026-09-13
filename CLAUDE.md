@@ -105,7 +105,7 @@ script's alone — and `composer coverage` merges them. **The coverage figure is
   class it exercises, including one it only calls — or that class reads 0% while running constantly.
 - **Uncovered lines are a decision, not a budget.** A change that adds a guard covers it in the same
   commit; a guard no test can reach is deleted rather than covered by reflection.
-- **Every answer is asserted in-process.** `TestRequest::get('/admin/stats')->answer()` is
+- **Every answer is asserted in-process.** `TestRequest::get('/admin/update')->answer()` is
   `App::handle()` — gate, router, controller, security headers, nothing sent — so a 401, a 303 or a
   405 is a status, headers and a body a test reads, with no `$_SERVER` and no reflection.
 - **The client tests run against the compiled JS** in `public/assets/js/`, so a build that never ran
@@ -144,17 +144,17 @@ src/NeuroSYS/                  ← this site
 └── Site.php        ← the app: identity, origins, switches, and what Phpanta asks of a site
 
 phpanta/src/                   ← Phpanta\, the framework — see phpanta/CLAUDE.md
-├── Controller/     ← the Controller interface, the API's controller, UnroutedController
+├── Controller/     ← the Controller interface, the admin's controller, UnroutedController
 ├── Http/           ← Request, Input, Upload, Session, Answer, the Response types, every header as
 │   │                 a typed name and value
-│   ├── Api/        ← what an /api address is made of: service, version, action, handler
+│   ├── Api/        ← what an /admin address is made of: service, version, action, handler, listing
 │   └── Security/   ← CSP, Permissions-Policy, HSTS, COOP and CORP as typed objects
 ├── Form/           ← a form as an enum of fields, its rules, a submission read and re-rendered
 ├── Data/           ← SQLite through PDO: statements, typed rows, transactions, migrations
 ├── Model/          ← Api/ (a signed call), Update/ (a push, the release it replaced), Health/
 ├── Service/        ← Auth, Login, ApiGate, UpdateApplier, ReleaseRecord; Layer/ (the gates and
 │                     layers around a controller); Api/ one handler per action; Health/
-├── Support/        ← Collection, SearchableCollection, File, Directory, Route + Path, ApiPath,
+├── Support/        ← Collection, SearchableCollection, File, Directory, Route + Path, AdminPath,
 │                     the requirement table, Diagnostics, TarArchive, PasswordHash, PublicKey, Bare*
 ├── Exception/      ← SiteException and every condition under it
 ├── Text/           ← Language, Languages, Translatable, Translation, the framework's own words
@@ -214,9 +214,9 @@ the code looks the way it does; follow them in new code without being asked.
 - **`Site`'s constants hold identity, environment, and facts otherwise stated twice** — nothing else;
   its methods answer what Phpanta asks of a site. A fact that means something only inside one class
   stays in that class, where its docblock can say why.
-- **A gate is its route's, not its controller's.** `/admin/stats` is
-  `->through(new AdminGate())` in `RouteInitialization`, and `RoutingTest` asserts it is the one gated
-  route; the demo gate stays in its controllers only because it needs the demo it looks up.
+- **A gate is its route's, not its controller's.** A gated page is `->through(…)` in
+  `RouteInitialization`; no site route has one today, and `RoutingTest` asserts that none carries
+  `AdminGate`. The demo gate stays in its controllers only because it needs the demo it looks up.
 - **Nothing ends the request but `App::run()`; every decision returns.** A response becomes an
   `Answer` in `App::handle()`, and a gate's refusal is a value it returns, `#[\NoDiscard]` —
   `Auth::siteGate()`, `DemoGate::enter()` — which the caller returns in turn. Never `exit`.
@@ -258,17 +258,22 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - A misspelled `ServerVariable` or `DataFile` is not an error but a default: `PHP_AUTH_USER` wrong
   is a 401 that reads as a bad password, `site_auth.php` wrong stands the pre-launch gate down.
 
-**The API and deploying** — [docs/security.md](docs/security.md#the-api),
+**The API and deploying** — [docs/security.md](docs/security.md#the-admin),
 [docs/deployment.md](docs/deployment.md)
-- **`data/update.pub` absent means `/api` is off; `data/site_auth.php` absent means the site gate is
-  off.** The two files look alike and have opposite polarity.
-- `public/api/` must never exist, and an API action never reads a query parameter or a form field — it
-  would reach the handler unsigned. The framework's `InputTest` reads the API's code and fails on either.
+- **`data/update.pub` absent means the admin lets nobody past its entrance; `data/site_auth.php`
+  absent means the site gate is off.** The two files look alike and have opposite polarity.
+- **A caller the admin cannot verify gets one answer at every depth below `/admin`**, whether the
+  address exists or not — a `303` to `/admin` for a page, a `401` challenging for `NS1` for data,
+  never an `Allow`. An answer that differed for a real address would tell a stranger what is in it,
+  and nothing would look wrong.
+- `public/admin/` must never exist, and an admin action never reads a query parameter or a form
+  field — it would reach the handler unsigned. The framework's `InputTest` reads the API's code and
+  fails on either.
 - **`data/logs/` must exist and be writable by PHP, or the error log silently falls back to the
   host's own log** — PHP says nothing when it cannot open the file. `deploy.sh` never creates it;
   `health v1` warns. Locally php-fpm runs as `http`, so the directory is group `http`, `2775`.
 - `ApiGate` refuses an unrecognised (null) method on its first line; comparing it would be a 500
-  where an absent address sends a 405.
+  where every other stranger gets the admin's one answer.
 - A write spends its serial **before** applying; a dry run and a read never spend one.
 - `update.pub` and `cgi-bin/.update-serial` keep their names for every service — renaming either is
   a hand upload and a serial reset.
@@ -280,7 +285,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - A push leaves byte-identical files untouched, because rewriting a file the request is executing
   makes NFS silly-rename it into an `.nfsXXXXXXXX` that lives as long as the worker holding it. The
   mirror reports a stray in a note, never as a failure; removing one over the mount is tidiness.
-- A server not yet running the `/api` code can only be updated by `./deploy.sh`; `--url` is an origin.
+- A server not yet running the `/admin` code can only be updated by `./deploy.sh`; `--url` is an origin.
 - A fault is shown in full only when `PHPANTA_ENVIRONMENT=development` **and** the request is from
   loopback — never `SetEnv` it on Strato; `health v1` warns if a deployment says it. The dev router
   sets it for `php -S`; the local Apache needs the line in its vhost. [runtime.md](docs/runtime.md)
@@ -393,13 +398,17 @@ its directory and `deploy.sh` excludes it.
 
 ## The API and deploying
 
-`/api/{service}/{version}/{action}` is the one address family that writes. Every call is signed with
-an ECDSA P-256 key the server cannot use; an unsigned call gets exactly what an absent address gets.
-See [docs/security.md](docs/security.md#the-api) and [docs/deployment.md](docs/deployment.md).
+`/admin/{service}/{version}/{action}` is the one address family that writes, and each depth above it
+lists what is under it. Every call is signed with an ECDSA P-256 key the server cannot use; a caller
+the admin cannot verify sees its entrance and nothing else, so a stranger learns that there is an
+admin and nothing about what is in it. `/api` is gone, with no alias — it answers like
+`/no-such-page`. See [docs/security.md](docs/security.md#the-admin) and
+[docs/deployment.md](docs/deployment.md).
 
 ```bash
 npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
 npm run build:prod && php tools/push-update.php             # phpanta/ + src/ + autoload.php + public/
+php tools/api.php update v1                                 # what the server offers there; fewer operands, less deep
 php tools/api.php update v1 version                         # what is deployed
 php tools/api.php health v1 report                          # does the host meet the site's floor (503 if not)
 php tools/api.php capability v1 extensions                  # what it has; also runtime, settings, deployment, errors
@@ -415,9 +424,10 @@ php tools/api.php update v1 probe                           # what its filesyste
 - **The push is the regular deploy; `./deploy.sh` is the full one and the recovery path** — it owns
   `data/`, and it fixes a push that broke `src/`. Do not make the endpoint replace it.
 - **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub` and
-  `data/session.key`** — the repo's `admin.php` is a placeholder with an empty hash, and the others
-  are gitignored and exist only per deployment. All four hold live credentials; upload or mint them
-  by hand. The site keeps no session today, so it has no `session.key`.
+  `data/session.key`** — the repo's `admin.php` is an inert placeholder with an empty hash that no
+  route reads, which `health v1 deployment` still requires on the server because the framework
+  tracks it; the others are gitignored, exist only per deployment and hold live credentials. Upload
+  or mint them by hand. The site keeps no session today, so it has no `session.key`.
 - **`--delete` is on for `public/`, `src/` and `phpanta/src/`, off for `data/`**, so a gitignored demo on the server
   survives a deploy from a clone that never staged it — and a data file removed locally must be
   removed from the server by hand.

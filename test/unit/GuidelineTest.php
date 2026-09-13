@@ -166,7 +166,6 @@ final class GuidelineTest extends TestCase
             [
                 'NeuroSYS\Layout::modulePreloads()',
                 'NeuroSYS\Service\DownloadLogEntry::jsonSerialize()',
-                'NeuroSYS\Service\DownloadStats::counts()',
                 'NeuroSYS\Service\ProfileRepository::$links',
                 'NeuroSYS\View\Accented::accented()',
                 'NeuroSYS\View\DemoView::accented()',
@@ -248,7 +247,6 @@ final class GuidelineTest extends TestCase
                 'NeuroSYS\Model\Production\Section %d:%02d',
                 'NeuroSYS\Model\Profile #^https://[^\s/]+(?:[/?\#]\S*)?\z#i',
                 'NeuroSYS\Service\DownloadLogger c',
-                'NeuroSYS\Service\DownloadStats int',
                 'NeuroSYS\View\Terminal\TerminalCommand string',
             ],
             array_keys(self::bareStrings()['excused']),

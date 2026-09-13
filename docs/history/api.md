@@ -1,8 +1,9 @@
 # History — the API
 
-How `/api` in [../security.md](../security.md#the-api) and [../deployment.md](../deployment.md) came
-to be the way it is: `/update` becoming a family of addresses, the credential moving into
-`Authorization`, the serial, the mirror, and the webroot that emptied this repository. The
+How the admin in [../security.md](../security.md#the-admin) and [../deployment.md](../deployment.md)
+came to be the way it is: `/update` becoming a family of addresses, the credential moving into
+`Authorization`, the serial, the mirror, the webroot that emptied this repository, and `/api`
+becoming `/admin`. The
 security reviews of the endpoint are in [security.md](security.md).
 
 ## `/update`
@@ -222,6 +223,65 @@ A follow-up dry run read `written 0, unchanged 364`, and named only the `.nfs` s
 `public/index.php` left behind. It was also the last push applied without a record of the release
 it replaced: the old applier did not take one, so the first push that can be rolled back is the
 next one.
+
+## `/admin`
+
+### 2026-09-14 — the admin moves to `/admin`, and says that it is there
+
+*From security.md's "The attack surface", "The API" and "Known and accepted", and CLAUDE.md's
+"The API and deploying".*
+
+The signed API moved from `/api/{service}/{version}/{action}` to `/admin`, at four depths — the
+entrance, a service, a version and an action — and the three above an action came to list what is
+under them. `/api` kept no alias; it matches no route, and answers exactly like `/no-such-page`.
+
+**Why.** The owner wanted an admin that could be found and walked: a page by default, in the site's
+own shell, and JSON when asked for with `Accept: application/json`, which is what the signing
+commands send. The old family could not be walked by anybody, the key holder included, without
+knowing every address in advance. And its central claim had stopped being worth its cost: the
+repository is open source, and the site is to link to the admin from its footer, so that there *is*
+an admin is public either way. What a stranger must not learn is what is in it.
+
+**What was given up** is the indistinguishability. Every address under `/api`, to any caller without
+a signature that verified, answered exactly as an address that does not exist — the app's `404` for
+a read, the `405` for anything else, both from `UnroutedController`. In its place is uniformity
+inside `/admin`: one answer at every depth below the entrance, whether the address exists or not — a
+`303` to `/admin` for a page, a `401` challenging for `NS1` for data. The measured ~180 µs between the
+`/api` shape and a typo went with it, since it only ever mattered as a leak of existence.
+
+**`/admin/stats` was deleted.** It was the site's one gated route, behind the framework's Basic
+`AdminGate`, and it collided with `/admin/{service}`, claiming one of the admin's own addresses for a
+site page. It had nothing to show besides: download logging is off for legal reasons, so the page
+said only that. `StatsController`, `StatsView`, `StatsText`, `DownloadStats`, its stylesheet and
+`AdminTest` went with it, and `SitePath::Stats`. `DownloadLogger`, `DownloadLogEntry` and
+`Site::DOWNLOAD_LOGGING` stayed, with logging still off, and `data/admin.php` stayed as an inert
+placeholder, because the framework tracks it and `health v1 deployment` asks for it.
+
+security.md listed the old family as the tenth route:
+
+- **The tenth is `/api/{service}/{version}/{action}`**, which accepts a `POST` and answers every
+  method exactly as an address that does not exist, unless the request carries an ECDSA signature
+  this deployment's public key verifies. It is unreachable without the private key and invisible
+  without it, at every depth. `/api`, `/api/update`, `/api/update/v1`, `/api/health`,
+  `/api/health/v1`, `/api/capability` and `/api/capability/v1` match no route at all, because the
+  pattern is four segments. **Three services answer under it**: `update`, which writes, and
+  `health` and `capability`, which only read. That difference is deliberately not observable.
+  `ApiController` hands anything it will not verify to `UnroutedController` *before* it has
+  resolved a service at all, so a read-only service is exactly as invisible as the writing one.
+  Both suites sweep all three.
+
+and carried the timing twice, under the API and under Known and accepted:
+
+- **About 180 µs** separates the `/api` shape from a typo for a caller already sending an `NS1`
+  credential, measured on localhost in the 2026-09-09 pentest — see
+  [Known and accepted](../security.md#known-and-accepted).
+- **About 180 µs separates `/api` from a typo for a caller already sending an `NS1` credential.**
+  Not a usable oracle; see It answers as though it is not there, in the framework's security
+  document.
+
+CLAUDE.md said of it: `/api/{service}/{version}/{action}` is the one address family that writes.
+Every call is signed with an ECDSA P-256 key the server cannot use; an unsigned call gets exactly
+what an absent address gets.
 
 ## From the code comments
 

@@ -27,8 +27,8 @@ use Phpanta\Support\Path;
  * {@link Route::matches()}'s to interpret; {@link FillsPlaceholders} only counts them. Note there
  * is no `/demos` case, and its absence is load-bearing — see {@link RouteInitialization::routes()}.
  *
- * There is no API case either: `/api/{service}/{version}/{action}` is the framework's address, and
- * {@link ApiPath} holds it.
+ * There is no admin case either: `/admin` and everything under it is the framework's address
+ * family, and {@link \Phpanta\Support\AdminPath} holds it.
  */
 enum SitePath: string implements Path
 {
@@ -51,9 +51,6 @@ enum SitePath: string implements Path
 
     /** One mix of one demo — the audio itself, which is why it is a route and not a file URL. */
     case DemoAudio = '/demos/{slug}/{label}';
-
-    /** The download statistics, behind the admin password. */
-    case Stats = '/admin/stats';
 
     /** The imprint. */
     case Imprint = '/imprint';

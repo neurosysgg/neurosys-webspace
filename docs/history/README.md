@@ -35,7 +35,7 @@ a sentence of context is added in front of it rather than the passage being reph
 |---|---|
 | [coverage.md](coverage.md) | the coverage count and every pass that moved it; the `#[CoversClass]` trap each time it fired; what the type checkers found on their first run |
 | [security.md](security.md) | the dated assessments and their fixed findings; the request-parsing and header faults; the CSP allowances that were removed |
-| [api.md](api.md) | `/update` becoming `/api`; the credential moving into `Authorization`; the serial, the mirror, the webroot that emptied this repository; `health` split into `capability` and `health` |
+| [api.md](api.md) | `/update` becoming `/api`; the credential moving into `Authorization`; the serial, the mirror, the webroot that emptied this repository; `health` split into `capability` and `health`; `/api` becoming `/admin`, and `/admin/stats` going |
 | [hosting.md](hosting.md) | readings of the live host that changed, extension probes, the dev router |
 | [frontend.md](frontend.md) | the bundling reversal, the mangled class name, cache versioning's first attempt, the build tools' argv |
 | [performance.md](performance.md) | before-and-after figures of past changes |

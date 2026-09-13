@@ -326,7 +326,7 @@ assets/css/
 ├── main.css          the @import list; the order IS the cascade
 ├── base/             tokens.css (:root), elements.css (* html body a)
 ├── layout/           shell.css (what Layout.php emits), utilities.css
-├── views/            home.css, release.css, demo.css, stats.css           (cf. src/NeuroSYS/View/)
+├── views/            home.css, release.css, demo.css                     (cf. src/NeuroSYS/View/)
 └── elements/         card.css, terminal.css, CoverArt.css, embed.css,
                       download.css, arrangement.css, waveform.css           (cf. assets/ts/elements/)
 ```
@@ -410,7 +410,7 @@ site's is where its words live and what holds them. The legal pages are written 
 translated; see [architecture.md](architecture.md#language).
 
 - **`Texts` is the index.** It has one constant per section: `Layout`, `Home`, `Terminal`,
-  `Releases`, `Demo`, `Stats`, `Errors`, `Profiles`, `Keys`, and `Framework` for the framework's own
+  `Releases`, `Demo`, `Errors`, `Profiles`, `Keys`, and `Framework` for the framework's own
   `FrameworkText`. Each constant names a catalog enum, so `Texts::Releases::Downloads` *is*
   `ReleaseText::Downloads`. The constants are not upper case, and `phpcs.xml.dist` exempts
   `Texts.php` and `ReleaseText.php` by name. They are steps of a path a reader skims, not values to

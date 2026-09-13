@@ -65,16 +65,12 @@ For pushing one file in a hurry — see [Full deploy](#full-deploy) for what it 
    - Deployment path: `cgi-bin/neurosys` (the webroot)
    - Web path: `/`
 
-### 5. Set stats password
+### 5. Upload `data/admin.php`, once
 
-On your local machine, generate a bcrypt hash:
-
-```bash
-php -r "echo password_hash('yourpassword', PASSWORD_BCRYPT) . PHP_EOL;"
-```
-
-Paste the output into `data/admin.php` as `pass_hash`, then upload that file by hand — `deploy.sh`
-excludes it, because the repo copy is a placeholder.
+No route here reads it: it holds the credential for the framework's Basic admin gate, which stands
+on no route of this site's. But the framework tracks it (`CredentialFile::Admin`), so `health v1
+deployment` fails a server without it. Upload the repo's placeholder — an empty `pass_hash` — by
+hand, once; `deploy.sh` excludes it.
 
 `data/logs/` has to be created on the server by hand, once: `deploy.sh` excludes it, and PHP creates
 a log file but not its directory. `public/index.php` points `error_log` at
@@ -120,8 +116,8 @@ php tools/push-update.php --dry-run
 php tools/push-update.php
 ```
 
-Afterwards, ask the server what it is actually running — the read half of the same API, signed with
-the same key:
+Afterwards, ask the server what it is actually running — the read half of the same admin, signed
+with the same key:
 
 ```bash
 php tools/api.php update v1 version
@@ -138,7 +134,10 @@ php tools/api.php health v1 report          # does this host meet what the site 
 php tools/api.php capability v1 runtime     # what it is; also extensions, settings, deployment, errors
 ```
 
-Two more services on the same endpoint, signed with the same key and reached by the same command.
+Two more services of the same admin, signed with the same key and reached by the same command.
+Given fewer than three operands, that command lists what the server offers instead —
+`php tools/api.php`, `php tools/api.php health`, `php tools/api.php health v1` — each entry with
+what it says of itself; a listing is past the gate, so it is signed too.
 
 - **`health` checks every requirement the site declares**: PHP 8.5, the five extensions the site is
   a fatal without, the php.ini floors a push needs, the webroot and the tracked `data/` files.
@@ -190,9 +189,10 @@ Six lines are worth reading before the rest:
   handled**.
 
 Neither reports the **replay serial**, which `update version` does. They overlap with it on
-`PHP_VERSION` and nothing else. Nothing about either answer is public: unsigned, every `health` and
-`capability` address gets the same 404 as an address that does not exist, just like
-`/api/update/v1/patch`. That is the only reason answers this detailed are safe to produce at all.
+`PHP_VERSION` and nothing else. Nothing about either answer is public: to a caller the admin cannot
+verify, every `health` and `capability` address gives the same answer as `/admin/update/v1/patch`
+and as an address that is not there — a `303` to the entrance, or a `401` for data. That is the
+only reason answers this detailed are safe to produce at all.
 
 ### Probing the live host
 
@@ -223,7 +223,7 @@ run or not, and says which of the three it is.
 `--url` points somewhere else; it defaults to `https://neurosys.gg`. It is an **origin** —
 `https://`, a host, a port if it has one, and nothing after it. A path, query, fragment or user part
 is refused where it is typed: the path is derived from the action, so there is one place that knows
-what the address is and it is the same `SitePath` case the router matches with. It must be `https`;
+what the address is and it is the same `AdminPath` case the router matches with. It must be `https`;
 `Url` refuses anything else, on the one request that carries a signature.
 
 `--key` names a different private key; it defaults to **the origin's own key** —
@@ -265,8 +265,8 @@ openssl pkey -in ~/.config/neurosys/update-neurosys.localhost.key -pubout -out d
 
 That is the key a call to `https://neurosys.localhost` resolves to.
 
-**Its absence is the off switch.** No key on the server, no endpoint: every address under `/api`
-answers exactly like an address that does not exist, for everyone, forever. That is the opposite
+**Its absence is the off switch.** No key on the server, no signed call verifies: the entrance
+still answers, and every address below it gives everyone the one answer a stranger gets, forever. That is the opposite
 polarity to `data/site_auth.php`, whose absence stands its gate *down* — worth reading twice,
 because the two files look alike.
 
@@ -276,9 +276,9 @@ the server and a replay counter starting again from zero, so they keep their nam
 
 ### When a push is refused
 
-A refusal before the signature verifies is a **404** (or a 405 for a write method), because that is
-what the endpoint answers to anyone it will not verify. It says nothing about why, deliberately, so
-check these in order:
+A refusal before the signature verifies is a **401**, because the commands ask for data and that is
+what the admin answers any request for data it will not verify. It says nothing about why,
+deliberately, so check these in order — the command prints the same list:
 
 1. **The key.** Does `data/update.pub` on that server match the private half for its origin?
    For production, `openssl pkey -in ~/.config/neurosys/update.key -pubout` and compare.
@@ -292,15 +292,17 @@ A **409** says another write is in progress. The server holds a lock for the len
 a second one arriving meanwhile is refused without spending its serial or touching a file — two
 writes at once would each mirror over the other. Wait for the first, then run it again.
 
-A server that is not running the `/api` code at all — a fresh host, or one a push has broken —
-refuses exactly the same way, and the endpoint cannot fix that for itself. **The way back is
+A server that is not running the `/admin` code at all — a fresh host, one still running the code
+from before `/admin`, or one a push has broken — answers with something that is not the admin's,
+typically the site's own 404 page, and the command says the server is older than `/admin`. The
+admin cannot fix that for itself. **The way back is
 `./deploy.sh`, over the mount.** `--url` will not reach anything else: it takes an origin and
 appends the action's path. ([history](history/api.md))
 
 A refusal *after* the signature verifies is a **422** with a full sentence saying which member of
 the archive was wrong, or why the release it replaces could not be recorded — by then you have
 proved you hold the key, so there is nothing left to hide.
-An address the API does not have is a **404** with a sentence too, and a verb the action does not
+An address the admin does not have is a **404** with a sentence too, and a verb the action does not
 answer on is a **405** naming the one it does; both are visible only to the key holder.
 
 ### Reading the report
@@ -461,8 +463,8 @@ rather than resolving it, so a document cached with the previous stamp still fin
 
 **It deliberately excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub` and
 `data/session.key`**, and `data/logs/`. The copies of the first two in the repo are placeholders —
-`admin.php` ships an empty `pass_hash` — so syncing them would overwrite the live hashes and lock
-`/admin/stats` out; the other two have no repo copy at all, and each deployment holds its own. Upload
+`admin.php` ships an empty `pass_hash` — so syncing them would overwrite whatever each deployment
+holds; the other two have no repo copy at all, and each deployment holds its own. Upload
 those by hand when they actually change; a session key, if the site ever keeps sessions, is minted on
 the host it serves and never leaves it.
 
