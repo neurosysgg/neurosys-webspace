@@ -43,6 +43,7 @@ use NeuroSYS\View\Html\Text;
 use NeuroSYS\View\Html\TranslatedText;
 use NeuroSYS\View\Html\ViewportContent;
 use NeuroSYS\View\Html\ViewportWidth;
+use NeuroSYS\View\Html\Vocabulary;
 use NeuroSYS\View\Terminal\TerminalAttribute;
 use NeuroSYS\View\Terminal\TerminalTone;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -62,6 +63,7 @@ use TypeError;
 #[CoversClass(Text::class)]
 #[CoversClass(TranslatedText::class)]
 #[CoversClass(MarkupParser::class)]
+#[CoversClass(Vocabulary::class)]
 #[CoversClass(Fragment::class)]
 #[CoversClass(Document::class)]
 #[CoversClass(Doctype::class)]

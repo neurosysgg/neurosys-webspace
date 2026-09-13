@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\App;
+use NeuroSYS\AssetManifest;
 use NeuroSYS\CredentialFile;
 use NeuroSYS\DataFile;
 use NeuroSYS\DataFileName;
@@ -14,11 +15,15 @@ use NeuroSYS\Http\HttpStatusCode;
 use NeuroSYS\Http\PlainTextResponse;
 use NeuroSYS\Http\Request;
 use NeuroSYS\Http\Response;
+use NeuroSYS\Http\Security\CspDirective;
 use NeuroSYS\Http\Security\CspHost;
+use NeuroSYS\Http\Security\CspSource;
 use NeuroSYS\Layout;
+use NeuroSYS\Model\Health\Requirement;
 use NeuroSYS\Site;
 use NeuroSYS\Support\Collection;
 use NeuroSYS\Support\Directory;
+use NeuroSYS\Support\RequirementInitialization;
 use NeuroSYS\Support\Route;
 use NeuroSYS\Text\Language;
 use NeuroSYS\Text\Languages;
@@ -180,6 +185,74 @@ final class AppTest extends TestCase
 
         self::assertSame($names->toValues(), $names->unique()->toValues());
         self::assertSame(count(CredentialFile::cases()) + count(DataFile::cases()), $names->count());
+    }
+
+    // ───────────────────────────── what a site may add ─────────────────────────────
+
+    /**
+     * What `health v1` checks is the framework's floor with the site's own on top — and this site
+     * adds none, so the two are the same list.
+     *
+     * @return void
+     */
+    public function testTheRequirementsAreTheFrameworksFloorWhenTheSiteAddsNone(): void
+    {
+        // By name: a requirement can hold the closure that checks it, and closures do not compare.
+        $names = static fn(Requirement $requirement): string => $requirement->name();
+
+        self::assertSame(
+            RequirementInitialization::requirements()->map($names)->toValues(),
+            Site::current()->requirements()->map($names)->toValues(),
+        );
+    }
+
+    /**
+     * An app that loads nothing from anywhere else is asked for hosts and has none, which is the
+     * strict policy it should get.
+     *
+     * @return void
+     */
+    public function testAnAppNamesNoThirdPartyHostUnlessItSaysSo(): void
+    {
+        foreach (CspDirective::cases() as $directive) {
+            self::assertTrue(self::other()->contentHosts($directive)->isEmpty(), $directive->value);
+        }
+    }
+
+    /**
+     * This site's two hosts, each under the one directive it needs, and nothing anywhere else — a
+     * host added to a directive it does not need widens the policy for nothing.
+     *
+     * @return void
+     */
+    public function testTheSitesHostsGoWhereTheyAreNeededAndNowhereElse(): void
+    {
+        foreach (CspDirective::cases() as $directive) {
+            $hosts = Site::current()->contentHosts($directive)
+                ->map(static fn(CspSource $source): string => $source->source())
+                ->toValues();
+
+            self::assertSame(
+                match ($directive) {
+                    CspDirective::ImgSrc   => [Site::FILE_HOST],
+                    CspDirective::FrameSrc => [Site::PLAYER_HOST],
+                    default                => [],
+                },
+                $hosts,
+                $directive->value,
+            );
+        }
+    }
+
+    /**
+     * The build `update v1 version` reports is the entry script's stamped URL — the stamp changes
+     * exactly when a build does.
+     *
+     * @return void
+     */
+    public function testTheBuildIsTheEntryScriptsStamp(): void
+    {
+        self::assertSame(AssetManifest::SCRIPT, Site::current()->buildId());
     }
 
     // ───────────────────────────── identity ─────────────────────────────
