@@ -257,7 +257,9 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - A health check **returns** its 503 — a thrown `ApiException` is a 422 — and `Requirement::check()`
   never throws: nothing catches it, so one throw is a 500 for the whole report. [health.md](phpanta/docs/health.md)
 - Probe the live host by pushing from a **detached worktree at `HEAD`** — the push mirrors the whole
-  tree, so a dirty working tree would ship the change being checked for.
+  tree, so a dirty working tree would ship the change being checked for. Run `git submodule update
+  --init` in it: `push-update` refuses a `phpanta/` that is missing, has uncommitted changes, or is
+  not the commit `HEAD` records — `--any-framework` is the deliberate way past.
 - A shared host can gain or lose an Apache module without notice, and every `.htaccess` block is
   `<IfModule>`-guarded, so the failure is silent both ways. Re-check after deploying.
 - Strato buffers no output and the local Apache buffers 4096 bytes, so a stray byte before a

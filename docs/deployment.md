@@ -187,7 +187,8 @@ When the question is one the report does not answer — whether an extension act
 about to be relied on, say — put a probe up with a push and take it down with another, **from a
 detached worktree at `HEAD`** rather than from the working tree. The endpoint mirrors the whole tree,
 so a push from a dirty working tree would ship the change being checked *for* alongside the check.
-That is how `ext/dom` was checked by parsing before `MarkupParser` relied on it
+Run `git submodule update --init` in the worktree first: it starts with an empty `phpanta/`, and the
+push refuses one. That is how `ext/dom` was checked by parsing before `MarkupParser` relied on it
 ([history](history/hosting.md)).
 
 ### The flags
@@ -199,6 +200,12 @@ so the same payload can then be sent for real. Use it whenever you are unsure; i
 `--no-mirror` leaves alone whatever the payload does not mention. The default is to mirror, matching
 `deploy.sh`'s `--delete` on these two trees, and mirroring is the only way stale files ever leave the
 server.
+
+`--any-framework` ships `phpanta/` as it stands. Without it the push refuses a framework that is not
+checked out, has changes that are not committed (an untracked file counts — the push packs every file
+under `phpanta/src/`), or is not the commit the site's `HEAD` records, because each would put code on
+the server that no checkout of the site reproduces. The refusal comes before anything is signed, dry
+run or not, and says which of the three it is.
 
 `--url` points somewhere else and `--key` names a different private key. Both default sensibly:
 `https://neurosys.gg` and `~/.config/neurosys/update.key`. `--url` is an **origin**, not a full
