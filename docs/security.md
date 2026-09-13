@@ -165,7 +165,9 @@ same shape of credentials file, so they ask it in one place: `Auth::accepts()`. 
 demo's, whose credential is a `PasswordHash` on the `Demo` object itself rather than in a file; it
 is `DemoGate::admits()`, the site's gate built on the framework's. Both are public and return a
 `bool`, and both are the *decision* separated from the `401` that follows it. The `401` is a value
-too: `Auth::siteGate()`, `Auth::adminGate()` and `DemoGate::enter()` return it rather than ending
+too — and the admin gate is its route's, `->through(new AdminGate())` on `/admin/stats`, which
+`RoutingTest` asserts is the one gated route. `Auth::siteGate()`, `Auth::adminGate()` and
+`DemoGate::enter()` return it rather than ending
 the request, the caller returns it in turn, and each carries `#[\NoDiscard]` — a call whose result
 goes nowhere is the one way to leave the door open, and it fails the suite. All three end up in one
 comparison, `Auth::matches()`.

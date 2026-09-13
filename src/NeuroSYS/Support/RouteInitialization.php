@@ -15,6 +15,8 @@ use NeuroSYS\Controller\PrivacyController;
 use NeuroSYS\Controller\ReleaseController;
 use NeuroSYS\Controller\ReleasesController;
 use NeuroSYS\Controller\StatsController;
+use Phpanta\Controller\Layer;
+use Phpanta\Service\Layer\AdminGate;
 use Phpanta\Support\Collection;
 use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\Route;
@@ -44,9 +46,14 @@ class RouteInitialization
             // keep quiet — see DemoController.
             ->addRoute(SitePath::Demo, fn($slug) => new DemoController($slug))
             ->addRoute(SitePath::DemoAudio, fn($slug, $label) => new DemoAudioController($slug, $label))
-            // Behind the admin password, so never a page of a static export: under the CLI its
-            // controller ends the process, and the export would stop there.
-            ->addRoute(SitePath::Stats, fn() => new StatsController(), exports: fn(): array => [])
+            // Behind the admin password, which the route carries rather than the controller — and so
+            // never a page of a static export, whose anonymous request would only be answered 401.
+            ->addRoute(
+                SitePath::Stats,
+                fn() => new StatsController(),
+                exports: fn(): array => [],
+                through: new AdminGate(),
+            )
             ->addRoute(SitePath::Imprint, fn() => new ImprintController())
             ->addRoute(SitePath::Privacy, fn() => new PrivacyController())
             ->addRoute(SitePath::Language, fn($language) => new LanguageController($language))
@@ -62,6 +69,8 @@ class RouteInitialization
      *                              them states it.
      * @param Closure|null $exports Which pages a static export writes for it — see Route. Only a
      *                              route behind a password needs one, to say it has none.
+     * @param Layer|null   $through What stands around the route's controller — the admin gate, on
+     *                              the one page behind it.
      * @return $this
      */
     private function addRoute(
@@ -69,9 +78,12 @@ class RouteInitialization
         Closure $factory,
         MethodPolicy $methods = MethodPolicy::ReadOnly,
         ?Closure $exports = null,
+        ?Layer $through = null,
     ): static {
-        // Collection::with() copies rather than appends, so the result has to be kept.
-        $this->collection = $this->collection->with(new Route($pattern, $factory, $methods, $exports));
+        $route = new Route($pattern, $factory, $methods, $exports);
+
+        // Collection::with() copies rather than appends, and so does through(): both results kept.
+        $this->collection = $this->collection->with($through === null ? $route : $route->through($through));
         return $this;
     }
 }

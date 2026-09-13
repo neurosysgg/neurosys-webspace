@@ -14,14 +14,14 @@ use Phpanta\Http\Request;
 use Phpanta\Http\Response;
 use Phpanta\Http\ResponseHeader;
 use Phpanta\Http\ViewResponse;
-use Phpanta\Service\Auth;
 use Phpanta\Support\Collection;
 use Phpanta\Support\File;
 
 /**
  * The StatsController class. Handles requests to the admin stats page.
  *
- * Requires admin authentication; parses the downloads log and renders aggregate stats.
+ * Behind the admin gate, which its route carries — see {@link \NeuroSYS\Support\RouteInitialization}
+ * — so this is only the page: it parses the downloads log and renders aggregate stats.
  *
  * The only page on the site behind a gate, and so the only one worth telling the browser not to
  * keep: see {@link self::response()}.
@@ -49,10 +49,6 @@ class StatsController implements Controller
      */
     public function handle(Request $request): Response
     {
-        if (($refusal = Auth::adminGate($request)) !== null) {
-            return $refusal;
-        }
-
         // Logging off means the log is not read at all, not even a stale one left over from a
         // previous machine — and the view is handed null rather than an empty tally, because
         // "switched off" and "on, and nothing yet" are different sentences on that page.

@@ -21,7 +21,6 @@ use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Random\RandomException;
-use ReflectionMethod;
 
 /**
  * The admin path: the shipped gate, the page behind it, and the log it protects.
@@ -121,18 +120,16 @@ final class AdminTest extends TestCase
      * in, and `private` says the same to anything in between — and a page told how it may be kept
      * carries no `ETag`, so there is no validator to hand it back on.
      *
-     * The response is built through reflection because handle() asks adminGate() against
-     * `data/admin.php`, whose shipped pass_hash is empty, so nothing in this repository can get past
-     * the gate to the response behind it. The headers are the part worth asserting, and they do not
-     * need the gate opened to be asserted.
+     * The controller is asked directly: the gate is its route's — see
+     * {@link RoutingTest::testTheStatsPageIsTheOneRouteBehindTheAdminGate()} — so the page behind it
+     * can be answered without a password the repository does not hold.
      *
      * @return void
      */
     public function testTheStatsPageTellsTheBrowserNotToKeepIt(): void
     {
-        $answer = new ReflectionMethod(StatsController::class, 'response')
-            ->invoke(null, new StatsView())
-            ->answer(self::request('admin', 'admin'));
+        $request = self::request('admin', 'admin');
+        $answer  = new StatsController(new File('/nonexistent/downloads.log'))->handle($request)->answer($request);
 
         self::assertSame(HttpStatusCode::Ok, $answer->status());
         self::assertSame('no-store, private', $answer->header(ResponseHeader::CacheControl)?->value->render());

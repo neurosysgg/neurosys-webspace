@@ -531,8 +531,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.43% of lines** (3130/3148), derived on 2026-09-13
-(with the environment switch, on top of `8b22de8`). This is the one place the figure is written: CLAUDE.md points here rather than
+clover XML and a browsable HTML report. **99.53% of lines** (3170/3185), derived on 2026-09-13
+(with the layers, on top of `92bdb64`). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 
 Merging is the point. PHPUnit measures `test/unit/` and nothing else, and however much it asserts
@@ -549,7 +549,7 @@ and renders the combined report. `composer verify` on its own is untouched and s
 
 #### What is deliberately not covered
 
-Eighteen lines, in five groups, and every one of them deliberate — behind a switch that is off on
+Fifteen lines, in four groups, and every one of them deliberate — behind a switch that is off on
 purpose, behind a credential the repository does not hold, or on a failure no test can arrange:
 
 - **`DownloadLogger::log()`'s body (7 lines)** is behind `Site::DOWNLOAD_LOGGING`, a `false`
@@ -561,10 +561,6 @@ purpose, behind a credential the repository does not hold, or on a failure no te
 - **`App::run()`'s catch (3 lines)** runs only when a controller throws on a real request, and no
   route here throws. Everything the catch does is tested directly: `ErrorLog::faultLine()` is the
   line it logs, and `App::fault()` is the answer it sends, both in the framework's `FaultTest`.
-- **`StatsController::handle()`'s body (3 lines)** needs an admin login to succeed, and
-  `data/admin.php` in the repository is a placeholder with an empty `pass_hash` — the real
-  credentials are uploaded by hand and `deploy.sh` excludes the file. The counting is all in
-  `DownloadStats::fromLines()`, which is fully unit-tested against a log file on disk.
 - **`File::write()`'s two abandon-the-temp-file branches (4 lines)** fire when a file this process
   just created cannot have its mode set, or cannot be filled. `chmod()` on a file you own fails only
   under conditions a test would have to be root to arrange; `file_put_contents()` on a path `touch()`
@@ -582,7 +578,7 @@ purpose, behind a credential the repository does not hold, or on a failure no te
 
 #### Keeping the count honest
 
-The eighteen are a property of what is *deliberately* untested, not a budget that grows with the
+The fifteen are a property of what is *deliberately* untested, not a budget that grows with the
 code. Every pass since the figure was first written has held it there or lowered it, and the way it
 did is the rule:
 

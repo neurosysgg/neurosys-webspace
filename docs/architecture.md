@@ -27,7 +27,7 @@ request
             ├─ SecurityHeaders::send()      ① headers first, so even the last-resort 500 has them
             ├─ Request::fromGlobals()       ② $_SERVER → a typed, readonly Request
             ├─ App::handle()                the request → an Answer, sending nothing — what a test calls
-            │    ├─ Auth::siteGate()          ③ pre-launch gate; may answer 401
+            │    ├─ SiteGate, the first layer ③ pre-launch gate; may answer 401
             │    ├─ Router::dispatch()        ④ URL → Controller, then the method gate → Response
             │    └─ Response::answer()        ⑤ status, headers, body — security headers put first
             └─ Answer::send()               the one place anything is sent

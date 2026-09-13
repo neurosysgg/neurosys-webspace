@@ -210,6 +210,9 @@ the code looks the way it does; follow them in new code without being asked.
 - **`Site`'s constants hold identity, environment, and facts otherwise stated twice** — nothing else;
   its methods answer what Phpanta asks of a site. A fact that means something only inside one class
   stays in that class, where its docblock can say why.
+- **A gate is its route's, not its controller's.** `/admin/stats` is
+  `->through(new AdminGate())` in `RouteInitialization`, and `RoutingTest` asserts it is the one gated
+  route; the demo gate stays in its controllers only because it needs the demo it looks up.
 - **Nothing ends the request but `App::run()`; every decision returns.** A response becomes an
   `Answer` in `App::handle()`, and a gate's refusal is a value it returns, `#[\NoDiscard]` —
   `Auth::siteGate()`, `DemoGate::enter()` — which the caller returns in turn. Never `exit`.

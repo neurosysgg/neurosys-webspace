@@ -16,6 +16,7 @@ use NeuroSYS\Support\RouteInitialization;
 use NeuroSYS\Support\SitePath;
 use Phpanta\App;
 use Phpanta\Http\HttpMethod;
+use Phpanta\Service\Layer\AdminGate;
 use Phpanta\Support\ApiPath;
 use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\Route;
@@ -195,6 +196,27 @@ final class RoutingTest extends TestCase
 
         self::assertNotContains(SitePath::Stats->value, $exported);
         self::assertContains(SitePath::Home->value, $exported, 'a route without an $exports closure is still a page');
+    }
+
+    /**
+     * The stats page's password is its route's, not its controller's — so the route table is where
+     * it is asserted, and it is the one route that carries a gate.
+     *
+     * @return void
+     */
+    public function testTheStatsPageIsTheOneRouteBehindTheAdminGate(): void
+    {
+        $gated = [];
+
+        foreach (Site::current()->routeTable() as $route) {
+            foreach ($route->layers() as $layer) {
+                if ($layer instanceof AdminGate) {
+                    $gated[] = $route->path();
+                }
+            }
+        }
+
+        self::assertSame([SitePath::Stats], $gated);
     }
 
     /**
