@@ -17,11 +17,6 @@ data/logs/
 # more than the two identifiers do, the fix is to commit it with those read from the environment.
 deploy.sh
 
-# The retired pre-launch gate's credentials. Nothing reads either name any more; the lines stay
-# while a clone may still hold a copy, so a leftover bcrypt hash never lands in a commit.
-data/site_auth.php
-data/.site_auth.php
-
 # The framework's Basic admin gate. No route of this site stands behind it, so no deployment has
 # one; were one ever needed, it would be per deployment like the keys below.
 data/admin.php
