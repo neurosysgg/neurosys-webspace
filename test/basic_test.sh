@@ -1180,11 +1180,11 @@ else
     fail "the fragment and the document share a validator ($DOC_ETAG)"
 fi
 
-# The admin opts out of all of it, and the three responses that never become a ViewResponse carry
-# none of it either.
+# The admin opts out of all of it, and a 303 carries none of it: it is not cacheable by default. A
+# 405 is, and its body is in the caller's language, so the router's refusal says no-store instead.
 check_no_header "the admin hands out no validator"        "$BASE/admin"              "^etag:" GET
 check_no_header "a 303 is not cacheable"                  "$BASE/releases/ill/flac"  "^cache-control:"
-check_no_header "  and neither is the 405"                "$BASE/"                   "^cache-control:" "POST"
+check_header    "  and a 405 says it may not be kept"     "$BASE/"                   "^cache-control: no-store, private$" "POST"
 
 echo ""
 echo "=== Language negotiation ==="
