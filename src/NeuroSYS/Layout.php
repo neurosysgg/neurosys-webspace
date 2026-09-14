@@ -10,6 +10,7 @@ use NeuroSYS\Support\SitePath;
 use NeuroSYS\Text\Texts;
 use NeuroSYS\View\Html\CssClass;
 use NeuroSYS\View\Wordmark;
+use Phpanta\Support\AdminPath;
 use Phpanta\Support\BareArray;
 use Phpanta\Support\BareCall;
 use Phpanta\Support\Charset;
@@ -243,9 +244,31 @@ class Layout implements Shell
                 new Element(HtmlTag::A)
                     ->attr(HtmlAttribute::Href, SitePath::Privacy->to())
                     ->containing(Texts::Layout::Privacy),
+                ' · ',
+                self::adminLink(),
             ),
             self::languages($language),
         );
+    }
+
+    /**
+     * The way into the admin: one glyph, the shell's root prompt, barely visible.
+     *
+     * Not hidden — the admin says anyway that there is one, and a stranger learns nothing more by
+     * following it — just out of the way. Named for a screen reader, since the glyph says nothing,
+     * and `nofollow`, since nothing past the entrance opens to a crawler. It is a link and nothing
+     * else: no route of the site's, so never in the sitemap.
+     *
+     * @return Element
+     */
+    private static function adminLink(): Element
+    {
+        return new Element(HtmlTag::A)
+            ->attr(HtmlAttribute::ClassName, CssClass::AdminLink)
+            ->attr(HtmlAttribute::Href, AdminPath::Index->to())
+            ->attr(HtmlAttribute::Rel, LinkRel::NoFollow)
+            ->attr(HtmlAttribute::AriaLabel, Texts::Layout::Admin)
+            ->containing('#');
     }
 
     /**

@@ -7,6 +7,7 @@ export var CssClass;
     CssClass["LogoDot"] = "logo-dot";
     CssClass["ProfileLinks"] = "profile-links";
     CssClass["ProfileLink"] = "profile-link";
+    CssClass["AdminLink"] = "admin-link";
     CssClass["PageSection"] = "page-section";
     CssClass["PageHeading"] = "page-heading";
     CssClass["BtnPrimary"] = "btn-primary";

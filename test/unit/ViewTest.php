@@ -679,6 +679,24 @@ final class ViewTest extends TestCase
     }
 
     /**
+     * One glyph in the footer, named for a screen reader in the page's language, and `nofollow`.
+     *
+     * @return void
+     */
+    public function testTheFooterLeadsToTheAdminByOneNamedGlyph(): void
+    {
+        foreach ([Language::English, Language::German] as $language) {
+            $html = Layout::wrap(new NotFoundView('/nope'), $language)->render();
+
+            self::assertSame(1, preg_match('#<footer.*</footer>#s', $html, $footer));
+            self::assertStringContainsString(
+                '<a class="admin-link" href="/admin" rel="nofollow" aria-label="admin">#</a>',
+                $footer[0],
+            );
+        }
+    }
+
+    /**
      * Vendored icons only. An <a href> to a platform is fine — nothing is fetched until the
      * visitor clicks. Anything the browser loads *on page load* (src, stylesheet href) must be
      * same-origin, or we become a joint controller for the transfer (CJEU C-40/17).

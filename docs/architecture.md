@@ -205,7 +205,9 @@ reimplement them: `title()` (section + em dash + site name) and `accented()` (sp
 `.` or `?` into a span, which is what makes `ill.` and `electronic music.` read the way they do).
 
 [`Layout::wrap()`](../src/NeuroSYS/Layout.php) is the shell: head, header with the wordmark, `<main
-id="content">`, footer with the profile links, and one `<script type="module">`.
+id="content">`, footer with the profile links and a barely visible `#` leading to `/admin`, and one
+`<script type="module">`. The admin's pages render in it too: the framework's views name no class of
+this site's, so `base/elements.css` styles their forms and tables as plain elements.
 
 ### `Support/` — the shapes
 

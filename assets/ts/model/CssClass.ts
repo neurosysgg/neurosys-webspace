@@ -12,6 +12,7 @@ export enum CssClass {
   LogoDot      = 'logo-dot',
   ProfileLinks = 'profile-links',
   ProfileLink  = 'profile-link',
+  AdminLink    = 'admin-link',
   PageSection  = 'page-section',
   PageHeading  = 'page-heading',
   BtnPrimary   = 'btn-primary',

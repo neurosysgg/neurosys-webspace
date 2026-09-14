@@ -31,6 +31,10 @@ enum LayoutText: string implements Translatable
     #[Translation(en: 'privacy policy', de: 'datenschutz')]
     case Privacy = 'privacy';
 
+    /** The footer's one-glyph link to the admin, for a screen reader: the glyph says nothing. */
+    #[Translation(en: 'admin', de: 'admin')]
+    case Admin = 'admin';
+
     /**
      * The home page's headline and the meta description's second half. Without its full stop:
      * the stop is the accent, set in its own span, and the same in both languages.

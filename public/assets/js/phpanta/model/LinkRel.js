@@ -6,5 +6,6 @@ export var LinkRel;
     LinkRel["NoReferrer"] = "noreferrer";
     LinkRel["External"] = "external";
     LinkRel["Alternate"] = "alternate";
+    LinkRel["NoFollow"] = "nofollow";
 })(LinkRel || (LinkRel = {}));
 //# sourceMappingURL=LinkRel.js.map

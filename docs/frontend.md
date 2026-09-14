@@ -329,7 +329,7 @@ the same arrangement as `assets/ts/` → `public/assets/js/`, for the same reaso
 ```
 assets/css/
 ├── main.css          the @import list; the order IS the cascade
-├── base/             tokens.css (:root), elements.css (* html body a)
+├── base/             tokens.css (:root), elements.css (* html body a, and the admin's forms and tables)
 ├── layout/           shell.css (what Layout.php emits), utilities.css
 ├── views/            home.css, release.css, demo.css                     (cf. src/NeuroSYS/View/)
 └── elements/         card.css, terminal.css, CoverArt.css, embed.css,

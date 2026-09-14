@@ -26,6 +26,7 @@ enum CssClass: string
 
     case ProfileLinks = 'profile-links';
     case ProfileLink  = 'profile-link';
+    case AdminLink    = 'admin-link';
 
     case PageSection = 'page-section';
     case PageHeading = 'page-heading';

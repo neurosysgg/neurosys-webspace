@@ -83,4 +83,15 @@
       width: auto;
     }
   }
+
+  /* Barely there, for the one visitor who knows to look — and still a link a keyboard reaches,
+     with the focus ring every other control has. */
+  .admin-link {
+    color: var(--muted);
+    opacity: 0.12;
+    transition: opacity 0.15s ease;
+
+    &:hover,
+    &:focus-visible { opacity: 0.8; text-decoration: none; }
+  }
 }
