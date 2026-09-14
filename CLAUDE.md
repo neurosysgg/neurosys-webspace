@@ -42,7 +42,7 @@ Plain PHP 8.5 / HTML / CSS on Phpanta, **no runtime dependencies**. PHP ≥ 8.5 
 three times: the pipe operator in `autoload.php`, `#[\NoDiscard]` on the copy-returning builders, and
 `ext/uri`, the WHATWG and RFC 3986 parsers `Element` and `Request` put their URL questions to.
 
-Five extensions are named in `composer.json` and asked for by name in the verify script's
+Six extensions are named in `composer.json` and asked for by name in the verify script's
 Environment block — the only place the question is asked where it matters, because composer never
 runs on the server (`vendor/` is not deployed):
 
@@ -53,6 +53,7 @@ runs on the server (`vendor/` is not deployed):
 | `ext/intl` | the text layer's `MessageFormatter` | a fatal on every translated page |
 | `ext/openssl` | `PublicKey` — the admin's signature and passkey checks; `SessionSeal` | a fatal on a signed call |
 | `ext/zlib` | `UpdateApplier`'s `gzdecode()` | a fatal on a push |
+| `ext/mbstring` | `Input`'s UTF-8 check, `MaxLength`, `Login` | a fatal on every form read |
 
 Each was checked on the live host (Strato, PHP 8.5.9, `cgi-fcgi`) by being **used**, not by
 `extension_loaded()` — registered and working are two questions. `php tools/api.php health v1

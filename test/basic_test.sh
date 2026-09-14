@@ -218,6 +218,15 @@ else
     fail "ext/openssl or ext/zlib is missing; PublicKey::verify() and UpdateApplier need them"
 fi
 
+# ext/mbstring is what Input tells UTF-8 from anything else with, so every form read reaches it — the
+# admin's browser writes among them — while every page that only reads never does. Not bundled, so a
+# host can lack it and serve every page fine until someone sends something. Asked by using it.
+if php -r 'exit(function_exists("mb_check_encoding") && mb_check_encoding("é", "UTF-8") && !mb_check_encoding("\xC3", "UTF-8") ? 0 : 1);'; then
+    pass "ext/mbstring is present — Input can refuse a form that is not UTF-8"
+else
+    fail "ext/mbstring is missing; every form read would be a fatal"
+fi
+
 # #[\NoDiscard] is what enforces that a copy-returning builder's result is used. It is an attribute,
 # so a runtime without it ignores it silently rather than erroring — which is the whole guarantee
 # quietly gone, with every test still green.

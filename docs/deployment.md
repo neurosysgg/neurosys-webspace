@@ -24,8 +24,8 @@ the webroot is served.
 
 ## First-time setup
 
-Prerequisites are in [../README.md](../README.md) — PHP 8.5 with `ext-uri`, `ext-dom`,
-`ext-openssl` and `ext-zlib`, Node ≥ 26.7, Composer, and `openssl` on the path once for the update
+Prerequisites are in [../README.md](../README.md) — PHP 8.5 with `ext-uri`, `ext-dom`, `ext-intl`,
+`ext-openssl`, `ext-zlib` and `ext-mbstring`, Node ≥ 26.7, Composer, and `openssl` on the path once for the update
 keypair below.
 
 ### 1. Open the project in PHPStorm
@@ -181,7 +181,7 @@ Given fewer than three operands, that command lists what the server offers inste
 `php tools/api.php`, `php tools/api.php health`, `php tools/api.php health v1` — each entry with
 what it says of itself; a listing is past the gate, so it is signed too.
 
-- **`health` checks every requirement the site declares**: PHP 8.5, the five extensions the site is
+- **`health` checks every requirement the site declares**: PHP 8.5, the six extensions the site is
   a fatal without, the php.ini floors a push needs, the webroot and the tracked `data/` files.
   **It answers 503 when a required one is unmet**, with the whole report in the body, so
   `tools/api.php` exits 1 and a script can stop on it.

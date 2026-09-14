@@ -40,7 +40,7 @@ and on the local Apache, but not on Strato.
 
 ## Extensions
 
-The five the site cannot run without are in bold. Only those are declared, in `composer.json` and
+The six the site cannot run without are in bold. Only those are declared, in `composer.json` and
 as required requirements, and `health v1 extensions` proves them by using them.
 
 | extension | Strato | local Apache | local CLI |
@@ -71,7 +71,7 @@ as required requirements, and `health v1 extensions` proves them by using them.
 | lexbor | `8.5.9` | `8.5.10` | `8.5.10` |
 | libxml | `8.5.9` | `8.5.10` | `8.5.10` |
 | mailparse | `3.1.8` | — | — |
-| mbstring | `8.5.9` | `8.5.10` | `8.5.10` |
+| **mbstring** | `8.5.9` | `8.5.10` | `8.5.10` |
 | mysqli | `8.5.9` | — | — |
 | mysqlnd | `8.5.9` | `8.5.10` | `8.5.10` |
 | **openssl** | `8.5.9` | `8.5.10` | `8.5.10` |
