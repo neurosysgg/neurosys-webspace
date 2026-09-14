@@ -66,21 +66,26 @@ function deferred() {
  * all for a null one; a Content-Language only where a test gives one, as a fragment of a site in
  * one language never states it.
  *
+ * A redirect is `redirected` and the URL it ended on, which is all fetch says of one it followed.
+ *
  * @param {() => Promise<string>} text
- * @param {{ ok?: boolean, type?: string | null, language?: string | null }} [options]
+ * @param {{ ok?: boolean, type?: string | null, language?: string | null, redirected?: boolean, url?: string }} [options]
  */
-function response(text, { ok = true, type = 'text/html; charset=utf-8', language = null } = {}) {
+function response(
+  text,
+  { ok = true, type = 'text/html; charset=utf-8', language = null, redirected = false, url = '' } = {},
+) {
   /** @type {Record<string, string>} */
   const headers = type === null ? {} : { 'Content-Type': type };
 
   if (language !== null) headers['Content-Language'] = language;
 
-  return { ok, headers: new Headers(headers), text };
+  return { ok, headers: new Headers(headers), text, redirected, url };
 }
 
 /**
  * @param {string} body
- * @param {{ ok?: boolean, type?: string | null, language?: string | null }} [options]
+ * @param {{ ok?: boolean, type?: string | null, language?: string | null, redirected?: boolean, url?: string }} [options]
  */
 const fragment = (body, options) => () =>
   Promise.resolve(response(() => Promise.resolve(body), options));
@@ -956,4 +961,36 @@ test('a whole document that states no language swaps only its content', async ()
   assert.equal(content.innerHTML, '<p>plain</p>');
   assert.equal(document.documentElement.lang, 'en');
   assert.deepEqual(regions(), ['Header']);
+});
+
+// ───────────────────────────── a redirect ─────────────────────────────
+
+/**
+ * fetch follows a redirect on its own and says so only in `redirected`, so the address would stay on
+ * the URL clicked. It moves to where the page came from, keeping the fragment the click asked for,
+ * which no response URL carries.
+ */
+test('a redirected page moves the address to where it landed', async () => {
+  respond = fragment('<title>landed</title><p>landed</p>', {
+    redirected: true,
+    url: 'https://neurosys.gg/landed',
+  });
+
+  await navigate(link('/asked#part'));
+
+  assert.equal(real.href, 'https://neurosys.gg/landed#part');
+  assert.equal(content.textContent, 'landed');
+  assert.deepEqual(handedBack, []);
+});
+
+/** One that ended on another origin is the browser's to follow, from the address clicked. */
+test('a page redirected to another origin is handed back to the browser', async () => {
+  respond = fragment('<title>elsewhere</title><p>elsewhere</p>', {
+    redirected: true,
+    url: 'https://elsewhere.example/landed',
+  });
+
+  await navigate(link('/asked'));
+
+  assert.deepEqual(handedBack, ['https://neurosys.gg/asked']);
 });

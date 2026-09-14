@@ -9,6 +9,7 @@ export class Passkey {
     static HANDLE = 16;
     static ACCOUNT = 'admin';
     answered = new WeakSet();
+    asking = new WeakSet();
     constructor() { }
     static start() {
         const passkey = new Passkey();
@@ -20,19 +21,34 @@ export class Passkey {
         if (form === null || credentials === undefined || this.answered.delete(form))
             return;
         e.preventDefault();
+        if (this.asking.has(form))
+            return;
+        this.asking.add(form);
+        Passkey.waiting(form, true);
         const answer = await Passkey.ceremony(form, credentials);
+        this.asking.delete(form);
+        Passkey.waiting(form, false);
+        Passkey.unanswered(form, answer === null);
         if (answer === null)
             return;
         answer.forEach((value, field) => { Passkey.fill(form, field, value); });
         this.send(form, e.submitter);
+    }
+    static waiting(form, waiting) {
+        form.querySelectorAll(HtmlTag.Button).forEach((button) => {
+            button.toggleAttribute(HtmlAttribute.Disabled, waiting);
+        });
+    }
+    static unanswered(form, show) {
+        form.querySelector(`[${PasskeyAttribute.Status}]`)?.toggleAttribute(HtmlAttribute.Hidden, !show);
     }
     send(form, submitter) {
         this.answered.add(form);
         form.requestSubmit(submitter);
     }
     static async ceremony(form, credentials) {
-        const challenge = Passkey.bytes(form.getAttribute(PasskeyAttribute.Challenge) ?? '');
         try {
+            const challenge = Passkey.bytes(form.getAttribute(PasskeyAttribute.Challenge) ?? '');
             return form.getAttribute(PasskeyAttribute.Ceremony) === CeremonyType.Create
                 ? await Passkey.create(credentials, challenge)
                 : await Passkey.get(credentials, challenge);

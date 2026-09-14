@@ -33,5 +33,7 @@ export var HtmlAttribute;
     HtmlAttribute["Checked"] = "checked";
     HtmlAttribute["Selected"] = "selected";
     HtmlAttribute["Readonly"] = "readonly";
+    HtmlAttribute["Disabled"] = "disabled";
+    HtmlAttribute["Hidden"] = "hidden";
 })(HtmlAttribute || (HtmlAttribute = {}));
 //# sourceMappingURL=HtmlAttribute.js.map

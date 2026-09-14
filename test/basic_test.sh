@@ -536,6 +536,44 @@ else
     echo "  SKIP asset manifest drift check — no node on PATH"
 fi
 
+# How build-assets.mjs reads a module graph, asked of three scratch trees. A `/*` inside a string is
+# a string, not a comment reaching to the next `*/`: stripping comments alone once hid every import
+# in between, and the modules behind them went missing from the stamp and the preload list. An entry
+# that imports nothing is an app of one file. And an entry whose imports cannot be read — a minified
+# tree, every import on a line of code — is still refused, rather than stamped as one file.
+if command -v node >/dev/null 2>&1; then
+    GRAPH=$(mktemp -d)
+    mkdir -p "$GRAPH/string" "$GRAPH/one" "$GRAPH/minified"
+    printf "import './a.js';\n" > "$GRAPH/string/main.js"
+    printf "export const glob = '/assets/*';\nimport './b.js';\n/** a comment */\n" > "$GRAPH/string/a.js"
+    printf "export const b = 1;\n" > "$GRAPH/string/b.js"
+    printf "console.log('one file');\n" > "$GRAPH/one/main.js"
+    printf "import'./a.js';console.log(1);\n" > "$GRAPH/minified/main.js"
+    printf "export const a = 1;\n" > "$GRAPH/minified/a.js"
+    stamp() {
+        node "$REPO/phpanta/tools/build-assets.mjs" --js-dir "$GRAPH/$1" \
+             --css "$REPO/public/assets/css/style.css" --out "$GRAPH/$1.php" >/dev/null 2>&1
+    }
+    if stamp string && grep -q "/b\.js'" "$GRAPH/string.php"; then
+        pass "build-assets.mjs walks an import that follows a string holding /*"
+    else
+        fail "build-assets.mjs lost an import behind a string holding /*"
+    fi
+    if stamp one && grep -q 'MODULES = \[\]' "$GRAPH/one.php"; then
+        pass "build-assets.mjs stamps an app of one file"
+    else
+        fail "build-assets.mjs refuses an entry that imports nothing"
+    fi
+    if stamp minified; then
+        fail "build-assets.mjs stamped an entry whose imports it could not read"
+    else
+        pass "build-assets.mjs refuses an entry whose imports it cannot read"
+    fi
+    rm -rf "$GRAPH"
+else
+    echo "  SKIP module graph checks — no node on PATH"
+fi
+
 # The version segment is a mirror: public/.htaccess strips it in production, phpanta/tools/dev-router.php
 # strips it under the php -S this script runs. Two spellings of one rule, in two languages, with
 # nothing but this check between them — drift and the dev server serves a 404 for a URL that works
@@ -647,19 +685,21 @@ if [[ -x "$TSC" ]]; then
     # inside public/. Asked in a scratch project two levels down, so a guard that did not hold would
     # delete scratch and nothing else.
     GUARD=$(mktemp -d)
-    mkdir -p "$GUARD/project/public"
+    mkdir -p "$GUARD/project/public" "$GUARD/project/src"
     echo '{}' > "$GUARD/project/composer.json"
     guard_held=1
-    for out in "$GUARD/project" "$GUARD" "$GUARD/project/public" "$GUARD/project/public/dist"; do
+    for out in "$GUARD/project" "$GUARD" "$GUARD/project/public" "$GUARD/project/public/dist" \
+               "$GUARD/project/src"; do
         if (cd "$GUARD/project" && node "$REPO/phpanta/tools/build-prod.mjs" --out "$out" >/dev/null 2>&1) \
-           || [[ ! -f "$GUARD/project/composer.json" || ! -d "$GUARD/project/public" ]]; then
+           || [[ ! -f "$GUARD/project/composer.json" || ! -d "$GUARD/project/public" \
+                 || ! -d "$GUARD/project/src" ]]; then
             guard_held=0
             fail "build-prod.mjs accepted --out $out, which it deletes before building"
             break
         fi
     done
     if [[ $guard_held == 1 ]]; then
-        pass "build-prod.mjs refuses an --out that holds the project or is inside public/"
+        pass "build-prod.mjs refuses an --out that holds the project, or is in it outside build/"
     fi
     rm -rf "$GUARD"
 

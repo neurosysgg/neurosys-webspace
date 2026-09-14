@@ -95,6 +95,16 @@ export class Navigation {
                 location.replace(url);
                 return;
             }
+            if (response.redirected) {
+                const landed = new URL(response.url);
+                if (landed.origin !== location.origin) {
+                    location.replace(url);
+                    return;
+                }
+                landed.hash = new URL(url).hash;
+                history.replaceState(history.state, '', landed.href);
+                this.shown = Navigation.documentOf(landed.href);
+            }
             const html = await response.text();
             if (navigation !== this.navigation)
                 return;

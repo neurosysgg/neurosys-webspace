@@ -317,3 +317,75 @@ test('any other submit goes by untouched', async () => {
   assert.equal(sent.length, 2);
   assert.equal(sent[0][0], plain);
 });
+
+// ───────────────────────────── while it asks, and after ─────────────────────────────
+
+/**
+ * What the server wrote into a passkey form to say nobody answered, hidden as it arrives.
+ *
+ * @param {HTMLFormElement} element
+ * @returns {HTMLElement}
+ */
+function status(element) {
+  const paragraph = document.createElement('p');
+
+  paragraph.setAttribute(PasskeyAttribute.Status, '');
+  paragraph.setAttribute('hidden', '');
+  element.append(paragraph);
+
+  return paragraph;
+}
+
+/** A challenge that is not base64url is a ceremony that did not happen: nothing asked, nothing sent. */
+test('a challenge that does not decode sends nothing, and says so', async () => {
+  const unlock = form(CeremonyType.Get, '!!!');
+  const said   = status(unlock);
+
+  unlock.requestSubmit(button(unlock));
+  await settled();
+
+  assert.deepEqual(asked, []);
+  assert.deepEqual(sent, []);
+  assert.equal(said.hasAttribute('hidden'), false, 'the form did not say the passkey did not answer');
+});
+
+/** Unanswered, the form says so; answered the next time, it stops saying it. */
+test('a form says nobody answered until somebody does', async () => {
+  const unlock = form(CeremonyType.Get);
+  const said   = status(unlock);
+
+  next = { refuse: true };
+  unlock.requestSubmit(button(unlock));
+  await settled();
+
+  assert.equal(said.hasAttribute('hidden'), false);
+
+  next = { answer: assertion() };
+  unlock.requestSubmit(button(unlock));
+  await settled();
+
+  assert.equal(said.hasAttribute('hidden'), true);
+  assert.equal(sent.length, 1);
+});
+
+/** While the authenticator is asked the buttons wait, and a second submit asks it nothing. */
+test('a second submit while the authenticator is asked starts no second ceremony', async () => {
+  const unlock = form(CeremonyType.Get);
+
+  /** @type {(value: unknown) => void} */
+  let answer = () => {};
+
+  next = { answer: new Promise((resolve) => { answer = resolve; }) };
+  unlock.requestSubmit(button(unlock));
+  unlock.requestSubmit();
+  await settled();
+
+  assert.equal(asked.length, 1);
+  assert.equal(button(unlock).hasAttribute('disabled'), true, 'the buttons did not wait');
+
+  answer(assertion());
+  await settled();
+
+  assert.equal(sent.length, 1);
+  assert.equal(button(unlock).hasAttribute('disabled'), false, 'the buttons did not work again');
+});
