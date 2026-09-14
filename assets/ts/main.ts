@@ -38,5 +38,10 @@ import './elements/release/ReleaseTitle.js';
 import './elements/release/ReleaseMeta.js';
 
 import { Navigation } from './phpanta/Navigation.js';
+import { Passkey } from './phpanta/Passkey.js';
 
 Navigation.forDocument()?.start();
+
+// Unconditionally, because a form a passkey answers can arrive with a navigation after this has run:
+// the admin's pages are swapped in like any other.
+Passkey.start();

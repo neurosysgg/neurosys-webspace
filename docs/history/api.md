@@ -283,6 +283,46 @@ CLAUDE.md said of it: `/api/{service}/{version}/{action}` is the one address fam
 Every call is signed with an ECDSA P-256 key the server cannot use; an unsigned call gets exactly
 what an absent address gets.
 
+### 2026-09-14 — a browser, by passkey
+
+*From security.md's opening, "The attack surface", the CSRF paragraph, "The admin" and "What is
+deliberately not here", deployment.md's "Full deploy", and CLAUDE.md's "The API and deploying".*
+
+The admin came to let a browser in: a device registers at `/admin`, the signing key enrols it with
+`access v1 enrol`, and it unlocks with a passkey for eight hours and taps again for every write. The
+design and its reasons are the framework's, in its own history; what was this site's is below.
+
+**A client certificate could not work on Strato.** TLS ends at Strato's front proxy — the reason
+`.htaccess` asks `X-Forwarded-Proto` as well as `%{HTTPS}` — so neither Apache nor PHP ever sees a
+handshake, and `.htaccess` has nothing to request a certificate with. WebAuthn works over plain
+HTTPS and keeps only a public key on the server, which is the property `data/update.pub` has.
+
+**Sodium was judged overkill.** Strato registers `sodium` 8.5.9, but none of the three local
+runtimes has it, so every use would have been a floor the tests could not exercise; and none of what
+it offered — Ed25519 passkeys, Ed25519 for `NS1`, XChaCha20 for the session seal — closed a real
+hole. P-256 through openssl serves both the CLI and the browser.
+
+**`Site::origin()` came to return `Origin::of(Site::ORIGIN)`**, which is what switches the passkeys
+on here, and `data/session.key` came into use, sealing the admin's browser sessions and enrolment
+codes. `data/admin-passkeys.json` joined the files `deploy.sh` excludes and `.gitignore` names. The
+footer link to `/admin` was left for the next batch.
+
+The opening of security.md said the site "is static, has no database, sets no cookie, starts no
+session, has no `<form>`, and has no runtime dependencies". Its CSRF paragraph ended:
+
+`/admin` does accept a `POST`, and a cross-site `POST` to it cannot forge an ECDSA signature. So there
+is no form token, and nothing for one to protect.
+
+The framework has both halves of the other arrangement — a sealed cookie session, and the
+`CsrfGuard` layer that holds every write to the token that session handed out … The day this site
+has a form and a login is the day this paragraph changes, and they are listed on the routes that take
+the writes.
+
+The admin section said: Nothing on the site links to `/admin` yet, and a browser, which cannot sign,
+sees only the entrance. deployment.md said "a session key, if the site ever keeps sessions, is minted
+on the host it serves and never leaves it", and CLAUDE.md: The site keeps no session today, so it has
+no `session.key`.
+
 ## From the code comments
 
 *Moved out of comments under `tools/` and `test/` when those were brought to the present tense.

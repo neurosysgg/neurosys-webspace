@@ -79,6 +79,9 @@ original **by name, backing value and declaration order** — declaration order 
 | `model/RequestHeader.ts` | `Http\RequestHeader` | `X-Requested-With`, `If-None-Match`, `Range`, `Accept-Language`, `Cookie` — only the first is written by client code; see below |
 | `model/RequestedWith.ts` | `Http\RequestedWith` | `XMLHttpRequest` |
 | `model/Language.ts` | `Text\Language` | `en`, `de` — what `<html lang>` says; `pageLanguage()` reads it for the words an element writes itself |
+| `model/PasskeyAttribute.ts` | `View\Html\PasskeyAttribute` | `data-passkey`, `data-challenge` — how `Passkey` knows a form a passkey answers, and over what |
+| `model/CeremonyType.ts` | `Model\Passkey\CeremonyType` | `webauthn.get`, `webauthn.create` — the ceremony `data-passkey` names |
+| `model/PasskeyFormField.ts` | `Http\PasskeyFormField` | the fields `Passkey` writes the authenticator's answer into, and the entrance's `ceremony` |
 
 ### Mirrors of a part
 

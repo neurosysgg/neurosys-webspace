@@ -77,7 +77,13 @@ data/update.pub
 /.update-stage/
 /.update-probe-*/
 
-# The key sessions are sealed with, if this deployment ever keeps one. Per deployment, minted on the
-# host it serves, and never here: a committed key would let anyone who reads the repository forge a
-# session. deploy.sh excludes it for the same reason.
+# The key sessions are sealed with — the admin's, for a browser it has let in. Per deployment, minted
+# on the host it serves, and never here: a committed key would let anyone who reads the repository
+# forge a session. deploy.sh excludes it for the same reason.
 data/session.key
+
+# The devices that may open the admin in a browser: their passkeys' public halves, enrolled on the
+# deployment by a signed call from the machine that holds the signing key. Per deployment, like the
+# two above, and a copy here would enrol this machine's list on whatever it was deployed to.
+# deploy.sh excludes it too.
+data/admin-passkeys.json

@@ -19,5 +19,7 @@ import './elements/release/ReleaseCard.js';
 import './elements/release/ReleaseTitle.js';
 import './elements/release/ReleaseMeta.js';
 import { Navigation } from './phpanta/Navigation.js';
+import { Passkey } from './phpanta/Passkey.js';
 Navigation.forDocument()?.start();
+Passkey.start();
 //# sourceMappingURL=main.js.map

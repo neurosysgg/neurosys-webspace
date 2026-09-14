@@ -162,7 +162,9 @@ in which colour, at which opacity, and a real canvas would answer that only by b
 image.
 
 The suites are `soundcloud-player`, `soundcloud-profile`, `terminal-window`, `cover-art`,
-`demo-waveform`, `nesting`, `navigation`, `navigation-start`, `vocabulary` and `enum-parity`.
+`demo-waveform`, `nesting`, `navigation`, `navigation-start`, `passkey`, `vocabulary` and
+`enum-parity`. `passkey` stubs `navigator.credentials` and relies on the `Passkey.start()` that
+`main.js` already made when `dom.mjs` loaded it, which is the start a real page gets.
 
 **Both test commands name their files.** `node --test` with no argument matches
 `**/test/**/*.?(c|m)js` among its default patterns, which is everything under `test/` — `dom.mjs`
@@ -511,8 +513,8 @@ npm run coverage    # front end — 100% of lines, branches and functions, enfor
 
 `node --test` has coverage built in. The thresholds in the `coverage` script are set to 100 across
 lines, branches and functions, so this is a gate rather than a report: a new branch nothing
-exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is fifty-two
-small files with one job each, the framework's eleven among them. It has teeth the other way too: an unreachable fallback such as
+exercises fails the command. That is affordable here and nowhere else — `assets/ts/` is fifty-nine
+small files with one job each, the framework's eighteen among them. It has teeth the other way too: an unreachable fallback such as
 `?? 0` on an index that cannot miss is refused, which is why `DemoWaveform` reads its bytes with a
 `charCodeAt` that needs no fallback at all.
 
@@ -528,8 +530,8 @@ composer coverage
 ```
 
 Runs both PHP suites, merges what each measured, and writes `build/coverage/` — a text summary, a
-clover XML and a browsable HTML report. **99.68% of lines** (5050/5066), derived on 2026-09-14
-(with the admin at `/admin`, discoverable, on top of `3761654`, with `pdo_sqlite`
+clover XML and a browsable HTML report. **99.71% of lines** (5595/5611), derived on 2026-09-14
+(with the admin's browser side — passkeys — on top of `1beb374`, with `pdo_sqlite`
 loaded — without it the database tests skip and `Data/` reads as untested). This is the one place the figure is written: CLAUDE.md points here rather than
 carrying a copy, and when it changes, it is re-derived from the clover output and changed here.
 

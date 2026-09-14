@@ -51,7 +51,7 @@ runs on the server (`vendor/` is not deployed):
 | `ext/uri` | `Element`, `Request` | every page |
 | `ext/dom` | `MarkupParser` (`Dom\HTMLDocument`) | a fatal on `/privacy` alone |
 | `ext/intl` | the text layer's `MessageFormatter` | a fatal on every translated page |
-| `ext/openssl` | `PublicKey` — the API's signature check | a fatal on a signed call |
+| `ext/openssl` | `PublicKey` — the admin's signature and passkey checks; `SessionSeal` | a fatal on a signed call |
 | `ext/zlib` | `UpdateApplier`'s `gzdecode()` | a fatal on a push |
 
 Each was checked on the live host (Strato, PHP 8.5.9, `cgi-fcgi`) by being **used**, not by
@@ -151,9 +151,11 @@ phpanta/src/                   ← Phpanta\, the framework — see phpanta/CLAUD
 │   └── Security/   ← CSP, Permissions-Policy, HSTS, COOP and CORP as typed objects
 ├── Form/           ← a form as an enum of fields, its rules, a submission read and re-rendered
 ├── Data/           ← SQLite through PDO: statements, typed rows, transactions, migrations
-├── Model/          ← Api/ (a signed call), Update/ (a push, the release it replaced), Health/
+├── Model/          ← Api/ (a signed call), Update/ (a push, the release it replaced), Health/,
+│                     Passkey/ (a device, a challenge, a ceremony's answer)
 ├── Service/        ← Auth, Login, ApiGate, UpdateApplier, ReleaseRecord; Layer/ (the gates and
-│                     layers around a controller); Api/ one handler per action; Health/
+│                     layers around a controller); Api/ one handler per action; Health/;
+│                     Passkey/ (the admin's browser side: AdminBrowser, the verifier, the store)
 ├── Support/        ← Collection, SearchableCollection, File, Directory, Route + Path, AdminPath,
 │                     the requirement table, Diagnostics, TarArchive, PasswordHash, PublicKey, Bare*
 ├── Exception/      ← SiteException and every condition under it
@@ -260,18 +262,26 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 
 **The API and deploying** — [docs/security.md](docs/security.md#the-admin),
 [docs/deployment.md](docs/deployment.md)
-- **`data/update.pub` absent means the admin lets nobody past its entrance; `data/site_auth.php`
-  absent means the site gate is off.** The two files look alike and have opposite polarity.
+- **`data/update.pub` absent means no signed call verifies and no device can be enrolled;
+  `data/site_auth.php` absent means the site gate is off.** The two files look alike and have
+  opposite polarity. `data/admin-passkeys.json` absent means no device is enrolled.
+- **Passkeys are on because `Site::origin()` names `https://neurosys.gg`** — and only where
+  `data/session.key` exists; without it the entrance says browsers cannot sign in. In development
+  and from loopback only, the request's own `Origin` comes first, so the local Apache runs a real
+  ceremony at `neurosys.localhost` — with a key registered there, which opens nothing live. A revocation takes effect on the
+  next request; a browser write's tap binds `POST <path>`, not the field values.
 - **A caller the admin cannot verify gets one answer at every depth below `/admin`**, whether the
   address exists or not — a `303` to `/admin` for a page, a `401` challenging for `NS1` for data,
   never an `Allow`. An answer that differed for a real address would tell a stranger what is in it,
   and nothing would look wrong.
 - `public/admin/` must never exist, and an admin action never reads a query parameter or a form
   field — it would reach the handler unsigned. The framework's `InputTest` reads the API's code and
-  fails on either.
+  fails on either. A browser's form is read by `AdminBrowser` alone, into a manifest of the fields
+  the action declares.
 - **`data/logs/` must exist and be writable by PHP, or the error log silently falls back to the
   host's own log** — PHP says nothing when it cannot open the file. `deploy.sh` never creates it;
   `health v1` warns. Locally php-fpm runs as `http`, so the directory is group `http`, `2775`.
+  `data/throttle/` likewise, or the admin's entrance answers `503` to every post.
 - `ApiGate` refuses an unrecognised (null) method on its first line; comparing it would be a 500
   where every other stranger gets the admin's one answer.
 - A write spends its serial **before** applying; a dry run and a read never spend one.
@@ -317,6 +327,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - The build tools refuse an undeclared flag; keep it that way, since a misspelled `--out` once
   overwrote the committed stylesheet and reported success.
 - A view must never emit `loaded` — the gate sets it, and the stylesheet reads it.
+- `Passkey.start()` in `main.ts` is unconditional: a passkey form arrives with a `Navigation` swap
+  after the entry script ran, so it listens at the document.
 
 **Tests** — [docs/testing.md](docs/testing.md)
 - `node --test` with no argument runs `test/js/dom.mjs` as a suite; always pass the quoted
@@ -399,9 +411,10 @@ its directory and `deploy.sh` excludes it.
 ## The API and deploying
 
 `/admin/{service}/{version}/{action}` is the one address family that writes, and each depth above it
-lists what is under it. Every call is signed with an ECDSA P-256 key the server cannot use; a caller
-the admin cannot verify sees its entrance and nothing else, so a stranger learns that there is an
-admin and nothing about what is in it. `/api` is gone, with no alias — it answers like
+lists what is under it. Every call is signed with an ECDSA P-256 key the server cannot use — or comes
+from a browser that unlocked with a passkey that key enrolled, and taps again for every write; a
+caller the admin cannot verify sees its entrance and nothing else, so a stranger learns that there is
+an admin and nothing about what is in it. `/api` is gone, with no alias — it answers like
 `/no-such-page`. See [docs/security.md](docs/security.md#the-admin) and
 [docs/deployment.md](docs/deployment.md).
 
@@ -413,6 +426,8 @@ php tools/api.php update v1 version                         # what is deployed
 php tools/api.php health v1 report                          # does the host meet the site's floor (503 if not)
 php tools/api.php capability v1 extensions                  # what it has; also runtime, settings, deployment, errors
 php tools/api.php update v1 probe                           # what its filesystem lets a push do (a write)
+php tools/api.php access v1 enrol --code <code> --name phone  # enrol a device /admin registered
+php tools/api.php access v1 passkeys                        # the enrolled devices; revoke --passkey <id>
 ./deploy.sh                                                 # full deploy over SFTP; ships data/
 ```
 
@@ -423,11 +438,13 @@ php tools/api.php update v1 probe                           # what its filesyste
 
 - **The push is the regular deploy; `./deploy.sh` is the full one and the recovery path** — it owns
   `data/`, and it fixes a push that broke `src/`. Do not make the endpoint replace it.
-- **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub` and
-  `data/session.key`** — the repo's `admin.php` is an inert placeholder with an empty hash that no
-  route reads, which `health v1 deployment` still requires on the server because the framework
-  tracks it; the others are gitignored, exist only per deployment and hold live credentials. Upload
-  or mint them by hand. The site keeps no session today, so it has no `session.key`.
+- **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub`,
+  `data/session.key` and `data/admin-passkeys.json`** — the repo's `admin.php` is an inert
+  placeholder with an empty hash that no route reads, which `health v1 deployment` still requires on
+  the server because the framework tracks it; the others are gitignored, exist only per deployment
+  and hold live credentials. Upload or mint the keys by hand (no SSH: mint `session.key` locally and
+  upload it); the device store is written on the server by `access v1 enrol`. See
+  [docs/deployment.md](docs/deployment.md#6-the-admin-in-a-browser).
 - **`--delete` is on for `public/`, `src/` and `phpanta/src/`, off for `data/`**, so a gitignored demo on the server
   survives a deploy from a clone that never staged it — and a data file removed locally must be
   removed from the server by hand.

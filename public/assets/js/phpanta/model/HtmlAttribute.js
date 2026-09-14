@@ -32,5 +32,6 @@ export var HtmlAttribute;
     HtmlAttribute["Autocomplete"] = "autocomplete";
     HtmlAttribute["Checked"] = "checked";
     HtmlAttribute["Selected"] = "selected";
+    HtmlAttribute["Readonly"] = "readonly";
 })(HtmlAttribute || (HtmlAttribute = {}));
 //# sourceMappingURL=HtmlAttribute.js.map

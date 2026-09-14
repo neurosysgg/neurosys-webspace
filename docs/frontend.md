@@ -91,7 +91,7 @@ The verify script rebuilds the manifest and diffs it, and asks the dev server fo
 assets/ts/
 ├── main.ts                 entry point — the only <script> Layout.php loads
 ├── Config.ts               the three facts the client reads out of NeuroSYS\Site
-├── phpanta/                symlink to phpanta/assets/ts — Navigation, the guards, the framework's mirrors
+├── phpanta/                symlink to phpanta/assets/ts — Navigation, Passkey, the guards, the framework's mirrors
 ├── model/                  the mirrored enums — see contracts.md
 └── elements/               one class per file, named for the class
     ├── NestedElement.ts    abstract — the parent guard
@@ -119,11 +119,16 @@ them. That list *is* the site's whole tag vocabulary, and `test/js/vocabulary.te
 which matters most for the tags an element builds itself, since those appear in no server response
 for the verify script to catch.
 
-The last two lines start the SPA router:
+The last lines start the SPA router and the admin's passkey forms:
 
 ```ts
 Navigation.forDocument()?.start();
+Passkey.start();
 ```
+
+`Passkey.start()` runs on every page, unconditionally: a form a passkey answers can arrive with a
+navigation after the entry script ran, since the admin's pages are swapped in like any other. See
+[phpanta/docs/frontend.md](../phpanta/docs/frontend.md#passkey-forms).
 
 ---
 
@@ -527,7 +532,7 @@ files the browser loads, so a build that never ran is a failing test rather than
 
 `npm run coverage` is a gate rather than a report: 100% for lines, branches and functions, with
 `--test-coverage-include-all` so a module nothing imports is reported as uncovered rather than not
-reported at all. That is affordable here and nowhere else — these are 52 small files with one job
+reported at all. That is affordable here and nowhere else — these are 59 small files with one job
 each.
 
 See [testing.md](testing.md) for the full picture, including the PHP suites.

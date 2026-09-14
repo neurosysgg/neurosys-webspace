@@ -16,6 +16,7 @@ use NeuroSYS\View\Html\WaveformAttribute;
 use NeuroSYS\View\Terminal\TerminalAttribute;
 use Phpanta\App;
 use Phpanta\DataFileName;
+use Phpanta\Http\Origin;
 use Phpanta\Http\Request;
 use Phpanta\Http\Response;
 use Phpanta\Http\Security\CspDirective;
@@ -150,6 +151,17 @@ final class Site extends App
     public function name(): string
     {
         return self::NAME;
+    }
+
+    /**
+     * Where the site is served — the origin a passkey that opens its admin is bound to. Said here
+     * rather than read from the request's `Host`, which the request chooses.
+     *
+     * @return Origin
+     */
+    public function origin(): Origin
+    {
+        return Origin::of(self::ORIGIN);
     }
 
     /**

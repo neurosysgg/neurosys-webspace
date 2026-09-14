@@ -27,6 +27,9 @@ import { CoverArtAttribute } from '../../public/assets/js/model/CoverArtAttribut
 import { LinkAttribute } from '../../public/assets/js/phpanta/model/LinkAttribute.js';
 import { LinkRel } from '../../public/assets/js/phpanta/model/LinkRel.js';
 import { RegionAttribute } from '../../public/assets/js/phpanta/model/RegionAttribute.js';
+import { PasskeyAttribute } from '../../public/assets/js/phpanta/model/PasskeyAttribute.js';
+import { PasskeyFormField } from '../../public/assets/js/phpanta/model/PasskeyFormField.js';
+import { CeremonyType } from '../../public/assets/js/phpanta/model/CeremonyType.js';
 import { HtmlTag } from '../../public/assets/js/phpanta/model/HtmlTag.js';
 import { HtmlAttribute } from '../../public/assets/js/phpanta/model/HtmlAttribute.js';
 import { CssClass } from '../../public/assets/js/model/CssClass.js';
@@ -119,6 +122,9 @@ const MIRRORED_NAMES = [
   ['LinkAttribute', LinkAttribute, 'Phpanta\\View\\Html\\LinkAttribute'],
   ['LinkRel', LinkRel, 'Phpanta\\View\\Html\\LinkRel'],
   ['RegionAttribute', RegionAttribute, 'Phpanta\\View\\Html\\RegionAttribute'],
+  ['PasskeyAttribute', PasskeyAttribute, 'Phpanta\\View\\Html\\PasskeyAttribute'],
+  ['PasskeyFormField', PasskeyFormField, 'Phpanta\\Http\\PasskeyFormField'],
+  ['CeremonyType', CeremonyType, 'Phpanta\\Model\\Passkey\\CeremonyType'],
   ['HtmlTag', HtmlTag, 'Phpanta\\View\\Html\\HtmlTag'],
   ['HtmlAttribute', HtmlAttribute, 'Phpanta\\View\\Html\\HtmlAttribute'],
   ['CssClass', CssClass, 'NeuroSYS\\View\\Html\\CssClass'],

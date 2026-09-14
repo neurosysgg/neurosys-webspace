@@ -44,7 +44,7 @@ neurosys/
 │
 ├── phpanta/             ← the framework — its own README, CLAUDE.md, docs, tests and licence
 │   ├── src/             ← Phpanta\: the wire, the markup tree, collections, the API, health, the router
-│   ├── assets/ts/       ← Navigation, the element guards, the framework's mirrored enums
+│   ├── assets/ts/       ← Navigation, Passkey, the element guards, the framework's mirrored enums
 │   └── tools/           ← the CLI layer, the signed commands, the build tools, the dev router
 │
 ├── data/                ← above webroot, never web-accessible
@@ -79,7 +79,7 @@ neurosys/
 | `/language/{language}` | the language switch: sets the `lang` cookie and 303s back — see [language.md](../phpanta/docs/language.md) |
 | `/demos/{slug}` | one unreleased demo, behind its own password — see [demos.md](demos.md) |
 | `/demos/{slug}/{label}` | one mix of it, streamed by PHP behind the same password |
-| `/admin` … `/admin/{service}/{version}/{action}` | the framework's admin: an entrance anyone may see, and below it listings and actions for a signed caller only — see [security.md](security.md#the-admin) |
+| `/admin` … `/admin/{service}/{version}/{action}` | the framework's admin: an entrance anyone may see, and below it listings and actions for a signed caller, or a browser unlocked by an enrolled passkey — see [security.md](security.md#the-admin) |
 
 Any format declared on a release without a `HiDriveLink` returns a plain-text 503 instead of redirecting.
 

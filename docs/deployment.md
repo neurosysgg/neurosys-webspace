@@ -12,7 +12,7 @@ cgi-bin/                 ← App::above()
 ├── phpanta/             ← phpanta/src/ + phpanta/autoload.php — the framework, written first by a push
 ├── src/                 ← src/, with the prod AssetManifest.php laid over it
 ├── autoload.php
-├── data/                ← NOT web-exposed; releases, profiles, credentials, demos
+├── data/                ← NOT web-exposed; releases, profiles, credentials, demos, logs/, throttle/
 ├── .update-serial       ← the API's replay counter; in no mirrored or rsynced tree
 ├── .update-previous/    ← what the last push replaced, for `update v1 rollback`
 └── .update-stage/       ← where a push stages what it writes; empty between pushes
@@ -78,7 +78,50 @@ a log file but not its directory. `public/index.php` points `error_log` at
 own log instead — `health v1 report` shows `logs/` as a `warn` until it exists. The download log
 would land there too, if download logging were ever switched on.
 
-### 6. Check the HTTPS redirect on the first deploy
+### 6. The admin in a browser
+
+The admin lets a browser in by passkey — see [security.md](security.md#the-admin). That needs two
+things on the server that `deploy.sh` never creates, and a device enrolled by the signing key:
+
+- **`data/session.key`**, thirty-two random bytes, base64: it seals the admin's browser sessions and
+  its enrolment codes. Strato has no SSH, so mint it locally, upload it over SFTP as
+  `data/session.key`, and keep no copy of the live one here — the working tree's, if it has one, is
+  the local deployment's own:
+
+  ```bash
+  php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;' > session.key
+  ```
+
+- **`data/throttle/`**, a directory writable by PHP, where the entrance counts its posts. Without it
+  the entrance answers `503` and takes nothing.
+- **`data/admin-passkeys.json`** needs no upload: absent means no device is enrolled, and `access v1
+  enrol` writes it on the server. Upload an empty store (`[]`) only if you want the file there
+  first; `deploy.sh` excludes it either way.
+
+Then enrol a device:
+
+1. Open `https://neurosys.gg/admin` on it and choose **Register this device**. The page shows an
+   enrolment code, written as the command below, and the key's fingerprint. The code is good for
+   ten minutes.
+2. On the machine holding the signing key:
+
+   ```bash
+   php tools/api.php access v1 enrol --code <code> --name phone --dry-run
+   php tools/api.php access v1 enrol --code <code> --name phone
+   ```
+
+3. Back at `/admin`, **Unlock with a passkey**. An unlock lasts eight hours; every write asks for
+   the passkey again. `php tools/api.php access v1 passkeys` lists the devices, and `access v1
+   revoke --passkey <credential id>` takes one away from its next request on.
+
+**On a server still running the code from before `/admin`, the first deploy of it is `./deploy.sh`**
+— the push cannot reach a server that has no `/admin` (see
+[When a push is refused](#when-a-push-is-refused)). Before it, upload `data/session.key`, create
+`data/throttle/`, and check `data/logs/` still exists. After it, `php tools/api.php update v1
+version`, then register, enrol and unlock as above, re-check `.htaccess`, and check that
+`/api/update/v1/version` answers exactly like `/no-such-page`.
+
+### 7. Check the HTTPS redirect on the first deploy
 
 `public/.htaccess` redirects `http://` to `https://`, and `Strict-Transport-Security` then tells the
 browser not to try plaintext again for a year. This is the one change nothing local can verify —
@@ -461,12 +504,14 @@ bytes rather than the readable ones, which is correct — a stamp is a claim abo
 safe: the assets land before the manifest naming them, and `.htaccess` *strips* the version segment
 rather than resolving it, so a document cached with the previous stamp still finds the new files.
 
-**It deliberately excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub` and
-`data/session.key`**, and `data/logs/`. The copies of the first two in the repo are placeholders —
-`admin.php` ships an empty `pass_hash` — so syncing them would overwrite whatever each deployment
-holds; the other two have no repo copy at all, and each deployment holds its own. Upload
-those by hand when they actually change; a session key, if the site ever keeps sessions, is minted on
-the host it serves and never leaves it.
+**It deliberately excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub`,
+`data/session.key` and `data/admin-passkeys.json`**, and `data/logs/`. The copies of the first two
+in the repo are placeholders — `admin.php` ships an empty `pass_hash` — so syncing them would
+overwrite whatever each deployment holds; the other three have no repo copy at all, and each
+deployment holds its own. Upload the keys by hand when they actually change — see
+[The admin in a browser](#6-the-admin-in-a-browser) for the session key. The device store is written
+on the server by `access v1 enrol` and `revoke`, and a copy from here would put this machine's list
+of devices on the live host.
 
 **`--delete` is on for `public/` and `src/` and off for `data/`.** The two trees it deletes from are
 wholly generated or wholly committed, so the working tree is authoritative about what should be

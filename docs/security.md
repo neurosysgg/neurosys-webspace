@@ -6,16 +6,17 @@ the code does and, more usefully, *why* — an absence is worth writing down whe
 rather than an oversight, and most of the security here is absences. The assessments this came out
 of, and the findings they closed, are in [history/security.md](history/security.md).
 
-The short version: **the shape of the site is its first defense.** It is static, has no database,
-sets no cookie, starts no session, has no `<form>`, and has no runtime dependencies. Whole classes
+The short version: **the shape of the site is its first defense.** It is static, has no database and
+no runtime dependencies, and its pages start no session and hold no `<form>` — the admin's door for a
+browser is the one place either exists, and it opens only to an enrolled passkey. Whole classes
 of vulnerability are not mitigated here — they are structurally absent. What remains is enforced at
 type boundaries and at the single place markup is rendered, so the failure mode of a mistake is a
 build error or a thrown exception, not a silently shipped hole.
 
 **One address family writes.** `/admin/update/v1/patch` accepts a signed `POST` carrying a gzipped
 tarball and writes it into `src/` and the webroot — it is the deploy path, and the admin it belongs
-to is described in full under [The admin](#the-admin). Everything else is read-only, accepts no upload and persists nothing a request
-sends.
+to is described in full under [The admin](#the-admin), with the admin's other writes. Every page is
+read-only, accepts no upload and persists nothing a request sends.
 
 ## The attack surface
 
@@ -27,14 +28,17 @@ Everything an attacker can reach:
   deliberately no `/demos` index — see [demos.md](demos.md).
 - **Four more are the framework's admin**: `/admin`, `/admin/{service}`,
   `/admin/{service}/{version}` and `/admin/{service}/{version}/{action}`, the last of which accepts
-  a `POST`. A caller whose ECDSA signature this deployment's public key does not verify sees the
-  entrance at `/admin` and nothing else: every depth below it, existing or not, under every verb,
-  gives one answer — a `303` back to the entrance for a page, a `401` challenging for `NS1` for
-  data. **Three services answer under it**: `update`, which writes, and `health` and `capability`,
-  which only read. That difference is visible only past the gate: `ApiController` asks the gate
-  before it has resolved a service at all, so a stranger learns that there is an admin and nothing
-  about what is in it. Both suites sweep all three. `/api`, where the admin used to be, matches no
-  route and answers exactly like `/no-such-page`.
+  a `POST`. A caller whose ECDSA signature this deployment's public key does not verify, and whose
+  session no enrolled passkey unlocked, sees the entrance at `/admin` and nothing else: every depth
+  below it, existing or not, under every verb, gives one answer — a `303` back to the entrance for a
+  page, a `401` challenging for `NS1` for data. The entrance itself takes a `POST` from anyone, for
+  its passkey ceremonies, counted per address. **Four services answer under it**: `update`, which
+  writes, `access`, which enrols and revokes the devices a browser may open the admin with, and
+  `health` and `capability`, which only read. That difference is visible only past the gate:
+  `ApiController` asks who is calling before it has resolved a service at all, so a stranger learns
+  that there is an admin and nothing about what is in it. Both suites sweep `update`, `health` and
+  `capability`. `/api`, where the admin used to be, matches no route and answers exactly like
+  `/no-such-page`.
 - **Static assets** under `/assets/`, served by the web server, never by PHP. The one exception is a
   demo's audio, which PHP serves itself precisely so that it is *not* static — see below.
 - Everything else answers `404` or `405`.
@@ -45,20 +49,24 @@ headers the app reads — `Authorization`, and the six `RequestHeader` cases: `X
 written in the language they pick; of the cookies only `lang` is read, and only as one of the
 `Language` cases — anything else falls through), and `Referer` (`/language/{language}` alone, where
 only its path is used — see [the language cookie](#the-language-cookie)) — plus the referrer once
-more when download logging is on, which it is not; and, under `/admin` alone, a **request body**.
+more when download logging is on, which it is not; and, under `/admin` alone, the `__Host-session`
+cookie and a **request body**.
 
-That body is read at one call site, and **it is not read at all until a signature has verified**.
-The credential arrives in `Authorization` rather than framed into the body, so an unsigned caller is
-refused before `php://input` is touched, and the read that does happen is bounded by the *signed*
-length — which `ApiGate::MAX_BODY` (8 MiB) caps — rather than by `post_max_size`.
+A signed call's body is read at one call site, and **it is not read at all until a signature has
+verified**. The credential arrives in `Authorization` rather than framed into the body, so an
+unsigned caller is refused before `php://input` is touched, and the read that does happen is bounded
+by the *signed* length — which `ApiGate::MAX_BODY` (8 MiB) caps — rather than by `post_max_size`. A
+browser's form is the other body, read by the framework's `AdminBrowser` alone: at the entrance only
+after the post has been counted against the sender's address, and below it only for a session a
+passkey unlocked — bounded by `Request::MAX_FORM` either way.
 
 What is *not* in the surface, and the bug class each absence removes:
 
 | Not present | Class it removes |
 |---|---|
 | No database, no SQL | SQL injection |
-| No session, and one cookie that is only a preference | session fixation/hijack; the ambient credential CSRF rides |
-| No `<form>`, no ambient credential | CSRF target; mass-assignment |
+| No session outside the admin, and one cookie that is only a preference | session fixation/hijack; the ambient credential CSRF rides |
+| No `<form>` outside the admin, no ambient credential | CSRF target; mass-assignment |
 | No user-facing upload, no user content | stored XSS |
 | No path built from a request | traversal — a demo's audio is addressed by a declared label, and an update's members are matched against an allowlist of three roots |
 | No `unserialize()` of request data | object injection |
@@ -162,8 +170,8 @@ The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#4
 
 ### 3 (again). Authentication
 
-Three gates. Two are HTTP Basic — the pre-launch site gate and each demo's; the third is a
-signature, described under [The admin](#the-admin). The framework's Basic admin gate, `AdminGate`,
+Three gates. Two are HTTP Basic — the pre-launch site gate and each demo's; the third is the
+admin's, a signature or an enrolled passkey, described under [The admin](#the-admin). The framework's Basic admin gate, `AdminGate`,
 stands on no route here, and `RoutingTest` asserts that none carries it.
 
 The site gate asks the framework's question of a credentials file, `Auth::accepts()`. A demo's
@@ -220,20 +228,22 @@ way to leave the door open, and it fails the suite. Both end up in one compariso
   claims the `Authorization` header and no request can satisfy a demo gate — or a signed admin
   call — as well. See [Known and accepted](#known-and-accepted).
 
-**There is no CSRF surface, and that is a property rather than an oversight.** It rests on two
-facts, either of which would be enough: the site starts no session, and its one cookie, `lang`, is a
-preference rather than a credential — it opens nothing, so a cross-site request that carries it gains
-nothing (and it is `SameSite=Lax` all the same); and there is no `<form>` anywhere, while the
-Basic-authenticated routes are ones the browser sends credentials to because of the realm rather
-than the origin. `/admin` does accept a `POST`, and a cross-site `POST` to it cannot forge an ECDSA
-signature. So there is no form token, and nothing for one to protect.
+**The site's pages have no CSRF surface, and that is a property rather than an oversight.** It rests
+on two facts, either of which would be enough: no page starts a session, and the site's one cookie,
+`lang`, is a preference rather than a credential — it opens nothing, so a cross-site request that
+carries it gains nothing (and it is `SameSite=Lax` all the same); and no page has a `<form>`, while
+the Basic-authenticated routes are ones the browser sends credentials to because of the realm rather
+than the origin. A signed `POST` to `/admin` cannot be forged cross-site either: nothing a browser
+sends on its own carries an ECDSA signature.
 
-The framework has both halves of the other arrangement — a sealed cookie session, and the
-`CsrfGuard` layer that holds every write to the token that session handed out; see
-[phpanta/docs/security.md](../phpanta/docs/security.md#sessions-the-form-token-and-the-login). The
-day this site has a form and a login is the day this paragraph changes, and they are listed on the
-routes that take the writes.
-([history](history/security.md))
+**The admin's browser door is the one place a session and a form exist**, and a cross-site post is
+refused there three times over: the `__Host-session` cookie is `SameSite=Lax`, so it is not sent;
+every post must carry the form token its session handed out, which the admin checks itself rather
+than through `CsrfGuard`, because the guard on its routes would refuse every signed write; and every
+write needs a fresh tap of the unlocking passkey over a challenge bound to that write's method and
+address, which no other origin can ask for. See
+[phpanta/docs/security.md](../phpanta/docs/security.md#a-browser-by-passkey).
+([history](history/api.md))
 
 ### 5. The response — output safety in the markup tree
 
@@ -300,8 +310,23 @@ What is this site's about it:
 
 - **That it exists is public, by decision.** The source is open, so an address pretending not to be
   there would hide nothing a reader could not look up; what the gate keeps is what is *in* the
-  admin. Nothing on the site links to `/admin` yet, and a browser, which cannot sign, sees only the
-  entrance. ([history](history/api.md#2026-09-14--the-admin-moves-to-admin-and-says-that-it-is-there))
+  admin. Nothing on the site links to `/admin` yet. ([history](history/api.md#2026-09-14--the-admin-moves-to-admin-and-says-that-it-is-there))
+- **A browser opens it with a passkey the signing key enrolled.** It registers at the entrance and
+  is shown an enrolment code; `php tools/api.php access v1 enrol --code <code> --name <name>` makes
+  it a device; it unlocks for eight hours, and taps again for every write. A browser can never
+  enrol itself, and never runs `update v1 patch`. See
+  [phpanta/docs/security.md](../phpanta/docs/security.md#a-browser-by-passkey) and, for the steps,
+  [deployment.md](deployment.md#6-the-admin-in-a-browser).
+  ([history](history/api.md#2026-09-14--a-browser-by-passkey))
+- **`Site::origin()` is what switches passkeys on here.** It names `https://neurosys.gg`, so a
+  passkey's relying party is `neurosys.gg`. In development and from loopback only, the request's own
+  `Origin` comes first, so the local Apache — with `PHPANTA_ENVIRONMENT=development` in its vhost —
+  runs a real ceremony at `neurosys.localhost`, against a key registered there. A passkey is bound to
+  the host it was registered on, so a local device's key opens nothing on the live site.
+- **The browser door needs three things per deployment**: `data/session.key`, which seals its
+  sessions and its enrolment codes; `data/admin-passkeys.json`, the enrolled devices, absent meaning
+  none; and `data/throttle/`, where the entrance counts its posts, ten per address in fifteen
+  minutes. `deploy.sh` excludes the two files, and creates none of the three.
 
 - **Why it exists here.** Deploying with `rsync -c` over a GVFS SFTP mount costs **480 ms** a
   `stat` and **3.7 s** to walk `src/` alone, across 269 files, for a payload that is **250 KB
@@ -314,7 +339,8 @@ What is this site's about it:
 - **The serial is `cgi-bin/.update-serial`** on the live host: above the webroot, in neither mirrored
   tree, and in no tree `deploy.sh` rsyncs.
 - **No push can reach `data/`**, which is what keeps `data/admin.php`, `data/site_auth.php`,
-  `data/demos.php` and 8.6 MB of unreleased audio out of reach however well a payload is signed.
+  `data/session.key`, `data/admin-passkeys.json`, `data/demos.php` and 8.6 MB of unreleased audio
+  out of reach however well a payload is signed.
 - **`Authorization` has to survive Strato**, and `public/.htaccess` puts it back with
   `E=HTTP_AUTHORIZATION`. All three Basic gates already depend on it arriving, which is the
   strongest evidence available that Strato forwards it — but a proxy that strips it fails closed and
@@ -368,7 +394,9 @@ assessments turned up is fixed — see [history/security.md](history/security.md
   so while `data/site_auth.php` exists the admin's credential is in the wrong scheme, the gate sees
   an empty user, and the request is a `401`. That is the interaction demos already have, and it
   leaks nothing — that gate answers `401` for *every* path alike, the admin's included. It is moot
-  today, because the gate is off.
+  today, because the gate is off. A browser fares better: it sends the site gate's Basic credential
+  and the admin's session cookie together, so a device already enrolled can unlock and use the
+  admin behind the gate — but none can be enrolled while it is up, since enrolling is a signed call.
 
   The fix, if it is ever needed, is a decision rather than a patch, and the shape matters: standing
   the site gate down whenever an `NS1` header is merely **present** would let anybody who sends one
@@ -379,12 +407,11 @@ assessments turned up is fixed — see [history/security.md](history/security.md
 ## What is deliberately not here
 
 - **No web-application firewall, and no rate limit listed.** This is a static site on shared hosting;
-  the perimeter is the host's. The framework ships a `RateLimit` layer; this site has no login and no
-  write for one to protect, and lists none.
-- **No form tokens and no session.** There is nothing for them to protect — see the CSRF paragraph
-  under [Authentication](#3-again-authentication). The CSP still carries `form-action 'self'`,
-  which on a site with no forms is belt over braces and stays because the day a form appears is not
-  the day anyone will remember to add it.
+  the perimeter is the host's. The framework ships a `RateLimit` layer, and this site lists none: its
+  pages take no attempts, and the one door that does, the admin's entrance, counts them itself.
+- **No form tokens and no session outside the admin.** A page has nothing for them to protect — see
+  the CSRF paragraph under [Authentication](#3-again-authentication). The CSP's `form-action 'self'`
+  holds the admin's forms to this origin as well.
 - **No cookie or consent banner** for the site itself — its one cookie is the language a visitor
   chose, set only when they click the switch. The one consent gate is on
   the SoundCloud embed, which contacts no third party until the visitor clicks: the served HTML
