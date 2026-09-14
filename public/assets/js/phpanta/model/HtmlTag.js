@@ -35,6 +35,7 @@ export var HtmlTag;
     HtmlTag["Table"] = "table";
     HtmlTag["Tr"] = "tr";
     HtmlTag["Td"] = "td";
+    HtmlTag["Tbody"] = "tbody";
     HtmlTag["Form"] = "form";
     HtmlTag["Input"] = "input";
     HtmlTag["Label"] = "label";
