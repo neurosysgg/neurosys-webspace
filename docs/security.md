@@ -102,7 +102,7 @@ itself.
 
 ### 1. Transport — HTTPS and HSTS
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#1-transport--https-and-hsts).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#transport--https-and-hsts).
 The site's half is the redirect, and what the verify script holds the build to:
 
 - **`public/.htaccess` redirects `http://` to `https://` before any PHP runs, and asks two
@@ -118,7 +118,7 @@ The site's half is the redirect, and what the verify script holds the build to:
 
 ### 2. Response headers — typed, and sent before anything can fail
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#2-response-headers--typed-and-sent-before-anything-can-fail).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#response-headers--typed-and-sent-before-anything-can-fail).
 The site widens the framework's strict policy in exactly two places, both from
 `Site::contentHosts()`: its images come from HiDrive and its player is SoundCloud's. HSTS and
 `Permissions-Policy` are the framework's defaults, unwidened. The policy as sent:
@@ -143,7 +143,7 @@ Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'
 
 ### 3 + 4. The method gate
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#3--4-the-method-gate).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#the-method-gate).
 Here that is the site's nine `ReadOnly` routes and the framework's four admin routes, `Delegated`.
 The verify script sweeps `BREW` alongside every real verb at every admin depth, existing or not, and
 holds each to one answer everywhere: a `303` for a page, a `401` for data. Under `php -S` an unknown
@@ -158,7 +158,7 @@ either way. If the live answer ever changes, the only lever is a `RewriteRule` r
 
 ### 2 (again). Parsing the request defensively
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#2-again-parsing-the-request-defensively).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#parsing-the-request-defensively).
 `RoutingTest` pins that an unparseable target still matches a `{slug}` route and `RequestTest` pins
 where the fallback cuts it. What keeps a hostile slug out of a header here is a demo's realm, under
 [Authentication](#3-again-authentication). The `parse_url()` that was once here, and the `500` it
@@ -166,7 +166,7 @@ made of `GET ///`, are in [history/security.md](history/security.md).
 
 ### 4 (again). Routing
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#4-again-routing).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#routing).
 
 ### 3 (again). Authentication
 
@@ -239,7 +239,7 @@ address, which no other origin can ask for. See
 
 ### 5. The response — output safety in the markup tree
 
-The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#5-the-response--output-safety-in-the-markup-tree).
+The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#the-response--output-safety-in-the-markup-tree).
 The site's side of it:
 
 - **The verify script fails a heredoc or a `'<tag'` literal** anywhere under `src/` or
