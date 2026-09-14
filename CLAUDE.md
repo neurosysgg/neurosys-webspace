@@ -268,8 +268,9 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - **Passkeys are on because `Site::origin()` names `https://neurosys.gg`** — and only where
   `data/session.key` exists; without it the entrance says browsers cannot sign in. In development
   and from loopback only, the request's own `Origin` comes first, so the local Apache runs a real
-  ceremony at `neurosys.localhost` — with a key registered there, which opens nothing live. A revocation takes effect on the
-  next request; a browser write's tap binds `POST <path>`, not the field values.
+  ceremony at `neurosys.localhost` — with a key registered there, which opens nothing live. A revocation or a lock takes effect
+  on the next request, and a lock ends every copy of the session too; an unlock writes
+  `data/admin-passkeys.json`; a browser write's tap binds `POST <path>`, not the field values.
 - **A caller the admin cannot verify gets one answer at every depth below `/admin`**, whether the
   address exists or not — a `303` to `/admin` for a page, a `401` challenging for `NS1` for data,
   never an `Allow`. An answer that differed for a real address would tell a stranger what is in it,

@@ -92,3 +92,5 @@ data/session.key
 # two above, and a copy here would enrol this machine's list on whatever it was deployed to.
 # deploy.sh excludes it too.
 data/admin-passkeys.json
+# The lock every write to that store takes: a file beside it, since the store is renamed into place.
+data/admin-passkeys.json.lock
