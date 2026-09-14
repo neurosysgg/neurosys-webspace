@@ -27,7 +27,7 @@ request
             ├─ SecurityHeaders::send()      ① headers first, so even the last-resort 500 has them
             ├─ Request::fromGlobals()       ② $_SERVER → a typed, readonly Request
             ├─ App::handle()                the request → an Answer, sending nothing — what a test calls
-            │    ├─ SiteGate, the first layer ③ pre-launch gate; may answer 401
+            │    ├─ App::layerTable()         ③ the app's layers — none here
             │    ├─ Router::dispatch()        ④ URL → Controller, then the method gate → Response
             │    └─ Response::answer()        ⑤ status, headers, body — security headers put first
             └─ Answer::send()               the one place anything is sent
@@ -137,7 +137,7 @@ there is nothing to share.
 | `WaveformRepository` | `data/demos/{slug}/{label}.wave` — a missing sidecar is a card without a picture |
 | `DemoGate` | each demo's password hash, checked on the framework's `Auth` primitives |
 | `DownloadLogger` | `data/logs/downloads.log` — returns before doing anything, see below |
-| `Auth`, `ApiGate`, `UpdateApplier` | Phpanta's: `data/site_auth.php`; every check a signed call passes, and the writing a push does — see [security.md](security.md) |
+| `ApiGate`, `UpdateApplier` | Phpanta's: every check a signed call passes, and the writing a push does — see [security.md](security.md) |
 
 The repositories load lazily and cache, and take an optional path so a test can point them somewhere
 else. Each reads a PHP file that `return`s typed objects — there is no parser, no schema, no
@@ -232,10 +232,9 @@ claims and hands the rest back to PHP untouched. See [guidelines.md](../phpanta/
 `File` like any other, `read()` would answer null for it, and each repository turns that null into an
 empty collection *on purpose* — because a clone that has never staged a demo has to be a site rather
 than a fatal. So the guard that makes a fresh checkout work is the guard that would swallow a typo:
-`releaes.php` would be an empty catalogue with a 200 and nothing in any log. Nine cases, three of
-them where a credential lives — and `site_auth.php` is worse than quiet: its **absence is the off
-switch**, so a misspelling there would not fail, it would stand the pre-launch gate down. `AppTest`
-iterates the cases and asks `isTracked()`, which is checked against git rather than against a
+`releaes.php` would be an empty catalogue with a 200 and nothing in any log. The credentials are
+not among them: they are the framework's `CredentialFile` cases, and every one of those fails
+closed. `AppTest` iterates the cases and asks `isTracked()`, which is checked against git rather than against a
 comment.
 
 **The privacy policy is two cases, one per language**, because the page's order is the visitor's
@@ -517,8 +516,8 @@ every existing one does, and that is what makes the failure self-service. Anchor
   worth recognising: `$collection->with($x);` on its own line is always a bug.
 - **`data/logs/` is not auto-created**, and `File` will not create it. `fopen(…, 'ab')` makes the
   file, not its directory, and `deploy.sh` excludes it. Latent while logging is off.
-- **A misspelled `DataFile` is not an error** — it is an empty catalogue, or, for `site_auth.php`, a
-  gate switched off. Name data files through the enum only.
+- **A misspelled `DataFile` is not an error** — it is an empty catalogue. Name data files through the enum
+  only.
 
 ---
 

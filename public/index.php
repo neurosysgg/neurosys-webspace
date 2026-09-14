@@ -56,7 +56,7 @@ set_exception_handler(static function (Throwable $fault): void {
 /*
  * Everything else is the app's: the error log (so every diagnostic from here on, the handler's own
  * line above included, goes to this month's file under data/logs/), the security headers, the
- * request, the site gate and the route. autoload.php has already booted it. See App::run(), which
+ * request and the route. autoload.php has already booted it. See App::run(), which
  * answers a fault inside the request itself — App::fault() — so the handler above sees only what
  * escapes that: a fault before the request is read, or while the answer is going out.
  */

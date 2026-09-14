@@ -325,6 +325,52 @@ browser sends credentials because of the realm rather than the origin.
 verbatim; `MarkupParser` reads those two files into the tree instead, so a hand-authored document is
 subject to every rule above rather than exempt from them.
 
+### 2026-09-14 — the pre-launch gate goes
+
+*From security.md's "Authentication" and "Known and accepted", and demos.md.*
+
+The site went up behind HTTP Basic: `Auth::siteGate()`, the first thing every request that reached
+PHP met, switched on by the presence of `data/site_auth.php` and off by its absence. From launch it
+was kept off by dot-prefixing the file to `.site_auth.php`. A fresh-eyes review of the framework
+found that, standing first, it also stood in front of `/admin`, where a signed call's `NS1`
+credential and the gate's Basic one would compete for the one `Authorization` header. With the
+admin opened by passkey and `LoginGate` there for a page that needs a password, the gate was removed
+from the framework rather than taught to stand aside.
+
+security.md said:
+
+> **Only one credential fits in a request.** While `data/site_auth.php` exists, the pre-launch gate
+> claims the `Authorization` header and no request can satisfy a demo gate — or a signed admin
+> call — as well.
+
+and, under "Known and accepted":
+
+> **While the pre-launch site gate is on, no signed admin call and no demo can be reached.**
+> `siteGate()` runs before the router and is HTTP Basic on the same `Authorization` header,
+> so while `data/site_auth.php` exists the admin's credential is in the wrong scheme, the gate sees
+> an empty user, and the request is a `401`. That is the interaction demos already have, and it
+> leaks nothing — that gate answers `401` for *every* path alike, the admin's included. It is moot
+> today, because the gate is off. A browser fares better: it sends the site gate's Basic credential
+> and the admin's session cookie together, so a device already enrolled can unlock and use the
+> admin behind the gate — but none can be enrolled while it is up, since enrolling is a signed call.
+>
+> The fix, if it is ever needed, is a decision rather than a patch, and the shape matters: standing
+> the site gate down whenever an `NS1` header is merely **present** would let anybody who sends one
+> past the pre-launch gate. It has to stand down only for a request whose signature has already
+> **verified**, which means running the admin's gate once, before `siteGate()`, and handing the
+> result on.
+
+demos.md had a section of its own, "A demo is unreachable while the pre-launch site gate is on":
+
+> `Auth::siteGate()` runs on every request that reaches PHP, and both gates are HTTP Basic — a
+> request carries exactly **one** `Authorization` header. So while `data/site_auth.php` exists, a
+> request can satisfy the site gate or a demo gate and never both, and `/demos/{slug}` answers `401`
+> whatever you send it.
+>
+> This does not bite today: the site is public and the gate is switched off (the file is dot-prefixed
+> to `.site_auth.php`). It would bite the day it is switched back on, so the verify script skips the
+> demo HTTP checks and says why when it sees that file.
+
 ## From the code comments
 
 *Moved out of comments under `src/`, `test/` and `tools/` when those were brought to the present

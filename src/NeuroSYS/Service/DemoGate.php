@@ -48,10 +48,9 @@ final class DemoGate
     /**
      * Enforces one demo's own password, and hands back the demo it let through.
      *
-     * There is no unconfigured case here, the way there is for the site gate: a {@link Demo} cannot
-     * be constructed without a {@link PasswordHash}, so a demo that is reachable is a demo that is
-     * gated. `data/site_auth.php`'s absence switching a gate *off* is deliberate there and must not
-     * be possible here.
+     * There is no unconfigured case here: a {@link Demo} cannot be constructed without a
+     * {@link PasswordHash}, so a demo that is reachable is a demo that is gated. A credential's
+     * absence must never be how a gate is switched off.
      *
      * **This is the gate on the audio as well as on the page.** The files live under `data/`, which
      * Apache does not serve, so {@link \NeuroSYS\Controller\DemoAudioController} calls this too —

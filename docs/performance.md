@@ -94,7 +94,6 @@ preload block costs ([below](#inside-the-tree)):
 | `SecurityHeaders::send` | 0.216 | 7.6% |
 | `Request::fromGlobals` | 0.021 | 0.7% |
 | `RouteInitialization::routes` | 0.019 | 0.7% |
-| `Auth::siteGate` | 0.008 | 0.3% |
 | `ETag::forBody` | 0.005 | 0.2% |
 
 **Eighty percent of a request is building and rendering the markup tree.** Routing, authentication,

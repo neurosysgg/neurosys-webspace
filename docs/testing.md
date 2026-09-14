@@ -39,8 +39,8 @@ is built in and `jsdom` supplies the DOM; both are dev-only.
 
 The division matters in a few concrete places:
 
-- **Nothing ends the request but `App::run()`, so every answer is a value.** `Auth::siteGate()`,
-  `Auth::adminGate()` and `DemoGate::enter()` return their `401` rather than exiting, and
+- **Nothing ends the request but `App::run()`, so every answer is a value.** `Auth::adminGate()`
+  and `DemoGate::enter()` return their `401` rather than exiting, and
   `App::handle()` answers a whole request — gate, router, controller, security headers — without
   sending it. `TestRequest`, from `phpanta/test/`, builds a request without touching `$_SERVER` and
   asks for that answer. So the framework's `ApiTest` asserts that a stranger below `/admin` is sent

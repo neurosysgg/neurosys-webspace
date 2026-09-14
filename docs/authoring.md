@@ -281,8 +281,8 @@ Three environment variables — `NEUROSYS_SOUNDCLOUD_CLIENT_ID`, `_CLIENT_SECRET
 and all three or nothing: two thirds of a credential authenticates nothing, and being told which
 ones are missing beats a 401 from the far end.
 
-**Not `data/`.** `deploy.sh` rsyncs that directory to Strato and keeps `admin.php`, `site_auth.php`
-and `update.pub` off it with an `--exclude` each — one line per file, added by hand, and a file is
+**Not `data/`.** `deploy.sh` rsyncs that directory to Strato and keeps `admin.php`, `update.pub`,
+`session.key` and `admin-passkeys.json` off it with an `--exclude` each — one line per file, added by hand, and a file is
 deployed the day somebody forgets. The rotating OAuth token goes to
 `~/.config/neurosys/soundcloud.json` at mode 0600, outside the repository, where no `.gitignore`
 entry and no rsync flag is what stands between it and a webroot.

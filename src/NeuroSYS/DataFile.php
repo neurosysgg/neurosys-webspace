@@ -14,11 +14,11 @@ use Phpanta\DataFileName;
  * and each repository turns that null into an empty collection on purpose — because a clone that
  * has never staged a demo has to be a site rather than a fatal. So the guard that makes a fresh
  * checkout work is the same guard that swallows a typo: `releaes.php` gives an empty catalogue, a
- * 200, and no line in any log. The files where that would be worse — the two gates' credentials
- * and the API's key — are not here: the code that reads them is the framework's, so they are
+ * 200, and no line in any log. The files where that would be worse — the admin's credentials and
+ * keys — are not here: the code that reads them is the framework's, so they are
  * {@link CredentialFile}'s cases, and {@link App::dataFiles()} lists both vocabularies together.
  *
- * `test/unit/ConfigTest.php` iterates {@link self::cases()} and asks {@link self::isTracked()}
+ * `test/unit/AppTest.php` iterates {@link self::cases()} and asks {@link self::isTracked()}
  * rather than keeping a hand-maintained list of its own, so the list of files the site expects
  * cannot fall behind the site. See docs/history/types.md.
  */

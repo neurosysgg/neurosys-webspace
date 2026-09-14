@@ -17,7 +17,8 @@ data/logs/
 # more than the two identifiers do, the fix is to commit it with those read from the environment.
 deploy.sh
 
-# Pre-public site auth — dot-prefix the file to disable the gate without losing it
+# The retired pre-launch gate's credentials. Nothing reads either name any more; the lines stay
+# while a clone may still hold a copy, so a leftover bcrypt hash never lands in a commit.
 data/site_auth.php
 data/.site_auth.php
 
@@ -66,8 +67,8 @@ data/demos/
 #
 # The key is per-deployment — that is what binds a signed payload to one server without any field
 # in the manifest naming one — and its *absence* is the off switch: no key, no endpoint. So a
-# clone starts closed rather than open, which is the opposite polarity to data/site_auth.php above
-# and worth reading twice. deploy.sh excludes it too; upload it by hand, once.
+# clone starts closed rather than open, as every credential file here does. deploy.sh excludes it
+# too; upload it by hand, once.
 #
 # The private half is never here at all. It lives at ~/.config/neurosys/update.key, outside the
 # repository entirely, the way the SoundCloud refresh token does.

@@ -12,9 +12,6 @@
 #
 # Usage (from any directory):
 #   bash test/basic_test.sh
-#
-# If data/site_auth.php is active (pre-launch auth), pass credentials:
-#   SITE_USER=preview SITE_PASS='...' bash test/basic_test.sh
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 AUTOLOAD="$REPO/autoload.php"
@@ -153,18 +150,7 @@ check_revalidates() {
     fi
 }
 
-# Build curl args — include Basic Auth credentials if site_auth.php is active.
 CURL_ARGS=(-s)
-if [[ -f "$REPO/data/site_auth.php" ]]; then
-    if [[ -n "${SITE_USER:-}" && -n "${SITE_PASS:-}" ]]; then
-        CURL_ARGS+=(-u "${SITE_USER}:${SITE_PASS}")
-    else
-        echo "NOTE: data/site_auth.php is active — HTTP checks will 401 without credentials."
-        echo "      Run: SITE_USER=<user> SITE_PASS=<pass> bash test/basic_test.sh"
-        echo ""
-    fi
-fi
-
 
 echo ""
 echo "=== Environment ==="
@@ -474,11 +460,10 @@ else
     pass "no credentials in releases.php / profiles.php"
 fi
 
-if git -C "$REPO" ls-files --error-unmatch data/site_auth.php >/dev/null 2>&1 \
-   || git -C "$REPO" ls-files --error-unmatch deploy.sh >/dev/null 2>&1; then
+if git -C "$REPO" ls-files --error-unmatch deploy.sh >/dev/null 2>&1; then
     fail "a gitignored credential file is tracked by git"
 else
-    pass "site_auth.php and deploy.sh are untracked"
+    pass "deploy.sh is untracked"
 fi
 
 # Every brand icon Platform names must exist, or the footer renders broken images.
@@ -939,83 +924,75 @@ else
     fail "the demo challenge does not name the demo: ${demo_realm:-<none>}"
 fi
 
-# Everything past here has to hand over the demo's password, and a request carries exactly one
-# Basic credential. So where the pre-launch site gate is active it has already claimed that header,
-# and no request can satisfy both gates — which is a real property of the site rather than a gap in
-# this script, and is why docs/demos.md says demos are unreachable while the site gate is on.
-if [[ -f "$REPO/data/site_auth.php" ]]; then
-    echo "  SKIP the rest of the demo checks — the site gate is active, and Basic Auth carries"
-    echo "       one credential per request, so no request can satisfy both gates. See docs/demos.md."
+# Everything past here hands over the demo's password, and gives it back afterwards.
+CURL_ARGS_WITHOUT_DEMO=("${CURL_ARGS[@]}")
+CURL_ARGS+=(-u "demo:$DEMO_PASS")
+
+check_status "GET /demos/{slug} (right password) → 200" "$BASE/demos/$DEMO_SLUG"           200
+
+check_header "  the page is not to be stored"       "$BASE/demos/$DEMO_SLUG"  "^cache-control: no-store, private"
+check_header "  nor indexed"                        "$BASE/demos/$DEMO_SLUG"  "^x-robots-tag: noindex"
+# No validator, so no 304: a page reached by handing over a password must not come back on a
+# guessed ETag. ViewResponse stands down because the controller already said how it may be kept.
+check_no_header "  and carries no validator"        "$BASE/demos/$DEMO_SLUG"  "^etag:"
+
+# The audio. This is the difference between a demo and a release: a release redirects to a
+# HiDrive share URL anyone can forward, and these bytes are under data/, which Apache cannot
+# reach at all — so this route is the only way to them, and it asks for the password first.
+# The waveform reached the page. It is a decoration, so nothing anywhere fails when it does not
+# — which is exactly why the one end-to-end check of it is worth having.
+demo_page=$(curl "${CURL_ARGS[@]}" "$BASE/demos/$DEMO_SLUG" 2>/dev/null || true)
+if grep -q '<demo-waveform' <<< "$demo_page"; then
+    pass "  the card is the waveform element"
 else
-    CURL_ARGS_WITHOUT_DEMO=("${CURL_ARGS[@]}")
-    CURL_ARGS+=(-u "demo:$DEMO_PASS")
-
-    check_status "GET /demos/{slug} (right password) → 200" "$BASE/demos/$DEMO_SLUG"           200
-
-    check_header "  the page is not to be stored"       "$BASE/demos/$DEMO_SLUG"  "^cache-control: no-store, private"
-    check_header "  nor indexed"                        "$BASE/demos/$DEMO_SLUG"  "^x-robots-tag: noindex"
-    # No validator, so no 304: a page reached by handing over a password must not come back on a
-    # guessed ETag. ViewResponse stands down because the controller already said how it may be kept.
-    check_no_header "  and carries no validator"        "$BASE/demos/$DEMO_SLUG"  "^etag:"
-
-    # The audio. This is the difference between a demo and a release: a release redirects to a
-    # HiDrive share URL anyone can forward, and these bytes are under data/, which Apache cannot
-    # reach at all — so this route is the only way to them, and it asks for the password first.
-    # The waveform reached the page. It is a decoration, so nothing anywhere fails when it does not
-    # — which is exactly why the one end-to-end check of it is worth having.
-    demo_page=$(curl "${CURL_ARGS[@]}" "$BASE/demos/$DEMO_SLUG" 2>/dev/null || true)
-    if grep -q '<demo-waveform' <<< "$demo_page"; then
-        pass "  the card is the waveform element"
-    else
-        fail "the demo card is not a <demo-waveform> — the sidecar did not reach the view"
-    fi
-
-    demo_peaks=$(grep -oE 'peaks="[A-Za-z0-9+/=]+"' <<< "$demo_page" | head -1 | sed 's/peaks="//;s/"$//')
-    demo_bytes=$(php -r "echo strlen(base64_decode('$demo_peaks', true));")
-    demo_wanted=$(php -r "require '$REPO/autoload.php';
-        echo NeuroSYS\Model\Waveform::COLUMNS * NeuroSYS\Model\WaveformBand::stride();")
-    if [[ "$demo_bytes" == "$demo_wanted" ]]; then
-        pass "  and carries every column of it ($demo_bytes bytes)"
-    else
-        fail "the peaks attribute decoded to $demo_bytes bytes, wanted $demo_wanted"
-    fi
-
-    check_header "the audio declares what it is"        "$BASE/demos/$DEMO_SLUG/v1"  "^content-type: audio/mpeg"
-    check_header "  and that it can be asked in parts"  "$BASE/demos/$DEMO_SLUG/v1"  "^accept-ranges: bytes"
-    check_header "  and how long it is"                 "$BASE/demos/$DEMO_SLUG/v1"  "^content-length: 10"
-    check_no_header "  and is not to be stored either"  "$BASE/demos/$DEMO_SLUG/v1"  "^etag:"
-
-    # Ranges, which are not a nicety: an <audio> element seeks by asking for one, so a server that
-    # ignores them gives a player that plays and will not skip, with nothing in any console.
-    demo_body=$(curl "${CURL_ARGS[@]}" -r 3-5 "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
-    demo_code=$(curl "${CURL_ARGS[@]}" -r 3-5 -o /dev/null -w '%{http_code}' "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
-    if [[ "$demo_code" == "206" && "$demo_body" == "345" ]]; then
-        pass "a range request gets exactly the bytes it named (206)"
-    else
-        fail "a range request returned $demo_code with '$demo_body' (wanted 206 and '345')"
-    fi
-
-    demo_headers=$(curl "${CURL_ARGS[@]}" -r 3-5 -o /dev/null -D - "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null | tr -d '\r' || true)
-    if grep -qi '^content-range: bytes 3-5/10' <<< "$demo_headers"; then
-        pass "  and says which part it sent"
-    else
-        fail "the 206 did not state its Content-Range"
-    fi
-
-    demo_code=$(curl "${CURL_ARGS[@]}" -r 500- -o /dev/null -w '%{http_code}' "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
-    if [[ "$demo_code" == "416" ]]; then
-        pass "a range past the end is refused (416), not answered with the whole file"
-    else
-        fail "a range past the end returned $demo_code, wanted 416"
-    fi
-
-    # Nothing in a URL may name a file. The last segment is matched against declared labels, never
-    # resolved as a path — so a traversal is a label naming no track, which is a 404 like any other.
-    check_status "  no label names a file             → 404" "$BASE/demos/$DEMO_SLUG/v2"       404
-    check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2freleases.php" 404
-
-    CURL_ARGS=("${CURL_ARGS_WITHOUT_DEMO[@]}")
+    fail "the demo card is not a <demo-waveform> — the sidecar did not reach the view"
 fi
+
+demo_peaks=$(grep -oE 'peaks="[A-Za-z0-9+/=]+"' <<< "$demo_page" | head -1 | sed 's/peaks="//;s/"$//')
+demo_bytes=$(php -r "echo strlen(base64_decode('$demo_peaks', true));")
+demo_wanted=$(php -r "require '$REPO/autoload.php';
+    echo NeuroSYS\Model\Waveform::COLUMNS * NeuroSYS\Model\WaveformBand::stride();")
+if [[ "$demo_bytes" == "$demo_wanted" ]]; then
+    pass "  and carries every column of it ($demo_bytes bytes)"
+else
+    fail "the peaks attribute decoded to $demo_bytes bytes, wanted $demo_wanted"
+fi
+
+check_header "the audio declares what it is"        "$BASE/demos/$DEMO_SLUG/v1"  "^content-type: audio/mpeg"
+check_header "  and that it can be asked in parts"  "$BASE/demos/$DEMO_SLUG/v1"  "^accept-ranges: bytes"
+check_header "  and how long it is"                 "$BASE/demos/$DEMO_SLUG/v1"  "^content-length: 10"
+check_no_header "  and is not to be stored either"  "$BASE/demos/$DEMO_SLUG/v1"  "^etag:"
+
+# Ranges, which are not a nicety: an <audio> element seeks by asking for one, so a server that
+# ignores them gives a player that plays and will not skip, with nothing in any console.
+demo_body=$(curl "${CURL_ARGS[@]}" -r 3-5 "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
+demo_code=$(curl "${CURL_ARGS[@]}" -r 3-5 -o /dev/null -w '%{http_code}' "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
+if [[ "$demo_code" == "206" && "$demo_body" == "345" ]]; then
+    pass "a range request gets exactly the bytes it named (206)"
+else
+    fail "a range request returned $demo_code with '$demo_body' (wanted 206 and '345')"
+fi
+
+demo_headers=$(curl "${CURL_ARGS[@]}" -r 3-5 -o /dev/null -D - "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null | tr -d '\r' || true)
+if grep -qi '^content-range: bytes 3-5/10' <<< "$demo_headers"; then
+    pass "  and says which part it sent"
+else
+    fail "the 206 did not state its Content-Range"
+fi
+
+demo_code=$(curl "${CURL_ARGS[@]}" -r 500- -o /dev/null -w '%{http_code}' "$BASE/demos/$DEMO_SLUG/v1" 2>/dev/null || true)
+if [[ "$demo_code" == "416" ]]; then
+    pass "a range past the end is refused (416), not answered with the whole file"
+else
+    fail "a range past the end returned $demo_code, wanted 416"
+fi
+
+# Nothing in a URL may name a file. The last segment is matched against declared labels, never
+# resolved as a path — so a traversal is a label naming no track, which is a 404 like any other.
+check_status "  no label names a file             → 404" "$BASE/demos/$DEMO_SLUG/v2"       404
+check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2freleases.php" 404
+
+CURL_ARGS=("${CURL_ARGS_WITHOUT_DEMO[@]}")
 
 restore_demos
 trap "kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT

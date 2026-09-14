@@ -174,7 +174,7 @@ own and neither is deployed. See [docs/tooling.md](docs/tooling.md).
 
 `public/index.php` is two statements after the autoloader, which boots `Site`: install the
 last-resort handler, then `Site::current()->run()` — Phpanta's `App::run()`, which points the error
-log at `data/logs/` → security headers → parse the request → site auth check → `Router::dispatch()` →
+log at `data/logs/` → security headers → parse the request → `Router::dispatch()` →
 send. **The handler is first because it has to work when nothing else did**: it logs, sends a 500 if
 headers are still unsent, writes `500`, and depends on nothing but `SiteException`.
 
@@ -222,7 +222,7 @@ the code looks the way it does; follow them in new code without being asked.
   `AdminGate`. The demo gate stays in its controllers only because it needs the demo it looks up.
 - **Nothing ends the request but `App::run()`; every decision returns.** A response becomes an
   `Answer` in `App::handle()`, and a gate's refusal is a value it returns, `#[\NoDiscard]` —
-  `Auth::siteGate()`, `DemoGate::enter()` — which the caller returns in turn. Never `exit`.
+  `DemoGate::enter()` — which the caller returns in turn. Never `exit`.
 
 ## Traps
 
@@ -257,15 +257,14 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   that reaches a header goes through `DemoGate::realm()`'s `rawurlencode`, and `BasicChallenge`
   refuses anything but `qdtext`.
 - `AuthScheme::Basic` is the only spelling of the token on both sides of the handshake — a mismatch
-  makes both gates refuse everything, identically, with nothing in any log.
+  makes every Basic gate refuse everything, identically, with nothing in any log.
 - A misspelled `ServerVariable` or `DataFile` is not an error but a default: `PHP_AUTH_USER` wrong
-  is a 401 that reads as a bad password, `site_auth.php` wrong stands the pre-launch gate down.
+  is a 401 that reads as a bad password.
 
 **The API and deploying** — [docs/security.md](docs/security.md#the-admin),
 [docs/deployment.md](docs/deployment.md)
-- **`data/update.pub` absent means no signed call verifies and no device can be enrolled;
-  `data/site_auth.php` absent means the site gate is off.** The two files look alike and have
-  opposite polarity. `data/admin-passkeys.json` absent means no device is enrolled.
+- **Every credential file fails closed: `data/update.pub` absent means no signed call verifies and
+  no device can be enrolled, `data/admin-passkeys.json` absent means no device is enrolled.**
 - **Passkeys are on because `Site::origin()` names `https://neurosys.gg`** — and only where
   `data/session.key` exists; without it the entrance says browsers cannot sign in. In development
   and from loopback only, the request's own `Origin` comes first, so the local Apache runs a real
@@ -439,9 +438,9 @@ php tools/api.php access v1 passkeys                        # the enrolled devic
 
 - **The push is the regular deploy; `./deploy.sh` is the full one and the recovery path** — it owns
   `data/`, and it fixes a push that broke `src/`. Do not make the endpoint replace it.
-- **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub`,
-  `data/session.key` and `data/admin-passkeys.json`** — every credential the framework reads. All
-  five are gitignored, exist only per deployment and hold live credentials; this site has no
+- **`deploy.sh` excludes `data/admin.php`, `data/update.pub`, `data/session.key` and
+  `data/admin-passkeys.json`** — every credential the framework reads. All
+  four are gitignored, exist only per deployment and hold live credentials; this site has no
   `admin.php` at all, since no route stands behind the framework's Basic admin gate. Upload or mint the keys by hand (no SSH: mint `session.key` locally and
   upload it); the device store is written on the server by `access v1 enrol`. See
   [docs/deployment.md](docs/deployment.md#6-the-admin-in-a-browser).

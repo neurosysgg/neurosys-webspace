@@ -90,8 +90,8 @@ SecurityHeaders::send();                 // 1. headers first — even the last-r
 $this->handle(Request::fromGlobals())->send();  // 2–5. parse, gate, route, answer; then send
 
 // handle(), which sends nothing — what a test calls:
-$response = Auth::siteGate($request)     // 3. the pre-launch gate's 401, or null
-    ?? new Router($this->routeTable())->dispatch($request);  // 4. route
+$response = Layered::around($this->layerTable(),   // 3. the app's layers — none here
+    new Router($this->routeTable()))->handle($request);  // 4. route
 return $response->answer($request)->withHeadersFirst(SecurityHeaders::all($this));  // 5. answer
 ```
 
@@ -170,18 +170,16 @@ The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#4
 
 ### 3 (again). Authentication
 
-Three gates. Two are HTTP Basic — the pre-launch site gate and each demo's; the third is the
-admin's, a signature or an enrolled passkey, described under [The admin](#the-admin). The framework's Basic admin gate, `AdminGate`,
+Two gates. One is HTTP Basic — each demo's; the other is the admin's, a signature or an enrolled
+passkey, described under [The admin](#the-admin). The framework's Basic admin gate, `AdminGate`,
 stands on no route here, and `RoutingTest` asserts that none carries it.
 
-The site gate asks the framework's question of a credentials file, `Auth::accepts()`. A demo's
-credential is a `PasswordHash` on the `Demo` object itself rather than in a file; its gate is
-`DemoGate::admits()`, the site's gate built on the framework's. Both are public and return a
-`bool`, and both are the *decision* separated from the `401` that follows it. The `401` is a value
-too: `Auth::siteGate()` and `DemoGate::enter()` return it rather than ending the request, the caller
-returns it in turn, and each carries `#[\NoDiscard]` — a call whose result goes nowhere is the one
-way to leave the door open, and it fails the suite. Both end up in one comparison,
-`Auth::matches()`.
+A demo's credential is a `PasswordHash` on the `Demo` object itself rather than in a file; its gate
+is `DemoGate::admits()`, the site's gate built on the framework's `Auth`. It is public and returns a
+`bool` — the *decision*, separated from the `401` that follows it. The `401` is a value too:
+`DemoGate::enter()` returns it rather than ending the request, the caller returns it in turn, and it
+carries `#[\NoDiscard]` — a call whose result goes nowhere is the one way to leave the door open,
+and it fails the suite. The comparison itself is the framework's, `Auth::matches()`.
 
 - **Every comparison is constant-time, and neither is skipped when the other fails.** The password is
   `password_verify()`; the user name is `hash_equals()`, compared on every request just the same.
@@ -194,7 +192,7 @@ way to leave the door open, and it fails the suite. Both end up in one compariso
   false.
 - **The token is spelled once, at both ends.** `BasicChallenge` writes `Basic realm="…"` into the
   `401` and `Request::fromGlobals()` reads `Basic ` on the way back in, and both say
-  `AuthScheme::Basic`. A mismatch there would make both gates refuse everything, identically, with
+  `AuthScheme::Basic`. A mismatch there would make every Basic gate refuse everything, identically, with
   nothing in any log. A payload with no colon is a user name and an empty password rather than a
   refusal, which costs nothing because an empty password matches no bcrypt digest.
 - **A realm is checked, and a visitor's slug is encoded before it becomes one.** `BasicChallenge`
@@ -205,8 +203,7 @@ way to leave the door open, and it fails the suite. Both end up in one compariso
   containing CR or LF, so no second header is reachable either way. Do not rely on Strato's proxy
   percent-encoding a hostile target before PHP sees it — a bare Apache 2.4 does not.
   ([history](history/security.md))
-- The **pre-launch** gate is switched off by the *absence* of `data/site_auth.php`, and that file is
-  gitignored precisely so the repo copy cannot switch it on. There is no `data/admin.php`: no route
+- There is no `data/admin.php`: no route
   here stands behind the framework's Basic admin gate. A **demo** gate has no absent case at all — a `Demo` cannot be
   constructed without a `PasswordHash`, so a demo that is reachable is a demo that is gated.
 - **A demo that does not exist is refused identically to one whose password is wrong**, in status
@@ -222,9 +219,6 @@ way to leave the door open, and it fails the suite. Both end up in one compariso
   a capability that can be forwarded and that outlives any password change. The gated responses also
   carry `no-store, private`, no `ETag` (so no `304` on a guessed validator) and
   `X-Robots-Tag: noindex, nofollow, noarchive`. See [demos.md](demos.md).
-- **Only one credential fits in a request.** While `data/site_auth.php` exists, the pre-launch gate
-  claims the `Authorization` header and no request can satisfy a demo gate — or a signed admin
-  call — as well. See [Known and accepted](#known-and-accepted).
 
 **The site's pages have no CSRF surface, and that is a property rather than an oversight.** It rests
 on two facts, either of which would be enough: no page starts a session, and the site's one cookie,
@@ -336,11 +330,11 @@ What is this site's about it:
   `deploy.sh` excludes it.
 - **The serial is `cgi-bin/.update-serial`** on the live host: above the webroot, in neither mirrored
   tree, and in no tree `deploy.sh` rsyncs.
-- **No push can reach `data/`**, which is what keeps `data/site_auth.php`, `data/update.pub`,
+- **No push can reach `data/`**, which is what keeps `data/update.pub`,
   `data/session.key`, `data/admin-passkeys.json`, `data/demos.php` and 8.6 MB of unreleased audio
   out of reach however well a payload is signed.
 - **`Authorization` has to survive Strato**, and `public/.htaccess` puts it back with
-  `E=HTTP_AUTHORIZATION`. All three Basic gates already depend on it arriving, which is the
+  `E=HTTP_AUTHORIZATION`. Every demo's Basic gate already depends on it arriving, which is the
   strongest evidence available that Strato forwards it — but a proxy that strips it fails closed and
   in silence, looking exactly like a bad key, so re-check it on the live host rather than reason
   about it. ([history](history/api.md))
@@ -361,9 +355,8 @@ What is this site's about it:
 What is open, or accepted as a decision, with the reason each is where it is. Everything else the
 assessments turned up is fixed — see [history/security.md](history/security.md).
 
-- **Static assets reach neither gate and carry no security headers.** `.htaccess` passes real files
-  through before the rewrite to `index.php`, so while the pre-launch gate is up it covers documents
-  and not `/assets/**` — see [Transport](#1-transport--https-and-hsts). The same is true of the
+- **Static assets carry no security headers.** `.htaccess` passes real files through before the
+  rewrite to `index.php`, so no PHP runs for `/assets/**` — see [Transport](#1-transport--https-and-hsts). The same is true of the
   debug tree's source maps on a dev server bound beyond localhost.
 - **An overlong target is the server's to answer, not the site's.** Past roughly 4 KB Apache cannot
   map the path to a file and returns `AH00127`/`403`, and past its request-line limit a `414` — both
@@ -387,20 +380,6 @@ assessments turned up is fixed — see [history/security.md](history/security.md
   [What a signature covers](../phpanta/docs/security.md#what-a-signature-covers-and-why-replay-is-closed).
 - **No audience field.** Cross-deployment replay is closed by key separation; if two deployments
   ever share a key, an `aud` field is what to add.
-- **While the pre-launch site gate is on, no signed admin call and no demo can be reached.**
-  `siteGate()` runs before the router and is HTTP Basic on the same `Authorization` header,
-  so while `data/site_auth.php` exists the admin's credential is in the wrong scheme, the gate sees
-  an empty user, and the request is a `401`. That is the interaction demos already have, and it
-  leaks nothing — that gate answers `401` for *every* path alike, the admin's included. It is moot
-  today, because the gate is off. A browser fares better: it sends the site gate's Basic credential
-  and the admin's session cookie together, so a device already enrolled can unlock and use the
-  admin behind the gate — but none can be enrolled while it is up, since enrolling is a signed call.
-
-  The fix, if it is ever needed, is a decision rather than a patch, and the shape matters: standing
-  the site gate down whenever an `NS1` header is merely **present** would let anybody who sends one
-  past the pre-launch gate. It has to stand down only for a request whose signature has already
-  **verified**, which means running the admin's gate once, before `siteGate()`, and handing the
-  result on.
 
 ## What is deliberately not here
 

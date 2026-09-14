@@ -308,9 +308,7 @@ openssl pkey -in ~/.config/neurosys/update-neurosys.localhost.key -pubout -out d
 That is the key a call to `https://neurosys.localhost` resolves to.
 
 **Its absence is the off switch.** No key on the server, no signed call verifies: the entrance
-still answers, and every address below it gives everyone the one answer a stranger gets, forever. That is the opposite
-polarity to `data/site_auth.php`, whose absence stands its gate *down* — worth reading twice,
-because the two files look alike.
+still answers, and every address below it gives everyone the one answer a stranger gets, forever.
 
 `data/update.pub` and `cgi-bin/.update-serial` cover every service, not only the push; they are
 named for the service that first needed them. Renaming either would mean a file uploaded by hand on
@@ -503,8 +501,8 @@ bytes rather than the readable ones, which is correct — a stamp is a claim abo
 safe: the assets land before the manifest naming them, and `.htaccess` *strips* the version segment
 rather than resolving it, so a document cached with the previous stamp still finds the new files.
 
-**It deliberately excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub`,
-`data/session.key` and `data/admin-passkeys.json`**, and `data/logs/`. None has a repo copy: each
+**It deliberately excludes `data/admin.php`, `data/update.pub`, `data/session.key` and
+`data/admin-passkeys.json`**, and `data/logs/`. None has a repo copy: each
 deployment holds its own, and syncing whatever this machine has would overwrite it. This site needs
 no `admin.php` at all — no route stands behind the framework's Basic admin gate. Upload the keys by hand when they actually change — see
 [The admin in a browser](#6-the-admin-in-a-browser) for the session key. The device store is written

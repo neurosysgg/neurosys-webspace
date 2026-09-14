@@ -131,8 +131,9 @@ RewriteRule ^ - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
 # runs, since the built-in server reads no .htaccess. The verify script pins that both agree.
 RewriteRule ^assets/(js|css)/v-[0-9a-f]{8}/(.*)$ /assets/$1/$2 [E=VERSIONED:1,L]
 
-# Force HTTPS, before anything else runs. Both gates are HTTP Basic and Basic is base64, so a
-# request that arrives in plaintext has already put its credentials on the wire — this redirect
+# Force HTTPS, before anything else runs. A demo's gate is HTTP Basic, Basic is base64, and the
+# admin's session is a cookie, so a request that arrives in plaintext has already put its
+# credentials on the wire — this redirect
 # fixes the next request, and the Strict-Transport-Security header stops there being a plaintext
 # one at all. See src/NeuroSYS/Http/Security/StrictTransportSecurity.php.
 #

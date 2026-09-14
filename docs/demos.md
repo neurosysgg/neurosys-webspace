@@ -174,27 +174,13 @@ behind it right now:
   already been opened. **There is deliberately no `robots.txt` entry:** a `Disallow: /demos/` is a
   public file naming the private half of the site.
 
-### A demo is unreachable while the pre-launch site gate is on
-
-`Auth::siteGate()` runs on every request that reaches PHP, and both gates are HTTP Basic — a
-request carries exactly **one** `Authorization` header. So while `data/site_auth.php` exists, a
-request can satisfy the site gate or a demo gate and never both, and `/demos/{slug}` answers `401`
-whatever you send it.
-
-This does not bite today: the site is public and the gate is switched off (the file is dot-prefixed
-to `.site_auth.php`). It would bite the day it is switched back on, so the verify script skips the
-demo HTTP checks and says why when it sees that file. If demos ever have to work behind the
-pre-launch gate, the fix is a decision rather than a patch — the demo password is the stronger of the
-two credentials, so the site gate could reasonably stand down for `/demos/`, at the cost of the
-blanket property that it covers everything.
-
 ---
 
 ## Deploying
 
 Nothing special. `deploy.sh` rsyncs `data/` from the working tree without consulting git, so both
 `data/demos.php` and `data/demos/` reach the server despite being gitignored — that pairing is
-deliberate, and it is the opposite of the credential files, `data/site_auth.php` among them, which
+deliberate, and it is the opposite of the credential files, `data/session.key` among them, which
 are *excluded* from the rsync because each deployment holds its own.
 
 **`--delete` is not on for `data/`**, unlike the `public/` and `src/` rsyncs beside it, and that is
