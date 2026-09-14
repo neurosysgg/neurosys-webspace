@@ -295,10 +295,6 @@ php_ok "data/profiles.php loads and every link is https" \
          str_starts_with(\$p->url, 'https://') or exit(1);
      }"
 
-php_ok "data/admin.php is shaped the way Auth expects" \
-    "\$c = require '$REPO/data/admin.php';
-     (isset(\$c['user'], \$c['pass_hash']) && is_string(\$c['pass_hash'])) or exit(1);"
-
 php_ok "download logging is switched off and writes nothing" \
     "use NeuroSYS\Site;
      use NeuroSYS\Service\DownloadLogger;
@@ -1007,7 +1003,7 @@ else
     # Nothing in a URL may name a file. The last segment is matched against declared labels, never
     # resolved as a path — so a traversal is a label naming no track, which is a 404 like any other.
     check_status "  no label names a file             → 404" "$BASE/demos/$DEMO_SLUG/v2"       404
-    check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2fadmin.php" 404
+    check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2freleases.php" 404
 
     CURL_ARGS=("${CURL_ARGS_WITHOUT_DEMO[@]}")
 fi

@@ -194,8 +194,8 @@ blanket property that it covers everything.
 
 Nothing special. `deploy.sh` rsyncs `data/` from the working tree without consulting git, so both
 `data/demos.php` and `data/demos/` reach the server despite being gitignored — that pairing is
-deliberate, and it is the opposite of `data/admin.php` and `data/site_auth.php`, which are
-*excluded* from the rsync because the repo copies are placeholders.
+deliberate, and it is the opposite of the credential files, `data/site_auth.php` among them, which
+are *excluded* from the rsync because each deployment holds its own.
 
 **`--delete` is not on for `data/`**, unlike the `public/` and `src/` rsyncs beside it, and that is
 deliberate: `demos.php` and `demos/` are gitignored, so a clone that has never staged a demo has

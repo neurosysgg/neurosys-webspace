@@ -65,12 +65,11 @@ For pushing one file in a hurry — see [Full deploy](#full-deploy) for what it 
    - Deployment path: `cgi-bin/neurosys` (the webroot)
    - Web path: `/`
 
-### 5. Upload `data/admin.php`, once
+### 5. Create `data/logs/`, once
 
-No route here reads it: it holds the credential for the framework's Basic admin gate, which stands
-on no route of this site's. But the framework tracks it (`CredentialFile::Admin`), so `health v1
-deployment` fails a server without it. Upload the repo's placeholder — an empty `pass_hash` — by
-hand, once; `deploy.sh` excludes it.
+There is no `data/admin.php`: it would hold the credential for the framework's Basic admin gate,
+which stands on no route of this site's, and the framework requires no credential file of a
+deployment.
 
 `data/logs/` has to be created on the server by hand, once: `deploy.sh` excludes it, and PHP creates
 a log file but not its directory. `public/index.php` points `error_log` at
@@ -292,7 +291,7 @@ for the same reason — and the tools refuse one that other users can read. The 
 openssl pkey -in ~/.config/neurosys/update.key -pubout    # → the server's data/update.pub
 ```
 
-Upload that public half **by hand**, once, as `data/update.pub` next to `admin.php` on the server.
+Upload that public half **by hand**, once, as `data/update.pub` on the server.
 `deploy.sh` excludes it — there is no repo copy to sync, and syncing the local key over the live one
 would lock you out of the endpoint.
 
@@ -505,10 +504,9 @@ safe: the assets land before the manifest naming them, and `.htaccess` *strips* 
 rather than resolving it, so a document cached with the previous stamp still finds the new files.
 
 **It deliberately excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub`,
-`data/session.key` and `data/admin-passkeys.json`**, and `data/logs/`. The copies of the first two
-in the repo are placeholders — `admin.php` ships an empty `pass_hash` — so syncing them would
-overwrite whatever each deployment holds; the other three have no repo copy at all, and each
-deployment holds its own. Upload the keys by hand when they actually change — see
+`data/session.key` and `data/admin-passkeys.json`**, and `data/logs/`. None has a repo copy: each
+deployment holds its own, and syncing whatever this machine has would overwrite it. This site needs
+no `admin.php` at all — no route stands behind the framework's Basic admin gate. Upload the keys by hand when they actually change — see
 [The admin in a browser](#6-the-admin-in-a-browser) for the session key. The device store is written
 on the server by `access v1 enrol` and `revoke`, and a copy from here would put this machine's list
 of devices on the live host.

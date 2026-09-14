@@ -189,9 +189,8 @@ way to leave the door open, and it fails the suite. Both end up in one compariso
   slow, so a wrong user name would return in microseconds while a right one paid the full cost — a
   difference measurable across a network that tells an attacker which half of the credential they
   already have. Both run every time; the results are combined afterwards.
-- **An empty hash is an unconfigured gate, not one that accepts an empty password.** The repo ships
-  `data/admin.php` with an empty `pass_hash` — an inert placeholder no route reads — and the guard
-  refuses an empty hash out loud rather than relying on `password_verify('', '')` happening to be
+- **An empty hash is an unconfigured gate, not one that accepts an empty password.** A credentials
+  file with an empty `pass_hash` is how an unconfigured gate is spelled, and the guard refuses an empty hash out loud rather than relying on `password_verify('', '')` happening to be
   false.
 - **The token is spelled once, at both ends.** `BasicChallenge` writes `Basic realm="…"` into the
   `401` and `Request::fromGlobals()` reads `Basic ` on the way back in, and both say
@@ -207,9 +206,8 @@ way to leave the door open, and it fails the suite. Both end up in one compariso
   percent-encoding a hostile target before PHP sees it — a bare Apache 2.4 does not.
   ([history](history/security.md))
 - The **pre-launch** gate is switched off by the *absence* of `data/site_auth.php`, and that file is
-  gitignored precisely so the repo copy cannot switch it on. `data/admin.php` has no absent case
-  either, though no route reads it: the framework tracks it, so a deployment without it fails
-  `health v1 deployment`. A **demo** gate has no absent case at all — a `Demo` cannot be
+  gitignored precisely so the repo copy cannot switch it on. There is no `data/admin.php`: no route
+  here stands behind the framework's Basic admin gate. A **demo** gate has no absent case at all — a `Demo` cannot be
   constructed without a `PasswordHash`, so a demo that is reachable is a demo that is gated.
 - **A demo that does not exist is refused identically to one whose password is wrong**, in status
   code *and* in elapsed time. A `404` for an unknown slug and a `401` for a known one is a catalogue
@@ -338,7 +336,7 @@ What is this site's about it:
   `deploy.sh` excludes it.
 - **The serial is `cgi-bin/.update-serial`** on the live host: above the webroot, in neither mirrored
   tree, and in no tree `deploy.sh` rsyncs.
-- **No push can reach `data/`**, which is what keeps `data/admin.php`, `data/site_auth.php`,
+- **No push can reach `data/`**, which is what keeps `data/site_auth.php`, `data/update.pub`,
   `data/session.key`, `data/admin-passkeys.json`, `data/demos.php` and 8.6 MB of unreleased audio
   out of reach however well a payload is signed.
 - **`Authorization` has to survive Strato**, and `public/.htaccess` puts it back with

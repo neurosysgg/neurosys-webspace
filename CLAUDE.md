@@ -439,10 +439,9 @@ php tools/api.php access v1 passkeys                        # the enrolled devic
 - **The push is the regular deploy; `./deploy.sh` is the full one and the recovery path** — it owns
   `data/`, and it fixes a push that broke `src/`. Do not make the endpoint replace it.
 - **`deploy.sh` excludes `data/admin.php`, `data/site_auth.php`, `data/update.pub`,
-  `data/session.key` and `data/admin-passkeys.json`** — the repo's `admin.php` is an inert
-  placeholder with an empty hash that no route reads, which `health v1 deployment` still requires on
-  the server because the framework tracks it; the others are gitignored, exist only per deployment
-  and hold live credentials. Upload or mint the keys by hand (no SSH: mint `session.key` locally and
+  `data/session.key` and `data/admin-passkeys.json`** — every credential the framework reads. All
+  five are gitignored, exist only per deployment and hold live credentials; this site has no
+  `admin.php` at all, since no route stands behind the framework's Basic admin gate. Upload or mint the keys by hand (no SSH: mint `session.key` locally and
   upload it); the device store is written on the server by `access v1 enrol`. See
   [docs/deployment.md](docs/deployment.md#6-the-admin-in-a-browser).
 - **`--delete` is on for `public/`, `src/` and `phpanta/src/`, off for `data/`**, so a gitignored demo on the server

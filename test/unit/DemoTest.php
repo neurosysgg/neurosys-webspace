@@ -164,10 +164,10 @@ final class DemoTest extends TestCase
     public static function badFileNameProvider(): iterable
     {
         yield 'the parent'          => ['..'];
-        yield 'up and out'          => ['../../data/admin.php'];
+        yield 'up and out'          => ['../../data/releases.php'];
         yield 'an absolute path'    => ['/etc/passwd'];
         yield 'a subdirectory'      => ['stems/v3.mp3'];
-        yield 'a backslash'         => ['..\\admin.php'];
+        yield 'a backslash'         => ['..\\releases.php'];
         yield 'a leading dot'       => ['.htaccess'];
         yield 'empty'               => [''];
         yield 'a null byte'         => ["v3.mp3\0.txt"];
@@ -498,9 +498,9 @@ final class DemoTest extends TestCase
     public static function traversalLabelProvider(): iterable
     {
         yield 'the parent'       => ['..'];
-        yield 'an encoded slash' => ['%2e%2e%2fadmin.php'];
+        yield 'an encoded slash' => ['%2e%2e%2freleases.php'];
         yield 'a file name'      => ['v3.mp3'];
-        yield 'a real file'      => ['admin.php'];
+        yield 'a real file'      => ['releases.php'];
         yield 'empty'            => [''];
     }
 

@@ -137,7 +137,7 @@ there is nothing to share.
 | `WaveformRepository` | `data/demos/{slug}/{label}.wave` — a missing sidecar is a card without a picture |
 | `DemoGate` | each demo's password hash, checked on the framework's `Auth` primitives |
 | `DownloadLogger` | `data/logs/downloads.log` — returns before doing anything, see below |
-| `Auth`, `ApiGate`, `UpdateApplier` | Phpanta's: `data/site_auth.php` (and `data/admin.php`, which no route here asks for); every check a signed call passes, and the writing a push does — see [security.md](security.md) |
+| `Auth`, `ApiGate`, `UpdateApplier` | Phpanta's: `data/site_auth.php`; every check a signed call passes, and the writing a push does — see [security.md](security.md) |
 
 The repositories load lazily and cache, and take an optional path so a test can point them somewhere
 else. Each reads a PHP file that `return`s typed objects — there is no parser, no schema, no

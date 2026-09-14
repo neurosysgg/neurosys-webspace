@@ -258,7 +258,7 @@ final class ResponseTest extends TestCase
         yield 'known release and format' => ['hello-world', 'flac', RedirectResponse::class];
         yield 'unknown release'          => ['nope', 'flac', ViewResponse::class];
         yield 'unknown format'           => ['hello-world', 'wma', ViewResponse::class];
-        yield 'path traversal attempt'   => ['hello-world', '../../data/admin.php', ViewResponse::class];
+        yield 'path traversal attempt'   => ['hello-world', '../../data/releases.php', ViewResponse::class];
     }
 
     /**

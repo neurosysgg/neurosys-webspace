@@ -52,7 +52,6 @@ neurosys/
 │   ├── profiles.php     ← footer profile links
 │   ├── privacy.de.html  ← Datenschutzerklärung — one half, served by PrivacyController
 │   ├── privacy.en.html  ← Privacy Policy — the other; the visitor's language leads
-│   ├── admin.php        ← the framework's Basic admin credential — an inert placeholder no route reads
 │   ├── demos.php        ← unreleased demos + their password hashes (gitignored, deployed)
 │   ├── demos/{slug}/    ← their audio — the only bytes PHP serves itself
 │   └── logs/            ← downloads.log — see "Download logging" below

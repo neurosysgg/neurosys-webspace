@@ -257,9 +257,8 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   parser, so the answer covers spellings nobody wrote down. (history: [history/markup.md](../phpanta/docs/history/markup.md))
 - **Download logging stays off.** `ServiceTest` asserts `Config::DOWNLOAD_LOGGING === false` and that
   the referrer is never read. It's a privacy-policy decision before a code one — see `CLAUDE.md`.
-- **A wrong password is refused.** `data/admin.php` ships with an empty `pass_hash` and no route
-  reads it; the verify script checks only that it is shaped the way `Auth` expects. The framework's
-  `AuthTest` is what compares a credential: it supplies a
+- **A wrong password is refused.** The site has no `data/admin.php` — no route stands behind the
+  Basic admin gate — so the framework's `AuthTest` is what compares a credential: it supplies a
   real bcrypt hash (cost 4, so the suite stays fast) and walks a dozen near-misses past it: wrong
   case, a prefix of the right password, the right password with a character appended.
 - **An unconfigured gate is closed, not open.** An empty `pass_hash` accepts nobody, including
