@@ -429,6 +429,8 @@ php tools/api.php capability v1 extensions                  # what it has; also 
 php tools/api.php update v1 probe                           # what its filesystem lets a push do (a write)
 php tools/api.php access v1 enrol --code <code> --name phone  # enrol a device /admin registered
 php tools/api.php access v1 passkeys                        # the enrolled devices; revoke --passkey <id>
+php -d curl.cainfo=/etc/httpd/conf/neurosys.localhost.crt tools/authenticator.php --url https://neurosys.localhost
+                                                            # a software passkey against the local admin: every promise, checked
 ./deploy.sh                                                 # full deploy over SFTP; ships data/
 ```
 
