@@ -148,11 +148,9 @@ final class RoutingTest extends TestCase
         yield ['/releases/ill/flac/extra'];
         yield ['/imprints'];
 
-        // One past the admin's four depths, and every depth of `/api`, where the admin used to be.
-        // The framework asserts its own patterns match none of these; over this table they also say
-        // no route of the site's claims one, so `/api` falls through to the same 404 as any other
-        // address that is not there. See AdminPath.
-        yield ['/admin/update/v1/patch/extra'];
+        // Every depth of `/api`, where the admin used to be. The framework asserts its own patterns
+        // match none of these; over this table they also say no route of the site's claims one, so
+        // `/api` falls through to the same 404 as any other address that is not there. See AdminPath.
         yield ['/api'];
         yield ['/api/update'];
         yield ['/api/update/v1'];
@@ -172,6 +170,26 @@ final class RoutingTest extends TestCase
         foreach (Site::current()->routeTable() as $route) {
             self::assertFalse($route->matches($path), "$path unexpectedly matched a route");
         }
+    }
+
+    /**
+     * Past an action is the admin's fifth depth — an action and the path it acts on — and the
+     * framework's alone to answer: no route of the site's claims it, so a verified caller hears the
+     * action takes no path and a stranger gets the admin's one answer. See AdminPath.
+     *
+     * @return void
+     */
+    public function testPastAnActionIsTheAdminsAlone(): void
+    {
+        $matched = [];
+
+        foreach (Site::current()->routeTable() as $route) {
+            if ($route->matches('/admin/update/v1/patch/extra') !== false) {
+                $matched[] = $route->path();
+            }
+        }
+
+        self::assertSame([AdminPath::Subject], $matched);
     }
 
     /**

@@ -189,7 +189,12 @@ final class HtmlTest extends TestCase
      */
     public function testEveryTagIsStyledAndEveryStyledTagIsATagCase(): void
     {
-        $declared = array_map(static fn(Tag $t): string => $t->value, Tag::cases());
+        // The site's own tags, and the two the framework's machine service writes, which this site's
+        // stylesheet styles like any other: an admin page is in its shell.
+        $declared = [
+            ...array_map(static fn(Tag $t): string => $t->value, Tag::cases()),
+            ...array_map(static fn(\Phpanta\View\Html\MachineTag $t): string => $t->value, \Phpanta\View\Html\MachineTag::cases()),
+        ];
         $styled   = self::tagSelectors(self::stylesheet());
 
         sort($declared);

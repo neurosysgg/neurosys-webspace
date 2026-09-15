@@ -419,6 +419,14 @@ an admin and nothing about what is in it. `/api` is gone, with no alias — it a
 `/no-such-page`. See [docs/security.md](docs/security.md#the-admin) and
 [docs/deployment.md](docs/deployment.md).
 
+**The framework's `machine` service is available but off here**: it administers the host — its files,
+its system facts, and a command — and appears at `/admin/machine` only where `data/machine.json`
+exists, which `deploy.sh` never ships and `.gitignore` never tracks. Locally it is switched on with
+that file (`{"roots":["/"],"writes":true,"commands":true}`), so
+`php tools/api.php machine v1 system` works against `neurosys.localhost` with the enrolled passkey.
+Strato has no such file and so no such service. See
+[phpanta/docs/machine.md](phpanta/docs/machine.md).
+
 ```bash
 npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
 npm run build:prod && php tools/push-update.php             # phpanta/ + src/ + autoload.php + public/
@@ -429,6 +437,7 @@ php tools/api.php capability v1 extensions                  # what it has; also 
 php tools/api.php update v1 probe                           # what its filesystem lets a push do (a write)
 php tools/api.php access v1 enrol --code <code> --name phone  # enrol a device /admin registered
 php tools/api.php access v1 passkeys                        # the enrolled devices; revoke --passkey <id>
+php tools/api.php machine v1 system                        # the host at a glance — off unless data/machine.json is there
 php -d curl.cainfo=/etc/httpd/conf/neurosys.localhost.crt tools/authenticator.php --url https://neurosys.localhost
                                                             # a software passkey against the local admin: every promise, checked
 ./deploy.sh                                                 # full deploy over SFTP; ships data/

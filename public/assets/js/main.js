@@ -18,6 +18,8 @@ import './elements/release/ReleaseList.js';
 import './elements/release/ReleaseCard.js';
 import './elements/release/ReleaseTitle.js';
 import './elements/release/ReleaseMeta.js';
+import './phpanta/elements/MachineStats.js';
+import './phpanta/elements/MachineFilter.js';
 import { Navigation } from './phpanta/Navigation.js';
 import { Passkey } from './phpanta/Passkey.js';
 Navigation.forDocument()?.start();

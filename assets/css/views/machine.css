@@ -1,0 +1,44 @@
+/* The admin's machine service: where a place is, a directory's listing and its filter, a file shown
+   by its kind, and the live readings. The framework writes these views and names no class of this
+   site's, so they are selected by the elements and attributes it writes — and only inside #content,
+   where the shell's own navigation never is. */
+
+#content > section > nav {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0.5rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+/* A long name breaks anywhere rather than pushing the table past the page. */
+[data-entry] td:first-child { overflow-wrap: anywhere; }
+
+machine-filter {
+  display: block;
+  margin: 1rem 0 0.5rem;
+
+  & input { width: min(24rem, 100%); }
+}
+
+machine-stats {
+  display: block;
+
+  & td:last-child { white-space: nowrap; }
+}
+
+/* A picture or a film shown on its page fits the column it is in. */
+#content > section > img,
+#content > section > video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border-radius: 6px;
+}
+
+#content > section > audio {
+  display: block;
+  width: 100%;
+  margin: 1rem 0;
+}

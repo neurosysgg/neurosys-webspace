@@ -26,6 +26,7 @@
 @import url("views/home.css");
 @import url("views/release.css");
 @import url("views/demo.css");
+@import url("views/machine.css");
 
 /* The elements. Last, so a component can lean on a token or a utility and never the reverse. */
 @import url("elements/card.css");

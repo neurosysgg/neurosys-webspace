@@ -37,6 +37,11 @@ import './elements/release/ReleaseCard.js';
 import './elements/release/ReleaseTitle.js';
 import './elements/release/ReleaseMeta.js';
 
+// The framework's two, which the admin's machine service writes — a deployment that switches the
+// service on shows them, and one that does not never serves a page with either.
+import './phpanta/elements/MachineStats.js';
+import './phpanta/elements/MachineFilter.js';
+
 import { Navigation } from './phpanta/Navigation.js';
 import { Passkey } from './phpanta/Passkey.js';
 

@@ -35,5 +35,9 @@ export var HtmlAttribute;
     HtmlAttribute["Readonly"] = "readonly";
     HtmlAttribute["Disabled"] = "disabled";
     HtmlAttribute["Hidden"] = "hidden";
+    HtmlAttribute["Multiple"] = "multiple";
+    HtmlAttribute["Min"] = "min";
+    HtmlAttribute["Max"] = "max";
+    HtmlAttribute["Placeholder"] = "placeholder";
 })(HtmlAttribute || (HtmlAttribute = {}));
 //# sourceMappingURL=HtmlAttribute.js.map

@@ -219,9 +219,12 @@ test('ResponseHeader mirrors the part of Phpanta\\Http\\ResponseHeader the clien
  * MediaType, which has no PHP enum to mirror: MimeType is a class, because it carries a charset.
  * What Navigation compares a response with is the essence of the type ViewResponse sends it.
  */
-test('MediaType mirrors the essence of Phpanta\\Http\\MimeType::html()', () => {
+test('MediaType mirrors the essences of Phpanta\\Http\\MimeType::html() and ::json()', () => {
   assert.deepEqual(
     cases(MediaType),
-    [['Html', php('echo json_encode(Phpanta\\Http\\MimeType::html()->essence());')]],
+    [
+      ['Html', php('echo json_encode(Phpanta\\Http\\MimeType::html()->essence());')],
+      ['Json', php('echo json_encode(Phpanta\\Http\\MimeType::json()->essence());')],
+    ],
   );
 });

@@ -128,10 +128,36 @@ table {
   width: 100%;
 }
 
+th,
 td {
   padding: 0.45rem 1.5ch 0.45rem 0;
   border-bottom: 1px solid var(--border);
   vertical-align: top;
+}
+
+th {
+  text-align: left;
+  font-weight: normal;
+  color: var(--muted);
+}
+
+/* A file's text, or what a command printed, as the admin shows it: its own lines, scrolled rather
+   than wrapped, and never taller than the window. */
+pre {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  overflow: auto;
+  max-height: 70vh;
+}
+
+meter {
+  width: 12rem;
+  max-width: 100%;
+  height: 0.75rem;
 }
 
 /* assets/css/layout/shell.css */
@@ -443,6 +469,52 @@ td {
   font-size: 0.8rem;
   color: var(--muted);
   margin-left: auto;
+}
+
+/* assets/css/views/machine.css */
+/* The admin's machine service: where a place is, a directory's listing and its filter, a file shown
+   by its kind, and the live readings. The framework writes these views and names no class of this
+   site's, so they are selected by the elements and attributes it writes — and only inside #content,
+   where the shell's own navigation never is. */
+
+#content > section > nav {
+  font-family: var(--mono);
+  font-size: 0.875rem;
+  color: var(--muted);
+  margin: 0.5rem 0 1rem;
+  overflow-wrap: anywhere;
+}
+
+/* A long name breaks anywhere rather than pushing the table past the page. */
+[data-entry] td:first-child { overflow-wrap: anywhere; }
+
+machine-filter {
+  display: block;
+  margin: 1rem 0 0.5rem;
+
+  & input { width: min(24rem, 100%); }
+}
+
+machine-stats {
+  display: block;
+
+  & td:last-child { white-space: nowrap; }
+}
+
+/* A picture or a film shown on its page fits the column it is in. */
+#content > section > img,
+#content > section > video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1rem 0;
+  border-radius: 6px;
+}
+
+#content > section > audio {
+  display: block;
+  width: 100%;
+  margin: 1rem 0;
 }
 
 /* assets/css/elements/card.css */

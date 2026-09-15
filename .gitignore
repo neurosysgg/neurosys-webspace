@@ -89,3 +89,8 @@ data/session.key
 data/admin-passkeys.json
 # The lock every write to that store takes: a file beside it, since the store is renamed into place.
 data/admin-passkeys.json.lock
+
+# Whether the admin's machine service is on here, and what it may reach. Per deployment and off where
+# absent, like every file above; deploy.sh excludes it too, since a copy pushed up would open the
+# live host's disk.
+data/machine.json
