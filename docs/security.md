@@ -16,7 +16,9 @@ build error or a thrown exception, not a silently shipped hole.
 **One address family writes.** `/admin/update/v1/patch` accepts a signed `POST` carrying a gzipped
 tarball and writes it into `src/` and the webroot — it is the deploy path, and the admin it belongs
 to is described in full under [The admin](#the-admin), with the admin's other writes. Every page is
-read-only, accepts no upload and persists nothing a request sends.
+read-only, accepts no upload and persists nothing a request sends. The one other address that takes a
+`POST` is the framework's `/drop`, and only where a deployment switches drops on — the live host does
+not; see [the attack surface](#the-attack-surface).
 
 ## The attack surface
 
@@ -39,6 +41,13 @@ Everything an attacker can reach:
   that there is an admin and nothing about what is in it. Both suites sweep `update`, `health` and
   `capability`. `/api`, where the admin used to be, matches no route and answers exactly like
   `/no-such-page`.
+- **One more is the framework's `/drop`**, where a drop's link opens it — and only where
+  `data/drop.json` and `data/drop.key` switch the `drop` service on. Strato has neither, so there
+  `/drop` answers every method exactly as `/no-such-page` does; the local deployment has both. Where it
+  is on it takes a `POST` from anyone, carrying a link's token: every kind of nothing is one sentence,
+  a password is asked for only of a real link, ten refusals from an address in fifteen minutes are
+  the most it answers, and a drop meant to be read once is removed by the post that reads it. Making a
+  drop is the admin's. See [phpanta/docs/drop.md](../phpanta/docs/drop.md).
 - **Static assets** under `/assets/`, served by the web server, never by PHP. The one exception is a
   demo's audio, which PHP serves itself precisely so that it is *not* static — see below.
 - Everything else answers `404` or `405`.
@@ -380,6 +389,11 @@ assessments turned up is fixed — see [history/security.md](history/security.md
   [What a signature covers](../phpanta/docs/security.md#what-a-signature-covers-and-why-replay-is-closed).
 - **No audience field.** Cross-deployment replay is closed by key separation; if two deployments
   ever share a key, an `aud` field is what to add.
+- **A drop is not end-to-end.** Where the `drop` service is on, the server sees a link's token while it
+  answers the post carrying it, and a drop's bytes as it seals and opens them: somebody holding the
+  running server then can read a drop, where somebody taking its disk and key afterwards cannot. Kept,
+  because sealing in the browser would leave a machine with `curl` and nothing else unable to fetch
+  what it was sent. See [phpanta/docs/drop.md](../phpanta/docs/drop.md#what-it-is-not).
 
 ## What is deliberately not here
 

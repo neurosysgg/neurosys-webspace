@@ -51,7 +51,7 @@ runs on the server (`vendor/` is not deployed):
 | `ext/uri` | `Element`, `Request` | every page |
 | `ext/dom` | `MarkupParser` (`Dom\HTMLDocument`) | a fatal on `/privacy` alone |
 | `ext/intl` | the text layer's `MessageFormatter` | a fatal on every translated page |
-| `ext/openssl` | `PublicKey` — the admin's signature and passkey checks; `SessionSeal` | a fatal on a signed call |
+| `ext/openssl` | `PublicKey` — the admin's signature and passkey checks; `SessionSeal`; `DropCipher` | a fatal on a signed call |
 | `ext/zlib` | `UpdateApplier`'s `gzdecode()` | a fatal on a push |
 | `ext/mbstring` | `Input`'s UTF-8 check, `MaxLength`, `Login` | a fatal on every form read |
 
@@ -427,6 +427,14 @@ that file (`{"roots":["/"],"writes":true,"commands":true}`), so
 Strato has no such file and so no such service. See
 [phpanta/docs/machine.md](phpanta/docs/machine.md).
 
+**The framework's `drop` service is on locally and off on Strato, the same way**: secret texts and
+files kept behind a link, made by the admin and opened at `/drop` by whoever holds the link — in a
+browser, or `curl -F token=<token> https://neurosys.localhost/drop`. It is on where `data/drop.json`
+and `data/drop.key` are, both gitignored and excluded from `deploy.sh`, and the drops live in
+`data/drops/`; without the pair `/drop` answers exactly as `/no-such-page`. `php tools/drop.php
+<file>` makes one and prints its link; `api.php drop v1 list` and `revoke <id>` do the rest. See
+[phpanta/docs/drop.md](phpanta/docs/drop.md).
+
 ```bash
 npm run build:prod && php tools/push-update.php --dry-run   # validate, report, write nothing
 npm run build:prod && php tools/push-update.php             # phpanta/ + src/ + autoload.php + public/
@@ -438,6 +446,7 @@ php tools/api.php update v1 probe                           # what its filesyste
 php tools/api.php access v1 enrol --code <code> --name phone  # enrol a device /admin registered
 php tools/api.php access v1 passkeys                        # the enrolled devices; revoke --passkey <id>
 php tools/api.php machine v1 system                        # the host at a glance — off unless data/machine.json is there
+php tools/drop.php notes.txt --once --url https://neurosys.localhost   # a drop, and the link that opens it — off unless data/drop.json
 php -d curl.cainfo=/etc/httpd/conf/neurosys.localhost.crt tools/authenticator.php --url https://neurosys.localhost
                                                             # a software passkey against the local admin: every promise, checked
 ./deploy.sh                                                 # full deploy over SFTP; ships data/
@@ -455,7 +464,9 @@ php -d curl.cainfo=/etc/httpd/conf/neurosys.localhost.crt tools/authenticator.ph
   four are gitignored, exist only per deployment and hold live credentials; this site has no
   `admin.php` at all, since no route stands behind the framework's Basic admin gate. Upload or mint the keys by hand (no SSH: mint `session.key` locally and
   upload it); the device store is written on the server by `access v1 enrol`. See
-  [docs/deployment.md](docs/deployment.md#6-the-admin-in-a-browser).
+  [docs/deployment.md](docs/deployment.md#6-the-admin-in-a-browser). It excludes the two switches
+  too, `data/machine.json` and `data/drop.json`, with `data/drop.key` and the drops in `data/drops/`:
+  a copy pushed up would open the live host's disk, or `/drop`.
 - **`--delete` is on for `public/`, `src/` and `phpanta/src/`, off for `data/`**, so a gitignored demo on the server
   survives a deploy from a clone that never staged it — and a data file removed locally must be
   removed from the server by hand.

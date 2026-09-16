@@ -94,3 +94,10 @@ data/admin-passkeys.json.lock
 # absent, like every file above; deploy.sh excludes it too, since a copy pushed up would open the
 # live host's disk.
 data/machine.json
+
+# The drop service: the switch that puts /drop on the web, the key every drop is sealed under, and
+# the drops themselves. Per deployment like the files above, and deploy.sh excludes all three: a
+# committed key would let anyone who reads the repository open every drop whose link they find.
+data/drop.json
+data/drop.key
+data/drops/

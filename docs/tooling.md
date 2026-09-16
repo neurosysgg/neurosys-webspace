@@ -10,12 +10,14 @@ How they got that way is in [history/tooling.md](history/tooling.md).
 
 ## The commands
 
-`tools/` holds eight entry points, and every one of them runs a `Phpanta\Tool\Cli\Command`: a
+`tools/` holds nine entry points, and every one of them runs a `Phpanta\Tool\Cli\Command`: a
 name, a usage line, the `Option`s it accepts, and a `run()` returning an `ExitCode`. Four of the
 commands are this site's own, under `tools/lib/Command/`: `stage-release`, `stage-demo`,
-`release-track` and `extract-midi`. The other four are the framework's, and this site only wires
+`release-track` and `extract-midi`. The other five are the framework's, and this site only wires
 them. `push-update.php` hands `PushUpdate` the repository root, `Site::ORIGIN` and
-`Site::UPDATE_KEY`. `api.php` hands `ApiCall` the same origin and key, and `authenticator.php` hands
+`Site::UPDATE_KEY`. `api.php` hands `ApiCall` the same origin and key, `drop.php` hands them to
+`DropCreate`, which keeps a drop and prints its link — see
+[phpanta/docs/drop.md](../phpanta/docs/drop.md#making-one) — and `authenticator.php` hands
 them to `Authenticator`, which plays a passkey device against the local Apache — see
 [phpanta/docs/tooling.md](../phpanta/docs/tooling.md#the-software-authenticator). `merge-coverage.php`
 hands `MergeCoverage` the root. The CLI layer, the signing side, the outbound HTTP, the tar writer, the
@@ -28,7 +30,7 @@ tools/
 ├── stage-release.php     ├── release-track.php    ├── extract-midi.php     ← this site's commands
 ├── stage-demo.php
 ├── push-update.php       ├── api.php              ├── merge-coverage.php   ← the framework's, wired here
-├── authenticator.php
+├── authenticator.php     ├── drop.php
 └── lib/
     ├── Command/          ← the four commands, their option enums, and FolderReport — the report
     │                       the two that read a release folder share

@@ -1,0 +1,1 @@
+{"version":3,"file":"DropTag.js","sourceRoot":"","sources":["../../../../../assets/ts/phpanta/model/DropTag.ts"],"names":[],"mappings":"AACA,MAAM,CAAN,IAAY,OAEX;AAFD,WAAY,OAAO;IACjB,iCAAsB,CAAA;AACxB,CAAC,EAFW,OAAO,KAAP,OAAO,QAElB","sourcesContent":["/** Mirrors DropTag — the custom elements the page at /drop writes. */\nexport enum DropTag {\n  Reveal = 'drop-reveal',\n}\n"]}

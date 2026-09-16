@@ -41,6 +41,8 @@ import { RequestHeader } from '../../public/assets/js/phpanta/model/RequestHeade
 import { RequestedWith } from '../../public/assets/js/phpanta/model/RequestedWith.js';
 import { ResponseHeader } from '../../public/assets/js/phpanta/model/ResponseHeader.js';
 import { MediaType } from '../../public/assets/js/phpanta/model/MediaType.js';
+import { DropTag } from '../../public/assets/js/phpanta/model/DropTag.js';
+import { DropField } from '../../public/assets/js/phpanta/model/DropField.js';
 import { TerminalFieldKey } from '../../public/assets/js/model/TerminalFieldKey.js';
 import { WaveformAttribute } from '../../public/assets/js/model/WaveformAttribute.js';
 import { WaveformBand, STRIDE } from '../../public/assets/js/model/WaveformBand.js';
@@ -136,6 +138,8 @@ const MIRRORED_NAMES = [
   ['ArrangementAttribute', ArrangementAttribute, 'NeuroSYS\\View\\Html\\ArrangementAttribute'],
   ['WaveformAttribute', WaveformAttribute, 'NeuroSYS\\View\\Html\\WaveformAttribute'],
   ['Language', Language, 'Phpanta\\Text\\Language'],
+  ['DropTag', DropTag, 'Phpanta\\View\\Html\\DropTag'],
+  ['DropField', DropField, 'Phpanta\\Http\\DropField'],
 ];
 
 for (const [name, mirror, phpEnum] of MIRRORED_NAMES) {

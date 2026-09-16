@@ -402,15 +402,17 @@ fi
 # comparison itself. openssl_verify() returns 1, 0 or -1, and only 1 is a pass — a call site that
 # wrote `if (openssl_verify(...))` would accept the error case as success and let an unsigned
 # payload overwrite src/. PublicKey asks `=== 1` in one place so no second place can ask it wrongly.
-# SessionSeal is the one other caller, and a different operation entirely — AES-256-GCM, sealing and
+# SessionSeal is one other caller, and a different operation entirely — AES-256-GCM, sealing and
 # opening a session cookie — kept in its own single class for the same reason: one place to get the
-# nonce, the tag and the associated data right.
+# nonce, the tag and the associated data right. DropCipher is the third, and the same cipher: a
+# drop's bytes, sealed a chunk at a time under a counter nonce, in one class for that reason too.
 verifying=$(grep -rl "openssl_" "$REPO/src" "$REPO/phpanta/src" 2>/dev/null \
-    | grep -v "/Support/PublicKey.php$" | grep -v "/Http/SessionSeal.php$" || true)
+    | grep -v "/Support/PublicKey.php$" | grep -v "/Http/SessionSeal.php$" \
+    | grep -v "/Service/Drop/DropCipher.php$" || true)
 if [[ -z "$verifying" ]]; then
-    pass "openssl is called in two places under src/: verifying a signature, sealing a session"
+    pass "openssl is called in three places under src/: verifying a signature, sealing a session, sealing a drop"
 else
-    fail "openssl called outside Support/PublicKey.php and Http/SessionSeal.php: $(echo "$verifying" | tr '\n' ' ')"
+    fail "openssl called outside PublicKey.php, SessionSeal.php and DropCipher.php: $(echo "$verifying" | tr '\n' ' ')"
 fi
 
 # The site signs nothing. It holds the public half of the update key and can only ever check a

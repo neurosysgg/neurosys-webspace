@@ -17,6 +17,7 @@ use Phpanta\App;
 use Phpanta\Http\HttpMethod;
 use Phpanta\Service\Layer\AdminGate;
 use Phpanta\Support\AdminPath;
+use Phpanta\Support\DropPath;
 use Phpanta\Support\MethodPolicy;
 use Phpanta\Support\Route;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -75,7 +76,7 @@ final class RoutingTest extends TestCase
     /**
      * Every path a view can build is one the router answers on. That is the whole reason the
      * patterns are an enum: one vocabulary for both, rather than two files that nothing compares.
-     * The site's come first, in declaration order, and the framework's admin last.
+     * The site's come first, in declaration order, then the framework's `/drop`, and its admin last.
      *
      * @return void
      */
@@ -87,7 +88,7 @@ final class RoutingTest extends TestCase
             $registered[] = $route->path();
         }
 
-        self::assertSame([...SitePath::cases(), ...AdminPath::cases()], $registered);
+        self::assertSame([...SitePath::cases(), DropPath::Index, ...AdminPath::cases()], $registered);
     }
 
     /**
@@ -235,12 +236,15 @@ final class RoutingTest extends TestCase
     }
 
     /**
-     * The admin's routes are the ones that accept a write method, and the only ones.
+     * The framework's routes — `/drop`, then the admin's — are the ones that accept a write method,
+     * and the only ones.
      *
      * Asserted over the real table rather than by reading the registration, because what matters is
-     * what the router will do and not what anybody wrote down. Both directions: a second route
-     * accepting a write, and a second route made `Delegated`, are each a hole. A delegated route is
-     * the one that accepts even a method nobody recognises, which a read-only one never does.
+     * what the router will do and not what anybody wrote down. Both directions: another route
+     * accepting a write, and another route made `Delegated`, are each a hole. A delegated route is
+     * the one that accepts even a method nobody recognises, which a read-only one never does. `/drop`
+     * is delegated so that, with no `data/drop.json` — as on the live host — it answers every method
+     * exactly as an address that is not there.
      *
      * @return void
      */
@@ -259,7 +263,9 @@ final class RoutingTest extends TestCase
             }
         }
 
-        self::assertSame(AdminPath::cases(), $accepting);
-        self::assertSame(AdminPath::cases(), $delegated, 'another route stopped being method-gated');
+        $framework = [DropPath::Index, ...AdminPath::cases()];
+
+        self::assertSame($framework, $accepting);
+        self::assertSame($framework, $delegated, 'another route stopped being method-gated');
     }
 }

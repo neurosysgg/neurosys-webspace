@@ -509,6 +509,11 @@ no `admin.php` at all — no route stands behind the framework's Basic admin gat
 on the server by `access v1 enrol` and `revoke`, and a copy from here would put this machine's list
 of devices on the live host.
 
+**It excludes the two switches as well — `data/machine.json` and `data/drop.json` — with
+`data/drop.key` and the drops in `data/drops/`.** Each switch is on locally and off on Strato, and a
+copy pushed up would open the live host's disk to its admin, or `/drop` to the web; the key would seal
+the live host's drops with one kept on a laptop, and the drops belong to this machine's links.
+
 **`--delete` is on for `public/` and `src/` and off for `data/`.** The two trees it deletes from are
 wholly generated or wholly committed, so the working tree is authoritative about what should be
 there. `data/` is not: `demos.php` and `demos/` are gitignored, so a deploy from a clone that has
