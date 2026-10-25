@@ -281,10 +281,19 @@ at any other holding the same public key, for as long as its serial is fresh the
 sharing a key share every credential, a push included. The tools enforce it (above); this is why.
 
 The **private halves never enter this repository** — they live beside the SoundCloud refresh token,
-for the same reason — and the tools refuse one that other users can read. The production pair, once:
+for the same reason — and the tools refuse one that other users can read. **The production key is
+kept under a passphrase**: `chmod 600` stops other users, not a process running as you, and one read
+of an unencrypted key is a push to production. The tools see an encrypted PEM and ask for its
+passphrase on the terminal. The production pair, once:
 
 ```bash
-(umask 077; mkdir -p ~/.config/neurosys && openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update.key)
+(umask 077; mkdir -p ~/.config/neurosys && openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -aes256 -out ~/.config/neurosys/update.key)
+```
+
+A key made before this is encrypted in place, keeping the same pair, so `data/update.pub` stays as it is:
+
+```bash
+(umask 077; f=~/.config/neurosys/update.key; openssl pkey -in "$f" -aes256 -out "$f.new" && mv "$f.new" "$f")
 ```
 
 ```bash
@@ -298,7 +307,7 @@ would lock you out of the endpoint.
 The working tree's `data/update.pub` is the **local** deployment's, from a pair of its own:
 
 ```bash
-(umask 077; openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out ~/.config/neurosys/update-neurosys.localhost.key)
+(umask 077; openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -aes256 -out ~/.config/neurosys/update-neurosys.localhost.key)
 ```
 
 ```bash
