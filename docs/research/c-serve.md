@@ -1,7 +1,8 @@
 # Research — c-serve, the site's core in C
 
-> **Status: c0–c2 built (2026-10-29)**: the conformance suite, the extracted stack, and its host
-> serving this site through php-cgi (`test/cserve.sh`: 113/113 on both trees). Recorded 2026-10-29. This takes neurosys.gg's
+> **Status: c0–c3 built (2026-10-29)**: the conformance suite, the extracted stack, its host
+> serving this site through php-cgi (`test/cserve.sh`: 113/113 on both trees), and the toolkit an
+> app is written in, checked case by case against Phpanta's own answers. Recorded 2026-10-29. This takes neurosys.gg's
 > runtime off PHP. A C web host serves the site, and the site is a first-class app compiled for it.
 > The host fuses Phpanta's `App` contract with ctui-wm's plugin architecture, on the HTTP/TLS
 > server that ctui-wm already has. It reverses "not a rewrite away from PHP" in
@@ -154,13 +155,31 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
     (`{name}`, a trailing `*`, a 405 with `Allow`). `--climb front` sends a `..` path to PHP for its
     404, which fixes Apache's `/.htaccess` 403 on the way. A HEAD whose body is streamed goes out
     without framing and closes its connection, because `curl -X HEAD` reads it as a GET's.
-- **c3. The framework layer**, an app's toolkit:
+- **c3. The framework layer**, an app's toolkit. *Built.*
   - request: query, cookies, `Accept-Language`, `If-None-Match`, `X-Requested-With`;
   - reply with typed headers;
   - the markup tree and render;
   - catalogs and negotiation;
   - ETag and `Vary`;
   - the SPA fragment.
+  - As built: c-serve's `kit/`.
+    - **The modules:** `arena` (one request's memory and its first error), `reading`, `text`,
+      `markup` + `html`, `headers` and `page`.
+    - **Security headers:** the host owns them, in `src/policy.c`. ABI 1 gained two slots,
+      `security` (the CSP's hosts, as data) and `not_found`.
+    - **Render is Phpanta's byte for byte**, and the readers decide as Phpanta's do. Every case's
+      expected answer is printed by Phpanta itself (`test/cserve/goldens.php` → c-serve's
+      `tests/data/goldens.h`).
+    - **Catalogs are a C macro taking each language**, so a missing German is a compiler error.
+    - **A phrase's grammar is `{name}` alone.** Anything ICU would treat specially is refused,
+      including an apostrophe.
+    - **The ETag is the first 16 bytes of a SHA-256** (mbedtls's PSA), not xxh128. It is the
+      same shape, and nothing compares it across the two.
+    - `cserve_stays_on_origin()` refuses any value with a scheme. Phpanta's WHATWG resolution
+      accepts `https:x`. Render never asks either one that question, because a `/` or `#` comes
+      first.
+    - `containingHtml` is not ported: `/privacy` becomes a build-time conversion in c4.
+    - `apps/hello` exercises all of it end to end in both link modes.
 - **c4. The neurosys app.**
   - Move routes one at a time, and leave every route not yet native on the php-cgi fallthrough.
   - The data gets its new format, and `stage-release`/`stage-demo` emit it.

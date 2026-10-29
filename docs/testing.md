@@ -56,6 +56,13 @@ served natively, everything else through php-cgi. It runs twice, against `public
 production layout deploy.sh builds, staged in a scratch directory with the data files the pages
 read and none of the credentials. It needs `php-cgi`, which nothing else here does.
 
+`test/cserve/goldens.php` prints what c-serve's toolkit is tested against: Phpanta's own answers
+for escaping, the origin check, Accept-Language, If-None-Match, Range, the query and the `lang`
+cookie, and the bytes a set of trees renders to. Its output is c-serve's `tests/data/goldens.h`
+(`php test/cserve/goldens.php > ~/Projects/c-serve/tests/data/goldens.h`), regenerated whenever
+Phpanta's rendering or reading changes, never edited. The trees are built twice, here and under the
+same names in c-serve's `tests/markup_test.c`; what they render to is written once.
+
 Vary is asserted as a set (`check_vary`), not as a string. Apache joins it without spaces and
 appends what it varies on itself: mod_deflate adds `Accept-Encoding`, and Strato adds
 `X-Forwarded-For`.
