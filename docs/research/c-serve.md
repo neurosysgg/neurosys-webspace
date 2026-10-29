@@ -1,6 +1,7 @@
 # Research — c-serve, the site's core in C
 
-> **Status: decided direction, nothing built.** Recorded 2026-10-29. This takes neurosys.gg's
+> **Status: c0–c2 built (2026-10-29)**: the conformance suite, the extracted stack, and its host
+> serving this site through php-cgi (`test/cserve.sh`: 113/113 on both trees). Recorded 2026-10-29. This takes neurosys.gg's
 > runtime off PHP. A C web host serves the site, and the site is a first-class app compiled for it.
 > The host fuses Phpanta's `App` contract with ctui-wm's plugin architecture, on the HTTP/TLS
 > server that ctui-wm already has. It reverses "not a rewrite away from PHP" in
@@ -143,10 +144,16 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
   - Move `plugins/net`'s server, TLS, connection and listener code, its tests and its fuzz cases
     into `~/Projects/c-serve`. ctui-wm takes it as a submodule, and ctui-remote builds unchanged.
   - Ship a minimal ctui dependency, or none. Decide by what `conn`/`tls` actually include.
-- **c2. Host + app ABI + router.**
+- **c2. Host + app ABI + router.** *Built.*
   - `c-serve` serves the site's `public/` and routes everything else to php-cgi, the bridge
     ctui-remote already has. The conformance suite passes against it.
   - This is attested-single-box's Phase 2, done as c-serve.
+  - As built: ctui-remote's routing and CGI became c-serve's `static.c` and `cgi.c`, and
+    ctui-remote uses them. The host is `cserve` (apps `dlopen`ed) or `cserve-static` (apps linked
+    in); the ABI is `src/app.h` (ABI 1: `init`, routes, `fini`); the router is `src/route.c`
+    (`{name}`, a trailing `*`, a 405 with `Allow`). `--climb front` sends a `..` path to PHP for its
+    404, which fixes Apache's `/.htaccess` 403 on the way. A HEAD whose body is streamed goes out
+    without framing and closes its connection, because `curl -X HEAD` reads it as a GET's.
 - **c3. The framework layer**, an app's toolkit:
   - request: query, cookies, `Accept-Language`, `If-None-Match`, `X-Requested-With`;
   - reply with typed headers;

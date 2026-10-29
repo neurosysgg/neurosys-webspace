@@ -13,6 +13,7 @@ runs both — unit tests first, then the verify script. Or separately:
 composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
 bash test/conformance.sh [BASE]   # the verify script's HTTP half, against any server
+bash test/cserve.sh               # the same against c-serve's host, debug tree and prod layout
 composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 npm test           # node --test, the elements and the enum mirrors
@@ -49,6 +50,11 @@ router; given one, it asks that server, with `CONFORMANCE_CURL` for extra curl f
 `test/lib/http.sh`. What stays in the verify script is what knows it is PHP: the environment, the
 autoloader, the data files, repo hygiene, the demos (their fixture is a `data/demos.php`), the admin,
 and the served custom tags, read against `Tag::cases()`.
+
+`test/cserve.sh` runs it against c-serve's host (`~/Projects/c-serve`, or `CSERVE_DIR`): the files
+served natively, everything else through php-cgi. It runs twice, against `public/` and against the
+production layout deploy.sh builds, staged in a scratch directory with the data files the pages
+read and none of the credentials. It needs `php-cgi`, which nothing else here does.
 
 Vary is asserted as a set (`check_vary`), not as a string. Apache joins it without spaces and
 appends what it varies on itself: mod_deflate adds `Accept-Encoding`, and Strato adds
