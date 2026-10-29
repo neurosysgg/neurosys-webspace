@@ -88,6 +88,7 @@ install` for tests and linters, `npm install` to touch the TypeScript; neither i
 composer test      # unit tests, then the end-to-end verify script
 composer unit      # PHPUnit only
 composer verify    # bash test/basic_test.sh only
+bash test/conformance.sh [BASE]   # the verify script's HTTP half, against any server
 composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 
@@ -320,7 +321,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   misnesting error a guard throws reads `must be inside <P>`.
 - Never cache-bust with `?v=` on an import specifier: V8 attributes the module to a URL the coverage
   include does not match, and the 100% gate collapses. The build stamp is a path segment instead.
-- Both `php -S` invocations — `npm run dev` and the verify script's — must load `phpanta/tools/dev-router.php`.
+- Every `php -S` invocation — `npm run dev`, the verify script's two and the conformance suite's —
+  must load `phpanta/tools/dev-router.php`.
 - `npm run watch` rebuilds neither the stylesheet nor the manifest; run `npm run build` before
   committing.
 - The debug and prod manifests differ on purpose (49 preloads against none) — do not add a diff

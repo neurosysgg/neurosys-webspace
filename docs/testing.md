@@ -12,6 +12,7 @@ runs both — unit tests first, then the verify script. Or separately:
 ```bash
 composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
+bash test/conformance.sh [BASE]   # the verify script's HTTP half, against any server
 composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 npm test           # node --test, the elements and the enum mirrors
@@ -36,6 +37,22 @@ test rather than a passing one, as well as a failure in the drift check. It load
 way and by the same list. Two of its cases reach back into PHP through `php -r` — the enum parity
 ones, and the Permissions-Policy check — because the fact they guard spans both sides. `node --test`
 is built in and `jsdom` supplies the DOM; both are dev-only.
+
+**The verify script's HTTP half is also a suite of its own, `test/conformance.sh`.** It holds every
+check that is a request and what came back: the routes and their odd targets, the dot segments, the
+rendered output, the security headers, caching, language negotiation and the read-only method gate.
+Nothing in it loads PHP or reads the repo, so it is the definition of the site that outlives the
+runtime ([research/c-serve.md](research/c-serve.md)). Given no `BASE`, it starts `php -S` with the dev
+router; given one, it asks that server, with `CONFORMANCE_CURL` for extra curl flags such as
+`--cacert`. The verify script sources it and calls `conformance_checks` against its own server, so
+`composer verify` still runs every check once and counts them in one total. The helpers both use are
+`test/lib/http.sh`. What stays in the verify script is what knows it is PHP: the environment, the
+autoloader, the data files, repo hygiene, the demos (their fixture is a `data/demos.php`), the admin,
+and the served custom tags, read against `Tag::cases()`.
+
+Vary is asserted as a set (`check_vary`), not as a string. Apache joins it without spaces and
+appends what it varies on itself: mod_deflate adds `Accept-Encoding`, and Strato adds
+`X-Forwarded-For`.
 
 The division matters in a few concrete places:
 
