@@ -1,0 +1,5 @@
+# The confined PHP worker's own identity — not http, so nothing httpd owns is its by default.
+# In group http for exactly what data/ shares with it: session.key and drop.key (0640), and the
+# setgid directories (logs/, throttle/, drops/) both pools write to.
+u neurosys-php - "neuro.SYS confined PHP" - -
+m neurosys-php http

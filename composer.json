@@ -30,13 +30,15 @@
     "scripts": {
         "test": [
             "@unit",
-            "@verify"
+            "@verify",
+            "@confine"
         ],
         "unit": [
             "phpunit",
             "phpunit -c phpanta/phpunit.xml.dist"
         ],
         "verify": "bash test/basic_test.sh",
+        "confine": "bash test/confinement_test.sh",
         "lint": [
             "@phpcs",
             "@cs-check"
@@ -58,6 +60,7 @@
         "test": "Unit tests then the end-to-end verify script",
         "unit": "PHPUnit: the site suite, then the framework suite (phpanta/phpunit.xml.dist)",
         "verify": "End-to-end verify script (real autoloader, real HTTP, repo hygiene)",
+        "confine": "The confinement suite: the worker's seccomp filter, then the confined pool if installed",
         "lint": "phpcs + php-cs-fixer, both read-only",
         "phpcs": "phpcs only, read-only",
         "cs-check": "php-cs-fixer only, read-only, with a diff",

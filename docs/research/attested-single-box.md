@@ -25,7 +25,10 @@ behind each lives in the sections further down.
   `ReleaseRecord`, `App`, the drop store's handle reads, and the whole `machine` service. Each is
   pinned with its reason; moving them onto the floor is follow-up work, and the network family has
   no owner at all.
-- **Phase 1 — Grade 1 containment, locally.** *(local machine, no box.)* A php-fpm pool with its own
+- **Phase 1 — Grade 1 containment, locally.** *(Built, not running, 2026-11-07: the seccomp
+  extension `phpanta/tools/confine/` and tier A of `test/confinement_test.sh` pass; installing
+  `ops/local/` leaves php-fpm failing, which was left unfixed because [c-serve](c-serve.md) takes
+  PHP off the box.)* *(local machine, no box.)* A php-fpm pool with its own
   uid, the systemd sandbox unit, a derived seccomp filter, and ephemeral workers
   (`pm.max_requests=1`). Ship it with a test suite that *asserts* the confinement: a forbidden
   syscall kills the worker, worker PIDs never repeat across requests, a write outside `data/` fails,
