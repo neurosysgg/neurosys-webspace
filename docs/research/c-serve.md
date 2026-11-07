@@ -233,8 +233,9 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
     until the move to the box, and `diff.sh`'s PHP side is the reference for both.
   - `test/cserve.sh` runs the conformance suite against the app alone; its PHP-only runs went with
     the CGI.
-- **c6. Public-internet hardening**, needed before the box takes traffic:
-  - replace thread-per-connection with an event loop, or bound it tightly;
+- **c6. Public-internet hardening**, needed before the box takes traffic. It is also
+  [comms.md](comms.md)'s m1, which adds the timer wheel, a PBKDF2 pool and the tarpit:
+  - replace thread-per-connection with one epoll loop;
   - a gzip encoder, the access log and cert reload;
   - mbedtls built with threading, or one TLS context per worker;
   - the static production build, and `test/cserve.sh` against the production layout with it.
@@ -245,7 +246,8 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
   `data/demos.json` are the source, read by PHP through its codecs and by the app (the demos at
   `init()`, the rest through `app/gen/`, which `tools/app-data.php` prints from them). The release
   and demo tooling writes the JSON itself, through the same codecs, and stays PHP for now.
-- **Concurrency model for c6:** an event loop, or a fixed worker pool with per-connection deadlines.
+- **Concurrency model for c6 — answered.** One epoll loop with a timer wheel, and a small pool for
+  PBKDF2 only (2026-11-08, [comms.md](comms.md)); io_uring is never used, and the box disables it.
 - **The tooling.** About 18k lines of PHP import runtime classes (`Site`, `MusicalKey`, the API
   enums) and write JSON into `data/` through the site's codecs. Once the admin is gone, they need only the data format and
   the enums. Do they stay PHP against a thin model, or move?
