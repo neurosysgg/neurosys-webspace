@@ -4,266 +4,146 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Tool\Release;
 
+use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Format;
 use NeuroSYS\Model\Production\Arrangement;
-use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Production\ProductionTime;
 use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Release;
+use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Service\Data\Record;
+use NeuroSYS\Service\Data\RecordKey;
+use NeuroSYS\Service\Data\ReleaseCodec;
 use NeuroSYS\Tool\Flp\TimeMarker;
-use Phpanta\Support\Collection;
-use Phpanta\Tool\Php\Argument;
-use Phpanta\Tool\Php\Call;
-use Phpanta\Tool\Php\ClassConstant;
-use Phpanta\Tool\Php\Entry;
-use Phpanta\Tool\Php\Value;
+use stdClass;
 
 /**
- * The EntryWriter class. Renders the `data/releases.php` entry for a folder.
+ * The EntryWriter class. The `data/releases.json` entry for a folder, and what is left to fill in.
  *
- * What it cannot know it says so about, in place, naming the file whose share id is wanted — which
- * is the thing worth having to hand while standing in HiDrive's web UI. The entry is valid as it
- * stands: a `Format` with no link renders its card and answers a click with a 503, a null cover
- * renders the placeholder, and an absent `embed:` renders no player.
+ * **The entry is a {@link Release}**, built from what the folder knows and written by the one codec
+ * the site reads it with, so a staged entry cannot be one the site would refuse. It is valid as it
+ * stands: a format with no link renders its card and answers a click with a 503, a null cover
+ * renders the placeholder, an absent embed renders no player, and an empty description renders
+ * nothing.
  *
- * **Nothing here writes PHP as a string.** It composes {@link \Phpanta\Tool\Php\Expression}s and
- * one renderer turns them into source — the same arrangement the markup tree has, for the same
- * reason. A heredoc with `%s` holes would assemble `MusicalKey::DSharpMinor` by concatenating a
- * class name onto `$key->name`: a spelling nothing checks, in the one file whose failure mode is a
- * data file that will not parse. Here the case is passed as a real `MusicalKey` and `Value` asks it
- * what it is called.
- *
- * **`var_export()` on the whole `Release` was the obvious version of that idea, and it is the wrong
- * output.** It works — PHP emits `\NeuroSYS\Model\Release::__set_state(array(…))` and would
- * round-trip given a `__set_state()` on each class — but `ill.` comes out as 191 lines against 35,
- * with `Collection`'s private `items` and its `type` string on show, every `SoundCloudEmbed` default
- * spelled out, and no comment anywhere. `data/releases.php` is ordered and edited by hand, and the
- * three things it most needs are the share-id comments, the named arguments and the commented-out
- * lines for facts that do not exist yet — none of which an exported object can carry. So the tree
- * emits what a person would have typed, and `var_export()` does what it is genuinely good at:
- * quoting the leaves, in {@link Value}.
+ * **What it cannot know it lists, rather than writes** — {@link self::notes()}. JSON has no comment
+ * to leave beside a field, so the share id each link still wants, the SoundCloud ids that do not
+ * exist before an upload, and the plugin names scraped out of the project (candidates for a person
+ * to trim, not facts) are said on stderr, naming the file each one is for: the thing worth having
+ * to hand while standing in HiDrive's web UI.
  */
 final readonly class EntryWriter
 {
     /**
+     * The release the folder makes.
+     *
      * @param ReleaseFolder        $folder Must have every required {@link Fact}; see {@link ReleaseFolder::missing()}.
-     * @param SoundCloudEmbed|null $embed  The player, once the track exists — see {@link self::entry()}.
+     * @param SoundCloudEmbed|null $embed  The player, once the track exists. Null for one that has
+     *                                     not been uploaded yet: the three SoundCloud ids are the
+     *                                     one thing about a release a folder cannot supply, and
+     *                                     `release-track` hands the uploaded track's back here.
+     * @return Release
+     */
+    public static function release(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): Release
+    {
+        $project = $folder->projectFile?->project;
+
+        return new Release(
+            title:       (string) $folder->title,
+            bpm:         (int) $folder->bpm,
+            key:         $folder->key ?? throw self::unready(Fact::Key),
+            genre:       $folder->genre ?? throw self::unready(Fact::Genre),
+            description: '',
+            cover:       null,
+            formats:     $folder->formats()->map(static fn(ReleaseFormat $format): Format => new Format($format)),
+            embed:       $embed,
+            arrangement: $project === null || $project->structure()->isEmpty()
+                ? null
+                : new Arrangement(
+                    $project->structure()->map(
+                        static fn(TimeMarker $marker): Section => Section::named($marker->name, $marker->tick),
+                    ),
+                    $project->ppq,
+                ),
+            // To the minute, which is all the page shows of it.
+            timeSpent:   $project?->timeSpent === null
+                ? null
+                : ProductionTime::of(intdiv($project->timeSpent, 3600), intdiv($project->timeSpent % 3600, 60)),
+        );
+    }
+
+    /**
+     * The entry as `data/releases.json` holds it, on its own: `{"slug": {…}}`, for `--print`.
+     *
+     * @param ReleaseFolder        $folder
+     * @param SoundCloudEmbed|null $embed
      * @return string
      */
     public static function write(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): string
     {
-        return self::entry($folder, $embed)->render();
+        $entry = new stdClass();
+        $entry->{(string) $folder->slug()} = ReleaseCodec::releaseValue(self::release($folder, $embed));
+
+        return Record::encode($entry);
     }
 
     /**
-     * The classes `data/releases.php` has to import for the entry to parse.
+     * What the entry still wants, by hand, one line each.
      *
      * @param ReleaseFolder        $folder
      * @param SoundCloudEmbed|null $embed
      * @return list<string>
      */
-    public static function imports(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): array
+    public static function notes(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): array
     {
-        return self::entry($folder, $embed)->imports();
-    }
-
-    /**
-     * The entry, with the player either written out or written down.
-     *
-     * **The second argument is the one thing about a release a folder cannot supply.** The three
-     * SoundCloud ids do not exist until the track is uploaded, so without it they are emitted
-     * commented out, as a line to fill in by hand from an embed dialog. `release-track` uploads the
-     * track and hands the resulting {@link SoundCloudEmbed} straight back here — so the entry
-     * printed after an upload and the entry printed before one are the same code with one argument
-     * different.
-     *
-     * @param ReleaseFolder        $folder
-     * @param SoundCloudEmbed|null $embed Null for a track that has not been uploaded yet.
-     * @return Entry
-     */
-    private static function entry(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): Entry
-    {
-        $slug = (string) $folder->slug();
-
-        $arguments = [
-            new Argument(new Value($folder->title), 'title'),
-            new Argument(new Value($folder->bpm), 'bpm'),
-            new Argument(new Value($folder->key), 'key'),
-            new Argument(new Value($folder->genre), 'genre'),
-            new Argument(new Value(''), 'description', 'editorial — nothing in the folder supplies this'),
-            new Argument(new Value(null), 'cover', 'share id for ' . ($folder->cover?->name() ?? 'the cover')),
-            new Argument(self::formats($folder), 'formats'),
-            ...($embed !== null
-                ? [new Argument(self::embed($embed, $slug), 'embed')]
-                : [
-                    Argument::comment(
-                        'SoundCloud ids exist only once the track is uploaded; the permalink is usually the slug.',
-                    ),
-                    Argument::pending(self::embed($embed, $slug), 'embed'),
-                ]),
-            ...self::production($folder),
-        ];
-
-        return new Entry($slug, Call::create(
-            Release::class,
-            new Collection(Argument::class)->with(...$arguments),
-            stacked: true,
-        ));
-    }
-
-    /**
-     * `new Collection(Format::class)->with(…)`, one line per format, each naming its own file.
-     *
-     * @param ReleaseFolder $folder
-     * @return Call
-     */
-    private static function formats(ReleaseFolder $folder): Call
-    {
-        $arguments = [];
+        $notes = [sprintf('%s: editorial — nothing in the folder supplies it', RecordKey::Description->value)];
+        $notes[] = sprintf(
+            '%s: the share id for %s',
+            RecordKey::Cover->value,
+            $folder->cover?->name() ?? 'the cover',
+        );
 
         foreach ($folder->formats() as $format) {
-            $arguments[] = new Argument(
-                Call::create(Format::class, new Collection(Argument::class)->with(new Argument(new Value($format)))),
-                comment: 'share id for ' . ($folder->fileFor($format)?->name() ?? $format->value),
+            $notes[] = sprintf(
+                '%s %s: the share id for %s',
+                RecordKey::Formats->value,
+                $format->value,
+                $folder->fileFor($format)?->name() ?? $format->value,
             );
         }
 
-        return self::collection(Format::class, $arguments);
-    }
-
-    /**
-     * The player: the real ids where there are some, and the shape to fill in where there are not.
-     *
-     * **`secretToken` is omitted for a public track rather than written empty.** That is what the
-     * argument's own default says and what `docs/releases.md`'s worked example does — and the
-     * difference is not cosmetic on the page: `SoundCloudEmbed::toElement()` sends no attribute at
-     * all for an empty token, because the client reads an absent attribute and an empty one
-     * differently. The commented-out form keeps it, since a scheduled track is the case it exists
-     * for and a line to uncomment should hold every line you will want.
-     *
-     * **A real one is stacked and a pending one is not**, which is what each is for. `data/releases.php`
-     * writes every player it has across four lines with the names in a column, so that is what an
-     * entry with real ids has to look like to sit beside them. The pending one is a single line
-     * because it is a line to uncomment, and four commented lines are four chances to uncomment
-     * three.
-     *
-     * @param SoundCloudEmbed|null $embed
-     * @param string               $slug Stands in for the permalink until there is a real one.
-     * @return Call
-     */
-    private static function embed(?SoundCloudEmbed $embed, string $slug): Call
-    {
-        $arguments = [
-            new Argument(new Value($embed?->trackId ?? 0), 'trackId'),
-            new Argument(new Value($embed?->permalink ?? $slug), 'permalink'),
-        ];
-
-        if ($embed === null || $embed->secretToken !== '') {
-            $arguments[] = new Argument(new Value($embed?->secretToken ?? ''), 'secretToken');
-        }
-
-        return Call::create(
-            SoundCloudEmbed::class,
-            new Collection(Argument::class)->with(...$arguments),
-            stacked: $embed !== null,
-        );
-    }
-
-    /**
-     * The three arguments only the project file supplies, where the folder has a project to read.
-     *
-     * @param ReleaseFolder $folder
-     * @return list<Argument>
-     */
-    private static function production(ReleaseFolder $folder): array
-    {
-        $project = $folder->projectFile?->project;
-
-        if ($project === null) {
-            return [];
-        }
-
-        $arguments = [];
-
-        if (!$project->structure()->isEmpty()) {
-            $arguments[] = new Argument(self::arrangement($project->structure(), $project->ppq), 'arrangement');
-        }
-
-        if ($project->timeSpent !== null) {
-            $arguments[] = new Argument(
-                Call::onClass(ProductionTime::class, 'of', new Collection(Argument::class)->with(
-                    new Argument(new Value(intdiv($project->timeSpent, 3600))),
-                    new Argument(new Value(intdiv($project->timeSpent % 3600, 60))),
-                )),
-                'timeSpent',
+        if ($embed === null) {
+            $notes[] = sprintf(
+                '%s: the SoundCloud ids exist only once the track is uploaded — release-track --upload'
+                . ' writes them in',
+                RecordKey::Embed->value,
             );
         }
 
-        // Commented, and that is the point: these are candidates scraped out of the project's
-        // plugin blobs, not a fact the format states — see NeuroSYS\Tool\Flp\Plugins. The author
-        // keeps the ones worth crediting and deletes the rest, the way `description` is filled in.
-        if ($project->plugins !== []) {
-            $credits = array_map(
-                static fn(string $name): Argument => new Argument(
-                    Call::create(Plugin::class, new Collection(Argument::class)->with(new Argument(new Value($name)))),
-                ),
-                $project->plugins,
+        $plugins = $folder->projectFile?->project->plugins ?? [];
+        if ($plugins !== []) {
+            $notes[] = sprintf(
+                '%s: candidates the project names — credit the ones worth crediting: %s',
+                RecordKey::MadeWith->value,
+                implode(', ', $plugins),
             );
-
-            $arguments[] = Argument::pending(self::collection(Plugin::class, $credits), 'madeWith');
         }
 
-        return $arguments;
+        return $notes;
     }
 
     /**
-     * `new Arrangement(new Collection(Section::class)->with(…))`.
+     * A folder handed here without a fact {@link Preflight} requires — a caller's mistake, since
+     * both commands check the folder first.
      *
-     * The ppq is named only when it differs from the default every project tested uses, which keeps
-     * the entry as terse as the rest of the file.
-     *
-     * @param Collection<TimeMarker> $markers
-     * @param int              $ppq
-     * @return Call
+     * @param Fact $fact
+     * @return ReleaseVerificationException
      */
-    private static function arrangement(Collection $markers, int $ppq): Call
+    private static function unready(Fact $fact): ReleaseVerificationException
     {
-        $sections = $markers->map(
-            static fn(TimeMarker $marker): Argument => new Argument(
-                Call::onClass(Section::class, 'named', new Collection(Argument::class)->with(
-                    new Argument(new Value($marker->name)),
-                    new Argument(new Value($marker->tick)),
-                )),
-            ),
-        )->toValues();
-
-        $arguments = [new Argument(self::collection(Section::class, $sections))];
-
-        if ($ppq !== 96) {
-            $arguments[] = new Argument(new Value($ppq), 'ppq');
-        }
-
-        return Call::create(Arrangement::class, new Collection(Argument::class)->with(...$arguments));
-    }
-
-    /**
-     * `new Collection(Thing::class)->with(…)`, stacked.
-     *
-     * @param class-string   $type
-     * @param list<Argument> $items
-     * @return Call
-     */
-    private static function collection(string $type, array $items): Call
-    {
-        return Call::onValue(
-            Call::create(
-                Collection::class,
-                new Collection(Argument::class)->with(new Argument(new ClassConstant($type))),
-            ),
-            'with',
-            new Collection(Argument::class)->with(...$items),
-            stacked: true,
+        return new ReleaseVerificationException(
+            sprintf('The folder has no %s: check it before staging.', $fact->value),
         );
     }
 }

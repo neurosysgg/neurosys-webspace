@@ -477,14 +477,20 @@ serial, like a push — and its lines are facts, not verdicts; what each means i
 ### What it does not do
 
 It never touches `data/`. That tree is 8.6 MB of demo audio, it is rsynced deliberately *without*
-`--delete` because `demos.php` and `demos/` are gitignored, and reproducing that asymmetry inside a
+`--delete` because `demos.json` and `demos/` are gitignored, and reproducing that asymmetry inside a
 mirroring updater is where a mistake would take unreleased tracks off the server. `data` is not one
 of the three roots a payload may name, so a push cannot reach it even if one tried.
 
-**So a push alone cannot ship an entry that names a new case.** A release whose `description:` names
-a new `ReleaseDescription` case comes in two halves. The case is in `src/`, which a push carries.
-The entry naming it is in `data/releases.php`, which only `./deploy.sh` carries. `./deploy.sh`
-ships both, and a push alone leaves the live catalogue without the entry.
+**So a push alone cannot ship a release.** The catalogue is `data/releases.json`, its descriptions
+included, and only `./deploy.sh` carries it; a push leaves the live catalogue as it was.
+
+**Nor can it ship code that reads a data file the server lacks.** A push is `src/` and `public/`
+without `data/`, so PHP that reads a new file goes up ahead of the file — and the PHP that reads
+`data/releases.json` goes up ahead of it fails every page, since a missing catalogue is refused
+loudly rather than read as empty. Deploy a change like that with `./deploy.sh`, which ships the code
+and the file in one run. The files it replaced — `data/releases.php`, `data/profiles.php`,
+`data/demos.php` — stay on Strato, since `--delete` is off for `data/`, until they are removed over
+the mount by hand.
 
 **`deploy.sh` remains, and remains the recovery path.** A push that breaks `src/` breaks the endpoint
 that would fix it — `update v1 rollback` included; the way back is the mount. Every previous tree is in git, so recovery is
@@ -525,13 +531,13 @@ the live host's drops with one kept on a laptop, and the drops belong to this ma
 
 **`--delete` is on for `public/` and `src/` and off for `data/`.** The two trees it deletes from are
 wholly generated or wholly committed, so the working tree is authoritative about what should be
-there. `data/` is not: `demos.php` and `demos/` are gitignored, so a deploy from a clone that has
+there. `data/` is not: `demos.json` and `demos/` are gitignored, so a deploy from a clone that has
 never staged a demo would take every demo off the live server. The price is that **a data file
 renamed or removed locally stays on the server** until somebody deletes it over the mount — a
 deleted demo's MP3s, for instance. See [demos.md](demos.md).
 
 The PHPStorm route still works if the mount isn't up: right-click `public/` → **Deployment → Upload to
-Strato (neurosys.gg)**, then upload `data/releases.php` manually via the Remote Host panel. Note what
+Strato (neurosys.gg)**, then upload `data/releases.json` manually via the Remote Host panel. Note what
 that skips: it uploads the **debug** tree, maps and all, under a manifest stamped for different
 bytes. Nothing breaks — the version segment is stripped, not resolved — but both halves of the prod
 build are silently undone. Use it for one file in a hurry, not for a deploy.

@@ -13,8 +13,9 @@ use Phpanta\DataFileName;
  * back a {@link Support\File} for any path at all, `read()` answers null for one that is not there,
  * and each repository turns that null into an empty collection on purpose — because a clone that
  * has never staged a demo has to be a site rather than a fatal. So the guard that makes a fresh
- * checkout work is the same guard that swallows a typo: `releaes.php` gives an empty catalogue, a
- * 200, and no line in any log. The files where that would be worse — the admin's credentials and
+ * checkout work is the same guard that swallows a typo: `demso.json` gives no demos, a 404 at
+ * every demo, and no line in any log. (The catalogue alone refuses to be missing.) The files where
+ * that would be worse — the admin's credentials and
  * keys — are not here: the code that reads them is the framework's, so they are
  * {@link CredentialFile}'s cases, and {@link App::dataFiles()} lists both vocabularies together.
  *
@@ -24,20 +25,30 @@ use Phpanta\DataFileName;
  */
 enum DataFile: string implements DataFileName
 {
-    /** The catalogue: PHP returning slug-keyed {@link Model\Release} objects. */
-    case Releases = 'releases.php';
-
-    /** The footer's profile links, keyed by {@link Model\Platform} value. */
-    case Profiles = 'profiles.php';
+    /**
+     * The catalogue: slug-keyed releases as JSON, read and written by
+     * {@link Service\Data\ReleaseCodec}. The native host has it compiled in, printed from here
+     * by `tools/app-data.php`.
+     */
+    case Releases = 'releases.json';
 
     /**
-     * The demos, named per {@link Model\Demo} slug.
+     * The footer's profile links as JSON, one URL keyed by each {@link Model\Platform} value.
+     *
+     * A platform left out, or given an empty URL, is not linked. Apple Music's link is written
+     * storefront-less, so it geo-redirects to the visitor's own store; see docs/branding.md.
+     */
+    case Profiles = 'profiles.json';
+
+    /**
+     * The demos as JSON, named per {@link Model\Demo} slug and read by
+     * {@link Service\Data\DemoCodec} here and by `app/views/demos.c` natively.
      *
      * Gitignored — `origin` is a public repository and this file names unreleased tracks — and
      * deliberately *not* excluded from `deploy.sh`, which rsyncs the working tree rather than
      * consulting git. So it never reaches GitHub and always reaches Strato.
      */
-    case Demos = 'demos.php';
+    case Demos = 'demos.json';
 
     /**
      * The privacy policy in German — half of the one document {@link View\Html\MarkupParser}

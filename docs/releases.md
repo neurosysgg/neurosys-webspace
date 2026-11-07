@@ -1,6 +1,6 @@
 # Adding and updating releases
 
-Everything lives in `data/releases.php`. The router reads this file on every request — no cache to bust, no rebuild needed.
+Everything lives in `data/releases.json`. The site reads this file on every request — no cache to bust, no rebuild needed.
 
 ## Start from the folder
 
@@ -12,49 +12,65 @@ php tools/stage-release.php ~/Music/neuro.SYS/releases/ill
 ```
 
 It prints a report of what it derived and where each fact came from, checks the folder is fit to
-upload, and then prints the entry to paste in below. It refuses to print anything while a check
-fails, which is deliberate: a share link is bound to the bytes it was minted for, so a folder worth
-fixing is one to fix *before* uploading. What it cannot derive — the description, the share ids and
-the SoundCloud ids — it leaves as the staged states described further down, each line naming the file
-whose share id is wanted. See [authoring.md](authoring.md).
+upload, and then writes the entry first into `data/releases.json` (`--print` prints it instead). It
+writes nothing while a check fails, which is deliberate: a share link is bound to the bytes it was
+minted for, so a folder worth fixing is one to fix *before* uploading — and nothing over a slug the
+file already has, since that entry holds what was typed by hand. What it cannot derive — the
+description, the share ids and the SoundCloud ids — it leaves as the staged states described further
+down, and lists on stderr, naming the file each share id is for. See [authoring.md](authoring.md).
 
 The rest of this page is the manual version, and what to do with the three facts the folder cannot
 know.
 
 ## Adding a release
 
-Add a new entry to the array in `data/releases.php`. Each entry is a typed `Release` object:
+Add a new entry to the object in `data/releases.json`, keyed by its slug. `ReleaseCodec` reads each
+one into a typed `Release`:
 
-```php
-'your-slug' => new Release(
-    title:       'track title',
-    bpm:         140,
-    key:         MusicalKey::FSharpMajor,
-    genre:       Genre::Dubstep,
-    description: Texts::Releases::Descriptions::HelloWorld,   // card + page, both languages — see language.md
-    cover:       new HiDriveLink('J2FXbB70A'),   // share id, see below
-    formats: new Collection(Format::class)->with(
-        new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
-        new Format(ReleaseFormat::MP3,   new HiDriveLink('CPJy7AVIu')),
-        new Format(ReleaseFormat::STEMS, new HiDriveLink('D2PUDjoII')),
-    ),
-    embed: new SoundCloudEmbed(          // see below; omit the argument to hide the player
-        trackId:     2394077313,
-        permalink:   'ill',
-        secretToken: 's-dIMAqki109G',
-    ),
-),
+```json
+"your-slug": {
+    "title": "track title",
+    "bpm": 140,
+    "key": "F# Major",
+    "genre": "Dubstep",
+    "description": {"en": "card + page", "de": "Karte + Seite"},
+    "cover": "J2FXbB70A",
+    "formats": [
+        {"type": "flac", "link": "BXRsy9S7d"},
+        {"type": "mp3", "link": "CPJy7AVIu"},
+        {"type": "stems", "link": "D2PUDjoII"}
+    ],
+    "embed": {"trackId": 2394077313, "permalink": "ill", "secretToken": "s-dIMAqki109G"},
+    "arrangement": {"ppq": 96, "sections": [{"label": "INTRO", "tick": 0}, {"label": "DROP", "tick": 12288}]},
+    "timeSpent": 216420,
+    "madeWith": ["Serum 2", "Vocodex"]
+}
 ```
 
-The slug becomes the URL: `/releases/your-slug`. Entries render in array order, so put the newest release first.
+The slug becomes the URL: `/releases/your-slug`. Entries render in file order, so put the newest release first.
 
-Omit a format from the `Collection` to hide that download card. Omitting just its `HiDriveLink` is different — `new Format(ReleaseFormat::FLAC)` — the card still renders, but clicking it returns a plain-text 503 ("This file isn't available yet") instead of redirecting. That's the useful state while a release is staged and the HiDrive links don't exist yet. The same goes for `cover`: leave it off and the page shows the placeholder SVG.
+**Write it the way the codec does.** The real file has four-space indents and one key per line, and
+the verify script decodes and re-encodes it and fails on any byte of difference — so the compact
+lines above are for reading, not for pasting in as they stand. Only source fields are stored: the
+HiDrive URL, the rendered time and the rest are computed. A field the file cannot accept is refused
+with the file and its path — `data/releases.json: ill.formats[2].type: …`.
 
-Available formats: `ReleaseFormat::FLAC`, `MP3`, `WAV`, `AIFF`, `STEMS`, `OGG`.
+- `description` is one plain string, the same in every language, or `{"en": …, "de": …}`. English is
+  required; German may be left out and falls back to English. It is shown on the card and the page
+  — see [language.md](../phpanta/docs/language.md).
+- `arrangement` is the `.flp`'s, written by `stage-release --project`. A section's `kind` is
+  optional — left out, it is derived from the label (`intro`, `build`, `drop`, `break`, `bridge`,
+  `switch`, `builddown`, `outro`).
+- `timeSpent` is seconds. `madeWith` is typed by hand.
+- `embed` — see below; leave it out to hide the player.
 
-Available keys: all 24 standard Western keys as `MusicalKey::CMajor`, `CSharpMajor`, … `BMinor` (see `src/NeuroSYS/Model/MusicalKey.php` for the full list).
+Leave a format out of `formats` to hide that download card. Giving it a `null` link is different — `{"type": "flac", "link": null}` — the card still renders, but clicking it returns a plain-text 503 ("This file isn't available yet") instead of redirecting. That's the useful state while a release is staged and the HiDrive links don't exist yet. The same goes for `cover`: leave it out and the page shows the placeholder SVG.
 
-Available genres: `Genre::Dubstep`, `Riddim`, `Halftime`, `DrumAndBass`, `Neurofunk`, `Trap`, `FutureBass`, `Techno`, `House`, `Ambient`, `Experimental` (see `src/NeuroSYS/Model/Genre.php` — add a case when you need one).
+Available formats: `flac`, `mp3`, `wav`, `aiff`, `stems`, `ogg`.
+
+Available keys: all 24 standard Western keys by their backing value, `"C Major"`, `"C# Major"`, … `"B Minor"` (see `src/NeuroSYS/Model/MusicalKey.php` for the full list).
+
+Available genres: `Dubstep`, `Riddim`, `Halftime`, `Drum & Bass`, `Neurofunk`, `Trap`, `Future Bass`, `Techno`, `House`, `Ambient`, `Experimental` (see `src/NeuroSYS/Model/Genre.php` — add a case when you need one).
 
 ## Titles and the accent mark
 
@@ -64,18 +80,18 @@ Available genres: `Genre::Dubstep`, `Riddim`, `Halftime`, `DrumAndBass`, `Neurof
 
 1. Upload the file to HiDrive (see *Uploading* below).
 2. Right-click → **Share** → **Direct download link**.
-3. Take the **`id=` value off the end** of that URL and pass it to `HiDriveLink` — not the whole URL.
+3. Take the **`id=` value off the end** of that URL and write it as the `link` — not the whole URL.
 
 ```
 https://my.hidrive.com/api/sharelink/download?id=BXRsy9S7d
                                                  └── this bit ──┘
 
-new HiDriveLink('BXRsy9S7d')
+{"type": "flac", "link": "BXRsy9S7d"}
 ```
 
 `HiDriveLink` builds the endpoint back around the id, so the URL shape lives in one place
 (`src/NeuroSYS/Model/Link/HiDriveLink.php`) instead of being repeated per file. Ids are exactly 9 alphanumeric
-characters and anything else throws when `data/releases.php` loads — a truncated paste fails immediately and
+characters and anything else throws when `data/releases.json` is read — a truncated id fails immediately and
 loudly rather than 404ing from HiDrive when someone clicks. If HiDrive ever changes the id format, widen
 `ID_PATTERN` in that class.
 
@@ -106,13 +122,13 @@ Name the uploaded files the way the release is titled — `ill..flac`, `ill. cov
 
 ## Cover art
 
-Upload the cover image to HiDrive and grab a direct-download link (same process as audio files). Pass its share id as `cover`. Leave `cover` off entirely and the view renders the placeholder SVG; it also falls back to the placeholder if a configured image fails to load.
+Upload the cover image to HiDrive and grab a direct-download link (same process as audio files). Write its share id as `cover`. Leave `cover` out entirely and the view renders the placeholder SVG; it also falls back to the placeholder if a configured image fails to load.
 
 Recommended: 1400×1400 px minimum, square, JPEG.
 
 ## SoundCloud embed
 
-The embed HTML is **generated**, not pasted — `SoundCloudEmbed` builds it from three ids. There are two ways to
+The embed HTML is **generated**, not stored — `SoundCloudEmbed` builds it from three ids. There are two ways to
 get them.
 
 ### The tool, once an app is registered
@@ -121,8 +137,9 @@ get them.
 php tools/release-track.php ~/Music/neuro.SYS/releases/ill --upload
 ```
 
-It uploads the track **private** and prints the whole `data/releases.php` entry with `trackId`, `permalink` and
-`secretToken` already filled in — no embed dialog, no snippet to read. It sends nothing without `--upload`, and
+It uploads the track **private** and writes `trackId`, `permalink` and `secretToken` into the release's entry in
+`data/releases.json`, touching nothing else — or writes the whole entry first if there is none yet; `--print`
+prints it instead. No embed dialog, no snippet to read. It sends nothing without `--upload`, and
 there is no flag that can make a track public: that stays the step below, taken on the day. `--authorize` does
 the one browser round trip it needs, once per machine. It wants three environment variables —
 `NEUROSYS_SOUNDCLOUD_CLIENT_ID`, `_CLIENT_SECRET` and `_REDIRECT_URI` — which come from an app registered with
@@ -141,12 +158,12 @@ You only need to dig them out of SoundCloud's embed snippet once, then throw the
    | Argument | Where it is in the snippet | Example |
    |---|---|---|
    | `trackId` | the digits in the iframe `src`, after `soundcloud%3Atracks%3A` | `2394077313` |
-   | `permalink` | the track's own slug in the attribution link, `soundcloud.com/neurosysgg/<permalink>` | `'ill'` |
-   | `secretToken` | `secret_token%3D` in the `src`, or the trailing `/s-…` on the attribution link | `'s-dIMAqki109G'` |
+   | `permalink` | the track's own slug in the attribution link, `soundcloud.com/neurosysgg/<permalink>` | `"ill"` |
+   | `secretToken` | `secret_token%3D` in the `src`, or the trailing `/s-…` on the attribution link | `"s-dIMAqki109G"` |
 
-3. Pass them as `embed:` in `data/releases.php`. Omit the `embed:` argument entirely to hide the player.
+3. Write them as the entry's `embed` in `data/releases.json`. Leave `embed` out entirely to hide the player.
 
-`secretToken` only exists while a track is **private or scheduled**. Leave it off for a track that was public from
+`secretToken` only exists while a track is **private or scheduled**. Leave it out for a track that was public from
 the start. A token grabbed before release keeps working after the track goes public, so there's no need to re-grab
 it on release day — verified with `ill.`, which went public on 04.09.2026 on its pre-release token.
 
@@ -156,21 +173,23 @@ request to play.
 
 Two things are fixed site-wide inside `SoundCloudEmbed` rather than per release: the artist handle
 (`neurosysgg`) and the player accent `#9e55e6` — a lighter purple than the site's `--accent: #6a00ff`, which
-reads as near-black against SoundCloud's own dark player. Change them there, not in `data/releases.php`.
+reads as near-black against SoundCloud's own dark player. Change them there, not in `data/releases.json`.
 
-Layout and toggles are enums with defaults you shouldn't normally need:
+Layout and toggles are enums with defaults you shouldn't normally need, and the file leaves them out
+at their defaults:
 
-```php
-embed: new SoundCloudEmbed(
-    trackId:   2394077313,
-    permalink: 'ill',
-    style:     SoundCloudPlayerStyle::Classic,        // Visual (default, 300px) | Classic (166px)
-    options:   [SoundCloudOption::ShowUser],          // listed = on, everything else off
-),
+```json
+"embed": {
+    "trackId": 2394077313,
+    "permalink": "ill",
+    "style": "classic",
+    "options": ["show_user"]
+}
 ```
 
-Default options are `AutoPlay`, `ShowComments`, `ShowUser`, `ShowTeaser`. The full set is in
-`src/NeuroSYS/Model/Embed/SoundCloudOption.php`.
+`style` is `visual` (the default, 300px) or `classic` (166px); `options` lists what is on, and
+everything else is off. Default options are `auto_play`, `show_comments`, `show_user`,
+`show_teaser`. The full set is in `src/NeuroSYS/Model/Embed/SoundCloudOption.php`.
 
 ### Another platform
 
@@ -212,7 +231,7 @@ Two things to expect, both of them properties of the project rather than of the 
   written down rather than smoothed over; see [tooling.md](tooling.md#extract-midi) for the
   one-tick question and the two extra tracks, and `ExtractMidi::DIVERGENCE` for the decision.
 
-## After editing releases.php
+## After editing releases.json
 
 Deploy with `./deploy.sh`, which rsyncs `data/` along with everything else (skipping only `logs/` and
 the credential files). `php tools/push-update.php` does **not** carry it: a push writes only
@@ -235,7 +254,8 @@ Built from the ones `ill.` and `hello world!` shipped with — both are kept in
       byte-for-byte
 - [ ] **Create share links in the HiDrive web UI** for the cover and every format → `cover` and `formats`
 - [ ] SoundCloud: upload private (`release-track --upload`, or by hand) and take the three ids → `embed`
-- [ ] Paste the entry into `data/releases.php`, newest first, with any `use` lines `stage-release` says are missing
+- [ ] `php tools/stage-release.php <folder>` writes the entry; fill in what it lists on stderr — share ids,
+      description, credits
 - [ ] `composer verify`
 - [ ] Deploy — `./deploy.sh`, because it ships `data/`
 - [ ] Test every download link live — each 303s to the right HiDrive id

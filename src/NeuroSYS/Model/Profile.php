@@ -20,7 +20,7 @@ use Phpanta\Support\BareString;
  * is the one address on this site that arrives as free text from a data file rather than being
  * built from parts. {@link \Phpanta\View\Html\Element} would refuse a `javascript:` URL at
  * render time regardless — but that is the backstop, and a backstop reports the fault on whatever
- * page happens to draw the footer. Checking here reports it when `data/profiles.php` loads, naming
+ * page happens to draw the footer. Checking here reports it when `data/profiles.json` loads, naming
  * the value, which is where the mistake actually is.
  */
 #[BareString(

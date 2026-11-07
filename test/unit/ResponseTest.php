@@ -258,7 +258,7 @@ final class ResponseTest extends TestCase
         yield 'known release and format' => ['hello-world', 'flac', RedirectResponse::class];
         yield 'unknown release'          => ['nope', 'flac', ViewResponse::class];
         yield 'unknown format'           => ['hello-world', 'wma', ViewResponse::class];
-        yield 'path traversal attempt'   => ['hello-world', '../../data/releases.php', ViewResponse::class];
+        yield 'path traversal attempt'   => ['hello-world', '../../data/releases.json', ViewResponse::class];
     }
 
     /**
@@ -327,17 +327,12 @@ final class ResponseTest extends TestCase
      */
     private function stagedCatalogue(): ReleaseRepository
     {
-        $file = Directory::temporary('neurosys-staged-')->file('releases.php');
+        $file = Directory::temporary('neurosys-staged-')->file('releases.json');
 
-        $file->write(<<<'PHP'
-            <?php
-            use NeuroSYS\Model\{Format, Genre, MusicalKey, Release, ReleaseFormat};
-            use Phpanta\Support\Collection;
-            return ['staged' => new Release(
-                'staged.', 140, MusicalKey::CMajor, Genre::Dubstep, 'unreleased', null,
-                new Collection(Format::class)->with(new Format(ReleaseFormat::FLAC)),
-            )];
-            PHP);
+        $file->write(<<<'JSON'
+            {"staged": {"title": "staged.", "bpm": 140, "key": "C Major", "genre": "Dubstep",
+              "description": "unreleased", "cover": null, "formats": [{"type": "flac", "link": null}]}}
+            JSON);
 
         $this->fixtures[] = $file;
 

@@ -50,10 +50,11 @@ pushes to GitHub and HiDrive at once, and a site commit records the c-serve comm
 against. Nothing deploys it — `deploy.sh` and `push-update` name what they ship. `test/cserve.sh`
 and `test/cserve/diff.sh` build it from here, else from `~/Projects/c-serve`, or `CSERVE_DIR`.
 
-- **The PHP is still the one source.** `app/gen/` is printed by `php tools/app-data.php`: the
-  catalogs, the vocabulary, the manifest, the releases and the privacy policy as a tree, plus
-  `data/demos.json`. Change the PHP, then rerun the command; never edit `app/gen/`, which the
-  verify script fails on drift.
+- **The PHP and the data files are the one source.** The data is JSON — `data/releases.json`,
+  `data/profiles.json` and `data/demos.json`, which the app reads itself. `app/gen/` is printed
+  from the PHP and those files by `php tools/app-data.php`: the catalogs, the vocabulary, the
+  manifest, the releases and the privacy policy as a tree. Change either, then rerun the command;
+  never edit `app/gen/`, which the verify script fails on drift.
 - **A change to a page lands only when `bash test/cserve/diff.sh` is silent**: PHP (as Strato runs
   it) and the app answer 370 requests byte for byte, and the addresses only PHP has answer
   natively as `/nope` does.
@@ -158,6 +159,7 @@ src/NeuroSYS/                  ← this site
 │   ├── Embed/      ← Embed + SoundCloudEmbed (one track) + SoundCloudProfileEmbed (the account)
 │   └── Link/       ← FileLink + HiDriveLink
 ├── Service/        ← the repositories, DemoGate, DownloadLogger
+│   └── Data/       ← Record, RecordKey and the codecs: data/*.json read into typed values, and back
 ├── Support/        ← SitePath and the route table
 ├── Exception/      ← ReleaseVerificationException, TerminalException
 ├── Text/           ← every word the site says, in both languages: Texts and the catalogs
@@ -276,7 +278,7 @@ These fail silently — no error, no log, a page that looks fine. Each links the
 - `Translatable` is asked before `BackedEnum`: a catalog case is both, and read as an enum it renders
   its key. A translatable with no `lang` above it throws — render a view with `->render(0, $language)`.
 - Every page varies on `Accept-Language` and `Cookie`; `ViewResponse` says so for all of them.
-- A demo's description is never a catalog case — `src/` is public. It is inline in `data/demos.php`.
+- A demo's description is never a catalog case — `src/` is public. It is inline in `data/demos.json`.
 - The verify script's "no markup from a string" grep reads comments: an apostrophe followed on the
   same line by a `<tag` fails it.
 
@@ -327,6 +329,8 @@ These fail silently — no error, no log, a page that looks fine. Each links the
   makes NFS silly-rename it into an `.nfsXXXXXXXX` that lives as long as the worker holding it. The
   mirror reports a stray in a note, never as a failure; removing one over the mount is tidiness.
 - A server not yet running the `/admin` code can only be updated by `./deploy.sh`; `--url` is an origin.
+- A push ships no `data/`: PHP that reads a data file the server lacks — `data/releases.json` — fails
+  every page, so that change goes up with `./deploy.sh`. [deployment.md](docs/deployment.md)
 - A fault is shown in full only when `PHPANTA_ENVIRONMENT=development` **and** the request is from
   loopback — never `SetEnv` it on Strato; `health v1` warns if a deployment says it. The dev router
   sets it for `php -S`; the local Apache needs the line in its vhost. [runtime.md](docs/runtime.md)
@@ -406,34 +410,40 @@ npm run watch        # tsc on save only
 
 ## Content
 
-**A release** is one entry in `data/releases.php`. `php tools/stage-release.php <folder>` writes most
-of it from a prepared folder (`--project` for the `.flp`); `php tools/release-track.php <folder>
---upload` uploads the track privately and fills in the SoundCloud ids. See
-[docs/releases.md](docs/releases.md) and [docs/authoring.md](docs/authoring.md).
+**A release** is one entry in `data/releases.json`, keyed by slug, newest first.
+`php tools/stage-release.php <folder>` writes most of it from a prepared folder (`--project` for
+the `.flp`) and names on stderr what is left to type; `php tools/release-track.php <folder>
+--upload` uploads the track privately and writes the SoundCloud ids into the entry. Both write the
+file in place, and `--print` prints instead. See [docs/releases.md](docs/releases.md) and
+[docs/authoring.md](docs/authoring.md).
 
-```php
-'your-slug' => new Release(
-    title:       'track title',
-    bpm:         140,
-    key:         MusicalKey::FSharpMajor,
-    genre:       Genre::Dubstep,
-    description: Texts::Releases::Descriptions::HelloWorld,   // both languages; a plain string works too
-    cover:       new HiDriveLink('J2FXbB70A'),   // the 9-char share id — never a full URL
-    formats: new Collection(Format::class)->with(
-        new Format(ReleaseFormat::FLAC,  new HiDriveLink('BXRsy9S7d')),
-        new Format(ReleaseFormat::STEMS),            // no link: the card shows "not uploaded yet" (503)
-    ),
-    embed: new SoundCloudEmbed(trackId: 2394077313, permalink: 'ill', secretToken: 's-dIMAqki109G'),
-    arrangement: new Arrangement(new Collection(Section::class)->with(Section::named('DROP', 12288))),
-    timeSpent: ProductionTime::of(60, 7),
-    madeWith: new Collection(Plugin::class)->with(new Plugin('Serum 2')),   // hand-authored
-),
+```json
+"your-slug": {
+    "title": "track title",
+    "bpm": 140,
+    "key": "F# Major",
+    "genre": "Dubstep",
+    "description": {"en": "both languages", "de": "beide Sprachen"},
+    "cover": "J2FXbB70A",
+    "formats": [{"type": "flac", "link": "BXRsy9S7d"}, {"type": "stems", "link": null}],
+    "embed": {"trackId": 2394077313, "permalink": "ill", "secretToken": "s-dIMAqki109G"},
+    "arrangement": {"ppq": 96, "sections": [{"label": "DROP", "tick": 12288}]},
+    "timeSpent": 25620,
+    "madeWith": ["Serum 2"]
+}
 ```
+
+Only source fields are stored, enums as their backing values; `cover` and `link` are HiDrive share
+ids, never a URL, and a `null` link is a format "not uploaded yet" (503). `description` is a plain
+string or `{en, de}` with German falling back to English. **The file is exactly what `ReleaseCodec`
+writes** — the verify script decodes and re-encodes it and fails on any byte of difference, so a
+hand edit keeps the codec's format (4-space indent, one key per line).
 
 **A demo** is unreleased work at `/demos/{slug}` behind a password minted per demo, its audio under
 `data/demos/` where only PHP can reach it. `php tools/stage-demo.php <file>…` mints, transcodes,
-analyses and prints the entry; `--rotate` and `--waveforms` work on a demo already staged. There is
-no `/demos`, and `data/demos.php` is gitignored but deployed. See [docs/demos.md](docs/demos.md).
+analyses and writes the entry into `data/demos.json`, showing the password once on stderr;
+`--rotate <slug>` and `--waveforms` work on a demo already staged. There is no `/demos`, and
+`data/demos.json` is gitignored but deployed. See [docs/demos.md](docs/demos.md).
 
 **Download logging is off for legal reasons** — `Site::DOWNLOAD_LOGGING` is `false`, so the
 referrer is never read and nothing is written. Turning it on is a privacy-policy change in both

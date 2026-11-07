@@ -6,12 +6,12 @@ namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
+use NeuroSYS\Tool\Data\EntryFile;
 use NeuroSYS\Tool\Export\ExportedAudio;
 use NeuroSYS\Tool\Export\Exporter;
 use NeuroSYS\Tool\Export\ExportException;
 use NeuroSYS\Tool\Export\PreparedExport;
 use NeuroSYS\Tool\Export\RenderFormat;
-use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
@@ -34,11 +34,12 @@ use Phpanta\Tool\Http\FilePart;
 use Phpanta\Tool\Http\TransportException;
 
 /**
- * The ReleaseTrack command. Gets the audio, puts it on SoundCloud, and prints the finished entry.
+ * The ReleaseTrack command. Gets the audio, puts it on SoundCloud, and writes the player into the entry.
  *
- * It is `stage-release` with the last hole filled. That command emits an entry whose `embed:` line
- * is commented out, because *"SoundCloud ids exist only once the track is uploaded"* — this is the
- * command that uploads it, so the ids come back from the API and the entry it prints has them in.
+ * It is `stage-release` with the last hole filled. That command writes an entry with no `embed`,
+ * because *"SoundCloud ids exist only once the track is uploaded"* — this is the command that
+ * uploads it, so the ids come back from the API and go into the entry in `data/releases.json`:
+ * into the one there, touching nothing else in it, or as a whole new entry where there is none.
  *
  * Three steps, and each one refuses rather than guesses:
  *
@@ -53,7 +54,7 @@ use Phpanta\Tool\Http\TransportException;
  *    `--upload` is the step that puts one on somebody else's, so it is a flag rather than a
  *    default. Without it the command prints every field it would send and sends nothing.
  *
- * The report goes to **stderr** and the entry to **stdout**, the same split `stage-release` has.
+ * The report goes to **stderr**; `--print` puts the entry on **stdout** instead of into the file.
  *
  * The three constructor arguments are seams for the tests, and are null everywhere else — a
  * command's real collaborators are a network, a token file and a folder full of audio, and none of
@@ -76,11 +77,13 @@ final readonly class ReleaseTrack implements Command
      * @param Client|null   $client   Built from the environment when null.
      * @param Exporter|null $exporter Falls back to {@link PreparedExport}, honouring `--audio`.
      * @param resource|null $stdin    Where `--authorize` reads the redirected URL from.
+     * @param File|null     $releases The releases file, or null for `data/releases.json`.
      */
     public function __construct(
         private ?Client   $client = null,
         private ?Exporter $exporter = null,
         private mixed     $stdin = null,
+        private ?File     $releases = null,
     ) {}
 
     /**
@@ -96,7 +99,7 @@ final readonly class ReleaseTrack implements Command
      */
     public function usage(): string
     {
-        return '<folder> [--audio <file>] [--project <file>] [--upload] | --authorize';
+        return '<folder> [--audio <file>] [--project <file>] [--upload [--print]] | --authorize';
     }
 
     /**
@@ -176,16 +179,17 @@ final readonly class ReleaseTrack implements Command
             return ExitCode::Success;
         }
 
-        return $this->upload($folder, $upload, $report, $output);
+        return $this->upload($folder, $upload, $report, $output, $input->has(ReleaseTrackOption::Print));
     }
 
     /**
-     * Sends it, and prints the entry the answer makes possible.
+     * Sends it, and writes the player the answer makes possible into the entry.
      *
      * @param ReleaseFolder $folder
      * @param TrackUpload   $upload
      * @param FolderReport  $report
      * @param Output        $output
+     * @param bool          $print  Print the entry rather than write it.
      * @return ExitCode
      */
     private function upload(
@@ -193,6 +197,7 @@ final readonly class ReleaseTrack implements Command
         TrackUpload $upload,
         FolderReport $report,
         Output $output,
+        bool $print,
     ): ExitCode {
         $client = $this->client($output);
 
@@ -224,11 +229,9 @@ final readonly class ReleaseTrack implements Command
 
         $this->reportTrack($track, $output);
 
-        $output->error("  paste into data/releases.php, newest first:\n\n");
-        $report->imports($folder, $embed);
-        $output->out(EntryWriter::write($folder, $embed) . "\n");
-
-        return ExitCode::Success;
+        return $report->entry($folder, EntryFile::releases($this->releases), $print, $embed)
+            ? ExitCode::Success
+            : ExitCode::Failure;
     }
 
     /**

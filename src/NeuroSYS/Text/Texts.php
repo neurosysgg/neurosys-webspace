@@ -17,10 +17,10 @@ use Phpanta\Text\FrameworkText;
  *
  * **Its constants are not upper case**, against PSR-12 and against every other constant here, and
  * `phpcs.xml.dist` exempts this file by name. They are read as a path through the site's words —
- * `Texts::Releases::Descriptions::Ill` — where `Texts::RELEASES::DESCRIPTIONS::Ill` would shout the
- * part a reader skims past. See docs/language.md.
+ * `Texts::Releases::Downloads` — where `Texts::RELEASES::Downloads` would shout the part a reader
+ * skims past. See docs/language.md.
  *
- * Every catalog is reachable from here — directly, or one step down like `Releases::Descriptions` —
+ * Every catalog is reachable from here — directly, or one step down through a catalog's own constant —
  * and `TranslationTest` checks every case of every one of them, and that every translated enum under
  * `src/` is reachable. So a catalog cannot be left out of this index and go unchecked.
  */

@@ -25,8 +25,6 @@ T(T_RELEASE_MP3, "320 kbps", "320 kbps");
 T(T_RELEASE_OGG, "OGG Vorbis", "OGG Vorbis");
 T(T_RELEASE_LOSSLESS, "lossless, 24-bit/48kHz", "verlustfrei, 24 bit/48 kHz");
 T(T_RELEASE_LOSSY, "lossy", "verlustbehaftet");
-T(T_DESCRIPTION_ILL, "wub wub", "wub wub");
-T(T_DESCRIPTION_HELLO_WORLD, "debut single", "deb\303\274tsingle");
 T(T_KEY_C_MAJOR, "C Major", "C-Dur");
 T(T_KEY_C_SHARP_MAJOR, "C# Major", "Cis-Dur");
 T(T_KEY_D_MAJOR, "D Major", "D-Dur");
@@ -94,8 +92,6 @@ const CSERVE_TEXT *const ns_texts[] = {
     &T_RELEASE_OGG,
     &T_RELEASE_LOSSLESS,
     &T_RELEASE_LOSSY,
-    &T_DESCRIPTION_ILL,
-    &T_DESCRIPTION_HELLO_WORLD,
     &T_KEY_C_MAJOR,
     &T_KEY_C_SHARP_MAJOR,
     &T_KEY_D_MAJOR,

@@ -420,19 +420,17 @@ translated; see [architecture.md](architecture.md#language).
   `ReleaseText::Downloads`. The constants are not upper case, and `phpcs.xml.dist` exempts
   `Texts.php` and `ReleaseText.php` by name. They are steps of a path a reader skims, not values to
   notice.
-- **A release's description** is a `ReleaseDescription` case, reached as
-  `Texts::Releases::Descriptions::Ill`, with the slug as its backing value. `data/releases.php`
-  names it: `description: Texts::Releases::Descriptions::Ill`. It lives in `src/` so both languages
-  sit side by side and ship with a push.
-  - German may fall back to English here, and only here. A description is written by whoever
-    releases the track, possibly before the German exists.
-  - A plain string still works and reads the same in both languages. That is what the staging tool
-    writes (`description: ''`).
-  - An entry naming a new case needs `./deploy.sh`; see
+- **A release's description** is not a catalog case: it is written inline in its
+  `data/releases.json` entry, as `{"en": "…", "de": "…"}` or as one plain string that reads the
+  same in both languages.
+  - German may fall back to English here, and only here — `de` may be left out, `en` may not. A
+    description is written by whoever releases the track, possibly before the German exists.
+  - The staging tool leaves it empty and says so on stderr.
+  - Being in `data/`, a description ships only with `./deploy.sh`; see
     [deployment.md](deployment.md#what-it-does-not-do).
 - **A demo's description is never a catalog case.** `src/` is public, and a case would name an
-  unreleased track. It is written inline in the gitignored `data/demos.php`:
-  `description: new Translation(en: '…', de: '…')`.
+  unreleased track. It is written inline in the gitignored `data/demos.json`, as one string in one
+  language, or `null` for the page's "work in progress".
 - **A release's key** is translated on `MusicalKey` itself (`Fis-Dur`, `dis-Moll`, `H` for the
   English B), while its backing value stays the English name the tools match on. Genres and formats
   are proper names and stay as they are.

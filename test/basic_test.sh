@@ -166,10 +166,19 @@ echo ""
 echo "=== Data files ==="
 # These load the real data/ as it will be uploaded, so a bad paste fails here.
 
-php_ok "data/releases.php loads and every Release constructs" \
+php_ok "data/releases.json loads and every Release constructs" \
     "(new NeuroSYS\Service\ReleaseRepository())->all()->count() > 0 or exit(1);"
 
-php_ok "data/profiles.php loads and every link is https" \
+# The file is what ReleaseCodec writes: read and written back, it is itself, byte for byte. A hand
+# edit that drifts from that (an indent, a field at its default, a key out of order) fails here,
+# rather than as a diff the next tool's write makes in passing.
+php_ok "data/releases.json is exactly what ReleaseCodec writes back" \
+    "use NeuroSYS\Service\Data\ReleaseCodec;
+     \$f = '$REPO/data/releases.json';
+     \$json = file_get_contents(\$f);
+     ReleaseCodec::encode(ReleaseCodec::decode(\$json, \$f)) === \$json or exit(1);"
+
+php_ok "data/profiles.json loads and every link is https" \
     "foreach ((new NeuroSYS\Service\ProfileRepository())->all() as \$p) {
          str_starts_with(\$p->url, 'https://') or exit(1);
      }"
@@ -184,16 +193,16 @@ php_ok "download logging is switched off and writes nothing" \
      \$after = is_file(\$f) ? filesize(\$f) : -1;
      (Site::DOWNLOAD_LOGGING === false && \$after === \$before) or exit(1);"
 
-# data/demos.php is gitignored, so most machines have none — which is a valid state and the reason
-# DemoRepository is guarded where ReleaseRepository is not. Where there is one, a bad paste has to
+# data/demos.json is gitignored, so most machines have none — which is a valid state and the reason
+# DemoRepository is guarded where ReleaseRepository is not. Where there is one, a bad edit has to
 # fail here rather than as a 401 nobody can get past.
-if [[ -f "$REPO/data/demos.php" ]]; then
-    php_ok "data/demos.php loads and every Demo constructs" \
+if [[ -f "$REPO/data/demos.json" ]]; then
+    php_ok "data/demos.json loads and every Demo constructs" \
         "foreach ((new NeuroSYS\Service\DemoRepository())->all() as \$slug => \$d) {
              \$d->tracks->isEmpty() and exit(1);
          }"
 else
-    echo "  SKIP data/demos.php — none on this machine (it is gitignored; that is a valid state)"
+    echo "  SKIP data/demos.json — none on this machine (it is gitignored; that is a valid state)"
 fi
 
 if [[ -f "$REPO/data/.htaccess" ]] && grep -qi 'Require all denied' "$REPO/data/.htaccess"; then
@@ -340,10 +349,10 @@ else
 fi
 
 if grep -RIlq --exclude-dir=.git --exclude-dir=vendor --exclude-dir=.idea \
-       -e '\$2[aby]\$[0-9]\{2\}\$' "$REPO/data/releases.php" "$REPO/data/profiles.php" 2>/dev/null; then
-    fail "a bcrypt hash is sitting in a non-credential data file"
+       -e '\$2[aby]\$[0-9]\{2\}\$' -e '\$pbkdf2-' "$REPO/data/releases.json" "$REPO/data/profiles.json" 2>/dev/null; then
+    fail "a password hash is sitting in a non-credential data file"
 else
-    pass "no credentials in releases.php / profiles.php"
+    pass "no credentials in releases.json / profiles.json"
 fi
 
 if git -C "$REPO" ls-files --error-unmatch deploy.sh >/dev/null 2>&1; then
@@ -728,14 +737,14 @@ echo "=== Demos ==="
 # the 206, the 416 and their headers in-process, as answers; header() is a no-op under CLI, so this
 # is what proves they reach the wire, through the dev router and the real stack.
 #
-# It writes its own data/demos.php and puts back whatever was there. That is not laziness about
+# It writes its own data/demos.json and puts back whatever was there. That is not laziness about
 # fixtures: the real file is gitignored, so there is not reliably one to test against, and the
 # passwords behind its hashes are by design not recoverable. The restore is in the EXIT trap so an
 # interrupt cannot leave the file swapped out.
 
 DEMO_SLUG="verify-fixture"
 DEMO_PASS="VERIF-YFIXT-UREPA-SSWRD"
-DEMOS_FILE="$REPO/data/demos.php"
+DEMOS_FILE="$REPO/data/demos.json"
 DEMOS_SAVED="$(mktemp)"
 DEMO_DIR="$REPO/data/demos/$DEMO_SLUG"
 DEMOS_SWAPPED=0
@@ -776,19 +785,10 @@ php -r "require '$REPO/autoload.php';
     NeuroSYS\Model\Waveform::fileIn(new Phpanta\Support\Directory('$DEMO_DIR'), 'v1')
         ->write(NeuroSYS\Model\Waveform::of(...\$columns)->bytes());"
 
-cat > "$DEMOS_FILE" <<PHPFIXTURE
-<?php
-declare(strict_types=1);
-return [
-    '$DEMO_SLUG' => new NeuroSYS\Model\Demo(
-        'verify fixture',
-        new Phpanta\Support\PasswordHash('$DEMO_HASH'),
-        new Phpanta\Support\Collection(NeuroSYS\Model\DemoTrack::class)->with(
-            new NeuroSYS\Model\DemoTrack('v1', 'v1.mp3', 10),
-        ),
-    ),
-];
-PHPFIXTURE
+cat > "$DEMOS_FILE" <<JSONFIXTURE
+{"$DEMO_SLUG": {"title": "verify fixture", "password": "$DEMO_HASH", "description": null,
+  "tracks": [{"label": "v1", "file": "v1.mp3", "seconds": 10}]}}
+JSONFIXTURE
 
 DEMOS_SWAPPED=1
 trap "restore_demos; kill $SERVER_PID 2>/dev/null; wait $SERVER_PID 2>/dev/null" EXIT
@@ -883,7 +883,7 @@ fi
 # Nothing in a URL may name a file. The last segment is matched against declared labels, never
 # resolved as a path — so a traversal is a label naming no track, which is a 404 like any other.
 check_status "  no label names a file             → 404" "$BASE/demos/$DEMO_SLUG/v2"       404
-check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2freleases.php" 404
+check_status "  nor does an encoded traversal     → 404" "$BASE/demos/$DEMO_SLUG/%2e%2e%2freleases.json" 404
 
 CURL_ARGS=("${CURL_ARGS_WITHOUT_DEMO[@]}")
 

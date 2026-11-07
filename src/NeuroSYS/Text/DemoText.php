@@ -12,7 +12,7 @@ use Phpanta\Text\Translation;
  * The DemoText enum. The words of a demo's page.
  *
  * A demo's own description is not here: `src/` is public, and a case naming an unreleased track
- * would publish it. It is written inline in `data/demos.php`, which is gitignored.
+ * would publish it. It is written inline in `data/demos.json`, which is gitignored.
  */
 enum DemoText: string implements Translatable
 {

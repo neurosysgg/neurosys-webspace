@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\DataFile;
+use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Release;
+use NeuroSYS\Service\Data\ReleaseCodec;
 use NeuroSYS\Site;
 use Phpanta\Support\File;
 use Phpanta\Support\SearchableCollection;
@@ -13,8 +15,8 @@ use Phpanta\Support\SearchableCollection;
 /**
  * The ReleaseRepository class. Loads and provides access to the site's release catalogue.
  *
- * Lazily loads the release data on first access; subsequent calls reuse the same collection.
- * Defaults to the canonical data file path relative to this file's location.
+ * Lazily loads `data/releases.json` on first access, through {@link ReleaseCodec}; subsequent calls
+ * reuse the same collection.
  */
 class ReleaseRepository
 {
@@ -25,8 +27,7 @@ class ReleaseRepository
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param File|null $dataFile The releases PHP data file,
-     *                              or null to use the default (data/releases.php).
+     * @param File|null $dataFile The releases file, or null for `data/releases.json`.
      */
     public function __construct(?File $dataFile = null)
     {
@@ -55,21 +56,21 @@ class ReleaseRepository
 
     /**
      * Loads and converts the releases data file into a {@link SearchableCollection}.
+     *
+     * Unguarded, unlike {@link ProfileRepository}'s: a missing or unreadable releases file is a
+     * broken deployment and says so loudly, where an empty catalogue would render as a working site
+     * with nothing in it.
+     *
      * @return SearchableCollection<Release>
+     * @throws ReleaseVerificationException if the file is missing or holds anything but releases.
      */
     private function load(): SearchableCollection
     {
-        /** @var array<string, Release> $data */
-        // Unguarded, unlike ProfileRepository's: a missing releases.php is a broken deployment
-        // and `require` says so loudly, where an empty catalogue would render as a working site
-        // with nothing in it. `require` takes a path — see File.
-        $data       = require $this->dataFile->path;
-        $collection = new SearchableCollection(Release::class);
+        $json = $this->dataFile->read() ?? throw new ReleaseVerificationException(sprintf(
+            '%s: the catalogue is missing.',
+            $this->dataFile->path,
+        ));
 
-        foreach ($data as $slug => $release) {
-            $collection = $collection->with($slug, $release);
-        }
-
-        return $collection;
+        return ReleaseCodec::decode($json, $this->dataFile->path);
     }
 }

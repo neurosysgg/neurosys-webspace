@@ -128,16 +128,16 @@ final class DemoTest extends TestCase
 
     /**
      * A repository backed by a written data file, which is the only way to get one — the real
-     * `data/demos.php` is gitignored, so no test may assume it exists.
+     * `data/demos.json` is gitignored, so no test may assume it exists.
      *
-     * @param string $php
+     * @param string $json
      * @return DemoRepository
      */
-    private function repository(string $php): DemoRepository
+    private function repository(string $json): DemoRepository
     {
-        $file = $this->fixtures->file('demos.php');
+        $file = $this->fixtures->file('demos.json');
 
-        $file->write($php);
+        $file->write($json);
 
         return new DemoRepository($file);
     }
@@ -164,10 +164,10 @@ final class DemoTest extends TestCase
     public static function badFileNameProvider(): iterable
     {
         yield 'the parent'          => ['..'];
-        yield 'up and out'          => ['../../data/releases.php'];
+        yield 'up and out'          => ['../../data/releases.json'];
         yield 'an absolute path'    => ['/etc/passwd'];
         yield 'a subdirectory'      => ['stems/v3.mp3'];
-        yield 'a backslash'         => ['..\\releases.php'];
+        yield 'a backslash'         => ['..\\releases.json'];
         yield 'a leading dot'       => ['.htaccess'];
         yield 'empty'               => [''];
         yield 'a null byte'         => ["v3.mp3\0.txt"];
@@ -279,9 +279,9 @@ final class DemoTest extends TestCase
     // ───────────────────────────── DemoRepository ─────────────────────────────
 
     /**
-     * `data/demos.php` is gitignored, so every clone starts without one. Absent has to mean an
-     * empty catalogue rather than a fatal, the way `data/profiles.php`'s does — unlike
-     * `data/releases.php`, whose absence is a broken deployment.
+     * `data/demos.json` is gitignored, so every clone starts without one. Absent has to mean an
+     * empty catalogue rather than a fatal, the way `data/profiles.json`'s does — unlike
+     * `data/releases.json`, whose absence is a broken deployment.
      *
      * @return void
      */
@@ -498,9 +498,9 @@ final class DemoTest extends TestCase
     public static function traversalLabelProvider(): iterable
     {
         yield 'the parent'       => ['..'];
-        yield 'an encoded slash' => ['%2e%2e%2freleases.php'];
+        yield 'an encoded slash' => ['%2e%2e%2freleases.json'];
         yield 'a file name'      => ['v3.mp3'];
-        yield 'a real file'      => ['releases.php'];
+        yield 'a real file'      => ['releases.json'];
         yield 'empty'            => [''];
     }
 
@@ -519,14 +519,7 @@ final class DemoTest extends TestCase
     public function testATrackWithNoFileBehindItIsNotFound(): void
     {
         $repository = $this->repository(
-            '<?php return ['
-            . "'never-staged' => new \\NeuroSYS\\Model\\Demo("
-            . "'never staged',"
-            . 'new \\Phpanta\\Support\\PasswordHash(' . var_export(self::hash()->digest(), true) . '),'
-            . 'new \\Phpanta\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
-            . "new \\NeuroSYS\\Model\\DemoTrack('v3', 'nothing-wrote-this.mp3', 158)"
-            . ')),'
-            . '];',
+            self::json('never-staged', 'never staged', 'nothing-wrote-this.mp3'),
         );
 
         $request  = self::request();
@@ -598,14 +591,25 @@ final class DemoTest extends TestCase
     private function oneDemoRepository(): DemoRepository
     {
         return $this->repository(
-            '<?php return ['
-            . "'alien-house' => new \\NeuroSYS\\Model\\Demo("
-            . "'alien house',"
-            . 'new \\Phpanta\\Support\\PasswordHash(' . var_export(self::hash()->digest(), true) . '),'
-            . 'new \\Phpanta\\Support\\Collection(\\NeuroSYS\\Model\\DemoTrack::class)->with('
-            . "new \\NeuroSYS\\Model\\DemoTrack('v3', 'v3.mp3', 158)"
-            . ')),'
-            . '];',
+            self::json('alien-house', 'alien house', 'v3.mp3'),
         );
+    }
+
+    /**
+     * A demos file holding one demo with one track, `v3`, as `data/demos.json` writes it.
+     *
+     * @param string $slug
+     * @param string $title
+     * @param string $file
+     * @return string
+     */
+    private static function json(string $slug, string $title, string $file): string
+    {
+        return (string) json_encode([$slug => [
+            'title'       => $title,
+            'password'    => self::hash()->digest(),
+            'description' => null,
+            'tracks'      => [['label' => 'v3', 'file' => $file, 'seconds' => 158]],
+        ]], JSON_THROW_ON_ERROR);
     }
 }

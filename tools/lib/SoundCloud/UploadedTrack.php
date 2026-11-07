@@ -11,7 +11,7 @@ use Phpanta\Tool\Http\JsonBody;
 /**
  * The UploadedTrack class. What SoundCloud says exists now.
  *
- * Three of these five values are the three ids `data/releases.php` has been carrying a
+ * Three of these five values are the three ids `data/releases.json` has been carrying a
  * commented-out placeholder for since `EntryWriter` was written — *"SoundCloud ids exist only once
  * the track is uploaded"*. This is that sentence stopping being true.
  *
@@ -48,7 +48,7 @@ final readonly class UploadedTrack
      *
      * Still read defensively — {@link JsonBody} answers `''` and `0` for a key that is absent or
      * carries the wrong type. What stops a
-     * plausible absence reaching `data/releases.php` is {@link self::embed()}, where the two ids
+     * plausible absence reaching `data/releases.json` is {@link self::embed()}, where the two ids
      * that matter meet `SoundCloudEmbed`'s own constructor and its verification.
      *
      * @param JsonBody $body
@@ -70,7 +70,7 @@ final readonly class UploadedTrack
      *
      * The site's own model, constructed here on purpose: `SoundCloudEmbed::verify()` refuses an id
      * that is not positive and a permalink that is empty, so a response this misread throws at the
-     * moment it is misread rather than at the moment `data/releases.php` is loaded on the server.
+     * moment it is misread rather than at the moment `data/releases.json` is loaded on the server.
      * Same arrangement as `Profile::$url`, checked at its constructor as well as at the renderer.
      *
      * @return SoundCloudEmbed

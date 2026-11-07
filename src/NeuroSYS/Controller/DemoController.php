@@ -35,7 +35,7 @@ readonly class DemoController implements Controller
      *
      * @param string $slug The URL slug identifying the demo.
      * @param DemoRepository|null $demos The catalogue to read, or null for the canonical one.
-     *                                   Only tests pass this — `data/demos.php` is gitignored, so
+     *                                   Only tests pass this — `data/demos.json` is gitignored, so
      *                                   there is not reliably one to read on any given machine.
      * @param WaveformRepository|null $waveforms Where the sidecars are read from, or null for
      *                                   `data/demos/`. Only tests pass this, for the same reason.

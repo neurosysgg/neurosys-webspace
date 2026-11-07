@@ -32,7 +32,7 @@ use Phpanta\Support\Collection;
  * **Nothing here builds a path out of the request.** The URL's last segment is matched against the
  * labels the demo already declares; a segment naming no label is a null and a 404. So there is no
  * arrangement of dots and slashes in a URL that names a file — {@link \NeuroSYS\Model\DemoTrack}'s
- * check on its own file name is the second guard on that, for a typo in `data/demos.php` rather
+ * check on its own file name is the second guard on that, for a typo in `data/demos.json` rather
  * than for anything a visitor can send.
  */
 readonly class DemoAudioController implements Controller

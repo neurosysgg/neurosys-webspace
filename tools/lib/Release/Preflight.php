@@ -14,7 +14,7 @@ use RecursiveIteratorIterator;
  *
  * This is the half that earns its keep, because it runs *before* anything reaches HiDrive. A share
  * link is minted by hand in a web UI and is bound to the bytes it was minted for, so a file
- * re-exported after the fact costs an upload, a new link and an edit to `data/releases.php`. Every
+ * re-exported after the fact costs an upload, a new link and an edit to `data/releases.json`. Every
  * check here is one that a real discrepancy in a real folder suggested — see
  * docs/history/tooling.md.
  */
@@ -154,7 +154,7 @@ final readonly class Preflight
      *
      * Offered as a sentence in a WARN and never as a value: the estimate agreed with three of the
      * four projects whose key is independently known, which is worth saying to a person and not
-     * worth writing into `data/releases.php` unasked. See `KeyEstimate`.
+     * worth writing into `data/releases.json` unasked. See `KeyEstimate`.
      *
      * @param ReleaseFolder $folder
      * @return string

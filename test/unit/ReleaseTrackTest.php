@@ -6,11 +6,15 @@ namespace NeuroSYS\Test\Unit;
 
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Genre;
+use NeuroSYS\Model\Link\HiDriveLink;
 use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Service\Data\ReleaseCodec;
+use NeuroSYS\Tool\Command\FolderReport;
 use NeuroSYS\Tool\Command\ReleaseTrack;
 use NeuroSYS\Tool\Command\ReleaseTrackOption;
+use NeuroSYS\Tool\Data\EntryFile;
 use NeuroSYS\Tool\Export\ExportedAudio;
 use NeuroSYS\Tool\Export\ExportException;
 use NeuroSYS\Tool\Export\ExportSource;
@@ -19,11 +23,11 @@ use NeuroSYS\Tool\Export\PreparedExport;
 use NeuroSYS\Tool\Export\RenderFormat;
 use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\ReleaseFolder;
-use NeuroSYS\Tool\Release\ReleasesFile;
 use NeuroSYS\Tool\SoundCloud\CredentialVariable;
 use Phpanta\Support\Directory;
 use Phpanta\Support\File;
 use Phpanta\Support\SearchableCollection;
+use Phpanta\Text\Language;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Output;
 use Phpanta\Tool\Cli\Runner;
@@ -183,7 +187,7 @@ final class ReleaseTrackTest extends TestCase
     public function testThereIsNoFlagThatCanPublishATrack(): void
     {
         self::assertSame(
-            ['project', 'audio', 'upload', 'authorize'],
+            ['project', 'audio', 'upload', 'authorize', 'print'],
             array_map(static fn(ReleaseTrackOption $o): string => $o->flag(), ReleaseTrackOption::cases()),
         );
     }
@@ -323,106 +327,147 @@ final class ReleaseTrackTest extends TestCase
     }
 
     /**
-     * The `embed:` line, written out rather than commented out, because an upload supplies its ids.
+     * The player, written into the entry, because an upload supplies its ids.
      *
      * @return void
      */
-    public function testAnUploadedTrackTurnsTheCommentedOutEmbedIntoARealOne(): void
+    public function testAnUploadedTracksEmbedIsWrittenIntoTheEntry(): void
     {
-        $php = EntryWriter::write($this->folder(), new SoundCloudEmbed(2394077313, 'ill', 's-dIMAqki109G'));
+        $json = EntryWriter::write($this->folder(), new SoundCloudEmbed(2394077313, 'ill', 's-dIMAqki109G'));
 
-        self::assertStringNotContainsString('// embed:', $php);
-        // Stacked, with the names in a column — the shape every player already in
-        // `data/releases.php` is written in, so a generated one sits beside them unremarked.
         self::assertStringContainsString(
-            "        embed: new SoundCloudEmbed(\n"
-            . "            trackId:     2394077313,\n"
-            . "            permalink:   'ill',\n"
-            . "            secretToken: 's-dIMAqki109G',\n"
-            . "        ),",
-            $php,
+            "\"embed\": {\n"
+            . "            \"trackId\": 2394077313,\n"
+            . "            \"permalink\": \"ill\",\n"
+            . "            \"secretToken\": \"s-dIMAqki109G\"\n"
+            . "        }",
+            $json,
         );
 
-        $release = $this->evaluate($this->folder(), $php);
+        $release = self::readBack($json);
 
         self::assertSame(2394077313, $release->embed?->trackId);
         self::assertSame('ill', $release->embed?->permalink);
         self::assertSame('s-dIMAqki109G', $release->embed?->secretToken);
+        self::assertStringNotContainsString(
+            'SoundCloud ids',
+            implode("\n", EntryWriter::notes($this->folder(), $release->embed)),
+            'nothing is left to say about a player that is there',
+        );
     }
 
     /**
-     * Without one, the entry is exactly what it always was.
+     * Without one, the entry has no player, and the notes say where its ids will come from.
      *
      * @return void
      */
-    public function testWithoutOneTheEmbedIsStillWrittenDownRatherThanWrittenOut(): void
+    public function testWithoutOneTheEntryHasNoPlayerAndSaysWhy(): void
     {
-        $php = EntryWriter::write($this->folder());
+        $json = EntryWriter::write($this->folder());
 
-        self::assertStringContainsString('// embed: new SoundCloudEmbed(', $php);
-        self::assertStringContainsString('SoundCloud ids exist only once the track is uploaded', $php);
-        self::assertNull($this->evaluate($this->folder(), $php)->embed);
+        self::assertStringNotContainsString('"embed"', $json);
+        self::assertStringContainsString(
+            'SoundCloud ids exist only once the track is uploaded',
+            implode("\n", EntryWriter::notes($this->folder())),
+        );
+        self::assertNull(self::readBack($json)->embed);
     }
 
     /**
-     * A public track has no token, and an argument holding `''` is not the same as no argument:
+     * A public track has no token, and a field holding `""` is not the same as no field:
      * `SoundCloudEmbed::toElement()` sends no attribute at all for an empty one.
      *
      * @return void
      */
     public function testAPublicTracksEmbedIsWrittenWithoutASecretToken(): void
     {
-        $php = EntryWriter::write($this->folder(), new SoundCloudEmbed(2394077313, 'ill'));
+        $json = EntryWriter::write($this->folder(), new SoundCloudEmbed(2394077313, 'ill'));
 
-        self::assertStringNotContainsString('secretToken', $php);
-        self::assertSame('', $this->evaluate($this->folder(), $php)->embed?->secretToken);
+        self::assertStringNotContainsString('secretToken', $json);
+        self::assertSame('', self::readBack($json)->embed?->secretToken);
     }
 
     /**
-     * @return void
-     */
-    public function testTheFileIsAskedWhichImportsItIsMissing(): void
-    {
-        $file = new ReleasesFile(new File(NEUROSYS_ROOT . '/data/releases.php'));
-
-        self::assertSame([], $file->missingImports([Release::class, SoundCloudEmbed::class]));
-        self::assertSame(
-            ['NeuroSYS\Tool\Release\ReleasesFile'],
-            $file->missingImports([Release::class, ReleasesFile::class]),
-        );
-    }
-
-    /**
-     * A file that cannot be read imports nothing, so everything is reported missing.
+     * **After an upload, the player goes into the entry that is there, and nothing else changes.**
+     * The entry carries a description and share ids typed in since it was staged; writing the
+     * folder's entry over it would put every one of them back to empty.
      *
      * @return void
      */
-    public function testAFileThatCannotBeReadIsToldToImportEverything(): void
+    public function testAnUploadPutsThePlayerIntoTheEntryThatIsThereAndTouchesNothingElse(): void
     {
-        self::assertSame(
-            [Release::class],
-            new ReleasesFile(new File('/x/never-existed.php'))->missingImports([Release::class]),
+        $fixtures = Directory::temporary('neurosys-track-entry-');
+        $file     = $fixtures->file('releases.json');
+        $staged   = EntryWriter::release($this->folder());
+        $typed    = new Release(
+            $staged->title,
+            $staged->bpm,
+            $staged->key,
+            $staged->genre,
+            'typed in since',
+            new HiDriveLink('J2FXbB70A'),
+            $staged->formats,
         );
+        (void) EntryFile::releases($file)->prepend('ill', $typed);
+
+        $out   = fopen('php://memory', 'r+');
+        $error = fopen('php://memory', 'r+');
+
+        try {
+            $written = new FolderReport(new ReleaseTrack(), new Output($out, $error))->entry(
+                $this->folder(),
+                EntryFile::releases($file),
+                false,
+                new SoundCloudEmbed(2394077313, 'ill', 's-dIMAqki109G'),
+            );
+
+            $release = EntryFile::releases($file)->entries()->find('ill');
+
+            self::assertTrue($written);
+            self::assertInstanceOf(Release::class, $release);
+            self::assertSame(2394077313, $release->embed?->trackId);
+            self::assertSame('typed in since', $release->description->in(Language::English));
+            self::assertSame('J2FXbB70A', $release->cover instanceof HiDriveLink ? $release->cover->shareId : null);
+        } finally {
+            $fixtures->remove();
+        }
     }
 
     /**
-     * The entry, evaluated the way `ReleaseFolderTest` evaluates one.
+     * Where there is no entry yet, an upload writes the whole one, player and all, first.
      *
-     * @param ReleaseFolder $folder
-     * @param string        $php
+     * @return void
+     */
+    public function testAnUploadWithNoEntryYetWritesTheWholeOne(): void
+    {
+        $fixtures = Directory::temporary('neurosys-track-entry-');
+        $file     = $fixtures->file('releases.json');
+
+        try {
+            $written = new FolderReport(
+                new ReleaseTrack(),
+                new Output(fopen('php://memory', 'r+'), fopen('php://memory', 'r+')),
+            )->entry($this->folder(), EntryFile::releases($file), false, new SoundCloudEmbed(2394077313, 'ill'));
+
+            self::assertTrue($written);
+            self::assertSame(2394077313, EntryFile::releases($file)->entries()->find('ill')?->embed?->trackId);
+        } finally {
+            $fixtures->remove();
+        }
+    }
+
+    /**
+     * The entry, read back the way the site reads `data/releases.json`.
+     *
+     * @param string $json
      * @return Release
      */
-    private function evaluate(ReleaseFolder $folder, string $php): Release
+    private static function readBack(string $json): Release
     {
-        $imports = array_map(
-            static fn(string $class): string => sprintf('use %s;', $class),
-            EntryWriter::imports($folder, new SoundCloudEmbed(1, 'x')),
-        );
+        $release = ReleaseCodec::decode($json, 'the entry')->find('ill');
+        self::assertInstanceOf(Release::class, $release);
 
-        // eval() is a language construct, so its result cannot be indexed where it stands.
-        $releases = eval(implode('', $imports) . sprintf('return [%s];', $php));
-
-        return $releases['ill'];
+        return $release;
     }
 
     /**

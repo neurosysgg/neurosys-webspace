@@ -6,8 +6,9 @@ namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Model\Demo;
 use NeuroSYS\Model\Waveform;
-use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Site;
+use NeuroSYS\Tool\Data\EntryFile;
+use NeuroSYS\Tool\Data\EntryWrite;
 use NeuroSYS\Tool\Demo\DemoEntryWriter;
 use NeuroSYS\Tool\Demo\DemoPreflight;
 use NeuroSYS\Tool\Demo\DemoSource;
@@ -17,6 +18,7 @@ use NeuroSYS\Tool\Demo\WaveformScan;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
@@ -38,18 +40,26 @@ use Phpanta\Tool\Cli\Runner;
  * - **It writes audio.** `stage-release` only ever prints; this transcodes each master into
  *   `data/demos/{slug}/`, which is outside the webroot, because the gate has to cover the bytes and
  *   not just the page. That is the whole reason a demo is not a HiDrive link.
- * - **It mints a password and shows it once.** Only the PBKDF2 digest is kept, in the entry. There is
- *   no way to recover the plaintext afterwards and `--rotate` is what to do instead.
+ * - **It mints a password and shows it once.** Only the PBKDF2 digest is kept, in the entry it writes
+ *   into `data/demos.json`. There is no way to recover the plaintext afterwards and
+ *   `--rotate <slug>` is what to do instead: it re-mints the one field in place.
  * - **It analyses what it staged.** Each mix gets a {@link Waveform} beside it, which is what
  *   `<demo-waveform>` draws behind the player. `--waveforms` does that half on its own, for a demo
  *   whose sidecar is missing — and, like `--rotate`, without touching a password or an entry.
  *
- * The report goes to **stderr** and the entry to **stdout**, the same split `stage-release` uses —
- * except the password, which goes to stderr with the report so `> entry.php` cannot accidentally
- * write it into a file.
+ * The report and the password go to **stderr**. `--print` puts the entry (or, with `--rotate`, the
+ * new digest) on **stdout** instead of into the file, and the password still goes to stderr, so
+ * `> entry.json` cannot write it into a file.
  */
 final readonly class StageDemo implements Command
 {
+    /**
+     * Constructs an instance of {@link self}.
+     *
+     * @param File|null $demos A test seam: the demos file, or null for `data/demos.json`.
+     */
+    public function __construct(private ?File $demos = null) {}
+
     /**
      * @return string
      */
@@ -63,8 +73,8 @@ final readonly class StageDemo implements Command
      */
     public function usage(): string
     {
-        return '<file>… [--title <title>] [--slug <slug>] [--check]'
-            . "\n                                 --waveforms [<slug>…]   |   --rotate";
+        return '<file>… [--title <title>] [--slug <slug>] [--check] [--print]'
+            . "\n                                 --waveforms [<slug>…]   |   --rotate <slug> [--print]";
     }
 
     /**
@@ -121,19 +131,22 @@ final readonly class StageDemo implements Command
                 : $this->waveforms($paths, $output);
         }
 
-        // --rotate takes no files: it changes one line of an entry that already exists, and
-        // restaging to do that would rewrite every file and lose whatever description was written
-        // by hand since.
+        // --rotate takes one slug and no files: it changes one field of an entry that already
+        // exists, and restaging to do that would rewrite every file and lose whatever description
+        // was written by hand since. With --print it writes nothing, so it needs no slug.
         if ($rotating) {
-            return $paths === []
-                ? $this->rotate($output)
-                : $this->refuse($output, sprintf(
-                    '--rotate takes no files, and %d %s named — it replaces one line of an entry '
-                    . 'that already exists, where staging would rewrite every mix and mint a '
-                    . 'password the entry you are holding does not match. Run it on its own',
+            $printing = $input->has(StageDemoOption::Print);
+
+            return match (true) {
+                $printing && $paths === []  => $this->rotate(null, true, $output),
+                count($paths) === 1         => $this->rotate($paths[0], $printing, $output),
+                default                     => $this->refuse($output, sprintf(
+                    '--rotate takes the slug of a demo that is staged, and nothing else — %d '
+                    . 'operands were given. It replaces one field of an entry that already exists, '
+                    . 'where staging would rewrite every mix',
                     count($paths),
-                    count($paths) === 1 ? 'was' : 'were',
-                ));
+                )),
+            };
         }
 
         if ($paths === []) {
@@ -165,6 +178,20 @@ final readonly class StageDemo implements Command
             return ExitCode::Success;
         }
 
+        $printing = $input->has(StageDemoOption::Print);
+        $file     = EntryFile::demos($this->demos);
+
+        // Asked before a byte of audio is written: a slug that is taken is one whose entry carries
+        // a password somebody holds, and transcoding over its files would break the page they have.
+        if (!$printing && $file->has($stage->slug)) {
+            return $this->refuse($output, sprintf(
+                "'%s' is in %s already — nothing was staged. Pick another --slug, or remove "
+                . 'that demo first',
+                $stage->slug,
+                $file->file->path,
+            ));
+        }
+
         if (!($failed = $stage->write())->isEmpty()) {
             foreach ($failed as $source) {
                 $output->error(sprintf(
@@ -182,33 +209,41 @@ final readonly class StageDemo implements Command
             self::analyse($directory, $source->target($directory)->name(), $source->label, $output);
         }
 
-        return $this->emit($stage, $output);
+        return $this->emit($stage, $printing ? null : $file, $output);
     }
 
     /**
-     * The entry, the password, and what `data/demos.php` still has to import.
+     * The entry, written or printed, and the password.
      *
-     * @param DemoStage $stage
-     * @param Output    $output
+     * @param DemoStage      $stage
+     * @param EntryFile|null $file   Where it goes; null to print it instead.
+     * @param Output         $output
      * @return ExitCode
      */
-    private function emit(DemoStage $stage, Output $output): ExitCode
+    private function emit(DemoStage $stage, ?EntryFile $file, Output $output): ExitCode
     {
         $password = Password::mint();
 
-        $output->error(sprintf(
-            "  staged %d file(s) into %s\n\n"
-            . "  paste into data/demos.php — it is gitignored, so create it if it is not there:\n\n"
-            . "      <?php\n"
-            . "      declare(strict_types=1);\n\n"
-            . "%s\n"
-            . "      return [ … ];\n\n",
-            $stage->sources->count(),
-            $stage->directory()->path,
-            self::importLines(DemoEntryWriter::imports($stage, $password)),
-        ));
+        $output->error(sprintf("  staged %d file(s) into %s\n\n", $stage->sources->count(), $stage->directory()->path));
 
-        $output->out(DemoEntryWriter::write($stage, $password) . "\n");
+        if ($file === null) {
+            $output->out(DemoEntryWriter::write($stage, $password));
+        } elseif ($file->prepend($stage->slug, DemoEntryWriter::demo($stage, $password)) !== EntryWrite::Written) {
+            $output->error(sprintf(
+                "  %s could not be written — the audio is staged, the entry is not. Run with --print\n"
+                . "  to have the entry to put in by hand.\n\n",
+                $file->file->path,
+            ));
+
+            return ExitCode::Failure;
+        } else {
+            $output->error(sprintf(
+                "  wrote '%s' into %s, first. Its description is null, which the page shows as\n"
+                . "  \"work in progress\" — write what you are asking them for.\n",
+                $stage->slug,
+                $file->file->path,
+            ));
+        }
 
         self::credentials($stage->slug, $password, $output);
 
@@ -218,17 +253,39 @@ final readonly class StageDemo implements Command
     /**
      * A new password for a demo that is already staged.
      *
-     * @param Output $output
+     * @param string|null $slug     The demo, or null with `--print`, where nothing is looked up.
+     * @param bool        $printing Print the digest rather than write it.
+     * @param Output      $output
      * @return ExitCode
      */
-    private function rotate(Output $output): ExitCode
+    private function rotate(?string $slug, bool $printing, Output $output): ExitCode
     {
+        $file = EntryFile::demos($this->demos);
+        $demo = $slug === null ? null : $file->entries()->find($slug);
+
+        if ($slug !== null && !$demo instanceof Demo) {
+            $output->error(sprintf("\n  no demo called %s in %s.\n\n", $slug, $file->file->path));
+
+            return ExitCode::Failure;
+        }
+
         $password = Password::mint();
 
-        $output->error("\n  replace the password: argument of the entry in data/demos.php with:\n\n");
-        $output->out('    password:    ' . DemoEntryWriter::passwordArgument($password) . ",\n");
+        if ($printing || $demo === null) {
+            $output->error("\n  the new digest, for the entry's password field:\n\n");
+            $output->out($password->hash->digest() . "\n");
+        } elseif ($file->replace((string) $slug, DemoEntryWriter::rotated($demo, $password)) !== EntryWrite::Written) {
+            $output->error(sprintf(
+                "\n  %s could not be written; the old password still opens it.\n\n",
+                $file->file->path,
+            ));
 
-        self::credentials(null, $password, $output);
+            return ExitCode::Failure;
+        } else {
+            $output->error(sprintf("\n  replaced the password of '%s' in %s.\n", $slug, $file->file->path));
+        }
+
+        self::credentials($slug, $password, $output);
 
         return ExitCode::Success;
     }
@@ -236,7 +293,7 @@ final readonly class StageDemo implements Command
     /**
      * Waveforms for demos that are already staged, without restaging any of them.
      *
-     * It reads `data/demos.php` rather than a directory listing, so the demos it knows about are
+     * It reads `data/demos.json` rather than a directory listing, so the demos it knows about are
      * exactly the ones the site serves — a folder left behind under `data/demos/` by a demo that
      * was deleted from the entry file is not one, and analysing it would be ten seconds spent on
      * something no page can reach.
@@ -250,12 +307,12 @@ final readonly class StageDemo implements Command
      */
     private function waveforms(array $slugs, Output $output): ExitCode
     {
-        $demos   = new DemoRepository()->all();
+        $demos   = EntryFile::demos($this->demos)->entries();
         $unknown = array_values(array_diff($slugs, $demos->toKeys()));
 
         if ($unknown !== []) {
             $output->error(sprintf(
-                "\n  no demo called %s in data/demos.php.\n\n",
+                "\n  no demo called %s in data/demos.json.\n\n",
                 implode(' or ', $unknown),
             ));
 
@@ -267,7 +324,7 @@ final readonly class StageDemo implements Command
         }
 
         if ($demos->isEmpty()) {
-            $output->error("\n  no demos to analyse — data/demos.php is empty or absent.\n\n");
+            $output->error("\n  no demos to analyse — data/demos.json is empty or absent.\n\n");
 
             return ExitCode::Failure;
         }
@@ -283,7 +340,7 @@ final readonly class StageDemo implements Command
             }
         }
 
-        $output->error(sprintf("\n  wrote %d waveform(s). data/demos.php unchanged.\n\n", $written));
+        $output->error(sprintf("\n  wrote %d waveform(s). data/demos.json unchanged.\n\n", $written));
 
         return $written > 0 ? ExitCode::Success : ExitCode::Failure;
     }
@@ -370,11 +427,11 @@ final readonly class StageDemo implements Command
     /**
      * What to send, printed once and kept nowhere.
      *
-     * **On stderr, with the report.** The entry goes to stdout so `> entry.php` works; a password
-     * following it into that file would be the one place a plaintext gets written down, which is
-     * the single thing this whole arrangement is careful not to do.
+     * **On stderr, with the report.** `--print` puts the entry on stdout so `> entry.json` works; a
+     * password following it into that file would be the one place a plaintext gets written down,
+     * which is the single thing this whole arrangement is careful not to do.
      *
-     * @param string|null $slug Null after `--rotate`, where the command was told no slug.
+     * @param string|null $slug Null after `--rotate --print`, where the command was told no slug.
      * @param Password    $password
      * @param Output      $output
      * @return void
@@ -416,7 +473,7 @@ final readonly class StageDemo implements Command
      *
      * Not {@link FolderReport}, which is what `stage-release` and `release-track` share: that class
      * is built around a {@link \NeuroSYS\Tool\Release\ReleaseFolder} — it takes one path, checks it
-     * is a directory, and reconciles imports against `data/releases.php`. None of those three is
+     * is a directory, and reconciles imports against `data/releases.json`. None of those three is
      * true here. What is left in common is one `foreach` printing a level and a message, and a
      * shared parent for that would be announcing a kind these two are not.
      *
@@ -437,23 +494,5 @@ final readonly class StageDemo implements Command
         $output->error("\n");
 
         return $failed;
-    }
-
-    /**
-     * The `use` lines the entry needs, indented into the block above it.
-     *
-     * `data/demos.php` is gitignored, so unlike `data/releases.php` there is often no file to
-     * reconcile against — which is why this prints the imports outright rather than asking which
-     * are missing the way {@link FolderReport::imports()} does.
-     *
-     * @param list<string> $imports
-     * @return string
-     */
-    private static function importLines(array $imports): string
-    {
-        return implode('', array_map(
-            static fn(string $class): string => sprintf("      use %s;\n", $class),
-            $imports,
-        ));
     }
 }

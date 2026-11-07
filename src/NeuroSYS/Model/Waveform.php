@@ -18,7 +18,7 @@ use Phpanta\Support\File;
  * with a control on it.
  *
  * **It is generated output and lives with the generated audio**, at
- * `data/demos/{slug}/{label}.wave` — not in `data/demos.php`. That is
+ * `data/demos/{slug}/{label}.wave` — not in `data/demos.json`. That is
  * {@link \NeuroSYS\Tool\Demo\DemoEntryWriter}'s own rule applied one step further: the audio is
  * generated with a name derived from a label and the data file is a hand-ordered list, so a
  * two-kilobyte blob belongs on the generated side of that line. Two things follow free — `deploy.sh`

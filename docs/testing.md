@@ -49,7 +49,7 @@ router; given one, it asks that server, with `CONFORMANCE_CURL` for extra curl f
 `--cacert`. The verify script sources it and calls `conformance_checks` against its own server, so
 `composer verify` still runs every check once and counts them in one total. The helpers both use are
 `test/lib/http.sh`. What stays in the verify script is what knows it is PHP: the environment, the
-autoloader, the data files, repo hygiene, the demos (their fixture is a `data/demos.php`), the admin,
+autoloader, the data files, repo hygiene, the demos (their fixture is a `data/demos.json`), the admin,
 and the served custom tags, read against `Tag::cases()`.
 
 `test/cserve.sh` runs it against c-serve's host (`./c-serve`, else `~/Projects/c-serve`, or
@@ -76,8 +76,9 @@ answers the pages, so an app that never loaded fails at once. It needs `php-cgi`
 which nothing else here does. `SAN=1` runs it under
 ASan+UBSan and fails on a sanitizer's report.
 
-`app/gen/` is printed from the PHP by `php tools/app-data.php` (`npm run build` runs it). The
-verify script fails it drifting, and `AppDataTest` reads it as the compiler will.
+`app/gen/` is printed from the PHP and the JSON data files by `php tools/app-data.php` (`npm run
+build` runs it). The verify script fails it drifting, and `AppDataTest` reads it as the compiler
+will.
 
 `test/cserve/goldens.php` prints what c-serve's toolkit is tested against: Phpanta's own answers
 for escaping, the origin check, Accept-Language, If-None-Match, Range, the query and the `lang`
@@ -107,7 +108,10 @@ The division matters in a few concrete places:
   in its own slug's realm, nothing else on the wire to tell them apart — and reads the `206`, the
   `416` and the missing `ETag` off the answers. The verify script still curls each of them, for the
   real stack in front.
-- **`data/demos.php` is gitignored, so no test may assume one exists.** `DemoTest` writes its own and
+- **`data/releases.json` is exactly what `ReleaseCodec` writes.** The verify script decodes it and
+  encodes it again, and fails on any byte of difference, so a hand edit that drifts from the
+  codec's format fails before a tool's next write would have reformatted it silently.
+- **`data/demos.json` is gitignored, so no test may assume one exists.** `DemoTest` writes its own and
   hands it to `DemoRepository` through the optional `File` parameter; the verify script swaps in a
   fixture of its own and restores whatever was there **in the EXIT trap**, so an interrupt cannot
   leave the real file swapped out. Both are the seam `DownloadController`'s optional repository is,
@@ -303,7 +307,7 @@ A few tests exist to stop a specific mistake coming back, not to cover a line:
   by a file name, so a traversal is a label matching nothing and a `404` like any other. Both suites
   check it — `DemoTest` through the controller with encoded dots, the verify script over HTTP — and
   `DemoTrack` refusing a file name with a separator in it is the second guard, for a typo in
-  `data/demos.php` rather than for anything a visitor can send.
+  `data/demos.json` rather than for anything a visitor can send.
 - **A path-shaped URL really is a path on this site.** The framework's `MarkupTest` walks every spelling of a bare
   authority past `Element` — `//host`, `/\host`, and the two that hide one behind a tab or a
   newline, which no list of prefixes catches. `Element` puts the question to PHP 8.5's WHATWG
@@ -750,7 +754,7 @@ follow PSR-12 exactly. The only exemptions, documented in both configs, are the 
 house style:
 
 - **column-aligned parameters and call arguments** — `public string                $permalink,` in
-  `SoundCloudEmbed`, `new Format(ReleaseFormat::FLAC,  new HiDriveLink(…))` in `data/releases.php`
+  `SoundCloudEmbed`
 - **one-line accessors** — `public function authPassword(): string { return $this->authPassword; }`
 
 `phpcs` reports no warnings either.

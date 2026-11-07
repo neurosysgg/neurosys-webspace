@@ -40,9 +40,10 @@ readonly class Release
      * @param int        $bpm                Beats per minute (must be > 0).
      * @param MusicalKey $key                The musical key.
      * @param Genre      $genre              The musical genre.
-     * @param string|Translatable $description A short description shown in release listings: its
-     *                                       catalog case, `Texts::Releases::Descriptions::…`, or a
-     *                                       plain string, which reads the same in every language.
+     * @param string|Translatable $description A short description shown in release listings: a
+     *                                       {@link \Phpanta\Text\Translation} of it per language,
+     *                                       as `data/releases.json` writes it, or a plain string,
+     *                                       which reads the same in every language.
      * @param FileLink|null $cover           The cover art image, or null to use the placeholder.
      * @param Collection<Format> $formats    The available download {@link Format}s.
      * @param Embed|null $embed              The media player for this release, or null for no player.

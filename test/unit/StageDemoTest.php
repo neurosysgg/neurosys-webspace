@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace NeuroSYS\Test\Unit;
 
+use NeuroSYS\Model\Demo;
+use NeuroSYS\Model\DemoTrack;
+use NeuroSYS\Service\Data\DemoCodec;
 use NeuroSYS\Tool\Command\StageDemo;
+use NeuroSYS\Tool\Data\EntryFile;
 use NeuroSYS\Tool\Demo\DemoEntryWriter;
 use NeuroSYS\Tool\Demo\DemoPreflight;
 use NeuroSYS\Tool\Demo\DemoSource;
@@ -12,7 +16,9 @@ use NeuroSYS\Tool\Demo\DemoStage;
 use NeuroSYS\Tool\Demo\Encoding;
 use NeuroSYS\Tool\Demo\Password;
 use NeuroSYS\Tool\Release\Level;
+use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
+use Phpanta\Support\File;
 use Phpanta\Support\PasswordHash;
 use Phpanta\Tool\Cli\ExitCode;
 use Phpanta\Tool\Cli\Output;
@@ -56,17 +62,18 @@ final class StageDemoTest extends TestCase
     }
 
     /**
-     * Runs the command against in-memory streams and hands back what it wrote to each.
+     * Runs the command against in-memory streams and hands back what it wrote to each — with the
+     * demos file a fixture of its own, so no run can write into `data/demos.json`.
      *
      * @param list<string> $arguments
      * @return array{ExitCode, string, string} status, stdout, stderr
      */
-    private static function invoke(array $arguments): array
+    private function invoke(array $arguments): array
     {
         $out   = fopen('php://memory', 'r+b');
         $error = fopen('php://memory', 'r+b');
 
-        $status = Runner::execute(new StageDemo(), $arguments, new Output($out, $error));
+        $status = Runner::execute(new StageDemo($this->demos()), $arguments, new Output($out, $error));
 
         rewind($out);
         rewind($error);
@@ -350,7 +357,7 @@ final class StageDemoTest extends TestCase
      */
     public function testNoArgumentsIsAUsageError(): void
     {
-        [$status, $out, $error] = self::invoke([]);
+        [$status, $out, $error] = $this->invoke([]);
 
         self::assertSame(ExitCode::Usage, $status);
         self::assertSame('', $out);
@@ -364,7 +371,7 @@ final class StageDemoTest extends TestCase
      */
     public function testAFlagTheCommandDoesNotDeclareIsRefused(): void
     {
-        [$status, , $error] = self::invoke(['a.flac', '--public']);
+        [$status, , $error] = $this->invoke(['a.flac', '--public']);
 
         self::assertSame(ExitCode::Usage, $status);
         self::assertStringContainsString("unknown option '--public'", $error);
@@ -372,7 +379,7 @@ final class StageDemoTest extends TestCase
 
     /**
      * **`--check` must not mint a password.** A run made only to read the report would otherwise
-     * leave one on the screen that no entry in `data/demos.php` matches — a password that looks
+     * leave one on the screen that no entry in `data/demos.json` matches — a password that looks
      * real, is real, and opens nothing.
      *
      * @return void
@@ -382,7 +389,7 @@ final class StageDemoTest extends TestCase
         $file = $this->fixtures->file('stage-demo-fixture v3.flac');
         $file->write('not really audio');
 
-        [, $out, $error] = self::invoke([$file->path, '--check']);
+        [, $out, $error] = $this->invoke([$file->path, '--check']);
 
         self::assertSame('', $out);
         self::assertStringNotContainsString('password:', $error);
@@ -400,7 +407,7 @@ final class StageDemoTest extends TestCase
         $file = $this->fixtures->file('stage-demo-fixture v3.flac');
         $file->write('not really audio');
 
-        [$status, $out, $error] = self::invoke([$file->path]);
+        [$status, $out, $error] = $this->invoke([$file->path]);
 
         self::assertSame(ExitCode::Failure, $status);
         self::assertSame('', $out);
@@ -409,31 +416,99 @@ final class StageDemoTest extends TestCase
     }
 
     /**
-     * `--rotate` on its own changes one line of an entry that already exists, so it takes no files
-     * and prints no entry — restaging to change a password would rewrite every file and lose any
-     * description written by hand since.
+     * The fixture's demos file, which no test but the ones that write one has.
+     *
+     * @return File
+     */
+    private function demos(): File
+    {
+        return $this->fixtures->file('demos.json');
+    }
+
+    /**
+     * A demos file holding `alien-house`, with a description written by hand since it was staged.
+     *
+     * @return Demo
+     */
+    private function staged(): Demo
+    {
+        $demo = new Demo(
+            'alien house',
+            Password::mint()->hash,
+            new Collection(DemoTrack::class)->with(new DemoTrack('v3', 'v3.mp3', 158)),
+            'the drop, mostly',
+        );
+        (void) EntryFile::demos($this->demos())->prepend('alien-house', $demo);
+
+        return $demo;
+    }
+
+    /**
+     * `--rotate <slug>` changes one field of an entry that already exists, in place — the password,
+     * and nothing else: restaging to change it would rewrite every file and lose any description
+     * written by hand since.
      *
      * @return void
      */
-    public function testRotatePrintsOneArgumentAndTheNewPassword(): void
+    public function testRotateReplacesThePasswordAndNothingElse(): void
     {
-        [$status, $out, $error] = self::invoke(['--rotate']);
+        $before = $this->staged();
+
+        [$status, $out, $error] = $this->invoke(['--rotate', 'alien-house']);
 
         self::assertSame(ExitCode::Success, $status);
-        self::assertStringContainsString('password:    new PasswordHash(', $out);
-        self::assertStringNotContainsString('new Demo(', $out);
+        self::assertSame('', $out);
         self::assertStringContainsString('send these', $error);
+
+        preg_match('/password:\s+([0-9A-Z-]{23})\s/', $error, $match);
+        $after = EntryFile::demos($this->demos())->entries()->find('alien-house');
+
+        self::assertInstanceOf(Demo::class, $after);
+        self::assertTrue($after->password->matches($match[1] ?? ''));
+        self::assertNotSame($before->password->digest(), $after->password->digest());
+        self::assertSame('the drop, mostly', $after->description?->in(\Phpanta\Text\Language::English));
+        self::assertSame('v3.mp3', $after->findTrack('v3')?->file);
+    }
+
+    /**
+     * A slug that names no demo is a failure, and writes nothing.
+     *
+     * @return void
+     */
+    public function testRotatingADemoThatIsNotStagedFails(): void
+    {
+        [$status, $out, $error] = $this->invoke(['--rotate', 'nope']);
+
+        self::assertSame(ExitCode::Failure, $status);
+        self::assertSame('', $out);
+        self::assertStringContainsString('no demo called nope', $error);
+        self::assertStringNotContainsString('send these', $error);
+        self::assertFalse($this->demos()->exists());
+    }
+
+    /**
+     * `--rotate --print` writes nothing and needs no slug: the digest goes to stdout.
+     *
+     * @return void
+     */
+    public function testRotateWithPrintPrintsTheDigestAndWritesNothing(): void
+    {
+        [$status, $out, $error] = $this->invoke(['--rotate', '--print']);
+
+        self::assertSame(ExitCode::Success, $status);
+        self::assertMatchesRegularExpression('/\A\$pbkdf2-sha256\$\d+\$\S+\n\z/', $out);
+        self::assertStringContainsString('send these', $error);
+        self::assertFalse($this->demos()->exists());
     }
 
     /**
      * **A declared flag must never be a silently ignored one.**
      *
-     * `--rotate` beside a file name matches neither mode, and falling through to a full staging
-     * run would transcode every mix again, mint a *new* password and print a whole new entry — the
+     * `--rotate` beside file names matches neither mode, and falling through to a full staging
+     * run would transcode every mix again, mint a *new* password and write a whole new entry — the
      * exact pair of things `--rotate` exists not to do, arriving because a flag was read and
-     * dropped. Refusing outright is the only safe
-     * answer, since guessing which of the two modes was meant is guessing about a password that
-     * has already been sent to somebody.
+     * dropped. Refusing outright is the only safe answer, since guessing which of the two modes was
+     * meant is guessing about a password that has already been sent to somebody.
      *
      * @return void
      */
@@ -442,11 +517,11 @@ final class StageDemoTest extends TestCase
         $file = $this->fixtures->file('stage-demo-fixture v3.flac');
         $file->write('not really audio');
 
-        [$status, $out, $error] = self::invoke(['--rotate', $file->path]);
+        [$status, $out, $error] = $this->invoke(['--rotate', $file->path, 'alien-house']);
 
         self::assertSame(ExitCode::Usage, $status);
         self::assertSame('', $out);
-        self::assertStringContainsString('--rotate takes no files', $error);
+        self::assertStringContainsString('--rotate takes the slug of a demo', $error);
 
         // The two things a fall-through would have produced, neither of which may appear.
         self::assertStringNotContainsString('send these', $error);
@@ -460,7 +535,7 @@ final class StageDemoTest extends TestCase
      */
     public function testWaveformsAndRotateTogetherAreRefused(): void
     {
-        [$status, $out, $error] = self::invoke(['--waveforms', '--rotate']);
+        [$status, $out, $error] = $this->invoke(['--waveforms', '--rotate']);
 
         self::assertSame(ExitCode::Usage, $status);
         self::assertSame('', $out);
@@ -469,15 +544,15 @@ final class StageDemoTest extends TestCase
     }
 
     /**
-     * **The password goes to stderr, with the report.** The entry goes to stdout so `> entry.php`
-     * works; a plaintext following it into that file would be the one place this whole arrangement
-     * writes one down.
+     * **The password goes to stderr, with the report.** `--print` puts the entry or the digest on
+     * stdout so `> entry.json` works; a plaintext following it into that file would be the one place
+     * this whole arrangement writes one down.
      *
      * @return void
      */
     public function testThePlaintextNeverGoesToTheStreamThatCanBeRedirectedToAFile(): void
     {
-        [, $out, $error] = self::invoke(['--rotate']);
+        [, $out, $error] = $this->invoke(['--rotate', '--print']);
 
         preg_match('/password:\s+([0-9A-Z-]{23})\s/', $error, $match);
 
@@ -491,63 +566,31 @@ final class StageDemoTest extends TestCase
     // ───────────────────────────── the entry ─────────────────────────────
 
     /**
-     * The entry has to parse against a file that imports short names, which is how every entry
-     * beside it is written — so the imports are printed rather than assumed. `data/demos.php` is
-     * gitignored, so unlike `data/releases.php` there is often no file to reconcile against.
+     * The entry is what `data/demos.json` will hold, so the real test is that the site's own reader
+     * reads it back as the `Demo` it describes — not that it looks a certain way.
      *
      * @return void
      */
-    public function testTheEntryNamesEveryClassItUses(): void
-    {
-        $stage = DemoStage::of(['/nowhere/alien house v3.flac']);
-
-        self::assertSame(
-            [
-                'NeuroSYS\Model\Demo',
-                'NeuroSYS\Model\DemoTrack',
-                'Phpanta\Support\Collection',
-                'Phpanta\Support\PasswordHash',
-            ],
-            DemoEntryWriter::imports($stage, Password::mint()),
-        );
-    }
-
-    /**
-     * The entry is PHP this repository will later `require`, so the real test is that it parses and
-     * produces the `Demo` it describes — not that it looks a certain way.
-     *
-     * @return void
-     */
-    public function testTheEntryEvaluatesToTheDemoItDescribes(): void
+    public function testTheEntryReadsBackAsTheDemoItDescribes(): void
     {
         $stage    = DemoStage::of(['/nowhere/alien house v3.flac'], slug: 'alien-house');
         $password = Password::mint();
 
-        $file = $this->fixtures->file('demos.php');
-        $file->write(sprintf(
-            "<?php\ndeclare(strict_types=1);\n%s\nreturn [\n%s\n];\n",
-            implode('', array_map(
-                static fn(string $class): string => "use $class;\n",
-                DemoEntryWriter::imports($stage, $password),
-            )),
-            DemoEntryWriter::write($stage, $password),
-        ));
+        $demos = DemoCodec::decode(DemoEntryWriter::write($stage, $password), 'the entry');
+        $demo  = $demos->find('alien-house');
 
-        /** @var array<string, \NeuroSYS\Model\Demo> $demos */
-        $demos = require $file->path;
-
-        self::assertArrayHasKey('alien-house', $demos);
-        self::assertSame('alien house', $demos['alien-house']->title);
-        self::assertTrue($demos['alien-house']->password->matches($password->plaintext));
+        self::assertInstanceOf(Demo::class, $demo);
+        self::assertSame('alien house', $demo->title);
+        self::assertTrue($demo->password->matches($password->plaintext));
 
         // The file is named for the label, so nothing of the master's own name reaches the server.
-        self::assertSame('v3', $demos['alien-house']->findTrack('v3')?->label);
-        self::assertSame('v3.mp3', $demos['alien-house']->findTrack('v3')?->file);
+        self::assertSame('v3', $demo->findTrack('v3')?->label);
+        self::assertSame('v3.mp3', $demo->findTrack('v3')?->file);
     }
 
     /**
-     * The description is the one field nothing can derive, written out as the null it is with a
-     * comment rather than left off — a forgotten one renders as "work in progress" on the page.
+     * The description is the one field nothing can derive, written out as the null it is rather
+     * than left off — a forgotten one renders as "work in progress" on the page.
      *
      * @return void
      */
@@ -555,7 +598,28 @@ final class StageDemoTest extends TestCase
     {
         $entry = DemoEntryWriter::write(DemoStage::of(['/nowhere/a v1.flac']), Password::mint());
 
-        self::assertStringContainsString('description: null,', $entry);
-        self::assertStringContainsString('what you are asking them for', $entry);
+        self::assertStringContainsString('"description": null,', $entry);
+    }
+
+    /**
+     * A slug already in the file is refused before a byte of audio is written: its entry carries a
+     * password somebody holds.
+     *
+     * @return void
+     */
+    public function testStagingASlugThatIsTakenIsRefusedBeforeAnythingIsWritten(): void
+    {
+        $this->staged();
+        $before = (string) $this->demos()->read();
+        $file   = $this->fixtures->file('alien house v4.flac');
+        $file->write('not really audio');
+
+        [$status, $out, $error] = $this->invoke([$file->path, '--slug', 'alien-house']);
+
+        // Refused by the preflight (not audio) or by the slug — either way before anything is written.
+        self::assertNotSame(ExitCode::Success, $status);
+        self::assertSame('', $out);
+        self::assertStringNotContainsString('send these', $error);
+        self::assertSame($before, $this->demos()->read());
     }
 }

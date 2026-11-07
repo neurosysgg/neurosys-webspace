@@ -11,9 +11,9 @@ use NeuroSYS\Exception\ReleaseVerificationException;
  *
  * A name and nothing else, which is the whole design. `tools/lib/Flp/Plugins` can recover candidate
  * names from a project's wrapper blobs, but only as candidates — the layout it reads is not one FL
- * documents, and the scan finds wreckage alongside the real names. So the tool emits the list
- * **commented out** for a person to trim, and what reaches `data/releases.php` is hand-authored,
- * exactly like `description`.
+ * documents, and the scan finds wreckage alongside the real names. So the tool **lists** them for a
+ * person to trim and writes none, and what reaches `data/releases.json` is hand-authored, exactly
+ * like `description`.
  *
  * That is why this carries no version, no vendor and no id: everything else would be a field the
  * author has to keep true by hand for no gain, and a credit is a name.

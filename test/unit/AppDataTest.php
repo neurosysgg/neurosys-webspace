@@ -11,7 +11,6 @@ use NeuroSYS\Text\ErrorText;
 use NeuroSYS\Text\HomeText;
 use NeuroSYS\Text\LayoutText;
 use NeuroSYS\Text\ProfileText;
-use NeuroSYS\Text\ReleaseDescription;
 use NeuroSYS\Text\ReleaseText;
 use NeuroSYS\Text\TerminalText;
 use NeuroSYS\Tool\Command\AppData;
@@ -99,7 +98,7 @@ final class AppDataTest extends TestCase
      */
     public static function catalogProvider(): iterable
     {
-        $catalogs = [LayoutText::class, HomeText::class, ReleaseText::class, ReleaseDescription::class,
+        $catalogs = [LayoutText::class, HomeText::class, ReleaseText::class,
             MusicalKey::class, DemoText::class, ErrorText::class, TerminalText::class, ProfileText::class];
         foreach ($catalogs as $class) {
             yield $class => [$class];

@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
+use NeuroSYS\Model\Release;
+use NeuroSYS\Tool\Data\EntryFile;
+use NeuroSYS\Tool\Data\EntryWrite;
 use NeuroSYS\Tool\Release\EntryWriter;
 use NeuroSYS\Tool\Release\Finding;
 use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\ReleaseFolder;
-use NeuroSYS\Tool\Release\ReleasesFile;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\Input;
 use Phpanta\Tool\Cli\Option;
@@ -20,10 +22,8 @@ use Phpanta\Tool\Cli\Runner;
  * The FolderReport class. What both of the commands that read a release folder print about it.
  *
  * `stage-release` and `release-track` are the same command up to their last step — read a folder,
- * judge it, say what is wrong with it, and print an entry — so four blocks were written twice, and
- * `reportFindings()` was byte-identical in both files. This is the criterion {@link ReleasesFile}
- * already states and stopped one method short of: *"a class rather than the same six lines in two
- * commands, now that both `stage-release` and `release-track` print an entry"*.
+ * judge it, say what is wrong with it, and write an entry — so four blocks were written twice, and
+ * `reportFindings()` was byte-identical in both files.
  *
  * **A class and not a trait**, which is the same test {@link \Phpanta\Support\TypedItems} is on
  * the other side of. That is a trait because nothing anywhere holds "either kind of collection";
@@ -116,32 +116,101 @@ final readonly class FolderReport
     }
 
     /**
-     * The classes the entry names, and whether `data/releases.php` already imports them.
+     * The entry: printed with `--print`, written into `data/releases.json` otherwise — and either
+     * way, what it still wants by hand.
      *
-     * The entry is written with short names, because that is how every entry beside it is written —
-     * so a class the file has never imported is a parse error rather than a missing feature. That
-     * was not hypothetical: the arrangement and the time spent are `Model\Production` types, and no
-     * entry written before them imports anything from there.
+     * `stage-release` writes a new entry and refuses a slug already there, since the entry there
+     * carries a description and share ids typed in by hand. `release-track` after an upload is the
+     * other case: it puts the player into the entry that is there, touching nothing else, and writes
+     * the whole entry only where there is none yet.
      *
      * @param ReleaseFolder        $folder
-     * @param SoundCloudEmbed|null $embed Null for an entry printed before the track was uploaded,
-     *                                    which is what `stage-release` always prints.
-     * @return void
+     * @param EntryFile            $file
+     * @param bool                 $print
+     * @param SoundCloudEmbed|null $embed The uploaded track's, after `release-track --upload`.
+     * @return bool Whether the entry is where it was meant to go.
      */
-    public function imports(ReleaseFolder $folder, ?SoundCloudEmbed $embed = null): void
+    public function entry(ReleaseFolder $folder, EntryFile $file, bool $print, ?SoundCloudEmbed $embed = null): bool
     {
-        $missing = ReleasesFile::default()->missingImports(EntryWriter::imports($folder, $embed));
+        $slug = (string) $folder->slug();
 
-        if ($missing === []) {
-            return;
+        if ($print) {
+            $this->output->out(EntryWriter::write($folder, $embed));
+            $result = EntryWrite::Written;
+        } elseif ($embed !== null && ($existing = $file->entries()->find($slug)) instanceof Release) {
+            $result = $file->replace($slug, self::withEmbed($existing, $embed));
+            $this->output->error(sprintf("  put the player into '%s' in %s\n\n", $slug, $file->file->path));
+
+            return $this->said($result, $slug, $file);
+        } else {
+            $result = $file->prepend($slug, EntryWriter::release($folder, $embed));
+            if ($result === EntryWrite::Written) {
+                $this->output->error(sprintf("  wrote '%s' into %s, first\n\n", $slug, $file->file->path));
+            }
         }
 
-        $this->output->error("  data/releases.php does not import these yet:\n\n");
-
-        foreach ($missing as $class) {
-            $this->output->error(sprintf("      use %s;\n", $class));
+        if (!$this->said($result, $slug, $file)) {
+            return false;
         }
 
+        $this->output->error("  still to fill in by hand:\n\n");
+        foreach (EntryWriter::notes($folder, $embed) as $note) {
+            $this->output->error(sprintf("      %s\n", $note));
+        }
         $this->output->error("\n");
+
+        return true;
+    }
+
+    /**
+     * Says what went wrong with a write, where something did.
+     *
+     * @param EntryWrite $result
+     * @param string     $slug
+     * @param EntryFile  $file
+     * @return bool Whether it was written.
+     */
+    private function said(EntryWrite $result, string $slug, EntryFile $file): bool
+    {
+        $why = match ($result) {
+            EntryWrite::Written    => null,
+            EntryWrite::Exists     => sprintf(
+                "'%s' is in %s already, with whatever was typed into it since — nothing was written."
+                . ' Remove it first to stage it afresh, or --print the entry and merge it by hand',
+                $slug,
+                $file->file->path,
+            ),
+            EntryWrite::Missing    => sprintf("'%s' is not in %s — nothing was written", $slug, $file->file->path),
+            EntryWrite::Unwritable => sprintf('%s could not be written; it is as it was', $file->file->path),
+        };
+        if ($why !== null) {
+            $this->output->error(sprintf("  %s.\n\n", $why));
+        }
+
+        return $why === null;
+    }
+
+    /**
+     * $release with $embed as its player, and everything else as it was.
+     *
+     * @param Release         $release
+     * @param SoundCloudEmbed $embed
+     * @return Release
+     */
+    private static function withEmbed(Release $release, SoundCloudEmbed $embed): Release
+    {
+        return new Release(
+            title:       $release->title,
+            bpm:         $release->bpm,
+            key:         $release->key,
+            genre:       $release->genre,
+            description: $release->description,
+            cover:       $release->cover,
+            formats:     $release->formats,
+            embed:       $embed,
+            arrangement: $release->arrangement,
+            timeSpent:   $release->timeSpent,
+            madeWith:    $release->madeWith,
+        );
     }
 }

@@ -10,7 +10,7 @@ route that asks for the password first. That is the difference in one sentence: 
 outlives the password, and a demo route does not.**
 
 Nothing about a demo is published. There is no `/demos` index, no link to one anywhere, and
-`data/demos.php` is gitignored because `origin` is a public GitHub repository and these are titles
+`data/demos.json` is gitignored because `origin` is a public GitHub repository and these are titles
 of tracks that are not out. Even the *existence* of a demo is unreadable: an unknown slug is refused
 exactly like a wrong password, in the same time.
 
@@ -19,9 +19,10 @@ exactly like a wrong password, in the same time.
 ## Staging one
 
 ```bash
-php tools/stage-demo.php <file>… [--title <title>] [--slug <slug>] [--check]
+php tools/stage-demo.php <file>… [--title <title>] [--slug <slug>] [--check] [--print]
 php tools/stage-demo.php --waveforms [<slug>…]
-php tools/stage-demo.php --rotate
+php tools/stage-demo.php --rotate <slug>
+php tools/stage-demo.php --rotate --print
 ```
 
 Every file you name becomes one mix on the page, in the order you name them — the first is what the
@@ -43,8 +44,9 @@ php tools/stage-demo.php \
 php tools/stage-demo.php ~/Music/neuro.SYS/demos/"alien house v3.flac" --check
 ```
 
-The command prints its report and the password to **stderr** and the entry to **stdout**, so
-`> entry.php` captures the entry and never the password.
+The command prints its report and the password to **stderr** and writes the entry into
+`data/demos.json`. `--print` puts the entry on **stdout** instead and writes nothing, so
+`--print > entry.json` captures the entry and never the password.
 
 ### What it derives, and what it does not
 
@@ -55,7 +57,7 @@ The command prints its report and the password to **stderr** and the entry to **
 | label | the version marker in the file name: `v3`, `v12-rc`, else `mix` |
 | duration | `ffprobe` |
 | password | minted here, and nowhere else |
-| description | **nothing.** It is the one editorial field, written out as `null` to fill in — a string, or `new Translation(en: …, de: …)` for both languages; never a catalog case, since `src/` is public |
+| description | **nothing.** It is the one editorial field, written out as `null`, which the page renders as "work in progress"; fill it in as one string in one language — never a catalog case, since `src/` is public |
 
 `--title` and `--slug` override the first two, and they are not exotic cases:
 `alien house v4.flac` carries an **empty** `TITLE`, and
@@ -67,10 +69,13 @@ The command prints its report and the password to **stderr** and the entry to **
   An already-lossy master is **remuxed** rather than re-encoded, so there is no generation loss;
   a FLAC or WAV is encoded, because 30 MB per listen through PHP on shared hosting is not a plan.
 - `data/demos/{slug}/{label}.wave` — 2 KB describing the shape of it, drawn behind the player.
-- Nothing else. It **prints** the `data/demos.php` entry rather than writing it, the same way
-  `stage-release` does: that file is hand-ordered, and a file either orders entries or is generated.
+- The entry, **first** in `data/demos.json` — newest first, the file created if it is not there.
+  A slug already in the file is refused before anything is transcoded, since that entry may hold a
+  description written by hand; `--rotate` and `--waveforms` are how a staged demo changes.
 
-Paste the entry into `data/demos.php`, newest first, creating the file if it is not there.
+The file is read by PHP (`DemoCodec`) and by the native app (`app/views/demos.c`), which refuse the
+same things: a blank title, a password that is not a digest, a label or file name that cannot be
+addressed. A missing file is no demos; a malformed one is an error, naming the file and the path.
 
 ---
 
@@ -81,7 +86,7 @@ slice is loud and coloured by which frequency band it is made of — purple sub,
 air. Played columns are lit, the rest dimmed, and clicking anywhere on it needle-drops.
 
 ```bash
-php tools/stage-demo.php --waveforms            # every demo in data/demos.php
+php tools/stage-demo.php --waveforms            # every demo in data/demos.json
 php tools/stage-demo.php --waveforms wna-bootleg
 ```
 
@@ -122,8 +127,7 @@ prompt, and sometimes read down a phone.
 
 **Only the digest is kept** — PBKDF2-HMAC-SHA256 at 600 000 iterations, written
 `$pbkdf2-sha256$…` (`PasswordHash::mint()`), which both Phpanta and c-serve's `kit/password.c`
-read. A demo minted before 2026-10-29 still holds a bcrypt digest; PHP reads it, c-serve does not,
-so `--rotate` it before the C host serves demos. The plaintext is printed once and written nowhere: not to `data/`,
+read. PHP still reads a bcrypt digest; c-serve refuses one. The plaintext is printed once and written nowhere: not to `data/`,
 not to a ledger, not to a file the entry can be redirected into. There is no way to look one up
 later, and that is the point — a copy of this repository, or of the server, contains no working
 password.
@@ -131,11 +135,12 @@ password.
 Lost one, or gave it to the wrong person:
 
 ```bash
-php tools/stage-demo.php --rotate
+php tools/stage-demo.php --rotate wna-bootleg
 ```
 
-That prints a new password and the one line of the entry to replace. It touches no audio and loses
-no description, which is why it is not a restage.
+That shows a new password and replaces that demo's digest in `data/demos.json`, in place. It
+touches no audio and loses no description, which is why it is not a restage. `--rotate --print`,
+with no slug, prints only a new digest and writes nothing.
 
 ### What to send
 
@@ -167,7 +172,7 @@ behind it right now:
 
 - **Nothing builds a path out of a request.** The URL's last segment is matched against the labels
   the demo declares, and a segment naming none is a `404`. `DemoTrack`'s own check on its file name
-  is the *second* guard on that hazard — for a typo in `data/demos.php`, not for anything a visitor
+  is the *second* guard on that hazard — for a typo in `data/demos.json`, not for anything a visitor
   can send.
 - `Cache-Control: no-store, private` on the page **and** on the audio, so a borrowed machine's cache
   keeps neither.
@@ -182,15 +187,15 @@ behind it right now:
 ## Deploying
 
 Nothing special. `deploy.sh` rsyncs `data/` from the working tree without consulting git, so both
-`data/demos.php` and `data/demos/` reach the server despite being gitignored — that pairing is
+`data/demos.json` and `data/demos/` reach the server despite being gitignored — that pairing is
 deliberate, and it is the opposite of the credential files, `data/session.key` among them, which
 are *excluded* from the rsync because each deployment holds its own.
 
 **`--delete` is not on for `data/`**, unlike the `public/` and `src/` rsyncs beside it, and that is
-deliberate: `demos.php` and `demos/` are gitignored, so a clone that has never staged a demo has
+deliberate: `demos.json` and `demos/` are gitignored, so a clone that has never staged a demo has
 neither, and a deploy from that machine would take every demo off the server.
 
-So removing a demo is two steps and the second is by hand. Delete its entry from `data/demos.php`,
+So removing a demo is two steps and the second is by hand. Delete its entry from `data/demos.json`,
 delete `data/demos/{slug}/`, and deploy — its URL answers `401` like a slug that never existed, and
 the page and the audio route are both shut, because the entry is what the router matches against.
 Then **delete the directory on the mount too**, because the deploy will not: the audio is still

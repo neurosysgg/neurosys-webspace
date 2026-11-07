@@ -41,7 +41,7 @@ final readonly class Password
      * Constructs an instance of {@link self}.
      *
      * @param string       $plaintext What to send, once.
-     * @param PasswordHash $hash      What goes in `data/demos.php`.
+     * @param PasswordHash $hash      What goes in `data/demos.json`.
      */
     private function __construct(
         public string       $plaintext,

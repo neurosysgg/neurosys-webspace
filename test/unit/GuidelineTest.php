@@ -165,8 +165,8 @@ final class GuidelineTest extends TestCase
         self::assertSame(
             [
                 'NeuroSYS\Layout::modulePreloads()',
+                'NeuroSYS\Service\Data\Record::list()',
                 'NeuroSYS\Service\DownloadLogEntry::jsonSerialize()',
-                'NeuroSYS\Service\ProfileRepository::$links',
                 'NeuroSYS\View\Accented::accented()',
                 'NeuroSYS\View\DemoView::accented()',
                 'NeuroSYS\View\HomeView::accented()',

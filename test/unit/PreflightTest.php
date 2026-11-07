@@ -27,7 +27,7 @@ use ZipArchive;
  *
  * This is the half of the staging tool that earns its keep, because a share link is minted by hand
  * in a web UI and is bound to the bytes it was minted for: a file re-exported afterwards costs an
- * upload, a new link and an edit to `data/releases.php`. Every check in the class exists because a
+ * upload, a new link and an edit to `data/releases.json`. Every check in the class exists because a
  * real folder had that discrepancy in it; see docs/history/tooling.md.
  *
  * **Where this stops is where `ReleaseFolderTest` stops, and for the same reason.** `Preflight` has
@@ -303,7 +303,7 @@ final class PreflightTest extends TestCase
      *
      * Never as a value: the estimate agreed with three of the four projects whose key is
      * independently known, which is worth saying to a person and not worth writing into
-     * `data/releases.php` unasked.
+     * `data/releases.json` unasked.
      *
      * @return void
      */

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace NeuroSYS\Tool\Command;
 
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Tool\Release\EntryWriter;
+use NeuroSYS\Tool\Data\EntryFile;
 use NeuroSYS\Tool\Release\Fact;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ReleaseFolder;
+use Phpanta\Support\File;
 use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
@@ -16,23 +17,26 @@ use Phpanta\Tool\Cli\Input;
 use Phpanta\Tool\Cli\Output;
 
 /**
- * The StageRelease command. Stages a `data/releases.php` entry from a prepared release folder.
+ * The StageRelease command. Stages a `data/releases.json` entry from a prepared release folder.
  *
  * Reads everything the folder can say about itself — see {@link ReleaseFolder} for what that is and
- * where each fact comes from — checks it is ready to upload, and prints the entry.
+ * where each fact comes from — checks it is ready to upload, and writes the entry into
+ * `data/releases.json`, first, saying what it still wants by hand. Nothing is written while a check
+ * fails: a folder that is not ready is not one to be minting HiDrive share links against, because a
+ * link is bound to the bytes it was minted for.
  *
- * The report goes to **stderr** and the entry to **stdout**, so `> entry.php` keeps the block alone
- * and `2>&1 >/dev/null` keeps the report alone. Nothing is emitted while a check fails: a folder
- * that is not ready is not one to be minting HiDrive share links against, because a link is bound to
- * the bytes it was minted for.
- *
- * It **prints; it does not write `data/releases.php`.** That file is ordered by hand, newest first,
- * and carries the one field nothing can derive. Generating into it would leave it half-authored and
- * half-generated — the arrangement `tools/build-css.mjs` already refuses when it rejects a rule in a
- * manifest, since a file either orders parts or is one.
+ * **A slug already in the file is refused, not overwritten**: the entry there carries a description
+ * and share ids typed in since. `--print` puts the entry on stdout instead and writes nothing.
  */
 final readonly class StageRelease implements Command
 {
+    /**
+     * Constructs an instance of {@link self}.
+     *
+     * @param File|null $releases A test seam: the releases file, or null for `data/releases.json`.
+     */
+    public function __construct(private ?File $releases = null) {}
+
     /**
      * @return string
      */
@@ -46,7 +50,7 @@ final readonly class StageRelease implements Command
      */
     public function usage(): string
     {
-        return '<folder> [--check] [--project <file>]';
+        return '<folder> [--check] [--print] [--project <file>]';
     }
 
     /**
@@ -54,7 +58,7 @@ final readonly class StageRelease implements Command
      */
     public function description(): string
     {
-        return 'Stage a data/releases.php entry from a prepared release folder.';
+        return 'Stage a data/releases.json entry from a prepared release folder.';
     }
 
     /**
@@ -106,11 +110,9 @@ final readonly class StageRelease implements Command
             return ExitCode::Success;
         }
 
-        $output->error("  paste into data/releases.php, newest first:\n\n");
-        $report->imports($folder);
-        $output->out(EntryWriter::write($folder) . "\n");
-
-        return ExitCode::Success;
+        return $report->entry($folder, EntryFile::releases($this->releases), $input->has(StageReleaseOption::Print))
+            ? ExitCode::Success
+            : ExitCode::Failure;
     }
 
 

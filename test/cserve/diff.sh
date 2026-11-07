@@ -57,30 +57,12 @@ trap cleanup EXIT
 mkdir -p "$STAGE/phpanta" "$STAGE/data/demos/fixture"
 cp -r "$REPO/autoload.php" "$REPO/src" "$REPO/public" "$STAGE/"
 cp -r "$REPO/phpanta/autoload.php" "$REPO/phpanta/src" "$STAGE/phpanta/"
-for f in releases.php profiles.php privacy.de.html privacy.en.html; do
+for f in releases.json profiles.json privacy.de.html privacy.en.html; do
     cp "$REPO/data/$f" "$STAGE/data/"
 done
 DIGEST="$(php -r 'require $argv[1]; echo Phpanta\Support\PasswordHash::mint($argv[2], 100000)->digest();' \
     "$STAGE/autoload.php" "$PASSWORD")"
-cat > "$STAGE/data/demos.php" <<EOF
-<?php
-use NeuroSYS\Model\Demo;
-use NeuroSYS\Model\DemoTrack;
-use Phpanta\Support\Collection;
-use Phpanta\Support\PasswordHash;
-return [
-    'fixture' => new Demo(
-        title:    'a "fixture" — ü!',
-        password: new PasswordHash('$DIGEST'),
-        tracks:   new Collection(DemoTrack::class)->with(
-            new DemoTrack('v2', 'v2.mp3', 157),
-            new DemoTrack('v1', 'v1.ogg', 0),
-            new DemoTrack('gone', 'gone.mp3', 3),
-        ),
-        description: 'a <b>test</b> & nothing else',
-    ),
-];
-EOF
+# one file, both readers: PHP's DemoCodec on A, the app's demos.c on B
 cat > "$STAGE/data/demos.json" <<EOF
 {"fixture": {"title": "a \"fixture\" — ü!", "password": "$DIGEST",
   "description": "a <b>test</b> & nothing else",

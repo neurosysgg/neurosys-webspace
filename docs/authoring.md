@@ -1,10 +1,10 @@
 # Authoring — building a release from its folder
 
 Two commands turn a prepared release folder under `~/Music/neuro.SYS/releases/<name>/` into the
-`data/releases.php` entry that [releases.md](releases.md) otherwise asks a person to type.
+`data/releases.json` entry that [releases.md](releases.md) otherwise asks a person to type.
 `tools/stage-release.php` reads the folder — and the FL Studio project, given one — judges it, and
-prints the entry. `tools/release-track.php` does the same and then uploads the track to SoundCloud,
-so the entry it prints carries the three SoundCloud ids too.
+writes the entry. `tools/release-track.php` does the same and then uploads the track to SoundCloud,
+so the entry carries the three SoundCloud ids too.
 
 FL Studio writes the tags these read — every master here carries `ENCODER=FL Studio` — so the chain
 is **`.flp` → export → prepared folder → entry → upload**. The export step is still done by hand in
@@ -18,12 +18,16 @@ phase by phase, and what it found wrong in the first two folders, is in
 ### Using it
 
 ```bash
-php tools/stage-release.php ~/Music/neuro.SYS/releases/ill           # report, then the entry
+php tools/stage-release.php ~/Music/neuro.SYS/releases/ill           # report, then write the entry
+php tools/stage-release.php ~/Music/neuro.SYS/releases/ill --print   # report, and the entry on stdout
 php tools/stage-release.php ~/Music/neuro.SYS/releases/ill --check   # report only, exit 1 on FAIL
 ```
 
-The report goes to **stderr** and the entry to **stdout**, so `> entry.php` keeps the block alone and
-`2>&1 >/dev/null` keeps the report alone. The report names each fact, its value, and **where it came
+The report goes to **stderr**, and the entry goes **first** into `data/releases.json`. With
+`--print` it goes to **stdout** instead, as `{"ill": {…}}`, and nothing is written — so
+`--print > entry.json` keeps the entry alone and `2>&1 >/dev/null` keeps the report alone.
+
+The report names each fact, its value, and **where it came
 from** — that third column is the one worth reading, because a fact taken from a filename and a fact
 taken from a tag are not equally trustworthy. For a folder with no project to read:
 
@@ -45,10 +49,12 @@ taken from a tag are not equally trustworthy. For a folder with no project to re
 not ready is not one to be minting HiDrive share links against, because a link is bound to the bytes
 it was minted for.
 
-**It prints; it does not write `data/releases.php`.** That file is ordered by hand, newest first, and
-carries the one field nothing can derive. Generating into it would leave it half-authored and
-half-generated — the arrangement `phpanta/tools/build-css.mjs` already refuses when it rejects a rule in a
-manifest, since a file either orders parts or is one.
+**It writes a new entry and never replaces one.** A slug already in `data/releases.json` is refused
+and nothing is written, because the entry there carries a description and share ids typed in by
+hand, and a restage would lose them. A new entry goes first, since the file is read newest first.
+The file is read whole through `ReleaseCodec` before a byte is written — a file that does not decode
+is refused with where and why, and stays as it was — and written back as the codec's own output,
+atomically, so the write changes that one entry and nothing else.
 
 ### Pointing it at the project
 
@@ -109,10 +115,9 @@ new enum case, which is a decision rather than a lookup.
 
 ### What nothing in the folder supplies
 
-- **`description`** — `'wub wub'`, `'debut single'`. Editorial, with nothing to derive it from. The
-  staged `''` is a plain string, which reads the same in both languages; once the line has its German
-  it becomes a `ReleaseDescription` case — `Texts::Releases::Descriptions::…` — see
-  [frontend.md](frontend.md#words--the-catalogs).
+- **`description`** — `"wub wub"`, `"debut single"`. Editorial, with nothing to derive it from. The
+  staged `""` is a plain string, which reads the same in both languages; once the line has its German
+  it becomes `{"en": "…", "de": "…"}` — see [frontend.md](frontend.md#words--the-catalogs).
 - **HiDrive share ids** — minted by hand in the web UI. The REST API can do it, but the OAuth
   credentials take STRATO up to 72 hours to issue; see [releases.md](releases.md).
 - **SoundCloud `trackId` / `permalink` / `secretToken`** — they do not exist until the track is up.
@@ -120,41 +125,43 @@ new enum case, which is a decision rather than a lookup.
 - **`madeWith`**, which is a different kind of unknown. The vendor and product names — `Serum2`,
   `Xfer Records`, `Kilohearts`, `Ozone Imager 2` — really are in the project, length-prefixed inside
   each plugin's wrapper blob, but at offsets that vary per plugin and per version. So the scan finds
-  the real names and some wreckage beside them, and the tool emits the list **commented out** for
-  the author to trim, exactly as it does for `description`. Nothing guessed reaches the site.
+  the real names and some wreckage beside them, and the tool **lists** them on stderr for the
+  author to trim and type in, never into the entry. Nothing guessed reaches the site.
 - **A release date.** `ill.`'s FLAC carries `DATE=2026-09-04`, and `Release` has no date field, so
-  the catalogue's newest-first ordering is array order maintained by hand. Adding one has been
+  the catalogue's newest-first ordering is the file's own order. Adding one has been
   considered and declined twice — and the project's *own* creation date could not supply it anyway:
   four of the seven projects share one timestamp, because saving a copy carries the original's date
   along with it.
 
 **`Release` already models exactly this half-state**, which is why the tool is useful before any of
-these arrive. `new Format(ReleaseFormat::FLAC)` with no link renders the download card and answers a
-click with a 503; `cover: null` renders the placeholder; an omitted `embed:` renders no player. So
-the emitted entry is a **valid, renderable release the moment it is pasted**, and each unknown is
-filled in later without changing its shape. `ReleaseFolderTest` asserts that by evaluating the
-generated block and checking the `Release` it produces.
+these arrive. A format with a `null` link renders the download card and answers a click with a 503;
+a `null` cover renders the placeholder; no `embed` renders no player. So the written entry is a
+**valid, renderable release the moment it is in the file**, and each unknown is filled in later
+without changing its shape. `ReleaseFolderTest` asserts that by reading the written entry back
+through the codec and checking the `Release` it produces.
 
-The entry names, per line, the file whose share id is wanted — which is the thing worth having to
-hand while standing in HiDrive's web UI:
+JSON has no comment to leave beside a field, so what is still to fill in by hand is said on stderr,
+naming the file each share id is for — the thing worth having to hand while standing in HiDrive's
+web UI:
 
-```php
-    'ill' => new Release(
-        title:       'ill.',
-        …
-        description: '',   // editorial — nothing in the folder supplies this
-        cover:       null, // share id for ill. cover.jpg
-        formats: new Collection(Format::class)->with(
-            new Format(ReleaseFormat::FLAC),   // share id for ill..flac
-            new Format(ReleaseFormat::STEMS),  // share id for 140 D#Min ill remix package.zip
-        ),
+```
+  wrote 'ill' into data/releases.json, first
+
+  still to fill in by hand:
+
+      description: editorial — nothing in the folder supplies it
+      cover: the share id for ill. cover.jpg
+      formats flac: the share id for ill..flac
+      formats stems: the share id for 140 D#Min ill remix package.zip
+      embed: the SoundCloud ids exist only once the track is uploaded — release-track --upload writes them in
+      madeWith: candidates the project names — credit the ones worth crediting: …
 ```
 
 ### The preflight
 
 Every check here is one a real folder suggested. They are worth more than the emission, because they
 run *before* an upload: a re-export after the fact costs the upload, a fresh share link and an edit to
-`data/releases.php`.
+`data/releases.json`.
 
 - **Every claimed format is the same recording.** Durations compared against the FLAC, tolerance half
   a second. `ill.` spans 187.129 / 187.119 / 187.066 s — encoder padding. A ten-second gap means one
@@ -203,7 +210,7 @@ quietly, which is the failure this whole arrangement exists to avoid.
 `KeyEstimate` sits under all three and is **not a rung**. It totals each pitch class by how long it
 sounds and correlates that against all 24 major and minor profiles, which agreed with three of the
 four projects whose key is independently known — good enough to say out loud to a person, and not
-good enough to write into `data/releases.php`. So it reaches the report as a sentence in a WARN and
+good enough to write into `data/releases.json`. So it reaches the report as a sentence in a WARN and
 never as a value. `Source` has no case for it, deliberately: that enum records where a fact *came
 from*, and a number nothing wrote down did not come from anywhere.
 
@@ -227,8 +234,9 @@ preflight says so in those words.
 
 ## Uploading the track
 
-`tools/release-track.php` uploads the track to SoundCloud, and the entry it prints has the three
-SoundCloud ids in it.
+`tools/release-track.php` uploads the track to SoundCloud and puts its three SoundCloud ids into the
+release's entry in `data/releases.json`, touching nothing else in it — or, where there is no entry
+yet, writes the whole entry first. `--print` prints the entry instead.
 
 ```bash
 php tools/release-track.php ~/Music/neuro.SYS/releases/ill              # report; sends nothing
@@ -342,54 +350,32 @@ tools/lib/
 ├── Export/             ← where the audio comes from — see "Where the audio comes from" above
 ├── Flp/                ← the project reader — see "Reading the .flp" above
 ├── Http/               ← the one outbound-request site — see "Uploading the track" above
-├── Php/                ← Expression, Value, ClassConstant, Argument, Call, Entry
 ├── Release/
 │   ├── ReleaseFolder.php   ← reads a folder, and records where each fact came from
 │   ├── ProjectFile.php     ← finds the .flp, loose or inside a zip
 │   ├── Preflight.php       ← judges it
-│   ├── EntryWriter.php     ← emits the data/releases.php block
-│   ├── ReleasesFile.php    ← reads data/releases.php, only to say which imports it lacks
+│   ├── EntryWriter.php     ← the entry as a Release, and the notes on what is left to type
 │   ├── Probe.php           ← the one metaflac/ffprobe shell-out site
 │   ├── AudioStream.php  Cover.php  Finding.php     ← what those three hand back
 │   └── Fact.php  Source.php  FlacTag.php  Level.php  KeyNotation.php
+├── Data/
+│   └── EntryFile.php       ← writes one entry into data/releases.json through ReleaseCodec
 └── SoundCloud/         ← the upload client — see "Uploading the track" above
 ```
 
-Read, judge, emit — three verbs, three classes, and each one testable without the other two.
+Read, judge, write — three verbs, three classes, and each one testable without the other two.
 
 `Source` records where a fact came from, and it is what the report's third column prints. Whether to
 warn about a cover is `$cover->isWebExport()` — a `Source` case, never a string comparison, where a
 typo in either half would turn the check off in silence.
 
-### The PHP emitter, and why not `var_export`
+### The writer, and why it is the site's own codec
 
-`EntryWriter` does not write strings. It composes a small expression tree in `tools/lib/Php/`, which
-is the same objection the markup tree answers for HTML, answered for PHP: a class name written as a
-string and an enum case written as `'MusicalKey::' . $key->name` are spellings nothing checks, in the
-one file whose failure mode is a `data/releases.php` that will not parse. The emitter composes values
-and one renderer writes the syntax, so `Genre::Dubstep` comes out of a real `Genre` and a case that
-does not exist cannot be written down.
-
-**`var_export()` on the whole `Release` is the obvious version of that idea, and it is the wrong
-output.** It works, and PHP already emits `\NeuroSYS\Model\Release::__set_state(array(…))` for it —
-given a `__set_state()` on each class it would round-trip exactly. But `ill.` comes out as **191
-lines against 35**, with `Collection`'s private `items` and its `type` string on show, every
-`SoundCloudEmbed` default spelled out, and no comment anywhere. `data/releases.php` is ordered and
-edited by hand, and the three things it most needs are the share-id comments, the named arguments,
-and the commented-out lines for facts that do not exist yet — none of which an exported object can
-carry. It would also mean adding a magic method to eight shipped `src/` classes to serve a tool that
-never runs on the server.
-
-So the tree emits what a person would have typed, and `var_export()` does the part it is genuinely
-good at: quoting the leaves, in `Php\Value`. Two things about it are worth knowing, and `Php\Value`
-handles both — **`var_export(null)` is `NULL` in capitals**, alone among the literals it emits and
-unlike every null in the data file; and an enum exports fully qualified, where the file imports its
-enums and writes `Genre::Dubstep`.
-
-The writer knows every class it named, so `stage-release` prints the `use` lines
-`data/releases.php` is missing. That is not decoration either: the entry is written with short
-names, and an entry written before `Section` and `ProductionTime` existed imports nothing from
-`Model\Production`.
+`EntryWriter` builds a `Release` out of what the folder knows, and `EntryFile` writes it with
+`ReleaseCodec` — the one the site reads the file with. So a staged entry cannot be one the site
+would refuse, a genre or key comes out of a real enum case as its backing value, and the file keeps
+the one format the verify script holds it to: decoded and re-encoded, it is itself byte for byte.
+A hand edit keeps that format too, or the verify script fails.
 
 ### Why none of it is under `src/`
 
@@ -400,29 +386,15 @@ Two mechanical reasons, each decisive on its own:
 - `phpunit.xml.dist` names `src` as its coverage source, so a class there would join the site's
   coverage figure and need tests written against shell-outs to `metaflac` and `ffprobe`.
 
-### The two trees are not one tree
-
-`Php\Expression` and `View\Html\Node` state the same contract — first line unindented, every line
-after it at the caller's column, a child rendered one step deeper — and differ only in how the
-caller names that column: a `string` of literal indent here, an `int` of two-space steps there.
-Either form would serve either tree, which is what makes the question worth answering out loud.
-
-**They stay two types.** Nothing anywhere holds "either kind of node", which is the same test that
-makes `Support\TypedItems` a trait rather than a base class: `extends` would announce a common type
-nothing wants. And a shared parent would have to live under `src/` to be reachable from both — for
-the two reasons directly above, which apply to a supertype whose only second implementor is a tool
-exactly as they apply to the tool. The kinship is stated in both interfaces' docblocks instead,
-which is the most a language can carry across a boundary the deployment draws.
-
 The tooling does load the site's `autoload.php` and resolve against the real enums, which is what
 makes its output trustworthy: a genre the site cannot render fails in the tool rather than as a
-`ValueError` when `data/releases.php` loads on the server.
+refusal when `data/releases.json` is read on the server.
 
 ## Tests, and where they stop
 
 `test/unit/ReleaseFolderTest.php` covers what needs no folder on disk — the key parser, slug
-derivation, format ordering, and the shape of the emitted entry, which it `eval`s to prove it
-produces a renderable `Release`. The folder-reading half shells out, which is not something a unit
+derivation, format ordering, and the shape of the written entry, which it reads back through the
+codec to prove it produces a renderable `Release`. The folder-reading half shells out, which is not something a unit
 test should reach for; it is exercised by running the tool, and the tool stays out of `composer test`
 because the music folder is not in the repo and will not exist on a clone.
 
@@ -436,7 +408,7 @@ order in which a rotated refresh token reaches disk.
 on a folder that passes its preflight, and passing it means real audio that `metaflac` and `ffprobe`
 can read — not something a unit test should reach for, and the music folder is not in the repo. So
 the branch below it is covered where it lives, the entry is covered at `EntryWriter` where it is
-generated, and what is left for the command is every path that *refuses*, which is the half that
+built, and what is left for the command is every path that *refuses*, which is the half that
 decides whether anything is sent at all.
 
 The verify script adds two hygiene checks of its own: `curl_` appears under `tools/lib/` in exactly

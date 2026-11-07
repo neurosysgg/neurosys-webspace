@@ -951,7 +951,7 @@ final class SoundCloudTest extends TestCase
      * **The upload is the folder's own reading, so nothing is typed twice.**
      *
      * `stage-release` reads a release out of its folder and this uploads the same reading — which
-     * is why the title on SoundCloud and the title in `data/releases.php` cannot be two strings
+     * is why the title on SoundCloud and the title in `data/releases.json` cannot be two strings
      * somebody typed separately. The permalink is the folder's slug for the same reason.
      *
      * @return void

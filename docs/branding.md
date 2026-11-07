@@ -17,17 +17,18 @@ and no entry in the Datenschutzerklärung.
 
 ## Adding a profile link
 
-Paste the URL into `data/profiles.php`:
+Put the URL into `data/profiles.json`, keyed by the platform's `Platform` value:
 
-```php
-Platform::Spotify->value => 'https://open.spotify.com/artist/…',
+```json
+"spotify": "https://open.spotify.com/artist/…",
 ```
 
-An empty URL hides that link — same convention as release formats. All six platforms have their icon vendored, so a
-URL is the only thing that decides whether a link renders.
+A platform left out, or given an empty URL, is not linked — the same convention as a release format without a link. All
+six platforms have their icon vendored, so a URL is the only thing that decides whether a link renders. Each URL must
+be an absolute `https://` one, or the file is refused when it is read; a missing file means no links at all.
 
 To add a platform: add a case to `src/NeuroSYS/Model/Platform.php` (label, icon path, height), vendor its asset into
-`public/assets/img/brand/`, and add a row to `data/profiles.php`.
+`public/assets/img/brand/`, and add a key to `data/profiles.json`.
 
 ## Vendored assets and their sources
 
@@ -74,16 +75,13 @@ them. Don't "fix" this by trimming the transparent margin — that's the clear s
   redrawn. On our `--bg` that means the white variant. Don't substitute the old bird mark.
 - **GitHub** — permissive for linking; use the official mark unmodified in shape.
 
-## Outstanding: Spotify
-
-Spotify is still waiting on DistroKid delivery — the icon is vendored, but `data/profiles.php` has no URL for it yet, so
-`ProfileRepository::all()` skips it. Paste the profile URL once the profile exists and it appears.
+## Apple Music's URL
 
 Apple Music is artist id `6808396360`, stored as `https://music.apple.com/artist/6808396360`
 — **no storefront segment and no name slug**. Apple redirects that to the visitor's own store, and it keeps working
 through an artist rename, which `…/us/artist/neuro-sys/6808396360` would not.
 
-The footer currently shows **SoundCloud, Apple Music, YouTube, X and GitHub**.
+The footer currently shows all six: **SoundCloud, Spotify, Apple Music, YouTube, X and GitHub**.
 
 ## Not covered here
 

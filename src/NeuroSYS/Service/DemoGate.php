@@ -60,7 +60,7 @@ final class DemoGate
      * wrong**, which is why `$demo` is nullable and why this is a gate rather than a lookup. A 404
      * for an unknown slug and a 401 for a known one would let anyone read the catalogue off the
      * status code — and the catalogue is a list of unreleased tracks, which is the one thing this
-     * whole arrangement exists to keep quiet. `/demos` is not a route and `data/demos.php` is
+     * whole arrangement exists to keep quiet. `/demos` is not a route and `data/demos.json` is
      * gitignored for the same reason; a status code that answers the question anyway would undo
      * both.
      *

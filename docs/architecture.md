@@ -43,6 +43,7 @@ API route after them.
 src/NeuroSYS/
 ├── Controller/     one class per route group; fetches data, returns a Response
 ├── Service/        the site's data files, the demo gate, the download log
+│   └── Data/       the JSON data files read into typed values, and written back
 ├── Model/          the domain: releases, demos, and everything they are made of
 │   ├── Embed/      third-party players
 │   ├── Link/       off-site files
@@ -131,13 +132,21 @@ there is nothing to share.
 
 | Class | Talks to |
 |---|---|
-| `ReleaseRepository` | `data/releases.php` — lazily loaded, slug-keyed |
-| `ProfileRepository` | `data/profiles.php` — skips platforms with an empty URL |
-| `DemoRepository` | `data/demos.php` — gitignored, so every clone starts with none |
+| `ReleaseRepository` | `data/releases.json` — lazily loaded, slug-keyed; missing or unreadable fails loudly |
+| `ProfileRepository` | `data/profiles.json` — skips platforms left out or with an empty URL; missing is none |
+| `DemoRepository` | `data/demos.json` — gitignored, so every clone starts with none; malformed is an error |
 | `WaveformRepository` | `data/demos/{slug}/{label}.wave` — a missing sidecar is a card without a picture |
 | `DemoGate` | each demo's password hash, checked on the framework's `Auth` primitives |
 | `DownloadLogger` | `data/logs/downloads.log` — returns before doing anything, see below |
 | `ApiGate`, `UpdateApplier` | Phpanta's: every check a signed call passes, and the writing a push does — see [security.md](security.md) |
+
+The repositories read through `Service/Data/`. `ReleaseCodec` and `DemoCodec` turn a file into
+typed values and back — only source fields are stored, enums as their backing values, and anything
+derived (a HiDrive URL, a rendered time) is computed. Both stand on `Record`, a typed reader of one
+JSON object whose every refusal names the file and the path —
+`data/releases.json: ill.formats[2].type: …` — as a `ReleaseVerificationException`, and on
+`RecordKey`, the vocabulary of keys. The tools write through the same codecs, so an entry a tool
+writes is one the site can read.
 
 The repositories load lazily and cache, and take an optional path so a test can point them somewhere
 else. Each reads a PHP file that `return`s typed objects — there is no parser, no schema, no
@@ -291,7 +300,7 @@ is the rule. This site's own excuses:
 
 - **`#[BareArray]`** on a variadic's argument spread into a call — `accented()`, `Wordmark::nodes()`,
   `terminalFields()`, `TerminalField::row()` — on a door, `DownloadLogEntry::jsonSerialize()`'s
-  contract and `ProfileRepository`'s required data file.
+  contract and `Record`'s door, the list `json_decode()` hands back.
 - **`#[BareString]`** on another grammar — the printf format `%d:%02d` in `DemoTrack` and `Section`,
   which render the same shape from different arithmetic, `Profile`'s URL regex, and `DownloadLogger`'s
   `fopen()` mode `c` — and on `int` and `string` as `get_debug_type()` spells them.
@@ -452,8 +461,9 @@ final readonly class SomeHostLink implements FileLink
 }
 ```
 
-Then use it in `data/releases.php`. `Release`, `Format`, `DownloadController` and `ReleaseView` need
-no change — they all hold the interface. Add the host's origin to `Site`, and to `img-src` in
+Then give it a shape in `ReleaseCodec`, which stores a link as a HiDrive share id today and refuses
+any other `FileLink` it is asked to write. `Release`, `Format`, `DownloadController` and
+`ReleaseView` need no change — they all hold the interface. Add the host's origin to `Site`, and to `img-src` in
 `Site::contentHosts()` if covers load from it.
 
 ### Add an embed provider

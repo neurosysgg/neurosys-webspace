@@ -19,7 +19,7 @@ enum StageDemoOption: string implements Option
      * Worth having for the same reason `--check` is on `stage-release`, and for one more: minting a
      * password is not free to get wrong. Every run without this produces a new one and a new hash,
      * so a run made only to look at the report would leave a password on the screen that the entry
-     * in `data/demos.php` does not match.
+     * in `data/demos.json` does not match.
      */
     case Check = 'check';
 
@@ -47,7 +47,7 @@ enum StageDemoOption: string implements Option
      * is the right way round twice over: it is the audio the page actually serves, and the masters
      * live on one machine and may be long gone by the time a waveform is wanted.
      *
-     * Give it slugs to do only those; give it nothing and it does every demo in `data/demos.php`.
+     * Give it slugs to do only those; give it nothing and it does every demo in `data/demos.json`.
      * ~10 seconds a mix — see {@link \NeuroSYS\Tool\Demo\WaveformScan}.
      */
     case Waveforms = 'waveforms';
@@ -67,6 +67,12 @@ enum StageDemoOption: string implements Option
      * out over a message, and the slug is half of what gets sent.
      */
     case Slug = 'slug';
+
+    /**
+     * Print the entry on stdout instead of writing it into the data file — for a look before it
+     * goes in, or a file kept somewhere else.
+     */
+    case Print = 'print';
 
     /**
      * @return string

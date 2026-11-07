@@ -63,12 +63,8 @@ return (new Config())
     ])
     ->setFinder(
         (new Finder())
-            // `data/` is deliberately absent from this list, and it is the one place the two linters
-            // disagree. phpcs lints it and exempts `PSR12.Files.FileHeader` there, because a data
-            // file is a `use` block, a docblock and a `return` — a shape PSR-12's header rules do
-            // not describe. This fixer has no such carve-out, so adding the directory would not
-            // report that disagreement, it would *rewrite* data/releases.php to settle it. Reading
-            // the catalogue is what a check is for; reformatting it is not.
+            // `data/` holds no PHP — the catalogue, the profiles and the demos are JSON, held to
+            // their codecs' own output by the verify script — so neither linter reads it.
             ->in([__DIR__ . '/src', __DIR__ . '/phpanta', __DIR__ . '/public', __DIR__ . '/test', __DIR__ . '/tools'])
             // in() takes directories, so the two PHP files at the repo root need naming. autoload.php
             // is the file every request loads through, and neither linter had ever seen it. This file

@@ -26,7 +26,7 @@ use Phpanta\Text\Verbatim;
  * this is not a HiDrive link like a release's: a share URL keeps working after the password is
  * changed, and can be forwarded by whoever was given it.
  *
- * There is no listing anywhere. `/demos` is not a route, `data/demos.php` is gitignored, and
+ * There is no listing anywhere. `/demos` is not a route, `data/demos.json` is gitignored, and
  * nothing links here — so the existence of a demo is not something the site publishes.
  * See `docs/demos.md`.
  */
@@ -36,7 +36,7 @@ final readonly class Demo
      * A line about what is being asked, in whichever language the page is — or null.
      *
      * Not promoted, for the reason {@link Release::$description} is not: a plain string is taken as
-     * well, and turned into a {@link Verbatim} here. **Written inline** in `data/demos.php` —
+     * well, and turned into a {@link Verbatim} here. **Written inline** in `data/demos.json` —
      * `new Translation(en: …, de: …)` — and never as a catalog case, because `src/` is public and a
      * case would name an unreleased track.
      */

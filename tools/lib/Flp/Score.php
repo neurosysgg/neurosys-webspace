@@ -11,7 +11,7 @@ use Phpanta\Support\SearchableCollection;
  * The Score class. The notes in a project, and where the playlist says each one plays.
  *
  * **The counterpart to {@link Project}, reading the same file for a different question.** That one
- * answers what a `data/releases.php` entry needs — tempo, key, genre, the arrangement's section
+ * answers what a `data/releases.json` entry needs — tempo, key, genre, the arrangement's section
  * names — and is deliberately about the release. This answers what a MIDI file needs, which is the
  * music itself: which channels exist, what is written in each pattern, and which patterns play
  * where. Neither is a better version of the other and neither should absorb the other;

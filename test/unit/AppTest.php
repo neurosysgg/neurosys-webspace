@@ -45,7 +45,7 @@ final class AppTest extends TestCase
      */
     public function testDataPathResolvesInsideTheRepositoryDataDirectory(): void
     {
-        self::assertSame(NEUROSYS_ROOT . '/data/releases.php', Site::current()->dataFile(DataFile::Releases)->path);
+        self::assertSame(NEUROSYS_ROOT . '/data/releases.json', Site::current()->dataFile(DataFile::Releases)->path);
     }
 
     /**

@@ -11,6 +11,8 @@ use NeuroSYS\Model\MusicalKey;
 use NeuroSYS\Model\Production\Plugin;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
+use NeuroSYS\Service\Data\ReleaseCodec;
+use NeuroSYS\Site;
 use NeuroSYS\Tool\Command\StageRelease;
 use NeuroSYS\Tool\Release\Cover;
 use NeuroSYS\Tool\Release\EntryWriter;
@@ -21,7 +23,6 @@ use NeuroSYS\Tool\Release\Level;
 use NeuroSYS\Tool\Release\Preflight;
 use NeuroSYS\Tool\Release\ProjectFile;
 use NeuroSYS\Tool\Release\ReleaseFolder;
-use NeuroSYS\Tool\Release\ReleasesFile;
 use NeuroSYS\Tool\Release\Source;
 use Phpanta\Support\Collection;
 use Phpanta\Support\Directory;
@@ -197,33 +198,29 @@ final class ReleaseFolderTest extends TestCase
     }
 
     /**
-     * The entry a project produces evaluates too, arrangement and all.
+     * The entry a project produces reads back through the site's own codec, arrangement and all.
      *
-     * The half-state is the thing worth checking here: `madeWith` is written **commented out**, so
-     * a release staged this way has an arrangement and a time spent and no credits until a person
-     * has been through the candidate list. See {@link \NeuroSYS\Tool\Flp\Plugins}.
+     * The half-state is the thing worth checking here: `madeWith` is **not written**, only listed
+     * among the notes, so a release staged this way has an arrangement and a time spent and no
+     * credits until a person has been through the candidate list. See {@link \NeuroSYS\Tool\Flp\Plugins}.
      *
      * @return void
      */
-    public function testAnEntryWithAProjectEvaluatesWithItsArrangement(): void
+    public function testAnEntryWithAProjectReadsBackWithItsArrangement(): void
     {
         $path = self::folderWithProject();
 
         try {
-            $folder = ReleaseFolder::at($path);
-            $php    = EntryWriter::write($folder);
-            // eval() is a language construct, so its result cannot be indexed where it stands.
-            $releases = eval(self::evaluable($folder, $php));
-            $release  = $releases['ill'];
+            $release = self::readBack(ReleaseFolder::at($path));
 
             $this->assertSame(140, $release->bpm);
             $this->assertSame(MusicalKey::DSharpMinor, $release->key);
             $this->assertSame(
                 ['INTRO', 'DROP'],
-                $release->arrangement->sections->map(static fn($s): string => $s->label)->toValues(),
+                $release->arrangement?->sections->map(static fn($s): string => $s->label)->toValues(),
             );
             $this->assertSame('1h 00m', $release->timeSpent?->render());
-            $this->assertSame([], $release->madeWith->toArray(), 'credits are commented out for a person');
+            $this->assertTrue($release->madeWith->isEmpty(), 'credits are left for a person');
         } finally {
             self::remove($path);
         }
@@ -233,7 +230,7 @@ final class ReleaseFolderTest extends TestCase
      * A leaf is written by `var_export()`, with the two exceptions that bit when it was not.
      *
      * `var_export(null)` is `NULL` in capitals — alone among the literals it emits, and unlike every
-     * other null in `data/releases.php`. And an enum has to come out as the short `Genre::Dubstep`
+     * other null in `data/releases.json`. And an enum has to come out as the short `Genre::Dubstep`
      * the file imports rather than the fully-qualified name `var_export()` would give.
      *
      * @return void
@@ -273,7 +270,7 @@ final class ReleaseFolderTest extends TestCase
      * Rendered, neither would be a call anybody meant. `Argument::comment()` would come out as
      * `new Format('a', , 'b')` — a syntax error, which at least announces itself. The commented-out
      * one would come out as `new Format('a', b: 'b')`, which **parses**: a line whose whole purpose
-     * is to be uncommented later would go into `data/releases.php` as live code.
+     * is to be uncommented later would go into `data/releases.json` as live code.
      *
      * @return void
      */
@@ -317,38 +314,17 @@ final class ReleaseFolderTest extends TestCase
     }
 
     /**
-     * The writer names every class the entry uses, so the file can be told what to import.
-     *
-     * @return void
-     */
-    public function testTheWriterNamesEveryClassTheEntryUses(): void
-    {
-        $imports = EntryWriter::imports($this->folder(audio: [ReleaseFormat::FLAC->value => '/x/ill..flac']));
-
-        $this->assertContains(Release::class, $imports);
-        $this->assertContains(MusicalKey::class, $imports);
-        $this->assertContains(Genre::class, $imports);
-        $this->assertContains(Format::class, $imports);
-        $this->assertContains(ReleaseFormat::class, $imports);
-        $this->assertContains(Collection::class, $imports);
-        $this->assertSame($imports, array_unique($imports), 'each class named once');
-    }
-
-    /**
-     * The `use` block the emitted entry needs, in front of it, for eval().
+     * The entry `--print` puts on stdout, read back the way the site reads `data/releases.json`.
      *
      * @param ReleaseFolder $folder
-     * @param string        $php
-     * @return string
+     * @return Release
      */
-    private static function evaluable(ReleaseFolder $folder, string $php): string
+    private static function readBack(ReleaseFolder $folder): Release
     {
-        $imports = array_map(
-            static fn(string $class): string => sprintf('use %s;', $class),
-            EntryWriter::imports($folder),
-        );
+        $release = ReleaseCodec::decode(EntryWriter::write($folder), 'the entry')->find('ill');
+        self::assertInstanceOf(Release::class, $release);
 
-        return implode('', $imports) . sprintf('return [%s];', $php);
+        return $release;
     }
 
     /**
@@ -624,40 +600,37 @@ final class ReleaseFolderTest extends TestCase
     }
 
     /**
-     * The emitted entry has to be the shape `data/releases.php` already uses, because it is pasted
-     * into it — including the indentation, which is what a heredoc gets wrong by default.
+     * The entry is the shape `data/releases.json` already holds — the codec's own output — and what
+     * a folder cannot supply is listed beside it, each note naming the file whose share id is wanted.
      *
      * @return void
      */
     public function testTheStagedEntryMatchesTheShapeOfTheDataFile(): void
     {
-        $php = EntryWriter::write($this->folder(
+        $folder = $this->folder(
             audio: [
                 ReleaseFormat::FLAC->value  => '/x/ill..flac',
                 ReleaseFormat::STEMS->value => '/x/140 D#Min ill remix package.zip',
             ],
             cover: new Cover(new File('/x/web/ill. cover.jpg'), Source::WebExport),
-        ));
-
-        $this->assertStringStartsWith("    'ill' => new Release(\n", $php);
-        $this->assertStringContainsString("        title:       'ill.',\n", $php);
-        $this->assertStringContainsString("        key:         MusicalKey::DSharpMinor,\n", $php);
-        $this->assertStringContainsString("        genre:       Genre::Dubstep,\n", $php);
-
-        // Column-aligned, and each one naming the file whose share id is wanted.
-        $this->assertStringContainsString(
-            "            new Format(ReleaseFormat::FLAC),   // share id for ill..flac\n",
-            $php,
         );
-        $this->assertStringContainsString(
-            "            new Format(ReleaseFormat::STEMS),  // share id for 140 D#Min ill remix package.zip\n",
-            $php,
-        );
+        $json = EntryWriter::write($folder);
+
+        $this->assertStringStartsWith("{\n    \"ill\": {\n        \"title\": \"ill.\",\n", $json);
+        $this->assertStringContainsString('"key": "D# Minor",', $json);
+        $this->assertStringContainsString('"genre": "Dubstep",', $json);
+        $this->assertStringContainsString("\"type\": \"flac\",\n                \"link\": null", $json);
 
         // The three facts a folder cannot supply are left as the staged states Release already models.
-        $this->assertStringContainsString("description: '',", $php);
-        $this->assertStringContainsString('cover:       null,', $php);
-        $this->assertStringContainsString('// embed: new SoundCloudEmbed(', $php);
+        $this->assertStringContainsString('"description": "",', $json);
+        $this->assertStringContainsString('"cover": null,', $json);
+        $this->assertStringNotContainsString('"embed"', $json);
+
+        $notes = implode("\n", EntryWriter::notes($folder));
+        $this->assertStringContainsString('cover: the share id for ill. cover.jpg', $notes);
+        $this->assertStringContainsString('formats flac: the share id for ill..flac', $notes);
+        $this->assertStringContainsString('formats stems: the share id for 140 D#Min ill remix package.zip', $notes);
+        $this->assertStringContainsString('embed: the SoundCloud ids exist only once', $notes);
     }
 
     /**
@@ -665,17 +638,9 @@ final class ReleaseFolderTest extends TestCase
      *
      * @return void
      */
-    public function testTheStagedEntryEvaluatesToARenderableRelease(): void
+    public function testTheStagedEntryReadsBackAsARenderableRelease(): void
     {
-        $folder = $this->folder(audio: [ReleaseFormat::FLAC->value => '/x/ill..flac']);
-        $php    = EntryWriter::write($folder);
-
-        // The imports come from the writer rather than being typed here, which makes this a test of
-        // two things at once: `use` aliases do not cross into eval(), so a class the writer names
-        // short and forgets to report is a parse error right here.
-        $releases = eval(self::evaluable($folder, $php));
-
-        $release = $releases['ill'];
+        $release = self::readBack($this->folder(audio: [ReleaseFormat::FLAC->value => '/x/ill..flac']));
 
         $this->assertSame('ill.', $release->title);
         $this->assertSame(140, $release->bpm);
@@ -688,42 +653,28 @@ final class ReleaseFolderTest extends TestCase
     }
 
     /**
-     * **Credits are written out and commented out, and both halves matter.**
+     * **Credits are listed for a person to trim, never written.**
      *
      * The candidate list is scraped out of the project's plugin blobs rather than stated by the
-     * format, so it arrives with wreckage in it — see {@link \NeuroSYS\Tool\Flp\Plugins}. Writing
-     * it out saves retyping; commenting it out is what keeps a guess off the site, the way
+     * format, so it arrives with wreckage in it — see {@link \NeuroSYS\Tool\Flp\Plugins}. Listing
+     * it saves retyping; keeping it out of the entry is what keeps a guess off the site, the way
      * `description` is left for a person to fill in.
-     *
-     * The sibling test above asserts the *evaluated* release has no credits, which it would also do
-     * if the argument were absent entirely — its fixture has no plugin blobs at all. This one puts
-     * names in the project, so "commented out" is the only reason the release comes back empty.
      *
      * @return void
      */
-    public function testCreditsAreWrittenOutForAPersonToTrimRatherThanApplied(): void
+    public function testCreditsAreListedForAPersonToTrimRatherThanApplied(): void
     {
         $path = self::folderWithProject(plugins: ['Serum 2', 'Kilohearts']);
 
         try {
             $folder = ReleaseFolder::at($path);
-            $php    = EntryWriter::write($folder);
 
-            $this->assertStringContainsString('// madeWith: new Collection(Plugin::class)->with(', $php);
-            $this->assertStringContainsString("//     new Plugin('Serum 2'),", $php);
-            $this->assertStringContainsString("//     new Plugin('Kilohearts'),", $php);
-
-            // Every line of it, so a block that started commented and stopped partway through —
-            // which is what the line-by-line prefixing in Call::line() exists to prevent — fails.
-            foreach (explode("\n", $php) as $line) {
-                if (str_contains($line, 'Plugin')) {
-                    $this->assertStringStartsWith('//', ltrim($line), 'a credit line must stay commented');
-                }
-            }
-
-            $releases = eval(self::evaluable($folder, $php));
-
-            $this->assertSame([], $releases['ill']->madeWith->toArray());
+            $this->assertStringNotContainsString('madeWith', EntryWriter::write($folder));
+            $this->assertStringContainsString(
+                'madeWith: candidates the project names — credit the ones worth crediting: Serum 2, Kilohearts',
+                implode("\n", EntryWriter::notes($folder)),
+            );
+            $this->assertTrue(self::readBack($folder)->madeWith->isEmpty());
         } finally {
             self::remove($path);
         }
@@ -746,21 +697,19 @@ final class ReleaseFolderTest extends TestCase
     }
 
     /**
-     * The pulse rate is named only when it is not the one every project tested uses.
+     * The pulse rate is written with the ticks it qualifies.
      *
-     * A tick is meaningless without it — `Section::named('DROP', 12288)` is a position at the
-     * project's ppq, not a time — so the entry has to carry it whenever it is not the default the
-     * `Arrangement` already assumes. Naming it every time would be correct and would put a
-     * redundant argument on every entry in the file.
+     * A tick is meaningless without it — a section at 12288 is a position at the project's ppq, not
+     * a time — so the arrangement carries it, the usual 96 included.
      *
      * @return void
      */
-    public function testThePulseRateIsNamedOnlyWhenItIsNotTheUsualOne(): void
+    public function testThePulseRateIsWrittenWithTheTicks(): void
     {
         $usual = self::folderWithProject();
 
         try {
-            $this->assertStringNotContainsString('ppq:', EntryWriter::write(ReleaseFolder::at($usual)));
+            $this->assertStringContainsString('"ppq": 96,', EntryWriter::write(ReleaseFolder::at($usual)));
         } finally {
             self::remove($usual);
         }
@@ -768,52 +717,71 @@ final class ReleaseFolderTest extends TestCase
         $unusual = self::folderWithProject(ppq: 192);
 
         try {
-            $php = EntryWriter::write(ReleaseFolder::at($unusual));
-
-            // Inline, against the collection it qualifies, because the value is not a block: it is
-            // the sibling of `formats:` in the entry above rather than of `title:`.
-            $this->assertStringContainsString('), ppq: 192)', $php);
-
-            $releases = eval(self::evaluable(ReleaseFolder::at($unusual), $php));
-
-            $this->assertSame(192, $releases['ill']->arrangement?->ppq);
+            $this->assertSame(192, self::readBack(ReleaseFolder::at($unusual))->arrangement?->ppq);
         } finally {
             self::remove($unusual);
         }
     }
 
     /**
-     * The file a staged entry is pasted into is the site's own, and this never writes to it.
+     * Staging writes the entry into the releases file, first, and says what is left to fill in —
+     * and a second run for the same slug is refused with the file as it was, since the entry there
+     * carries whatever was typed into it since.
      *
      * @return void
      */
-    public function testTheReleasesFileIsTheSitesOwnAndIsOnlyEverRead(): void
+    public function testAFolderThatPassesIsWrittenFirstAndNeverOverwritten(): void
     {
-        $file = ReleasesFile::default()->file;
+        $path     = self::folderWithProject(cover: Source::WebExport);
+        $fixtures = Directory::temporary('neurosys-stage-release-');
+        $file     = $fixtures->file('releases.json');
+        $file->write("{\n    \"older\": {\n        \"title\": \"older\",\n        \"bpm\": 120,\n"
+            . "        \"key\": \"C Major\",\n        \"genre\": \"Dubstep\",\n        \"description\": \"\",\n"
+            . "        \"cover\": null,\n        \"formats\": []\n    }\n}\n");
 
-        $this->assertSame(NEUROSYS_ROOT . '/data/releases.php', $file->path);
-        $this->assertTrue($file->exists(), 'the entry writer reports against the real file');
+        try {
+            [$code, $out, $report] = self::stage(new StageRelease($file), [$path]);
+
+            $this->assertSame(ExitCode::Success, $code);
+            $this->assertSame('', $out);
+            $this->assertStringContainsString("wrote 'ill' into", $report);
+            $this->assertStringContainsString('still to fill in by hand', $report);
+            $this->assertSame(
+                ['ill', 'older'],
+                ReleaseCodec::decode((string) $file->read(), 'x')->toKeys(),
+                'newest first',
+            );
+
+            $written = $file->read();
+            [$again, , $refusal] = self::stage(new StageRelease($file), [$path]);
+
+            $this->assertSame(ExitCode::Failure, $again);
+            $this->assertStringContainsString("'ill' is in", $refusal);
+            $this->assertSame($written, $file->read());
+        } finally {
+            self::remove($path);
+            $fixtures->remove();
+        }
     }
 
     /**
-     * A class the data file already imports is not reported as missing, and one it does not is.
+     * Runs a command against in-memory streams.
      *
-     * A file that cannot be read counts as importing nothing, which is the right way round: being
-     * told to add an import that is already there costs a glance, and not being told costs a data
-     * file that will not parse.
-     *
-     * @return void
+     * @param StageRelease $command
+     * @param list<string> $arguments
+     * @return array{ExitCode, string, string} status, stdout, stderr
      */
-    public function testOnlyTheImportsTheDataFileLacksAreReported(): void
+    private static function stage(StageRelease $command, array $arguments): array
     {
-        $absent = new ReleasesFile(new File(NEUROSYS_ROOT . '/data/no-such-file.php'));
+        $out   = fopen('php://memory', 'rw+');
+        $error = fopen('php://memory', 'rw+');
 
-        $this->assertSame(
-            [Release::class, Plugin::class],
-            $absent->missingImports([Release::class, Plugin::class]),
-        );
+        $code = Runner::execute($command, $arguments, new Output($out, $error));
 
-        $this->assertNotContains(Release::class, ReleasesFile::default()->missingImports([Release::class]));
+        rewind($out);
+        rewind($error);
+
+        return [$code, (string) stream_get_contents($out), (string) stream_get_contents($error)];
     }
 
     /**
@@ -864,7 +832,7 @@ final class ReleaseFolderTest extends TestCase
      *
      * `stage-release` writes the entry to stdout and everything else to stderr, so the intended use
      * is `> entry.php` or a paste out of the terminal. An entry printed for a folder with a failing
-     * check is one somebody pastes into `data/releases.php` — at which point the release is on the
+     * check is one somebody pastes into `data/releases.json` — at which point the release is on the
      * site and the discrepancy is in it. So the exit code is not the safeguard; the empty stdout is.
      *
      * @return void
@@ -877,7 +845,11 @@ final class ReleaseFolderTest extends TestCase
             $out   = fopen('php://memory', 'rw+');
             $error = fopen('php://memory', 'rw+');
 
-            $code = Runner::execute(new StageRelease(), [$path], new Output($out, $error));
+            $code = Runner::execute(
+                new StageRelease(new File('/nonexistent/releases.json')),
+                [$path],
+                new Output($out, $error),
+            );
 
             rewind($out);
             rewind($error);
@@ -891,35 +863,27 @@ final class ReleaseFolderTest extends TestCase
     }
 
     /**
-     * A folder that passes prints the entry on stdout and the report on stderr.
-     *
-     * The imports go to stderr with the report rather than into the entry, because the entry is a
-     * fragment pasted into the middle of an existing array and a `use` line is not.
+     * With `--print`, a folder that passes puts the entry on stdout and the report on stderr, and
+     * writes nothing.
      *
      * @return void
      */
-    public function testAFolderThatPassesPrintsItsEntryOnStdoutAndItsReportOnStderr(): void
+    public function testWithPrintAFolderThatPassesPutsItsEntryOnStdoutAndItsReportOnStderr(): void
     {
-        $path = self::folderWithProject(cover: Source::WebExport);
+        $path     = self::folderWithProject(cover: Source::WebExport);
+        $fixtures = Directory::temporary('neurosys-stage-release-');
+        $file     = $fixtures->file('releases.json');
 
         try {
-            $out   = fopen('php://memory', 'rw+');
-            $error = fopen('php://memory', 'rw+');
-
-            $code = Runner::execute(new StageRelease(), [$path], new Output($out, $error));
-
-            rewind($out);
-            rewind($error);
-
-            $entry  = (string) stream_get_contents($out);
-            $report = (string) stream_get_contents($error);
+            [$code, $entry, $report] = self::stage(new StageRelease($file), [$path, '--print']);
 
             $this->assertSame(ExitCode::Success, $code);
-            $this->assertStringContainsString("'ill' => new Release(", $entry);
-            $this->assertStringContainsString('paste into data/releases.php, newest first', $report);
-            $this->assertStringNotContainsString('use NeuroSYS', $entry, 'imports belong with the report');
+            $this->assertStringStartsWith("{\n    \"ill\": {", $entry);
+            $this->assertStringContainsString('still to fill in by hand', $report);
+            $this->assertFalse($file->exists(), '--print writes nothing');
         } finally {
             self::remove($path);
+            $fixtures->remove();
         }
     }
 
@@ -936,7 +900,11 @@ final class ReleaseFolderTest extends TestCase
             $out   = fopen('php://memory', 'rw+');
             $error = fopen('php://memory', 'rw+');
 
-            $code = Runner::execute(new StageRelease(), [$path, '--check'], new Output($out, $error));
+            $code = Runner::execute(
+                new StageRelease(new File('/nonexistent/releases.json')),
+                [$path, '--check'],
+                new Output($out, $error),
+            );
 
             rewind($out);
             rewind($error);

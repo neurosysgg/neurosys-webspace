@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace NeuroSYS\Service;
 
 use NeuroSYS\DataFile;
+use NeuroSYS\Exception\ReleaseVerificationException;
 use NeuroSYS\Model\Demo;
+use NeuroSYS\Service\Data\DemoCodec;
 use NeuroSYS\Site;
 use Phpanta\Support\File;
 use Phpanta\Support\SearchableCollection;
 
 /**
- * The DemoRepository class. Loads `data/demos.php` and finds one demo by its slug.
+ * The DemoRepository class. Loads `data/demos.json` and finds one demo by its slug.
  *
  * Shaped like {@link ReleaseRepository} and guarded like {@link ProfileRepository}, which is the
- * one decision here worth stating. A missing `data/releases.php` is a broken deployment and
- * `require` says so loudly; a missing `data/demos.php` is the ordinary case — **the file is
+ * one decision here worth stating. A missing `data/releases.json` is a broken deployment and
+ * says so loudly; a missing `data/demos.json` is the ordinary case — **the file is
  * gitignored**, so every clone starts without one and the site has to serve perfectly well with no
  * demos in it. Absent therefore means an empty catalogue, and every `/demos/…` URL 404s, which is
  * exactly what "there are no demos here" should look like.
@@ -34,7 +36,7 @@ class DemoRepository
     /**
      * Constructs an instance of {@link self}.
      *
-     * @param File|null $dataFile The demos PHP data file, or null for `data/demos.php`.
+     * @param File|null $dataFile The demos file, or null for `data/demos.json`.
      */
     public function __construct(?File $dataFile = null)
     {
@@ -55,7 +57,7 @@ class DemoRepository
      * Finds a demo by its URL slug, or null where there is none.
      *
      * **This is what makes the slug safe to use as a directory name.** A slug that comes back with
-     * a demo is one `data/demos.php` declares; anything else is null here and a 404 above, so no
+     * a demo is one `data/demos.json` declares; anything else is null here and a 404 above, so no
      * arrangement of characters in a URL reaches {@link Site::demoDir()} unless it was written
      * down in advance.
      *
@@ -68,21 +70,18 @@ class DemoRepository
     }
 
     /**
-     * Loads the data file, or answers with nothing where there is no file to load.
+     * Loads the data file, or answers with nothing where there is no file to load. A file that is
+     * there and does not read is refused, not taken for none: it was written to say something.
      *
      * @return SearchableCollection<Demo>
+     * @throws ReleaseVerificationException if the file holds anything but demos.
      */
     private function load(): SearchableCollection
     {
-        /** @var array<string, Demo> $data */
-        // `require` takes a path: this file is PHP that returns an array, not bytes to read.
-        $data       = $this->dataFile->exists() ? require $this->dataFile->path : [];
-        $collection = new SearchableCollection(Demo::class);
+        $json = $this->dataFile->read();
 
-        foreach ($data as $slug => $demo) {
-            $collection = $collection->with($slug, $demo);
-        }
-
-        return $collection;
+        return $json === null
+            ? new SearchableCollection(Demo::class)
+            : DemoCodec::decode($json, $this->dataFile->path);
     }
 }

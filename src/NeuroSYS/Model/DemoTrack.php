@@ -17,7 +17,7 @@ use Phpanta\Support\BareString;
  * one carrying a slash could never match a route and the version would be quietly unreachable —
  * the same silent failure a misspelled tag is. The file name is resolved against
  * `data/demos/{slug}/` by {@link \NeuroSYS\Controller\DemoAudioController}, so it is where path
- * traversal stops. Neither is data a request can influence — both are written in `data/demos.php`
+ * traversal stops. Neither is data a request can influence — both are written in `data/demos.json`
  * — which is exactly why they are checked *there*, when the file loads, and not at the point a
  * visitor asks for one. Same arrangement as {@link Link\HiDriveLink}'s share id.
  */

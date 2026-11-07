@@ -18,14 +18,10 @@
     <file>phpanta</file>
     <file>public</file>
     <file>test</file>
-    <file>data</file>
     <file>tools</file>
 
     <!-- Composer dev dependencies are not ours to lint. -->
     <exclude-pattern>vendor/*</exclude-pattern>
-    <!-- The drops are the framework's to read: data/drops/ is 0700 and owned by the pool's user,
-         so walking it is a fatal, not a skip, and every lint after it never runs. -->
-    <exclude-pattern>data/drops/*</exclude-pattern>
 
     <!-- The one file whose method names are not ours to choose. test/unit/PhpInputStream.php is a
          stream wrapper, and PHP's streams API dispatches on exactly these names — `stream_open`,
@@ -53,8 +49,7 @@
         <exclude name="Squiz.Functions.MultiLineFunctionDeclaration.BraceOnSameLine"/>
         <exclude name="Squiz.Functions.MultiLineFunctionDeclaration.ContentAfterBrace"/>
         <exclude name="Squiz.WhiteSpace.ScopeClosingBrace.ContentBefore"/>
-        <!-- allows column-aligned call arguments, the way data/releases.php lines up
-             `new Format(ReleaseFormat::FLAC,  new HiDriveLink(…))` across entries -->
+        <!-- allows column-aligned call arguments: `new Format(ReleaseFormat::FLAC,  $link)` -->
         <exclude name="Generic.Functions.FunctionCallArgumentSpacing.TooMuchSpaceAfterComma"/>
         <!-- allows column-aligned defaults: `public SoundCloudPlayerStyle $style  = …` -->
         <exclude name="Squiz.Functions.FunctionDeclarationArgumentSpacing.SpaceBeforeEquals"/>
@@ -103,17 +98,10 @@
         <exclude name="Squiz.Commenting.FunctionComment.IncorrectParamVarName"/>
     </rule>
 
-    <!-- A bootstrap, a data file and a script that prints with helpers of its own all have to
-         load something *and* define something; that is what they are for. -->
+    <!-- A bootstrap and a script that prints with helpers of its own both have to load
+         something *and* define something; that is what they are for. -->
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>test/bootstrap.php</exclude-pattern>
         <exclude-pattern>test/cserve/goldens.php</exclude-pattern>
-        <exclude-pattern>data/*.php</exclude-pattern>
-    </rule>
-
-    <!-- data/*.php are configuration, not classes: a `use` block followed by a docblock
-         and a `return` is the shape, and PSR-12's file-header rules don't describe it. -->
-    <rule ref="PSR12.Files.FileHeader">
-        <exclude-pattern>data/*.php</exclude-pattern>
     </rule>
 </ruleset>

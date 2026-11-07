@@ -23,6 +23,7 @@ static const NS_FORMAT formats_0[] = {
     {0},
 };
 static const NS_EMBED embed_0 = {"2394077313", "ill", "s-dIMAqki109G", "visual", "auto_play show_comments show_user show_teaser", "300"};
+static const CSERVE_TR description_0 = CSERVE_TEXT_IN("wub wub", "wub wub");
 
 static const NS_SECTION sections_1[] = {
     {"intro", "0:00", "INTRO"},
@@ -42,10 +43,11 @@ static const NS_FORMAT formats_1[] = {
     {0},
 };
 static const NS_EMBED embed_1 = {"2340758756", "hello-world", "s-D3cfG0dzbeB", "visual", "auto_play show_comments show_user show_teaser", "300"};
+static const CSERVE_TR description_1 = CSERVE_TEXT_IN("debut single", "deb\303\274tsingle");
 
 const NS_RELEASE ns_releases[] = {
-    {"ill", "ill.", 140, &T_KEY_D_SHARP_MINOR, "Dubstep", &T_DESCRIPTION_ILL, "https://my.hidrive.com/api/sharelink/download\077id=J2FXbB70A", "60h 07m", "Serum 2, Vocodex, Patcher, LuxeVerb, Ozone Imager 2", &embed_0, sections_0, 10, formats_0, 4},
-    {"hello-world", "hello world!", 140, &T_KEY_F_SHARP_MAJOR, "Future Bass", &T_DESCRIPTION_HELLO_WORLD, "https://my.hidrive.com/api/sharelink/download\077id=PFGaSOmtM", "42h 48m", "Serum 2, Ozone Imager 2, LFOTool, Disperser", &embed_1, sections_1, 7, formats_1, 4},
+    {"ill", "ill.", 140, &T_KEY_D_SHARP_MINOR, "Dubstep", &description_0, "https://my.hidrive.com/api/sharelink/download\077id=J2FXbB70A", "60h 07m", "Serum 2, Vocodex, Patcher, LuxeVerb, Ozone Imager 2", &embed_0, sections_0, 10, formats_0, 4},
+    {"hello-world", "hello world!", 140, &T_KEY_F_SHARP_MAJOR, "Future Bass", &description_1, "https://my.hidrive.com/api/sharelink/download\077id=PFGaSOmtM", "42h 48m", "Serum 2, Ozone Imager 2, LFOTool, Disperser", &embed_1, sections_1, 7, formats_1, 4},
     {0},
 };
 const int ns_nreleases = 2;

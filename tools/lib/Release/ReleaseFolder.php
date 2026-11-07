@@ -195,7 +195,7 @@ final readonly class ReleaseFolder
     }
 
     /**
-     * The slug that keys this release in `data/releases.php` and addresses it in a URL.
+     * The slug that keys this release in `data/releases.json` and addresses it in a URL.
      *
      * The trailing punctuation goes first and deliberately: `ReleaseView` splits a trailing `!`, `.`
      * or `?` off the title to accent it, so it is presentation rather than identity — `ill.` is

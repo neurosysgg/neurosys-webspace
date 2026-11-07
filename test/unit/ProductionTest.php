@@ -24,7 +24,7 @@ use PHPUnit\Framework\TestCase;
  *
  * These are the three things nothing else on the site could supply: how the track is laid out, how
  * long it took, and what made it. They arrive through `tools/lib/Flp/` and are read back here, so
- * what is worth pinning is the half that survives into `data/releases.php` — the guards, and the
+ * what is worth pinning is the half that survives into `data/releases.json` — the guards, and the
  * arithmetic that turns a tick into a time.
  */
 final class ProductionTest extends TestCase
@@ -270,7 +270,7 @@ final class ProductionTest extends TestCase
     /**
      * A release written before any of this existed still constructs, and says nothing extra.
      *
-     * The reason all three are optional: `data/releases.php` is hand-ordered and hand-edited, and an
+     * The reason all three are optional: `data/releases.json` is hand-ordered and hand-edited, and an
      * entry that had to be rewritten to keep working would make adding the fields a migration.
      *
      * @return void

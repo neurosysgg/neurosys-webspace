@@ -1,0 +1,163 @@
+{
+    "ill": {
+        "title": "ill.",
+        "bpm": 140,
+        "key": "D# Minor",
+        "genre": "Dubstep",
+        "description": {
+            "en": "wub wub",
+            "de": "wub wub"
+        },
+        "cover": "J2FXbB70A",
+        "formats": [
+            {
+                "type": "flac",
+                "link": "BXRsy9S7d"
+            },
+            {
+                "type": "wav",
+                "link": "RVg8LBS4A"
+            },
+            {
+                "type": "mp3",
+                "link": "CPJy7AVIu"
+            },
+            {
+                "type": "stems",
+                "link": "D2PUDjoII"
+            }
+        ],
+        "embed": {
+            "trackId": 2394077313,
+            "permalink": "ill",
+            "secretToken": "s-dIMAqki109G"
+        },
+        "arrangement": {
+            "ppq": 96,
+            "sections": [
+                {
+                    "label": "INTRO",
+                    "tick": 0
+                },
+                {
+                    "label": "BUILDUP",
+                    "tick": 6144
+                },
+                {
+                    "label": "DROP",
+                    "tick": 12288
+                },
+                {
+                    "label": "SWITCH 1",
+                    "tick": 15360
+                },
+                {
+                    "label": "SWITCH 2",
+                    "tick": 18432
+                },
+                {
+                    "label": "BRIDGE",
+                    "tick": 21504
+                },
+                {
+                    "label": "DROP",
+                    "tick": 27648
+                },
+                {
+                    "label": "SWITCH",
+                    "tick": 30720
+                },
+                {
+                    "label": "BUILDDOWN",
+                    "tick": 33792
+                },
+                {
+                    "label": "OUTRO",
+                    "tick": 36864
+                }
+            ]
+        },
+        "timeSpent": 216420,
+        "madeWith": [
+            "Serum 2",
+            "Vocodex",
+            "Patcher",
+            "LuxeVerb",
+            "Ozone Imager 2"
+        ]
+    },
+    "hello-world": {
+        "title": "hello world!",
+        "bpm": 140,
+        "key": "F# Major",
+        "genre": "Future Bass",
+        "description": {
+            "en": "debut single",
+            "de": "debütsingle"
+        },
+        "cover": "PFGaSOmtM",
+        "formats": [
+            {
+                "type": "flac",
+                "link": "ebiFGBt52"
+            },
+            {
+                "type": "wav",
+                "link": "QX98AVCDz"
+            },
+            {
+                "type": "mp3",
+                "link": "GATvNadI8"
+            },
+            {
+                "type": "stems",
+                "link": "O6PtraldH"
+            }
+        ],
+        "embed": {
+            "trackId": 2340758756,
+            "permalink": "hello-world",
+            "secretToken": "s-D3cfG0dzbeB"
+        },
+        "arrangement": {
+            "ppq": 96,
+            "sections": [
+                {
+                    "label": "INTRO",
+                    "tick": 0
+                },
+                {
+                    "label": "BUILDUP",
+                    "tick": 6144
+                },
+                {
+                    "label": "DROP",
+                    "tick": 12288
+                },
+                {
+                    "label": "BREAK",
+                    "tick": 18432
+                },
+                {
+                    "label": "DROP",
+                    "tick": 21504
+                },
+                {
+                    "label": "BUILDDOWN",
+                    "tick": 27648
+                },
+                {
+                    "label": "OUTRO",
+                    "tick": 30720
+                }
+            ]
+        },
+        "timeSpent": 154080,
+        "madeWith": [
+            "Serum 2",
+            "Ozone Imager 2",
+            "LFOTool",
+            "Disperser"
+        ]
+    }
+}

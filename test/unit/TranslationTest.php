@@ -7,7 +7,6 @@ namespace NeuroSYS\Test\Unit;
 use FilesystemIterator;
 use MessageFormatter;
 use NeuroSYS\Site;
-use NeuroSYS\Text\ReleaseDescription;
 use NeuroSYS\Text\Texts;
 use Phpanta\Text\Translatable;
 use Phpanta\Text\Translated;
@@ -31,12 +30,6 @@ use UnitEnum;
 final class TranslationTest extends TestCase
 {
     /**
-     * The catalogs that need only the default language, and may fall back from the rest: text a
-     * release's author writes, possibly before the German exists. See {@link ReleaseDescription}.
-     */
-    private const array FALLS_BACK = [ReleaseDescription::class];
-
-    /**
      * Every case of every catalog reachable from the index.
      *
      * @return iterable<string, array{UnitEnum&Translatable}>
@@ -59,12 +52,9 @@ final class TranslationTest extends TestCase
     {
         $translation = $case->translation();
         $languages   = Site::current()->languages();
-        $fallsBack   = in_array($case::class, self::FALLS_BACK, true);
 
         foreach ($languages->offered()->toValues() as $language) {
-            if (!$fallsBack || $language === $languages->default()) {
-                self::assertTrue($translation->has($language), "no {$language->name}: it would fall back");
-            }
+            self::assertTrue($translation->has($language), "no {$language->name}: it would fall back");
 
             self::assertNotNull(
                 MessageFormatter::create($language->value, $translation->pattern($language)),
@@ -236,7 +226,7 @@ final class TranslationTest extends TestCase
     }
 
     /**
-     * The catalogs the index names, and any a catalog names in turn — `Texts::Releases::Descriptions`.
+     * The catalogs the index names, and any a catalog names in turn, one step down.
      *
      * @return list<class-string<UnitEnum&Translatable>>
      */

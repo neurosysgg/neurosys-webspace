@@ -268,8 +268,10 @@ The site's side of it:
 ### Input validation at the boundary it is written
 
 The framework's — see [phpanta/docs/security.md](../phpanta/docs/security.md#input-validation-at-the-boundary-it-is-written).
-Two of the site's own types hold the same line, so a bad paste in `data/releases.php` throws when the
-file loads rather than `404`ing from HiDrive or rendering a dead link:
+Two of the site's own types hold the same line, so a bad share id in `data/releases.json` or a bad
+URL in `data/profiles.json` throws when the file is read rather than `404`ing from HiDrive or
+rendering a dead link. `Record` reads every field and names the file and path it refuses —
+`data/releases.json: ill.formats[2].type: …`:
 
 | Type | Invariant |
 |---|---|
@@ -342,7 +344,7 @@ What is this site's about it:
 - **The serial is `cgi-bin/.update-serial`** on the live host: above the webroot, in neither mirrored
   tree, and in no tree `deploy.sh` rsyncs.
 - **No push can reach `data/`**, which is what keeps `data/update.pub`,
-  `data/session.key`, `data/admin-passkeys.json`, `data/demos.php` and 8.6 MB of unreleased audio
+  `data/session.key`, `data/admin-passkeys.json`, `data/demos.json` and 8.6 MB of unreleased audio
   out of reach however well a payload is signed.
 - **`Authorization` has to survive Strato**, and `public/.htaccess` puts it back with
   `E=HTTP_AUTHORIZATION`. Every demo's Basic gate already depends on it arriving, which is the

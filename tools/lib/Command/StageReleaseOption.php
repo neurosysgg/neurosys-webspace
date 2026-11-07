@@ -28,6 +28,12 @@ enum StageReleaseOption: string implements Option
     case Project = 'project';
 
     /**
+     * Print the entry on stdout instead of writing it into the data file — for a look before it
+     * goes in, or a file kept somewhere else.
+     */
+    case Print = 'print';
+
+    /**
      * @return string
      */
     public function flag(): string

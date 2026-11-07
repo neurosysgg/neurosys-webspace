@@ -19,7 +19,7 @@ use Phpanta\Tool\Http\FormField;
  *
  * **Everything here except the audio is a fact the folder already knows.** That is the point of
  * {@link self::forRelease()}: `stage-release` reads a release out of its folder and this uploads
- * the same reading, so the title on SoundCloud and the title in `data/releases.php` cannot be two
+ * the same reading, so the title on SoundCloud and the title in `data/releases.json` cannot be two
  * different strings somebody typed twice.
  */
 final readonly class TrackUpload

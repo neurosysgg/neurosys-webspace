@@ -22,7 +22,7 @@ namespace NeuroSYS\Tool\Flp;
  * So this ranks by how often a candidate appears and hands the list to
  * {@link \NeuroSYS\Tool\Release\EntryWriter}, which emits it **commented out** for a person to trim
  * — the same arrangement `description` already has, and for the same reason: a value nothing can
- * derive is one a person supplies. Nothing here reaches `data/releases.php` unattended, so the site
+ * derive is one a person supplies. Nothing here reaches `data/releases.json` unattended, so the site
  * never renders a guess.
  */
 final readonly class Plugins

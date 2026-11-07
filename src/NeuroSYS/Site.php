@@ -295,7 +295,7 @@ final class Site extends App
      *
      * The slug is not sanitised here. It comes from a route segment, and what makes that safe is
      * that {@link Service\DemoRepository} has already matched it against a declared demo: a slug
-     * that reaches this is one `data/demos.php` names.
+     * that reaches this is one `data/demos.json` names.
      *
      * @param string $slug
      * @return Directory

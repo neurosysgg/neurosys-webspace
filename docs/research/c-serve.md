@@ -198,9 +198,9 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
 
     So there is no runtime parser and no HTML parse. `npm run build` runs it last, and the verify
     script fails `app/gen/` drifting from the PHP.
-  - **The demos are a runtime file**, `data/demos.json`, which the same command prints from
-    `data/demos.php` (gitignored the same way). The app reads it at `init()` with `kit/json`, a
-    strict version of ctui's parser.
+  - **The demos are a runtime file**, `data/demos.json`, which the same command printed from
+    `data/demos.php` (gitignored the same way) — since c5, the source itself. The app reads it at
+    `init()` with `kit/json`, a strict version of ctui's parser.
   - **Demo passwords are PBKDF2-HMAC-SHA256** at 600 000 iterations, `$pbkdf2-sha256$…`:
     - `PasswordHash::mint()` writes it, and Phpanta reads it beside bcrypt;
     - c-serve's `kit/password` reads it with mbedtls;
@@ -241,11 +241,13 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
 
 ## Open questions
 
-- **Data after c5.** Until PHP leaves, `data/*.php` is the source and `app/gen/` a print of it.
-  Then the release and demo tooling has to write the new formats itself.
+- **Data after c5 — answered.** The data is JSON: `data/releases.json`, `data/profiles.json` and
+  `data/demos.json` are the source, read by PHP through its codecs and by the app (the demos at
+  `init()`, the rest through `app/gen/`, which `tools/app-data.php` prints from them). The release
+  and demo tooling writes the JSON itself, through the same codecs, and stays PHP for now.
 - **Concurrency model for c6:** an event loop, or a fixed worker pool with per-connection deadlines.
 - **The tooling.** About 18k lines of PHP import runtime classes (`Site`, `MusicalKey`, the API
-  enums) and write PHP into `data/`. Once the admin is gone, they need only the data format and
+  enums) and write JSON into `data/` through the site's codecs. Once the admin is gone, they need only the data format and
   the enums. Do they stay PHP against a thin model, or move?
 - **ctui-remote** has its own pages in Phpanta. Do they become a c-serve app too, or stay behind
   the CGI bridge?

@@ -46,8 +46,10 @@ tools/
     │                       Playlist/PlaylistClip
     ├── Midi/             ← the standard MIDI file writer: MidiFile + MidiTrack/MidiNote,
     │                       TimeSignature, VariableLength
-    ├── Release/          ← ReleaseFolder, Preflight, EntryWriter (which emits through the
-    │                       framework's Php/ expression tree), ProjectFile, ReleasesFile, Probe
+    ├── Data/             ← EntryFile + EntryWrite: one entry written into data/releases.json
+    │                       or data/demos.json, through the site's own codec
+    ├── Release/          ← ReleaseFolder, Preflight, EntryWriter (the entry as a Release, and
+    │                       the notes on what is left to type), ProjectFile, Probe
     │                       + the enums they read
     └── SoundCloud/       ← the upload client: Client, Endpoint, Attempt, Credentials/
                             CredentialVariable/Authorization/AccessToken/OAuthCredential/TokenStore,
@@ -84,7 +86,7 @@ Two dependencies are declared in `composer.json`'s `require-dev` rather than inh
 ## The two release commands, and `FolderReport`
 
 **`FolderReport` is what `stage-release` and `release-track` have in common.** They are the same
-command up to their last step — read a folder, judge it, say what is wrong with it, print an entry —
+command up to their last step — read a folder, judge it, say what is wrong with it, write an entry —
 so the report is written once. It is a class rather than a trait on the test `Support\TypedItems` is
 on the other side of: that is a trait because nothing anywhere holds "either kind of collection",
 while these two *are* both `Command`s and `Runner` holds either one. What they share is not a kind of
@@ -96,11 +98,11 @@ when a check fails, because those differ and a `string $remedy` parameter would 
 
 ## `release-track`
 
-**`release-track` is `stage-release` with its last hole filled.** That command emits an entry whose
-`embed:` argument is commented out, because the three SoundCloud ids do not exist until the track is
-uploaded; this one uploads it and hands the resulting `SoundCloudEmbed` back to the same
-`EntryWriter`, so the entry printed after an upload and the entry printed before one are the same
-code with one argument different. The workflow is in [authoring.md](authoring.md#uploading-the-track);
+**`release-track` is `stage-release` with its last hole filled.** That command writes an entry with
+no `embed`, because the three SoundCloud ids do not exist until the track is uploaded; this one
+uploads it and puts the resulting `SoundCloudEmbed` into the entry already in
+`data/releases.json`, touching nothing else in it — or, with no entry there yet, hands it to the
+same `EntryWriter` and writes the whole entry first. `--print` prints instead of writing. The workflow is in [authoring.md](authoring.md#uploading-the-track);
 the decisions worth knowing before touching the client:
 
 - **It sends nothing without `--upload`.** Everything before that flag reads files on this machine;
@@ -151,20 +153,21 @@ the decisions worth knowing before touching the client:
 ## `stage-demo`
 
 **`stage-demo` is the one command that mints a credential, and the one that writes audio.**
-`stage-release` only ever prints; this transcodes each named master into `data/demos/{slug}/` — which
+`stage-release` only writes one data file; this transcodes each named master into `data/demos/{slug}/` — which
 is why it calls `Directory::create()` out loud rather than letting a `File` quietly make its own
 parent, the rule `Support\File` states in the negative. Four things it does differently from every
 other command here, each argued for in [demos.md](demos.md): it takes **many** positional arguments
 because the mixes on a page are chosen rather than discovered; `--check` returns **before the
 password is minted**, so a run made only to read the report cannot leave a real password on screen
-that no entry matches; `--rotate` takes **no** files at all, because changing a password is one
-line of an entry and restaging would rewrite every file and lose the description; and `--waveforms`
+that no entry matches; `--rotate` takes **no** files at all, only the demo's slug, because changing
+a password is one field of an entry, replaced in place, and restaging would rewrite every file and
+lose the description; and `--waveforms`
 has `--rotate`'s shape rather than a staging run's: it reads the operands as **slugs**, analyses
 audio that is already staged, and touches no password, no entry and no audio.
 
 It shares `Finding` and `Level` with the release preflight and nothing else. Not `FolderReport`:
-that class is built around a `ReleaseFolder` — one path, checked to be a directory, with imports
-reconciled against `data/releases.php` — and none of those three is true here. What is left in
+that class is built around a `ReleaseFolder` — one path, checked to be a directory, whose entry
+goes into `data/releases.json` — and none of those three is true here. What is left in
 common is one `foreach` printing a level and a message, and a shared parent for that would announce
 a kind these two are not.
 

@@ -7,8 +7,6 @@ namespace NeuroSYS\Tool\Command;
 use BackedEnum;
 use NeuroSYS\AssetManifest;
 use NeuroSYS\DataFile;
-use NeuroSYS\Model\Demo;
-use NeuroSYS\Model\DemoTrack;
 use NeuroSYS\Model\Embed\EmbedAttribute;
 use NeuroSYS\Model\Embed\SoundCloudEmbed;
 use NeuroSYS\Model\Embed\SoundCloudPlayerAttribute;
@@ -20,7 +18,6 @@ use NeuroSYS\Model\Production\Section;
 use NeuroSYS\Model\Profile;
 use NeuroSYS\Model\Release;
 use NeuroSYS\Model\ReleaseFormat;
-use NeuroSYS\Service\DemoRepository;
 use NeuroSYS\Service\ProfileRepository;
 use NeuroSYS\Service\ReleaseRepository;
 use NeuroSYS\Site;
@@ -29,7 +26,6 @@ use NeuroSYS\Text\ErrorText;
 use NeuroSYS\Text\HomeText;
 use NeuroSYS\Text\LayoutText;
 use NeuroSYS\Text\ProfileText;
-use NeuroSYS\Text\ReleaseDescription;
 use NeuroSYS\Text\ReleaseText;
 use NeuroSYS\Text\TerminalText;
 use NeuroSYS\View\Html\ArrangementAttribute;
@@ -45,6 +41,7 @@ use Phpanta\Support\Charset;
 use Phpanta\Text\FrameworkText;
 use Phpanta\Text\Language;
 use Phpanta\Text\Translatable;
+use Phpanta\Text\Verbatim;
 use Phpanta\Tool\Cli\Arity;
 use Phpanta\Tool\Cli\Command;
 use Phpanta\Tool\Cli\ExitCode;
@@ -61,14 +58,15 @@ use ReflectionProperty;
 /**
  * What the site's C app (`app/`, served by c-serve) is compiled with, printed from the PHP that
  * states it today: every catalog case in both languages, the site's own elements, attributes and
- * classes, the asset manifest, the releases and profiles, and the privacy policy as a tree — plus
- * `data/demos.json`, the demos the app reads at start-up (docs/research/c-serve.md, phase c4).
+ * classes, the asset manifest, the releases (out of `data/releases.json`, every derived value worked
+ * out) and profiles, and the privacy policy as a tree (docs/research/c-serve.md, phase c4). The
+ * demos are not here: the app reads `data/demos.json` itself, at start-up.
  *
- *   php tools/app-data.php            # write app/gen/ and data/demos.json
+ *   php tools/app-data.php            # write app/gen/
  *   php tools/app-data.php --check    # write nothing; fail on a file that has drifted
  *
- * Until PHP leaves (c5), the PHP is the one source of all of it: a word, a release or a class
- * name is changed there and printed here, never edited in `app/gen/`. The output is deterministic,
+ * The PHP and the data files are the one source of all of it: a word, a release or a class name is
+ * changed there and printed here, never edited in `app/gen/`. The output is deterministic,
  * so an unchanged site prints unchanged files, and `npm run build` runs this last.
  */
 final readonly class AppData implements Command
@@ -78,7 +76,6 @@ final readonly class AppData implements Command
         'LAYOUT'      => LayoutText::class,
         'HOME'        => HomeText::class,
         'RELEASE'     => ReleaseText::class,
-        'DESCRIPTION' => ReleaseDescription::class,
         'KEY'         => MusicalKey::class,
         'DEMO'        => DemoText::class,
         'ERROR'       => ErrorText::class,
@@ -114,7 +111,7 @@ final readonly class AppData implements Command
     /** @return string */
     public function description(): string
     {
-        return "Print the C app's data (app/gen/, data/demos.json) from the PHP site.";
+        return "Print the C app's data (app/gen/) from the PHP site.";
     }
 
     /** @return list<AppDataOption> */
@@ -147,7 +144,6 @@ final readonly class AppData implements Command
             'app/gen/releases.c' => self::releases(),
             'app/gen/privacy.c'  => self::privacy(),
         ];
-        $demos = Site::current()->dataFile(DataFile::Demos);
 
         if ($input->has(AppDataOption::Check)) {
             $drifted = 0;
@@ -167,10 +163,6 @@ final readonly class AppData implements Command
         foreach ($files as $path => $text) {
             file_put_contents("$root/$path", $text);
             $output->error("  wrote $path\n");
-        }
-        if ($demos->exists()) {
-            file_put_contents(dirname($demos->path) . '/demos.json', self::demos());
-            $output->error("  wrote data/demos.json\n");
         }
 
         return ExitCode::Success;
@@ -453,18 +445,22 @@ final readonly class AppData implements Command
                 self::c((string) $embed->height()),
             );
         }
+        // A description reads the same in every language, or has a text per language — the one
+        // the file leaves out already fallen back, as the PHP renders it.
         $description = $release->description;
-        if (!$description instanceof ReleaseDescription) {
-            $lines[] = sprintf(
+        $lines[]     = $description instanceof Verbatim
+            ? sprintf(
                 'static const CSERVE_TR description_%d = {.kind = CSERVE_TR_VERBATIM, .s = %s};',
                 $i,
-                self::c(
-                    $description instanceof Translatable
-                        ? $description->in(Language::English)
-                        : (string) $description,
-                ),
+                self::c($description->text),
+            )
+            : sprintf(
+                'static const CSERVE_TR description_%d = CSERVE_TEXT_IN(%s);',
+                $i,
+                Site::current()->languages()->offered()
+                    ->map(static fn(Language $language): string => self::c($description->in($language)))
+                    ->join(', '),
             );
-        }
         $lines[] = '';
         $time      = $release->timeSpent;
         $plugins   = $release->madeWith->map(static fn(Plugin $plugin): string => $plugin->name)->join(', ');
@@ -476,7 +472,7 @@ final readonly class AppData implements Command
             $bpm,
             self::textId($release->key),
             self::c($release->genre->value),
-            $description instanceof ReleaseDescription ? '&' . self::textId($description) : "&description_$i",
+            "&description_$i",
             self::c($release->cover?->url() ?? Site::COVER_PLACEHOLDER),
             $time === null ? 'NULL' : self::c($time->render()),
             $release->madeWith->isEmpty() ? 'NULL' : self::c($plugins),
@@ -586,32 +582,6 @@ final readonly class AppData implements Command
         return $kids === []
             ? $pad . $built
             : $pad . 'cserve_containing(a, ' . $built . ",\n" . implode(",\n", $kids) . ')';
-    }
-
-    // ───────────────────────────── the demos ─────────────────────────────
-
-    /** @return string data/demos.json: what DemoRepository reads out of data/demos.php */
-    private static function demos(): string
-    {
-        $out = [];
-        foreach (new DemoRepository()->all() as $slug => $demo) {
-            /** @var Demo $demo */
-            $tracks = [];
-            foreach ($demo->tracks as $track) {
-                /** @var DemoTrack $track */
-                $tracks[] = ['label' => $track->label, 'file' => $track->file, 'seconds' => $track->seconds];
-            }
-            $out[(string) $slug] = [
-                'title'       => $demo->title,
-                'password'    => $demo->password->digest(),
-                'description' => $demo->description?->in(Language::English),
-                'tracks'      => $tracks,
-            ];
-        }
-
-        $flags = JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR;
-
-        return json_encode($out, $flags) . "\n";
     }
 
     // ───────────────────────────── C ─────────────────────────────

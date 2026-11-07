@@ -48,16 +48,16 @@ final class ServiceTest extends TestCase
     }
 
     /**
-     * A data file of the shape the repositories `require`.
+     * A data file of the shape the repositories read.
      *
-     * @param string $php
+     * @param string $json
      * @return File
      */
-    private function dataFile(string $php): File
+    private function dataFile(string $json): File
     {
-        $file = $this->fixtures->file('data.php');
+        $file = $this->fixtures->file('data.json');
 
-        $file->write("<?php\nreturn $php;\n");
+        $file->write($json);
 
         return $file;
     }
@@ -134,7 +134,7 @@ final class ServiceTest extends TestCase
      */
     public function testSkipsPlatformsWithNoUrl(): void
     {
-        $file = $this->dataFile("['spotify' => '', 'github' => 'https://github.com/x']");
+        $file = $this->dataFile('{"spotify": "", "github": "https://github.com/x"}');
 
         $links = new ProfileRepository($file)->all();
 
@@ -147,7 +147,7 @@ final class ServiceTest extends TestCase
      */
     public function testReturnsNothingWhenNoProfilesAreConfigured(): void
     {
-        self::assertCount(0, new ProfileRepository($this->dataFile('[]'))->all());
+        self::assertCount(0, new ProfileRepository($this->dataFile('{}'))->all());
     }
 
     /**
@@ -155,7 +155,7 @@ final class ServiceTest extends TestCase
      */
     public function testReturnsNothingWhenTheDataFileIsMissing(): void
     {
-        self::assertCount(0, new ProfileRepository(new File('/nonexistent/profiles.php'))->all());
+        self::assertCount(0, new ProfileRepository(new File('/nonexistent/profiles.json'))->all());
     }
 
     /**
@@ -166,7 +166,7 @@ final class ServiceTest extends TestCase
     public function testLinksComeBackInEnumDeclarationOrderNotFileOrder(): void
     {
         $file = $this->dataFile(
-            "['github' => 'https://g', 'soundcloud' => 'https://s', 'youtube' => 'https://y']",
+            '{"github": "https://g", "soundcloud": "https://s", "youtube": "https://y"}',
         );
 
         $order = array_map(
@@ -182,7 +182,7 @@ final class ServiceTest extends TestCase
      */
     public function testIgnoresAKeyThatIsNotAKnownPlatform(): void
     {
-        $file = $this->dataFile("['myspace' => 'https://myspace.com/x']");
+        $file = $this->dataFile('{"myspace": "https://myspace.com/x"}');
 
         self::assertCount(0, new ProfileRepository($file)->all());
     }
@@ -384,7 +384,7 @@ final class ServiceTest extends TestCase
      * address on the site that arrives as free text from a data file instead of being built from
      * parts. Element refuses a `javascript:` href at render regardless — but that is the backstop,
      * and a backstop reports the fault on whatever page happens to draw the footer. Here it is
-     * reported when `data/profiles.php` loads, which is where the mistake actually is.
+     * reported when `data/profiles.json` loads, which is where the mistake actually is.
      *
      * @param string $url
      * @return void

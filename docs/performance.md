@@ -90,7 +90,7 @@ preload block costs ([below](#inside-the-tree)):
 |---|---|---|
 | `Layout::wrap` — building the node tree | 1.194 | 42.1% |
 | `Node::render` — tree to markup | 1.075 | 37.9% |
-| `Router::dispatch` — match, read `releases.php`, build the View | 0.278 | 9.8% |
+| `Router::dispatch` — match, read the releases, build the View | 0.278 | 9.8% |
 | `SecurityHeaders::send` | 0.216 | 7.6% |
 | `Request::fromGlobals` | 0.021 | 0.7% |
 | `RouteInitialization::routes` | 0.019 | 0.7% |
