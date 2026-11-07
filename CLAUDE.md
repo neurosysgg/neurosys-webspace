@@ -206,6 +206,11 @@ the code looks the way it does; follow them in new code without being asked.
   that is really a name, an `array_*` call a collection has a member for, `@`, and an SPL exception.
   An exception to the first three is an attribute with a reason — `#[BareArray]`, `#[BareString]`,
   `#[BareCall]`; the last two have none. [guidelines.md](phpanta/docs/guidelines.md)
+- **The site calls nothing on the floor.** The built-ins that reach outside the process — the disk,
+  a process, the network, randomness, digests, ciphers, the response, the runtime — are the
+  framework's to call, through `File`, `Random`, `Digest` and the rest; the site's `FloorTest` fails
+  any call under `src/NeuroSYS/`. A primitive the site lacks is added to the framework.
+  [floor.md](phpanta/docs/floor.md)
 - **Exceptions live in `Phpanta\Exception` — or `NeuroSYS\Exception` for the two only this site
   throws — implement `SiteException`, and extend the SPL class they replace**, so every existing
   `catch` still matches. [architecture.md](docs/architecture.md#exceptions)
@@ -487,6 +492,7 @@ php -d curl.cainfo=/etc/httpd/conf/neurosys.localhost.crt tools/authenticator.ph
 | [docs/architecture.md](docs/architecture.md) | the site's PHP: its layers, `Site`, its recipes — the framework's half is [phpanta/docs/architecture.md](phpanta/docs/architecture.md) |
 | [phpanta/docs/collections.md](phpanta/docs/collections.md) | `Collection` / `SearchableCollection`, or anything that holds a group |
 | [phpanta/docs/guidelines.md](phpanta/docs/guidelines.md) | a bare array, a bare string, an `array_*` call, an `@`, a `throw` — or `GuidelineTest` failing |
+| [phpanta/docs/floor.md](phpanta/docs/floor.md) | a call that reaches outside the process, or `FloorTest` failing |
 | [docs/frontend.md](docs/frontend.md) | the site's TypeScript and CSS, its elements — the build and SPA navigation are [phpanta/docs/frontend.md](phpanta/docs/frontend.md) |
 | [docs/contracts.md](docs/contracts.md) | any name or value both languages know |
 | [phpanta/docs/language.md](phpanta/docs/language.md) | any visible word, the catalogs, `Request::language()`, the switch and its cookie |

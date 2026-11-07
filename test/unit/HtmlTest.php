@@ -193,7 +193,10 @@ final class HtmlTest extends TestCase
         // stylesheet styles like any other: an admin page is in its shell.
         $declared = [
             ...array_map(static fn(Tag $t): string => $t->value, Tag::cases()),
-            ...array_map(static fn(\Phpanta\View\Html\MachineTag $t): string => $t->value, \Phpanta\View\Html\MachineTag::cases()),
+            ...array_map(
+                static fn(\Phpanta\View\Html\MachineTag $t): string => $t->value,
+                \Phpanta\View\Html\MachineTag::cases(),
+            ),
         ];
         $styled   = self::tagSelectors(self::stylesheet());
 
