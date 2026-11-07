@@ -38,7 +38,7 @@ use Phpanta\Tool\Cli\Runner;
  * - **It writes audio.** `stage-release` only ever prints; this transcodes each master into
  *   `data/demos/{slug}/`, which is outside the webroot, because the gate has to cover the bytes and
  *   not just the page. That is the whole reason a demo is not a HiDrive link.
- * - **It mints a password and shows it once.** Only the bcrypt hash is kept, in the entry. There is
+ * - **It mints a password and shows it once.** Only the PBKDF2 digest is kept, in the entry. There is
  *   no way to recover the plaintext afterwards and `--rotate` is what to do instead.
  * - **It analyses what it staged.** Each mix gets a {@link Waveform} beside it, which is what
  *   `<demo-waveform>` draws behind the player. `--waveforms` does that half on its own, for a demo

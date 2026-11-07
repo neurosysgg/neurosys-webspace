@@ -191,9 +191,11 @@ carries `#[\NoDiscard]` — a call whose result goes nowhere is the one way to l
 and it fails the suite. The comparison itself is the framework's, `Auth::matches()`.
 
 - **Every comparison is constant-time, and neither is skipped when the other fails.** The password is
-  `password_verify()`; the user name is `hash_equals()`, compared on every request just the same.
-  Chaining the two with `&&` would leak what each individually does not: bcrypt is deliberately
-  slow, so a wrong user name would return in microseconds while a right one paid the full cost — a
+  PBKDF2-HMAC-SHA256 at 600 000 iterations, compared with `hash_equals()` (a digest minted before
+  2026-10-29 is bcrypt, through `password_verify()`, until it is rotated); the user name is
+  `hash_equals()`, compared on every request just the same. The native app (`app/`) keeps both
+  rules: mbedtls derives and `mbedtls_ct_memcmp` compares. Chaining the two with `&&` would leak
+  what each individually does not: the password's hash is deliberately slow, so a wrong user name would return in microseconds while a right one paid the full cost — a
   difference measurable across a network that tells an attacker which half of the credential they
   already have. Both run every time; the results are combined afterwards.
 - **An empty hash is an unconfigured gate, not one that accepts an empty password.** A credentials
@@ -203,7 +205,7 @@ and it fails the suite. The comparison itself is the framework's, `Auth::matches
   `401` and `Request::fromGlobals()` reads `Basic ` on the way back in, and both say
   `AuthScheme::Basic`. A mismatch there would make every Basic gate refuse everything, identically, with
   nothing in any log. A payload with no colon is a user name and an empty password rather than a
-  refusal, which costs nothing because an empty password matches no bcrypt digest.
+  refusal, which costs nothing because an empty password matches no digest.
 - **A realm is checked, and a visitor's slug is encoded before it becomes one.** `BasicChallenge`
   refuses anything but RFC 9110's `qdtext` — no `"`, no `\`, never empty — which reports a realm
   built wrong *in this repository*. A demo's realm is named after its slug, which comes out of the
@@ -218,7 +220,7 @@ and it fails the suite. The comparison itself is the framework's, `Auth::matches
 - **A demo that does not exist is refused identically to one whose password is wrong**, in status
   code *and* in elapsed time. A `404` for an unknown slug and a `401` for a known one is a catalogue
   of unreleased tracks, readable one guess at a time; and returning early on the unknown one would
-  answer in microseconds where a real comparison pays bcrypt, so the uniform `401` would be undone by
+  answer in microseconds where a real comparison pays the hash's cost, so the uniform `401` would be undone by
   a stopwatch. `DemoGate::enter()` verifies against `PasswordHash::unmatchable()` — a real
   digest with no preimage — and then refuses. Same reasoning as the no-short-circuit rule above, one
   level out.

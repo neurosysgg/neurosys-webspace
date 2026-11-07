@@ -36,6 +36,28 @@ is local config (`.git/modules/phpanta/config`) — a fresh clone sets it again 
 submodule needs `--no-recurse-submodules`** (`git log -1 -- .gitmodules` names it), and after a
 remote's URL changes, `git submodule sync`.
 
+## The native app
+
+**`app/` is this site as a c-serve app, in C** — the host the site moves to from PHP
+([docs/research/c-serve.md](docs/research/c-serve.md)). Every route is native, and php-cgi
+answers the rest until c5. It builds against c-serve from outside its tree:
+`make -C c-serve EXTERNAL_APPS=neurosys=$PWD/app`. Lint that with `lint`, and format
+it with `format`, through `app/.clang-format`.
+
+**`c-serve/` is a submodule too**, at `../c-serve.git`, set up as `phpanta/` is: its `origin`
+pushes to GitHub and HiDrive at once, and a site commit records the c-serve commit it builds
+against. Nothing deploys it — `deploy.sh` and `push-update` name what they ship. `test/cserve.sh`
+and `test/cserve/diff.sh` build it from here, else from `~/Projects/c-serve`, or `CSERVE_DIR`.
+
+- **The PHP is still the one source.** `app/gen/` is printed by `php tools/app-data.php`: the
+  catalogs, the vocabulary, the manifest, the releases and the privacy policy as a tree, plus
+  `data/demos.json`. Change the PHP, then rerun the command; never edit `app/gen/`, which the
+  verify script fails on drift.
+- **A route goes native only when `bash test/cserve/diff.sh` is silent**: PHP and the app answer
+  259 requests byte for byte.
+- **A capture is matched on the path as sent, then `rawurldecode`d**, as Phpanta's router does —
+  `ns_match()`, never the host's decoded path.
+
 ## Stack
 
 Plain PHP 8.5 / HTML / CSS on Phpanta, **no runtime dependencies**. PHP ≥ 8.5 is load-bearing

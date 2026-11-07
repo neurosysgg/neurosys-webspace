@@ -14,6 +14,7 @@ composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
 bash test/conformance.sh [BASE]   # the verify script's HTTP half, against any server
 bash test/cserve.sh               # the same against c-serve's host, debug tree and prod layout
+bash test/cserve/diff.sh          # PHP against the native app (app/), answer for answer
 composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
 npm test           # node --test, the elements and the enum mirrors
@@ -51,10 +52,30 @@ router; given one, it asks that server, with `CONFORMANCE_CURL` for extra curl f
 autoloader, the data files, repo hygiene, the demos (their fixture is a `data/demos.php`), the admin,
 and the served custom tags, read against `Tag::cases()`.
 
-`test/cserve.sh` runs it against c-serve's host (`~/Projects/c-serve`, or `CSERVE_DIR`): the files
-served natively, everything else through php-cgi. It runs twice, against `public/` and against the
-production layout deploy.sh builds, staged in a scratch directory with the data files the pages
-read and none of the credentials. It needs `php-cgi`, which nothing else here does.
+`test/cserve.sh` runs it against c-serve's host (`./c-serve`, else `~/Projects/c-serve`, or
+`CSERVE_DIR`): the files served natively, everything else through php-cgi. It runs three times:
+- against `public/`;
+- against `public/` again with the native app (`app/`) in front of the CGI;
+- against the production layout `deploy.sh` builds, staged in a scratch directory with the data
+  files the pages read and none of the credentials.
+
+It needs `php-cgi`, which nothing else here does.
+
+`test/cserve/diff.sh` is the gate a route passes to go native. It runs two hosts on one staged
+tree, one handing everything to php-cgi and one with the app in front, and compares 259 requests:
+status, every header in order, and the body byte for byte. The requests cover:
+- every page, in each language, as a document and as the SPA's fragment, and its 304;
+- the downloads and the language switch;
+- a staged demo's gate, page and audio, in ranges;
+- every write method.
+
+It normalises only what is the host's own (`Date`, `Server`, `Connection`, the framing), the
+ETag's value, and php-cgi's default `text/html` on a redirect. It first asserts that the app
+answers the routes itself, so an app that never loaded cannot pass. `SAN=1` runs it under
+ASan+UBSan and fails on a sanitizer's report.
+
+`app/gen/` is printed from the PHP by `php tools/app-data.php` (`npm run build` runs it). The
+verify script fails it drifting, and `AppDataTest` reads it as the compiler will.
 
 `test/cserve/goldens.php` prints what c-serve's toolkit is tested against: Phpanta's own answers
 for escaping, the origin check, Accept-Language, If-None-Match, Range, the query and the `lang`

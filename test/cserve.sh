@@ -3,10 +3,12 @@
 # handed to php-cgi, the way the box will run it until the routes go native
 # (docs/research/c-serve.md, phase c2).
 #
-# Twice: against public/ (the debug tree, as the verify script serves it), then against the
-# production layout deploy.sh builds — build/dist/public/ as the webroot, the source and the
-# framework above it, the prod manifest on top — staged in a scratch directory with the data files
-# the pages read and none of the credentials.
+# Three times: against public/ (the debug tree, as the verify script serves it); against it again
+# with the neurosys app (app/, phase c4) in front of the CGI, so the routes that went native face
+# the same checks; then against the production layout deploy.sh builds — build/dist/public/ as the
+# webroot, the source and the framework above it, the prod manifest on top — staged in a scratch
+# directory with the data files the pages read and none of the credentials. (The app is built
+# against the manifest app/gen/ was printed from, the debug one, so it sits the third run out.)
 #
 # Usage:
 #   bash test/cserve.sh                  # c-serve from ~/Projects/c-serve, built if it isn't
@@ -14,15 +16,19 @@
 
 set -u
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CSERVE_DIR="${CSERVE_DIR:-$HOME/Projects/c-serve}"
-HOST="$CSERVE_DIR/build/O2/bin/cserve-static"
+if [[ -z "${CSERVE_DIR:-}" ]]; then
+    CSERVE_DIR="$REPO/c-serve"
+    [[ -f "$CSERVE_DIR/Makefile" ]] || CSERVE_DIR="$HOME/Projects/c-serve"
+fi
+HOST="$CSERVE_DIR/build/O2/bin/cserve"
+APP="$CSERVE_DIR/build/O2/bin/apps/neurosys.so"
 PORT=18082
 
 if ! command -v php-cgi >/dev/null; then
     echo "ERROR: php-cgi is not installed — the host's front controller runs through it."
     exit 1
 fi
-if ! make -s -C "$CSERVE_DIR" >/dev/null; then
+if ! make -s -C "$CSERVE_DIR" EXTERNAL_APPS="neurosys=$REPO/app" >/dev/null; then
     echo "ERROR: c-serve did not build in $CSERVE_DIR."
     exit 1
 fi
@@ -36,11 +42,12 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# the host on ROOT, then the suite against it: its exit status
+# the host on ROOT (with any further flags), then the suite against it: its exit status
 run_against() {
     local root="$1" label="$2" status
+    shift 2
     "$HOST" --listen "127.0.0.1:$PORT" --root "$root" --cgi php-cgi --climb front \
-        --env PHPANTA_ENVIRONMENT=development >/dev/null 2>&1 &
+        --env PHPANTA_ENVIRONMENT=development "$@" >/dev/null 2>&1 &
     SERVER_PID=$!
     echo ""
     echo "##### c-serve, $label ($root)"
@@ -54,6 +61,7 @@ run_against() {
 
 fail=0
 run_against "$REPO/public" "the debug tree" || fail=1
+run_against "$REPO/public" "the debug tree, the app in front" --app "$APP" --data "$REPO/data" || fail=1
 
 if [[ -f "$REPO/build/dist/src/NeuroSYS/AssetManifest.php" ]]; then
     STAGE="$(mktemp -d /tmp/neurosys-cserve-XXXXXX)"

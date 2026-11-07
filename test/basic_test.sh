@@ -422,6 +422,17 @@ else
     echo "  SKIP asset manifest drift check — no node on PATH"
 fi
 
+# app/gen/ is the C app's copy of the site (docs/research/c-serve.md, phase c4): the catalogs, the
+# vocabulary, the manifest, the releases and the privacy policy, printed from the PHP. Stale, the
+# native pages say what the PHP said before a change — a word, a release, a build stamp — and only
+# test/cserve/diff.sh would notice. --check writes nothing.
+if app_error=$(php "$REPO/tools/app-data.php" --check 2>&1); then
+    pass "app/gen/ is what tools/app-data.php prints from the site"
+else
+    fail "app/gen/ has drifted from the PHP site (run: php tools/app-data.php)"
+    echo "$app_error" | sed 's/^/       /'
+fi
+
 # How build-assets.mjs reads a module graph, asked of three scratch trees. A `/*` inside a string is
 # a string, not a comment reaching to the next `*/`: stripping comments alone once hid every import
 # in between, and the modules behind them went missing from the stamp and the preload list. An entry

@@ -120,7 +120,10 @@ Four groups of five Crockford base32 characters — `NDPVW-GJJRB-36N84-XP0QB` �
 `random_int()`. No `I`, `L`, `O` or `U`, because it gets read off a screen and typed into a browser
 prompt, and sometimes read down a phone.
 
-**Only the bcrypt hash is kept.** The plaintext is printed once and written nowhere: not to `data/`,
+**Only the digest is kept** — PBKDF2-HMAC-SHA256 at 600 000 iterations, written
+`$pbkdf2-sha256$…` (`PasswordHash::mint()`), which both Phpanta and c-serve's `kit/password.c`
+read. A demo minted before 2026-10-29 still holds a bcrypt digest; PHP reads it, c-serve does not,
+so `--rotate` it before the C host serves demos. The plaintext is printed once and written nowhere: not to `data/`,
 not to a ledger, not to a file the entry can be redirected into. There is no way to look one up
 later, and that is the point — a copy of this repository, or of the server, contains no working
 password.

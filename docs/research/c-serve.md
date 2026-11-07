@@ -1,8 +1,10 @@
 # Research — c-serve, the site's core in C
 
-> **Status: c0–c3 built (2026-10-29)**: the conformance suite, the extracted stack, its host
-> serving this site through php-cgi (`test/cserve.sh`: 113/113 on both trees), and the toolkit an
-> app is written in, checked case by case against Phpanta's own answers. Recorded 2026-10-29. This takes neurosys.gg's
+> **Status: c0–c4 built and committed (2026-11-07)**: the conformance suite, the extracted stack, its host
+> serving this site through php-cgi (`test/cserve.sh`: 113/113 on every run), the toolkit an app is
+> written in, checked case by case against Phpanta's own answers, and this site as a native app
+> (`app/`) whose every route answers as the PHP does (`test/cserve/diff.sh`: 259 cases, byte for
+> byte). Recorded 2026-10-29. This takes neurosys.gg's
 > runtime off PHP. A C web host serves the site, and the site is a first-class app compiled for it.
 > The host fuses Phpanta's `App` contract with ctui-wm's plugin architecture, on the HTTP/TLS
 > server that ctui-wm already has. It reverses "not a rewrite away from PHP" in
@@ -19,8 +21,9 @@
   `machine` and `drop`. With them go the signed `NS1` calls, the passkey ceremony, the sealed
   session, the serial and the tar.gz push. Deploys become the box's business: a signed build onto
   the verity partition (attested-single-box Phase 3).
-- **The stack is its own repo, `c-serve`**, at `~/Projects/c-serve`. It is extracted from ctui-wm
-  the way c-µdsp came out of ctui-mus. ctui-wm and this site both take it as a submodule. What
+- **The stack is its own repo, `c-serve`**, developed at `~/Projects/c-serve`. It is extracted from
+  ctui-wm the way c-µdsp came out of ctui-mus. ctui-wm and this site (`c-serve/`) both take it as a
+  submodule. What
   ships to the box is c-serve plus this site's app, and nothing from the desktop.
 - **Apps link statically for production and load dynamically for development.** Both modes
   read the same vtable, so neither is a second design (see [Apps](#apps)).
@@ -48,9 +51,9 @@ Some things fall away entirely:
 - **No zlib inflate.** That was only for the push.
 - **No AEAD, no ECDSA, no PBKDF2.** Those were only for the admin, the session and drops.
 
-The crypto the site keeps is SHA-256 for ETags and bcrypt verification for the demo gates. mbedtls
-has no bcrypt, so the site either gets its own `$2y$` verifier (about 300 lines, fuzzed) or
-re-mints the demo passwords under a hash mbedtls does have. The decision is open.
+The crypto the site keeps is SHA-256 for ETags and a password check for the demo gates. mbedtls
+has no bcrypt, so the demo passwords are re-minted under PBKDF2-HMAC-SHA256 (decided 2026-10-29,
+see c4), which mbedtls has and Phpanta's `PasswordHash` now reads too.
 
 ## What exists in ctui-wm
 
@@ -180,9 +183,46 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
       first.
     - `containingHtml` is not ported: `/privacy` becomes a build-time conversion in c4.
     - `apps/hello` exercises all of it end to end in both link modes.
-- **c4. The neurosys app.**
-  - Move routes one at a time, and leave every route not yet native on the php-cgi fallthrough.
-  - The data gets its new format, and `stage-release`/`stage-demo` emit it.
+- **c4. The neurosys app.** *Done.*
+  - Every route is native: `/`, `/releases`, a release, a download, `/demos/{slug}` and its audio,
+    `/imprint`, `/privacy` and the language switch, plus the 405 and `OPTIONS` answers on them. The
+    php-cgi front still answers what no route claims (PHP's 404 and its write-method 405) and
+    `/admin`; c5 deletes it.
+  - **The app is `app/` in this repo**, built against c-serve from outside its tree
+    (`make EXTERNAL_APPS=neurosys=<repo>/app`). c-serve's lint covers it, through `app/.clang-format`.
+  - **The data is compiled in.** `php tools/app-data.php` prints `app/gen/` from the PHP:
+    - the catalogs as `T(id, en, de)`;
+    - the site's elements, attributes and classes;
+    - the manifest;
+    - the releases and profiles, with every derived value worked out;
+    - the privacy policy as C that builds its tree.
+
+    So there is no runtime parser and no HTML parse. `npm run build` runs it last, and the verify
+    script fails `app/gen/` drifting from the PHP.
+  - **The demos are a runtime file**, `data/demos.json`, which the same command prints from
+    `data/demos.php` (gitignored the same way). The app reads it at `init()` with `kit/json`, a
+    strict version of ctui's parser.
+  - **Demo passwords are PBKDF2-HMAC-SHA256** at 600 000 iterations, `$pbkdf2-sha256$…`:
+    - `PasswordHash::mint()` writes it, and Phpanta reads it beside bcrypt;
+    - c-serve's `kit/password` reads it with mbedtls;
+    - a bcrypt demo is served by PHP and refused by the C, logged at start-up, until
+      `stage-demo --rotate` re-mints it.
+    - mbedtls's PBKDF2 takes about 530 ms per check where PHP's takes 95 ms, so a gate is slower
+      natively. It is also the brake on guessing, since nothing throttles the gate.
+  - **c-serve grew** what the app needed:
+    - `kit/json`, `kit/password` and `kit/file` (a file in ranges);
+    - Basic credentials and a qdtext-checked challenge;
+    - a sized stream;
+    - ABI 1's `refuse` slot, the app's own 405 and `OPTIONS`.
+
+    Every reader has goldens from Phpanta and a fuzz mode.
+  - **The gate is `test/cserve/diff.sh`.** It runs two hosts on one staged tree, PHP alone and the
+    app in front, and compares 259 requests: status, headers in order, body. It normalises only
+    the host's own headers, the framing, the ETag's value, and php-cgi's default `text/html` on a
+    redirect. `SAN=1` runs both under ASan+UBSan.
+  - **Known gap:** the switch reads a Referer's path without WHATWG's normalising (dot segments,
+    percent-encoding). A browser sends one normalised already.
+
 - **c5. PHP leaves.**
   - The last route goes native and the fallthrough is deleted.
   - `phpanta/` stops being deployed; whether it stays as a submodule is its own question.
@@ -194,12 +234,8 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
 
 ## Open questions
 
-- **Data.** `data/*.php` is PHP code.
-  - Releases could be compiled into the binary, generated C that is public anyway. Or they could
-    be JSON read at start-up through a strict parser.
-  - Demos are gitignored and carry password hashes. They need a runtime file either way, unless
-    the box's verity partition takes them.
-- **bcrypt:** a verifier of our own, or re-minted demo passwords.
+- **Data after c5.** Until PHP leaves, `data/*.php` is the source and `app/gen/` a print of it.
+  Then the release and demo tooling has to write the new formats itself.
 - **Concurrency model for c6:** an event loop, or a fixed worker pool with per-connection deadlines.
 - **The tooling.** About 18k lines of PHP import runtime classes (`Site`, `MusicalKey`, the API
   enums) and write PHP into `data/`. Once the admin is gone, they need only the data format and

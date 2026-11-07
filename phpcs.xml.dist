@@ -23,6 +23,9 @@
 
     <!-- Composer dev dependencies are not ours to lint. -->
     <exclude-pattern>vendor/*</exclude-pattern>
+    <!-- The drops are the framework's to read: data/drops/ is 0700 and owned by the pool's user,
+         so walking it is a fatal, not a skip, and every lint after it never runs. -->
+    <exclude-pattern>data/drops/*</exclude-pattern>
 
     <!-- The one file whose method names are not ours to choose. test/unit/PhpInputStream.php is a
          stream wrapper, and PHP's streams API dispatches on exactly these names — `stream_open`,
@@ -100,10 +103,11 @@
         <exclude name="Squiz.Commenting.FunctionComment.IncorrectParamVarName"/>
     </rule>
 
-    <!-- A bootstrap and a data file both have to load something *and* define something;
-         that is what they are for. -->
+    <!-- A bootstrap, a data file and a script that prints with helpers of its own all have to
+         load something *and* define something; that is what they are for. -->
     <rule ref="PSR1.Files.SideEffects.FoundWithSymbols">
         <exclude-pattern>test/bootstrap.php</exclude-pattern>
+        <exclude-pattern>test/cserve/goldens.php</exclude-pattern>
         <exclude-pattern>data/*.php</exclude-pattern>
     </rule>
 

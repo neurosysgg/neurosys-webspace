@@ -129,7 +129,7 @@ final class StageDemoTest extends TestCase
     }
 
     /**
-     * One draw of the characters, without the bcrypt that {@link Password::mint()} pays afterwards.
+     * One draw of the characters, without the PBKDF2 that {@link Password::mint()} pays afterwards.
      *
      * Reflection because the generator is private and should be: what the class offers is a minted
      * password, and a public way to get characters without a hash is an invitation to store one.
@@ -485,7 +485,7 @@ final class StageDemoTest extends TestCase
         self::assertStringNotContainsString($match[1], $out);
 
         // And what does go to stdout is the hash, which is the half that is meant to be written down.
-        self::assertMatchesRegularExpression('/\$2y\$\d+\$/', $out);
+        self::assertMatchesRegularExpression('/\$pbkdf2-sha256\$\d+\$/', $out);
     }
 
     // ───────────────────────────── the entry ─────────────────────────────

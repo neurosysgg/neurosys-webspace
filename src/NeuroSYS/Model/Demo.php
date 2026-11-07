@@ -46,7 +46,7 @@ final readonly class Demo
      * Constructs an instance of {@link self}.
      *
      * @param string       $title       What the track is called, for the heading and the terminal.
-     * @param PasswordHash $password    The bcrypt digest of this demo's own password. One per demo:
+     * @param PasswordHash $password    The PBKDF2 digest of this demo's own password. One per demo:
      *                                  handing out one does not hand out another.
      * @param Collection<DemoTrack> $tracks The mixes, newest first — the first is what the page
      *                                  leads with.

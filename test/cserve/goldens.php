@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+namespace NeuroSYS\Test\CServe;
+
 /*
  * The expectations c-serve's toolkit (kit/) is tested against, printed by the PHP it replaces: each
  * case is an input, and what Phpanta makes of it is the answer the C has to give. So the C's tests
@@ -43,12 +45,26 @@ enum GoldenParameter: string implements Parameter
     case A = 'a';
 }
 
-/** A catalog entry of two languages, as the C's CSERVE_TEXT_IN("...", "..."). */
+/**
+ * A catalog entry of two languages, as the C's CSERVE_TEXT_IN("...", "...").
+ *
+ * @param string $en
+ * @param string $de
+ * @return Translatable
+ */
 function words(string $en, string $de): Translatable
 {
     return new class ($en, $de) implements Translatable {
+        /**
+         * @param string $en
+         * @param string $de
+         */
         public function __construct(private string $en, private string $de) {}
 
+        /**
+         * @param Language $language
+         * @return string
+         */
         public function in(Language $language): string
         {
             return $language === Language::German ? $this->de : $this->en;
@@ -56,7 +72,12 @@ function words(string $en, string $de): Translatable
     };
 }
 
-/** $s as a C string literal: octal escapes for anything but plain characters (no trigraphs). */
+/**
+ * $s as a C string literal: octal escapes for anything but plain characters (no trigraphs).
+ *
+ * @param string $s
+ * @return string
+ */
 function c(string $s): string
 {
     $out = '"';
@@ -70,7 +91,14 @@ function c(string $s): string
     return $out . '"';
 }
 
-/** n strings of 1 to $most of $tokens, drawn by the seeded generator. */
+/**
+ * $n strings of 1 to $most of $tokens, drawn by the seeded generator.
+ *
+ * @param list<string> $tokens
+ * @param int          $n
+ * @param int          $most
+ * @return list<string>
+ */
 function drawn(array $tokens, int $n, int $most): array
 {
     $drawn = [];
@@ -142,7 +170,8 @@ $lines[] = '';
 // Range against files of a few sizes: 0 none, 1 partial (first, last), 2 unsatisfiable.
 $pieces = ['bytes=', 'BYTES=', 'bytes =', '0', '1', '5', '10', '99', '-', '-', ',', ' ', '00',
     '9223372036854775807', '9223372036854775808', 'a', "\t"];
-$lines[] = '__attribute__((unused)) static const struct { const char *header; long long size; int kind; long long first, last; } GOLD_RANGE[] = {';
+$lines[] = '__attribute__((unused)) static const struct '
+    . '{ const char *header; long long size; int kind; long long first, last; } GOLD_RANGE[] = {';
 $heads = ['bytes=0-', 'bytes=0-0', 'bytes=-0', 'bytes=-5', 'bytes=5-1', 'bytes=0-99', 'bytes=10-',
     ' bytes=1-2 ', 'bytes=1-2,3-4', ...drawn($pieces, 500, 6)];
 foreach ($heads as $h) {
@@ -162,7 +191,8 @@ $lines[] = '';
 // The query's parameter a: 0 its value, 1 not there, -1 unreadable.
 $pairs = ['a', 'b', '=', '&', '+', '%20', '%', '%z', '%zz', '%C3%BC', '%FF', '%C0%80', '%ED%A0%80', 'a=1',
     'a=', 'aa', '%61', '%3D', '%26'];
-$lines[] = '__attribute__((unused)) static const struct { const char *query; int rc; const char *value; } GOLD_QUERY[] = {';
+$lines[] = '__attribute__((unused)) static const struct '
+    . '{ const char *query; int rc; const char *value; } GOLD_QUERY[] = {';
 foreach (['', 'a', 'a=1&a=2', 'b=%FF&a=1', ...drawn($pairs, 500, 6)] as $q) {
     try {
         $value = Input::fromUrlEncoded($q)->text(GoldenParameter::A);
@@ -177,7 +207,8 @@ $lines[] = '';
 
 // The cookie lang: 0 its value, 1 not there.
 $crumbs = ['lang', '=', 'de', 'en', ';', ' ', '"', 'Lang', 'xlang', "\t", 'theme=dark', ''];
-$lines[] = '__attribute__((unused)) static const struct { const char *cookie; int rc; const char *value; } GOLD_COOKIE[] = {';
+$lines[] = '__attribute__((unused)) static const struct '
+    . '{ const char *cookie; int rc; const char *value; } GOLD_COOKIE[] = {';
 foreach (['', 'lang=de', 'theme=dark; lang=de', 'lang="de"', 'lang="', ...drawn($crumbs, 400, 7)] as $h) {
     $value = RequestCookies::from($h)->value(CookieName::Language);
     $lines[] = sprintf('    {%s, %d, %s},', c($h), $value === null ? 1 : 0, c($value ?? ''));
@@ -245,12 +276,106 @@ $trees = [
     'attrs'     => $e(T::Audio)->attr(A::Controls)->attr(A::Preload, '')->attr(A::Src, '/a?x=1&y=2'),
     'fragment'  => new Fragment(
         $e(T::Title)->containing('T'),
-        $e(T::Section)->containing($e(T::P)->containing('x'), $e(T::Button)->containing('b'), $e(T::Button)->containing('c')),
+        $e(T::Section)->containing(
+            $e(T::P)->containing('x'),
+            $e(T::Button)->containing('b'),
+            $e(T::Button)->containing('c'),
+        ),
     ),
 ];
 $lines[] = '__attribute__((unused)) static const struct { const char *name, *html; } GOLD_MARKUP[] = {';
 foreach ($trees as $name => $tree) {
     $lines[] = '    {' . c($name) . ', ' . c($tree->render(0, Language::English)) . '},';
+}
+$lines[] = '};';
+$lines[] = '';
+
+// Basic credentials (AuthScheme::Basic): the user and the password, both empty where there is none.
+// A payload that decodes to a NUL is left out — PHP keeps it, the C refuses the credential, and either
+// way no digest matches it.
+$payloads = ['demo:pw', 'demo:', ':pw', 'demo', 'demo:p:w', 'dämo:pässwort', '', 'a:b c'];
+$wraps = [
+    fn($b) => "Basic $b", fn($b) => "basic $b", fn($b) => "BASIC  $b", fn($b) => "Basic\t$b",
+    fn($b) => "Basic $b ", fn($b) => "Basic " . rtrim($b, '='), fn($b) => "Basic " . substr($b, 0, -1),
+    fn($b) => "Basic =$b", fn($b) => "Basic $b=", fn($b) => "Basic " . chunk_split($b, 4, ' '),
+    fn($b) => "Basic " . strtr($b, '+/', '-_'), fn($b) => "Bearer $b", fn($b) => "Basic", fn($b) => "Basic ",
+    fn($b) => "Basic \n$b", fn($b) => "Basic $b*", fn($b) => "Basicx $b",
+];
+$lines[] = '__attribute__((unused)) static const struct { const char *header, *user, *pass; } GOLD_BASIC[] = {';
+foreach ([...$payloads, ...drawn(['a', ':', 'ü', ' ', 'z9', "\xFF", '+', '/'], 60, 6)] as $payload) {
+    foreach ($wraps as $wrap) {
+        $header = $wrap(base64_encode($payload));
+        [$user, $pass] = \Phpanta\Http\AuthScheme::Basic->credentials($header);
+        if (str_contains($user . $pass, "\0")) {
+            continue;
+        }
+        $lines[] = '    {' . c($header) . ', ' . c($user) . ', ' . c($pass) . '},';
+    }
+}
+$lines[] = '};';
+$lines[] = '';
+
+// A demo's realm: rawurlencode() of a slug, and whether BasicChallenge takes the realm it makes.
+$lines[] = '__attribute__((unused)) static const struct { const char *in, *out; } GOLD_RAWURLENCODE[] = {';
+foreach (['wna-bootleg', 'a b', 'ü', '%', '"', '\\', "\x01", '~._-', ...drawn($bytes, 100, 5)] as $slug) {
+    $lines[] = '    {' . c($slug) . ', ' . c(rawurlencode($slug)) . '},';
+}
+$lines[] = '};';
+$lines[] = '';
+$lines[] = '__attribute__((unused)) static const struct { const char *realm; int ok; } GOLD_REALM[] = {';
+$realms = ['neuro.SYS demo: x', '', ' ', "\t", '"', '\\', "\x7F", "\xC3\xBC", '%22', 'a"b', '!#[]~', "a\x01"];
+foreach ($realms as $realm) {
+    try {
+        new \Phpanta\Http\BasicChallenge($realm);
+        $ok = 1;
+    } catch (\Phpanta\Exception\SiteException) {
+        $ok = 0;
+    }
+    $lines[] = '    {' . c($realm) . ', ' . $ok . '},';
+}
+$lines[] = '};';
+$lines[] = '';
+
+// PasswordHash: whether a digest is one it reads, and whether a password matches it. Salts are fixed
+// so the file is deterministic; the cost is the floor, so the C's suite stays quick.
+$pbkdf2 = static fn(string $pw, string $salt, int $n = 100_000, int $len = 32): string => sprintf(
+    '$pbkdf2-sha256$%d$%s$%s',
+    $n,
+    base64_encode($salt),
+    base64_encode(hash_pbkdf2('sha256', $pw, $salt, $n, $len, true)),
+);
+$good = $pbkdf2('hunter2', str_repeat("\x5A", 16));
+$digests = [
+    [$good, 'hunter2'], [$good, 'hunter3'], [$good, ''], [$good, 'hunter2 '],
+    [$pbkdf2('pässwört', str_repeat("\xA5", 24), 100_000, 48), 'pässwört'],
+    [$pbkdf2('', str_repeat("\x00", 16)), ''],
+    [$pbkdf2('x', str_repeat('s', 16), 99_999), 'x'],
+    [$pbkdf2('x', str_repeat('s', 15)), 'x'],
+    [$pbkdf2('x', str_repeat('s', 16), 100_000, 31), 'x'],
+    [rtrim($good, '='), 'hunter2'],
+    [str_replace('$100000$', '$0100000$', $good), 'hunter2'],
+    [str_replace('sha256', 'sha512', $good), 'hunter2'],
+    [$good . "\n", 'hunter2'],
+    [$good . '$', 'hunter2'],
+    [
+        '$pbkdf2-sha256$100000$' . substr(base64_encode(str_repeat("\x5A", 16)), 0, -3) . 'b==$'
+            . explode('$', $good)[4],
+        'hunter2',
+    ],
+    ['$2y$04$abcdefghijklmnopqrstuuJ3wIDMqWkiF5gq7l1Jx5ScXQX7Qn2CS', 'x'],
+    ['', ''],
+];
+$lines[] = '__attribute__((unused)) static const struct '
+    . '{ const char *digest, *password; int valid, match; } GOLD_PASSWORD[] = {';
+foreach ($digests as [$digest, $password]) {
+    try {
+        $hash = new \Phpanta\Support\PasswordHash($digest);
+        $valid = str_starts_with($digest, '$pbkdf2') ? 1 : 0;   // bcrypt is PHP's alone
+        $match = $valid && $hash->matches($password) ? 1 : 0;
+    } catch (\Phpanta\Exception\SiteException) {
+        [$valid, $match] = [0, 0];
+    }
+    $lines[] = '    {' . c($digest) . ', ' . c($password) . ', ' . $valid . ', ' . $match . '},';
 }
 $lines[] = '};';
 

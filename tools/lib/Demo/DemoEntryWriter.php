@@ -86,7 +86,7 @@ final readonly class DemoEntryWriter
     }
 
     /**
-     * `new PasswordHash('$2y$…')`.
+     * `new PasswordHash('$pbkdf2-sha256$…')`.
      *
      * The digest is written into the entry rather than into a file of its own, because a demo's
      * credential belongs to the demo: one object, one password, and nothing to keep in step. The

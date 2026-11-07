@@ -66,7 +66,7 @@ final readonly class Password
     {
         $plaintext = self::plaintext();
 
-        return new self($plaintext, new PasswordHash(password_hash($plaintext, PASSWORD_BCRYPT)));
+        return new self($plaintext, PasswordHash::mint($plaintext));
     }
 
     /**
@@ -74,7 +74,7 @@ final readonly class Password
      *
      * Separate from {@link self::mint()} so the two properties can be tested apart: what this
      * produces is checked over many draws, and hashing it is checked once. Together they would be
-     * one bcrypt per draw, and bcrypt is slow on purpose — a suite that mints fifty passwords to
+     * one PBKDF2 per draw, and PBKDF2 is slow on purpose — a suite that mints fifty passwords to
      * prove they differ spends twelve seconds proving it.
      *
      * @return string

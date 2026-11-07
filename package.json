@@ -9,7 +9,7 @@
     },
     "scripts": {
         "dev": "php -S localhost:8080 -t public phpanta/tools/dev-router.php",
-        "build": "tsc && node phpanta/tools/build-css.mjs && node phpanta/tools/build-assets.mjs",
+        "build": "tsc && node phpanta/tools/build-css.mjs && node phpanta/tools/build-assets.mjs && php tools/app-data.php",
         "build:css": "node phpanta/tools/build-css.mjs",
         "build:assets": "node phpanta/tools/build-assets.mjs",
         "build:prod": "npm run build && node phpanta/tools/build-prod.mjs",

@@ -1,3 +1,6 @@
 [submodule "phpanta"]
 	path = phpanta
 	url = ../phpanta.git
+[submodule "c-serve"]
+	path = c-serve
+	url = ../c-serve.git

@@ -66,7 +66,7 @@ final class DemoGate
      *
      * The wasted comparison against {@link PasswordHash::unmatchable()} is the other half of that,
      * and it is not decoration: returning early on a null demo answers in microseconds where a real
-     * demo pays bcrypt, so the uniform 401 would be undone by a stopwatch. Same reasoning as
+     * demo pays PBKDF2, so the uniform 401 would be undone by a stopwatch. Same reasoning as
      * {@link Auth::matches()}'s refusal to short-circuit, applied one level out.
      *
      * It answers the demo, or the 401 to return in its place. A caller that has been let through
