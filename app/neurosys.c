@@ -1,8 +1,8 @@
 /* neurosys.gg as a c-serve app: its routes (RouteInitialization), the
  * security policy its pages need (Site::contentHosts()), what a method
  * no route takes is answered with (Router::refuse(), ::options()), and the
- * demos read before the first request. Every route not here yet is
- * still PHP's, behind the host's CGI front. */
+ * demos read before the first request, and what no route fits
+ * (UnroutedController): the host runs it with no CGI front. */
 #include "app.h"
 #include "views.h"
 
@@ -25,21 +25,11 @@ static const char *const IMAGES[] = {NS_FILE_HOST, NULL};
 static const char *const FRAMES[] = {NS_PLAYER_HOST, NULL};
 static const CSERVE_SECURITY SECURITY = {.img = IMAGES, .frame = FRAMES};
 
-/* a method no route takes: OPTIONS is told which they do (204), anything
- * else that the site is read-only, in the visitor's language (405) */
-static void refuse(const CSERVE_HTTPD_REQ *r, const char *body, unsigned allow,
-                   CSERVE_HTTPD_REPLY *rep) {
-  (void)body;
+/* that the site is read-only, in the visitor's language (405), naming
+ * the methods allow takes */
+static void read_only(const CSERVE_HTTPD_REQ *r, unsigned allow,
+                      CSERVE_HTTPD_REPLY *rep) {
   char methods[64];
-  if (!strcmp(r->method, "OPTIONS")) {
-    cserve_route_allow_text(allow | CSERVE_OPTIONS, methods, sizeof methods);
-    if (cserve_header(rep, CSERVE_H_ALLOW, methods) != 0) {
-      ns_fail(rep);
-      return;
-    }
-    cserve_httpd_text(rep, 204, NULL, "", 0);
-    return;
-  }
   cserve_route_allow_text(allow, methods, sizeof methods);
   CSERVE_ARENA *a = cserve_arena_new();
   const char *words = a ? cserve_tr_in(a, &T_FRAMEWORK_READ_ONLY,
@@ -55,6 +45,42 @@ static void refuse(const CSERVE_HTTPD_REQ *r, const char *body, unsigned allow,
     cserve_httpd_text(rep, 405, "text/plain; charset=utf-8", text,
                       strlen(text));
   }
+  cserve_arena_free(a);
+}
+
+/* a method no route takes: OPTIONS is told which they do (204), anything
+ * else that the site is read-only (405) */
+static void refuse(const CSERVE_HTTPD_REQ *r, const char *body, unsigned allow,
+                   CSERVE_HTTPD_REPLY *rep) {
+  (void)body;
+  if (strcmp(r->method, "OPTIONS") != 0) {
+    read_only(r, allow, rep);
+    return;
+  }
+  char methods[64];
+  cserve_route_allow_text(allow | CSERVE_OPTIONS, methods, sizeof methods);
+  if (cserve_header(rep, CSERVE_H_ALLOW, methods) != 0) {
+    ns_fail(rep);
+    return;
+  }
+  cserve_httpd_text(rep, 204, NULL, "", 0);
+}
+
+/* what no route fits: a read is the 404 page, anything else -- OPTIONS
+ * too, which only a route answers with 204 -- that the site is read-only */
+static void not_found(const CSERVE_HTTPD_REQ *r, const char *body,
+                      CSERVE_HTTPD_REPLY *rep) {
+  (void)body;
+  if (strcmp(r->method, "GET") != 0 && strcmp(r->method, "HEAD") != 0) {
+    read_only(r, CSERVE_GET | CSERVE_HEAD, rep);
+    return;
+  }
+  CSERVE_ARENA *a = cserve_arena_new();
+  if (!a) {
+    ns_fail(rep);
+    return;
+  }
+  ns_not_found(r, a, rep);
   cserve_arena_free(a);
 }
 
@@ -75,5 +101,6 @@ const CSERVE_APP cserve_app_neurosys = {
     .nroutes = sizeof ROUTES / sizeof *ROUTES,
     .fini = fini,
     .security = &SECURITY,
+    .not_found = not_found,
     .refuse = refuse,
 };

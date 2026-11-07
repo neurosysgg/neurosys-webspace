@@ -39,8 +39,9 @@ remote's URL changes, `git submodule sync`.
 ## The native app
 
 **`app/` is this site as a c-serve app, in C** — the host the site moves to from PHP
-([docs/research/c-serve.md](docs/research/c-serve.md)). Every route is native, and php-cgi
-answers the rest until c5. It builds against c-serve from outside its tree:
+([docs/research/c-serve.md](docs/research/c-serve.md)). Every route is native, and so is
+what no route fits: the app runs with no CGI behind it, and the admin, `/drop` and `/api` are
+natively addresses that do not exist. It builds against c-serve from outside its tree:
 `make -C c-serve EXTERNAL_APPS=neurosys=$PWD/app`. Lint that with `lint`, and format
 it with `format`, through `app/.clang-format`.
 
@@ -53,8 +54,9 @@ and `test/cserve/diff.sh` build it from here, else from `~/Projects/c-serve`, or
   catalogs, the vocabulary, the manifest, the releases and the privacy policy as a tree, plus
   `data/demos.json`. Change the PHP, then rerun the command; never edit `app/gen/`, which the
   verify script fails on drift.
-- **A route goes native only when `bash test/cserve/diff.sh` is silent**: PHP and the app answer
-  259 requests byte for byte.
+- **A change to a page lands only when `bash test/cserve/diff.sh` is silent**: PHP (as Strato runs
+  it) and the app answer 370 requests byte for byte, and the addresses only PHP has answer
+  natively as `/nope` does.
 - **A capture is matched on the path as sent, then `rawurldecode`d**, as Phpanta's router does —
   `ns_match()`, never the host's decoded path.
 

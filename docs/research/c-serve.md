@@ -1,10 +1,9 @@
 # Research — c-serve, the site's core in C
 
-> **Status: c0–c4 built and committed (2026-11-07)**: the conformance suite, the extracted stack, its host
-> serving this site through php-cgi (`test/cserve.sh`: 113/113 on every run), the toolkit an app is
-> written in, checked case by case against Phpanta's own answers, and this site as a native app
-> (`app/`) whose every route answers as the PHP does (`test/cserve/diff.sh`: 259 cases, byte for
-> byte). Recorded 2026-10-29. This takes neurosys.gg's
+> **Status: c0–c5 built (2026-11-07)**: the conformance suite, the extracted stack, its host, the
+> toolkit an app is written in, checked case by case against Phpanta's own answers, and this site as
+> a native app (`app/`) that runs with no PHP behind it (`test/cserve.sh`: 113/113) and answers as
+> the PHP does (`test/cserve/diff.sh`: 370 cases, byte for byte). Recorded 2026-10-29. This takes neurosys.gg's
 > runtime off PHP. A C web host serves the site, and the site is a first-class app compiled for it.
 > The host fuses Phpanta's `App` contract with ctui-wm's plugin architecture, on the HTTP/TLS
 > server that ctui-wm already has. It reverses "not a rewrite away from PHP" in
@@ -187,7 +186,7 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
   - Every route is native: `/`, `/releases`, a release, a download, `/demos/{slug}` and its audio,
     `/imprint`, `/privacy` and the language switch, plus the 405 and `OPTIONS` answers on them. The
     php-cgi front still answers what no route claims (PHP's 404 and its write-method 405) and
-    `/admin`; c5 deletes it.
+    `/admin`; c5 deleted it.
   - **The app is `app/` in this repo**, built against c-serve from outside its tree
     (`make EXTERNAL_APPS=neurosys=<repo>/app`). c-serve's lint covers it, through `app/.clang-format`.
   - **The data is compiled in.** `php tools/app-data.php` prints `app/gen/` from the PHP:
@@ -223,14 +222,22 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
   - **Known gap:** the switch reads a Referer's path without WHATWG's normalising (dot segments,
     percent-encoding). A browser sends one normalised already.
 
-- **c5. PHP leaves.**
-  - The last route goes native and the fallthrough is deleted.
-  - `phpanta/` stops being deployed; whether it stays as a submodule is its own question.
+- **c5. PHP leaves the host.** *Done.*
+  - **The fallthrough is gone.** The app has a `not_found` slot, `UnroutedController`'s answer: a
+    read is the 404 page, any other method (OPTIONS too) the read-only 405 with `Allow: GET, HEAD`.
+    The host runs it with no `--cgi`; `cgi.c` stays in c-serve, where ctui-remote uses it.
+  - **The admin, `/drop` and `/api` are natively absent**: each answers as `/nope` does, which
+    `diff.sh` asserts of the app alone. PHP keeps them, since Strato keeps running PHP until the box
+    exists; the footer's admin link is PHP's and the app's alike, byte for byte.
+  - **Strato stays PHP** (the user's call, 2026-11-07), so `phpanta/` keeps being deployed there
+    until the move to the box, and `diff.sh`'s PHP side is the reference for both.
+  - `test/cserve.sh` runs the conformance suite against the app alone; its PHP-only runs went with
+    the CGI.
 - **c6. Public-internet hardening**, needed before the box takes traffic:
   - replace thread-per-connection with an event loop, or bound it tightly;
   - a gzip encoder, the access log and cert reload;
   - mbedtls built with threading, or one TLS context per worker;
-  - the static production build.
+  - the static production build, and `test/cserve.sh` against the production layout with it.
 
 ## Open questions
 

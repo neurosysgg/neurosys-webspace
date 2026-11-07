@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
-# The gate a route passes to go native (docs/research/c-serve.md, phase c4): every request below
+# The gate the native app keeps (docs/research/c-serve.md, phases c4 and c5): every request below
 # asked of two c-serve hosts on one staged tree — A hands everything to php-cgi, which is the PHP
-# site as it runs today; B has the neurosys app (app/) in front of the same CGI — and the two
-# answers compared: the status, every header in order, the body byte for byte.
+# site as it runs on Strato; B is the neurosys app (app/) alone, with no CGI behind it — and the
+# two answers compared: the status, every header in order, the body byte for byte.
+#
+# The addresses only PHP has — the admin, /drop — are asked of B alone, and each must answer
+# exactly as an address that does not exist.
 #
 # What may differ, and is taken out of both before they are compared:
 #   - Date, Server and Connection, which are the host's;
@@ -92,8 +95,8 @@ head -c 0 /dev/urandom > "$STAGE/data/demos/fixture/v1.ogg"
 # --- the two hosts ------------------------------------------------------------------------------
 start() {
     local port="$1"; shift
-    "$BIN/cserve" --listen "127.0.0.1:$port" --root "$STAGE/public" --cgi php-cgi --climb front \
-        --env PHPANTA_ENVIRONMENT=development "$@" >"$STAGE/host-$port.log" 2>&1 &
+    "$BIN/cserve" --listen "127.0.0.1:$port" --root "$STAGE/public" --climb front \
+        "$@" >"$STAGE/host-$port.log" 2>&1 &
     PIDS+=($!)
     for _ in $(seq 50); do
         grep -q "listening on" "$STAGE/host-$port.log" 2>/dev/null && return 0
@@ -101,7 +104,7 @@ start() {
     done
     echo "ERROR: the host on :$port did not start:"; cat "$STAGE/host-$port.log"; exit 1
 }
-start "$PORT_A"
+start "$PORT_A" --cgi php-cgi --env PHPANTA_ENVIRONMENT=development
 start "$PORT_B" --app "$BIN/apps/neurosys.so" --data "$STAGE/data"
 
 # --- one answer, normalised ---------------------------------------------------------------------
@@ -171,17 +174,16 @@ AUTH=(-u "demo:$PASSWORD")
 PAGES=(/ /releases /releases/ill /releases/hello-world /imprint /privacy /releases/nope
        /releases/ill/ /imprint/ /rel%65ases /releases/%69ll /releases//ill /imprint?x=1)
 
-# B must answer the routes itself: a framed body is the app's, a chunked one php-cgi's. Without
-# this an app that never loaded would hand everything to the CGI and pass every case.
+# B's app must have loaded: without it the host answers every path with its own plain 404, which
+# no case below would mistake for a page — but the failure is clearer said here.
 native() {
-    curl -s -D- -o /dev/null "${@:2}" "http://127.0.0.1:$PORT_B$1" | tr -d '\r' \
-        | grep -qi '^Content-Length: [1-9]'
+    [[ "$(curl -s -o /dev/null -w '%{http_code}' "${@:2}" "http://127.0.0.1:$PORT_B$1")" == 200 ]]
 }
-for path in / /releases /releases/ill /imprint /privacy /releases/nope; do
-    native "$path" || { echo "ERROR: B handed $path to php-cgi — the app is not answering it."; exit 1; }
+for path in / /releases /releases/ill /imprint /privacy; do
+    native "$path" || { echo "ERROR: B does not answer $path — the app is not loaded."; exit 1; }
 done
 native /demos/fixture -u "demo:$PASSWORD" \
-    || { echo "ERROR: B handed /demos/fixture to php-cgi, or its gate refused the password."; exit 1; }
+    || { echo "ERROR: B's demo gate refused the fixture's password."; exit 1; }
 
 echo "##### c-serve, PHP (A, :$PORT_A) against the app (B, :$PORT_B)"
 echo "=== pages, in each language, as a document and as the SPA's fragment"
@@ -247,6 +249,48 @@ for path in / /releases /releases/ill /releases/ill/flac /demos/fixture /demos/f
         case_ "$method" "$path"
     done
     case_ POST "$path" -H 'Accept-Language: de'
+done
+
+echo "=== an address no route has"
+for path in /nope /releases/ill/flac/x /nope/deeper '/no%20such' /index.php; do
+    case_ GET "$path"
+    case_ GET "$path" -H 'Accept-Language: de'
+    case_ GET "$path" -H 'X-Requested-With: XMLHttpRequest'
+    case_ HEAD "$path"
+    for method in POST PUT DELETE OPTIONS PATCH BREW; do
+        case_ "$method" "$path"
+    done
+    case_ POST "$path" -H 'Accept-Language: de'
+done
+
+# METHOD PATH [curl args...] asked of B and compared with B's own /nope, the path the 404 page's
+# terminal shows taken out of both: an address only PHP has is, natively, one that does not exist
+absent() {
+    local method="$1" path="$2"; shift 2
+    CASES=$((CASES + 1))
+    fetch "$STAGE/b" "$PORT_B" "$method" "$path" "$@"
+    fetch "$STAGE/n" "$PORT_B" "$method" /nope "$@"
+    sed -i 's/command="find &quot;[^&]*&quot;"/command="find (the path)"/' "$STAGE/b.body" "$STAGE/n.body"
+    if cmp -s "$STAGE/n.head" "$STAGE/b.head" && cmp -s "$STAGE/n.body" "$STAGE/b.body"; then
+        [[ -n "${VERBOSE:-}" ]] && echo "  none  $method $path $*"
+        return 0
+    fi
+    DIFFS=$((DIFFS + 1))
+    echo "  DIFF  $method $path $* (B, against B's /nope)"
+    diff <(cat "$STAGE/n.head"; echo; cat "$STAGE/n.body") \
+         <(cat "$STAGE/b.head"; echo; cat "$STAGE/b.body") | head -20 | sed 's/^/        /'
+}
+
+echo "=== the addresses only PHP has, natively absent"
+for path in /admin /admin/ /admin/update /admin/update/v1 /admin/update/v1/version /drop /api \
+            /api/update/v1/patch; do
+    absent GET "$path"
+    absent GET "$path" -H 'Accept: application/json'
+    absent GET "$path" -H 'Accept-Language: de'
+    absent HEAD "$path"
+    absent POST "$path"
+    absent POST "$path" -H 'Authorization: NS1 x'
+    absent OPTIONS "$path"
 done
 
 # a sanitizer that spoke without stopping its host (UBSan, by default) spoke into its log

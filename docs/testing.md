@@ -13,7 +13,7 @@ runs both — unit tests first, then the verify script. Or separately:
 composer unit      # vendor/bin/phpunit
 composer verify    # bash test/basic_test.sh
 bash test/conformance.sh [BASE]   # the verify script's HTTP half, against any server
-bash test/cserve.sh               # the same against c-serve's host, debug tree and prod layout
+bash test/cserve.sh               # the same against c-serve's host and the native app alone
 bash test/cserve/diff.sh          # PHP against the native app (app/), answer for answer
 composer coverage  # both suites, merged into one report
 composer lint      # phpcs + php-cs-fixer, read-only
@@ -53,25 +53,27 @@ autoloader, the data files, repo hygiene, the demos (their fixture is a `data/de
 and the served custom tags, read against `Tag::cases()`.
 
 `test/cserve.sh` runs it against c-serve's host (`./c-serve`, else `~/Projects/c-serve`, or
-`CSERVE_DIR`): the files served natively, everything else through php-cgi. It runs three times:
-- against `public/`;
-- against `public/` again with the native app (`app/`) in front of the CGI;
-- against the production layout `deploy.sh` builds, staged in a scratch directory with the data
-  files the pages read and none of the credentials.
-
-It needs `php-cgi`, which nothing else here does.
+`CSERVE_DIR`) with the native app (`app/`) and nothing behind it: the files served natively, every
+route the app's, and what no route fits the app's own 404 or 405. The webroot is `public/`, since
+the app is printed against the debug manifest; the production layout natively waits for c6's static
+build.
 
 `test/cserve/diff.sh` is the gate a route passes to go native. It runs two hosts on one staged
-tree, one handing everything to php-cgi and one with the app in front, and compares 259 requests:
+tree, one handing everything to php-cgi (the site as Strato runs it) and one with the app alone,
+and compares 370 requests:
 status, every header in order, and the body byte for byte. The requests cover:
 - every page, in each language, as a document and as the SPA's fragment, and its 304;
 - the downloads and the language switch;
 - a staged demo's gate, page and audio, in ranges;
-- every write method.
+- every write method, on a route and on an address no route has.
+
+The addresses only PHP has — `/admin` and below, `/drop`, `/api` — are asked of the app alone, and
+each must answer exactly as its `/nope` does, the path in the 404 page's terminal aside.
 
 It normalises only what is the host's own (`Date`, `Server`, `Connection`, the framing), the
 ETag's value, and php-cgi's default `text/html` on a redirect. It first asserts that the app
-answers the routes itself, so an app that never loaded cannot pass. `SAN=1` runs it under
+answers the pages, so an app that never loaded fails at once. It needs `php-cgi` for the PHP side,
+which nothing else here does. `SAN=1` runs it under
 ASan+UBSan and fails on a sanitizer's report.
 
 `app/gen/` is printed from the PHP by `php tools/app-data.php` (`npm run build` runs it). The
