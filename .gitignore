@@ -1,6 +1,9 @@
 # Logs — operational data, don't commit
 data/logs/
 
+# The admin entrance's throttle — runtime state the pool writes, per deployment
+data/throttle/
+
 # OS junk
 .DS_Store
 
