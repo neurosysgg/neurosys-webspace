@@ -11,15 +11,16 @@
 #include <string.h>
 
 static const CSERVE_ROUTE ROUTES[] = {
-    {CSERVE_GET, "/", ns_home},
-    {CSERVE_GET, "/releases", ns_releases_page},
-    {CSERVE_GET, "/releases/{slug}", ns_release},
-    {CSERVE_GET, "/releases/{slug}/{format}", ns_download},
-    {CSERVE_GET, "/demos/{slug}", ns_demo},
-    {CSERVE_GET, "/demos/{slug}/{label}", ns_demo_audio},
-    {CSERVE_GET, "/imprint", ns_imprint},
-    {CSERVE_GET, "/privacy", ns_privacy},
-    {CSERVE_GET, "/language/{language}", ns_language},
+    {CSERVE_GET, "/", ns_home, 0},
+    {CSERVE_GET, "/releases", ns_releases_page, 0},
+    {CSERVE_GET, "/releases/{slug}", ns_release, 0},
+    {CSERVE_GET, "/releases/{slug}/{format}", ns_download, 0},
+    /* behind the demo password (PBKDF2): the slow lane's */
+    {CSERVE_GET, "/demos/{slug}", ns_demo, 1},
+    {CSERVE_GET, "/demos/{slug}/{label}", ns_demo_audio, 1},
+    {CSERVE_GET, "/imprint", ns_imprint, 0},
+    {CSERVE_GET, "/privacy", ns_privacy, 0},
+    {CSERVE_GET, "/language/{language}", ns_language, 0},
 };
 
 static const char *const IMAGES[] = {NS_FILE_HOST, NULL};

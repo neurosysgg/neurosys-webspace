@@ -1,6 +1,6 @@
 # Research — comms, the friend group's platform on c-serve
 
-> **Status: m1 and m2 built (2026-11-08); m3–m5 planned.** This is the plan of record for replacing Discord
+> **Status: m1–m3 built (2026-11-08); m4 and m5 planned.** This is the plan of record for replacing Discord
 > among a small friend group (five people to start) with text, voice, video and screen share, and
 > later live streams and recorded sets of the user's own productions. Everything runs on the
 > dedicated box, as c-serve code. It follows [c-serve.md](c-serve.md)'s c6, and it keeps
@@ -40,7 +40,7 @@
 | Concurrency | One epoll loop, every deadline in a min-heap; every handler on a fixed pool | the loop, the heap, the pool | — | `tools/abuse.py`, ASan, TSan; the heap against a sorted reference |
 | Throttling | A tarpit on the loop's deadlines (below) | the tarpit | SHA-256 for its keys | its own unit tests on an injected clock, abuse scripts |
 | Compression | Static files only, gzip copies made at deploy (`cserve-precompress`) | the tool, the choice of copy | zlib | the host test; never per request (BREACH) |
-| Login | Passkeys (WebAuthn) | the verifier, a CBOR subset | mbedtls ECDSA | `tools/authenticator.php` as a software peer |
+| Login | Passkeys (WebAuthn), ES256, no attestation: the key as SPKI beside the authenticator data, so no CBOR | the verifier (`kit/passkey`) | mbedtls ECDSA | `comms-authenticator` as a software peer |
 | Signalling and chat | SSE for server→client, POST for client→server | SSE framing | SQLite for history | the three browsers |
 | Media transport | ICE-lite and DTLS-SRTP on one UDP port; ICE-TCP as the fallback | STUN, the demux, the SRTP key derivation | mbedtls: DTLS-SRTP, AES-CTR, HMAC-SHA1 | RFC 5769 and RFC 3711 vectors; pion as a peer |
 | SFU | Forward RTP; answer NACK and PLI; send TWCC feedback on every incoming stream | RTP/RTCP, an SDP subset | — | the three browsers under Playwright with fake media |
@@ -141,9 +141,37 @@ Each phase ends when its gate is green, and each gate runs offline.
   - `test/cserve.sh` 113/113 on all three runs, the prod tree's included.
 
   After m2, c-serve can run on the box alone and take neurosys.gg.
-- **m3 — text.** Passkey enrolment and login, sessions, SSE, chat rooms and history in SQLite.
-  *Gate:* the software authenticator against every ceremony promise; fuzzed CBOR and SSE; the three
-  browsers under Playwright.
+- **m3 — text.** *Built* (2026-11-08), in its own repo, `~/Projects/comms`, as a c-serve app
+  served on a name of its own (`--app comms --for HOST --app-root DIR`).
+  - **Joining** is by invite. `comms-invite`, on the admin's own machine, signs a token with a
+    P-256 key, and the box holds only `invite.pub`. The token rides the link's fragment, and its
+    nonce is spent once. A revocation is the same kind of token.
+  - **Passkeys:** ES256, discoverable credentials, user verification required, no attestation.
+    The key comes as SPKI, so no CBOR is read. `kit/passkey` also checks that the attested
+    credential and key are the ones posted.
+  - **State is server-side in SQLite**: challenges spent by deleting them, sessions stored as the
+    SHA-256 of a `__Host-` cookie. The one cross-site rule is the `Origin` check, with
+    `SameSite=Strict` as well.
+  - **SQLite is the vendored amalgamation (3.54.1)**, pinned by SHA3-256 and checked before every
+    build. It is compiled in with its own options and kept out of lint. There is a connection per
+    thread, and the loop has a read-only one of its own.
+  - **Chat** is SSE on c-serve's new loop streams plus POST. A post wakes the room's streams, and
+    a woken stream reads what is new from the database.
+  - **The password lane** (slow routes hold at most half the workers) answers the open question
+    below.
+  - **The crypto lock**: key slots and the RNG are taken under `tls.c`'s lock, since mbedtls here
+    has no threading.
+
+  *Gate:*
+  - `comms-authenticator` holds a running host to every ceremony promise (30 checks) and to the
+    tarpit (4), under ASan, TSan and -O2.
+  - The kit's fuzz modes 10–13: client data, authenticator data, SSE, base64url and cookies.
+  - The three browsers under Playwright (`make browsers`). Chromium runs the real ceremonies
+    with its virtual authenticator. Firefox and WebKit stream between two contexts, reconnect
+    after going offline, page through history and carry a 4000-byte message. WebKit runs in
+    Playwright's Ubuntu 24.04 image, since its build wants that release's libraries.
+  - c-serve's `make check`, `make abuse` (a password flood now leaves pages at 0.00 s) and
+    `make acme`.
 - **m4 — voice, video, screen share.** STUN and ICE-lite, DTLS-SRTP, the SRTP key derivation,
   RTP/RTCP forwarding with NACK, PLI and TWCC, the SDP subset, the `media` process. DTLS-SRTP
   through mbedtls is proven against all three browsers before anything is built on it. A music mode
@@ -176,15 +204,14 @@ public stream.
 
 ## Open questions
 
-- **Password floods and the pool.** Every handler shares one FIFO pool, so a flood of password
-  checks (PBKDF2 each) makes a page wait behind up to a queue's worth of them: about a second at
-  -O2 in the abuse suite, never unbounded. A lane for password checks, at most half the workers
-  and a quick 503 past that, would keep pages prompt under one. Decide before the box takes
-  traffic.
-
-- **Invitations.** Admin services are scrapped, so who mints the link a friend enrols a passkey
-  with? The lean answer is an invite signed offline with a P-256 key whose public half the box
-  holds, as `update.pub` was.
+- **Password floods and the pool — answered (m3).** A route that checks a password is `slow`, and
+  slow requests hold at most half the workers, queued or running. Past that they get a quick 503.
+  Under a flood, pages are answered at once, under either sanitizer.
+- **Invitations — answered (m3).** An invite is signed offline with a P-256 key whose public half
+  the box holds, and so is a revocation (`comms-invite`).
+- **PSA on workers — answered (m3).** mbedtls is built without threading, so every use of a key
+  slot or the RNG outside `tls.c` takes its lock (`cserve_crypto_lock()`). Keyless hashing and
+  PBKDF2 over bytes don't, so a password check never holds up a handshake.
 - **The SDP subset.** Exactly which lines, codecs (Opus, VP8 or H.264) and extensions are accepted;
   everything else is refused.
 - **TWCC.** Feedback interval and packet format detail, settled in m4 against the browsers.
