@@ -89,6 +89,14 @@ ceremony and the brake on the demo gate's passwords.
 
 ## On the box
 
+The box is built in its own repo, `~/Projects/box` (local only): one build gives `box.raw`, the
+disk image both the local VM and the real box boot, and `box.iso`, an installer around it. Its
+gate boots the image and holds it to this section: the two processes, the three ports, the
+kernel's settings, and neurosys's `test/conformance.sh` against the box. Its README has the
+detail. Its stages are b1 (the image serves, built 2026-11-08), b2 (dm-verity, a signed UKI,
+Secure Boot) and b3 (TPM-sealed `/var`), matching
+[attested-single-box.md](attested-single-box.md)'s Phase 3.
+
 - **Two processes, one codebase.** `web` holds TLS, HTTP, SSE, auth and chat; `media` holds UDP,
   DTLS, SRTP, forwarding and the fMP4 writer. They talk over a unix socket. Each has its own seccomp
   profile; `media` sees nothing on disk but the recording directory.

@@ -38,7 +38,9 @@ behind each lives in the sections further down.
   place of Apache + php-fpm, via the existing CGI bridge, so the phpanta app is unchanged. Mind the
   gaps `server_remote_control.md` lists (compression encoder, Range, access logs) and the
   `.htaccess` rules the router must mirror.
-- **Phase 3 — Grade 2 attestation.** *(needs the box.)* Measured boot + TPM-sealed secrets
+- **Phase 3 — Grade 2 attestation.** *(Started as a local VM, 2026-11-08: `~/Projects/box`
+  builds the image the box will boot, and its b2 and b3 stages are this phase, proven in the VM
+  first; [comms.md](comms.md)'s "On the box" says where it stands.)* *(needs the box.)* Measured boot + TPM-sealed secrets
   (`session.key`, the update CA sealed to the PCRs), a dm-verity signed code partition, and the
   signed-deploy chain hung off the existing ApiGate push. Prove unseal-fails-on-tamper on a staging
   vhost first.
