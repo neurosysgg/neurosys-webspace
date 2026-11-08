@@ -35,14 +35,14 @@
 | Need | The one way | Written here | Borrowed (crypto/DB) | Oracle |
 |---|---|---|---|---|
 | HTTP | HTTP/1.1, c-serve | done | — | `conformance.sh`, `diff.sh` |
-| TLS | TLS 1.3 only, one P-256 cert per name, SNI in c-serve | the SNI callback | mbedtls | testssl.sh, the three browsers |
+| TLS | TLS 1.3 only, one P-256 cert per name, SNI in c-serve | the SNI callback | mbedtls 4.2, vendored into c-serve (pinned, DTLS-SRTP and threading on) | testssl.sh, the three browsers |
 | Certificates | ACME (RFC 8555) with HTTP-01, served by c-serve itself | the client: JWS, a JSON subset | mbedtls ECDSA | Pebble |
 | Concurrency | One epoll loop, every deadline in a min-heap; every handler on a fixed pool | the loop, the heap, the pool | — | `tools/abuse.py`, ASan, TSan; the heap against a sorted reference |
 | Throttling | A tarpit on the loop's deadlines (below) | the tarpit | SHA-256 for its keys | its own unit tests on an injected clock, abuse scripts |
 | Compression | Static files only, gzip copies made at deploy (`cserve-precompress`) | the tool, the choice of copy | zlib | the host test; never per request (BREACH) |
 | Login | Passkeys (WebAuthn), ES256, no attestation: the key as SPKI beside the authenticator data, so no CBOR | the verifier (`kit/passkey`) | mbedtls ECDSA | `comms-authenticator` as a software peer |
 | Signalling and chat | SSE for server→client, POST for client→server | SSE framing | SQLite for history | the three browsers |
-| Media transport | ICE-lite and DTLS-SRTP on one UDP port; ICE-TCP as the fallback | STUN, the demux, the SRTP key derivation | mbedtls: DTLS-SRTP, AES-CTR, HMAC-SHA1 | RFC 5769 and RFC 3711 vectors; pion as a peer |
+| Media transport | ICE-lite and DTLS-SRTP on one UDP port; ICE-TCP as the fallback | STUN, the demux, the SRTP key derivation and SRTP itself (`comms-media`) | mbedtls: DTLS 1.2 with use_srtp, PSA's AES and SHA-1 | RFC 5769 and RFC 3711 vectors; the three browsers |
 | SFU | Forward RTP; answer NACK and PLI; send TWCC feedback on every incoming stream | RTP/RTCP, an SDP subset | — | the three browsers under Playwright with fake media |
 | Ingest | WHIP | one POST on the same stack | — | OBS (WHIP since 30) |
 | Public streams | One HLS rendition of fMP4 segments, served as static files; an MSE loader in the player | the fMP4 packager, the loader | — | ffprobe, mp4box (dev only) |
@@ -174,10 +174,31 @@ Each phase ends when its gate is green, and each gate runs offline.
     `make acme`.
 - **m4 — voice, video, screen share.** STUN and ICE-lite, DTLS-SRTP, the SRTP key derivation,
   RTP/RTCP forwarding with NACK, PLI and TWCC, the SDP subset, the `media` process. DTLS-SRTP
-  through mbedtls is proven against all three browsers before anything is built on it. A music mode
+  through mbedtls is proven against all three browsers before anything is built on it — *proven*
+  (2026-11-08), below. A music mode
   sends Opus stereo at up to 510 kbps with echo cancellation, noise suppression, gain control and
   DTX off. *Gate:* the RFC vectors; pion as a peer; a five-browser call under Playwright with fake
   media; fuzzed STUN, RTP, RTCP and SDP.
+
+  **The proof (2026-11-08).** Chromium, Firefox and WebKit each join a call from the chat page, and
+  `comms-media` authenticates and decrypts every one of their packets (≥ 160 each, 0 refused, all
+  Opus) with code written here (`make media`). What it took:
+  - **mbedtls had to become ours.** Arch's build has no `MBEDTLS_SSL_DTLS_SRTP`, the `use_srtp`
+    extension every browser requires. c-serve now vendors the 4.2.0 release tarball, pinned by its
+    SHA-256, and builds it per variant with that and `MBEDTLS_THREADING_C` on. Under TSan it now
+    instruments the crypto too, and finds no races.
+  - **mbedtls 4.2's TLS 1.2 exporter dereferences NULL on a DTLS server.** It reads a transform
+    that is installed only once the peer sends another DTLS record, and a WebRTC peer never does.
+    The keys come instead from the master secret, which the key-export callback hands over,
+    through `mbedtls_ssl_tls_prf` with `EXTRACTOR-dtls_srtp`, as mbedtls's own `ssl_client2` does.
+    Worth reporting upstream.
+  - **What the three browsers agreed on:** DTLS 1.2 with `TLS-ECDHE-ECDSA-WITH-CHACHA20-POLY1305`
+    and `SRTP_AES128_CM_HMAC_SHA1_80`, the browser as the DTLS client, our self-signed P-256
+    certificate checked by fingerprint, and theirs by the offer's.
+  - **Browsers don't use loopback candidates** (Firefox not at all), so `comms-media` advertises the
+    machine's own address.
+  - **Gate:** RFC 5769 (STUN) and RFC 3711 B.2/B.3 (AES-CM, the key derivation) vectors; fuzzing of
+    STUN, SDP and SRTP (7.5M runs clean); the three browsers.
 - **m5 — streams and the archive.** WHIP ingest, the fMP4 packager, HLS as static files, the MSE
   loader in the player, the archive. *Gate:* OBS publishing over WHIP; every segment read clean by
   ffprobe and mp4box; playback in the three browsers.
@@ -209,9 +230,10 @@ public stream.
   Under a flood, pages are answered at once, under either sanitizer.
 - **Invitations — answered (m3).** An invite is signed offline with a P-256 key whose public half
   the box holds, and so is a revocation (`comms-invite`).
-- **PSA on workers — answered (m3).** mbedtls is built without threading, so every use of a key
-  slot or the RNG outside `tls.c` takes its lock (`cserve_crypto_lock()`). Keyless hashing and
-  PBKDF2 over bytes don't, so a password check never holds up a handshake.
+- **PSA on workers — answered (m3), and now moot.** The vendored mbedtls has
+  `MBEDTLS_THREADING_C`, so PSA guards its own key slots and RNG. The m3 lock
+  (`cserve_crypto_lock()`) is still in place and harmless. Removing it is a separate change, now
+  that TSan sees inside mbedtls and finds nothing it protects.
 - **The SDP subset.** Exactly which lines, codecs (Opus, VP8 or H.264) and extensions are accepted;
   everything else is refused.
 - **TWCC.** Feedback interval and packet format detail, settled in m4 against the browsers.
