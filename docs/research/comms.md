@@ -1,6 +1,6 @@
 # Research — comms, the friend group's platform on c-serve
 
-> **Status: m1 built (2026-11-08); m2–m5 planned.** This is the plan of record for replacing Discord
+> **Status: m1 and m2 built (2026-11-08); m3–m5 planned.** This is the plan of record for replacing Discord
 > among a small friend group (five people to start) with text, voice, video and screen share, and
 > later live streams and recorded sets of the user's own productions. Everything runs on the
 > dedicated box, as c-serve code. It follows [c-serve.md](c-serve.md)'s c6, and it keeps
@@ -116,10 +116,31 @@ Each phase ends when its gate is green, and each gate runs offline.
   *Gate:* `test/cserve.sh` 113/113 on both hosts; `diff.sh` 374 cases, under `SAN=1` too;
   `make check`; `make abuse`. The abuse suite covers slowloris, slow-read, a per-network flood, a
   connection flood, a pool flood and held-back replies, under ASan and TSan.
-- **m2 — on its own feet.** TLS 1.3 only, SNI, the ACME client, and cert reload with it. The
-  production tree too: `app/gen/` printed from the prod manifest, so `cserve-static` serves
-  `build/dist`. *Gate:* a full issuance and renewal
-  against Pebble; testssl.sh clean. After m2, c-serve can run on the box alone and take neurosys.gg.
+- **m2 — on its own feet.** *Built* (2026-11-08). The parts:
+  - **TLS 1.3 only on the server**, a P-256 certificate per name in `--certs DIR/<name>/`, picked by
+    SNI. No SNI, or a name not there, gets `unrecognized_name`.
+  - **SIGHUP reads the names again.** A connection keeps the set it began under, and a set that
+    doesn't load leaves the old one. An empty directory starts and refuses every handshake, so a
+    new box can boot before its first certificate.
+  - **`cserve-acme`** gets the certificates by HTTP-01, ES256 JWS, a fresh key per issuance, in a
+    process of its own. It signals nothing: its timer's `ExecStartPost` sends the SIGHUP.
+  - **A plain listener** answers the challenges (`--acme-dir`, any `Host`), a `308` to https for a
+    certificate's name, and a 404 for the rest.
+  - **The production tree:** `php tools/app-data.php --prod` prints `build/dist/app/` against the
+    prod manifest.
+
+  *Gate:*
+  - `make acme`: Pebble 2.8.0, 17/17, the 16 ACME checks also under ASan — issuance for two names
+    from an empty `--certs`, a rerun that keeps them, a forced renewal served after a SIGHUP
+    without a restart;
+  - testssl 3.2: nothing above LOW but Pebble's untrusted root. The grade is B, capped by that
+    chain alone. The one LOW is `FS_KEMs`, no post-quantum hybrid key exchange, which mbedtls's
+    TLS does not offer;
+  - `make check`, with the names and ACME suites and fuzz modes 10 and 11;
+  - `make abuse`;
+  - `test/cserve.sh` 113/113 on all three runs, the prod tree's included.
+
+  After m2, c-serve can run on the box alone and take neurosys.gg.
 - **m3 — text.** Passkey enrolment and login, sessions, SSE, chat rooms and history in SQLite.
   *Gate:* the software authenticator against every ceremony promise; fuzzed CBOR and SSE; the three
   browsers under Playwright.

@@ -255,10 +255,11 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
     `diff.sh`'s PHP reference, and it is never deployed.
   - **The production link**: `test/cserve.sh` runs the conformance suite on `cserve-static`, the
     app linked in, as well as on the dlopen host.
-  - **Left for the box (m2):**
-    - cert reload, with ACME;
-    - the production tree. `build/dist` needs `app/gen/` printed from the prod manifest (another
-      stamp, no preloads), and `tools/app-data.php` reads only the debug one.
+  - **Left for the box (m2), now built** ([comms.md](comms.md)'s m2):
+    - TLS 1.3 only, a certificate per name picked by SNI, read again on SIGHUP (`--certs`);
+    - `cserve-acme`, which gets them by HTTP-01 in a process of its own;
+    - the production tree: `php tools/app-data.php --prod` prints `build/dist/app/` against the prod
+      manifest, and `test/cserve.sh` serves `build/dist/public/` from it.
 
 ## Open questions
 

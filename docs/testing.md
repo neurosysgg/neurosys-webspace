@@ -55,9 +55,12 @@ and the served custom tags, read against `Tag::cases()`.
 `test/cserve.sh` runs it against c-serve's host (`./c-serve`, else `~/Projects/c-serve`, or
 `CSERVE_DIR`) with the native app (`app/`) and nothing behind it: the files served natively, every
 route the app's, and what no route fits the app's own 404 or 405. It runs twice: on `cserve`, the
-app `dlopen()`ed, and on `cserve-static`, the production host, the app linked in. The webroot is
-`public/`, since the app is printed against the debug manifest. The production tree natively
-waits for `app/gen/` printed from the prod manifest.
+app `dlopen()`ed, and on `cserve-static`, the production host, the app linked in. The webroot for
+both is `public/`, since the committed `app/gen/` is printed against the debug manifest. When
+`npm run build:prod` has made `build/dist/`, a third run serves what the box ships. That is
+`cserve-static` built from `build/dist/app/`, whose `gen/` `php tools/app-data.php --prod` prints
+against the prod manifest (another stamp, no preloads). It builds in a c-serve build directory of
+its own and serves `build/dist/public/`. Without `build/dist/`, the third run is skipped with a NOTE.
 
 `test/cserve/diff.sh` is the gate a route passes to go native. It runs two hosts on one staged
 tree and compares 370 requests:

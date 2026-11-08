@@ -70,6 +70,36 @@ final class AppDataTest extends TestCase
     }
 
     /**
+     * `--check` holds the committed debug tree and `--prod` writes the derived one: asked for both,
+     * it does neither.
+     *
+     * @return void
+     */
+    public function testCheckAndProdTogetherAreRefused(): void
+    {
+        [$status, $error] = self::invoke(['--check', '--prod']);
+
+        self::assertSame(ExitCode::Usage, $status);
+        self::assertStringContainsString('two different runs', $error);
+    }
+
+    /**
+     * The prod manifest is the same class as the debug one, so `--prod` has to load it first. In a
+     * process that has already loaded `src/`'s (this one has), or with no prod build to load, it
+     * refuses rather than print the debug stamp into the prod tree.
+     *
+     * @return void
+     */
+    public function testProdRefusesWhenItCannotLoadTheProdManifestFirst(): void
+    {
+        (void) \NeuroSYS\AssetManifest::SCRIPT;
+        [$status, $error] = self::invoke(['--prod']);
+
+        self::assertSame(ExitCode::Failure, $status);
+        self::assertMatchesRegularExpression('/loaded before the prod one|run npm run build:prod/', $error);
+    }
+
+    /**
      * Every case of every catalog the pages say anything from is a T(...) line, its English and its
      * German written out — the C macro takes both, so one missing would not compile, and this says
      * the PHP's words are the ones it took.

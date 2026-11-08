@@ -64,6 +64,14 @@ use ReflectionProperty;
  *
  *   php tools/app-data.php            # write app/gen/
  *   php tools/app-data.php --check    # write nothing; fail on a file that has drifted
+ *   php tools/app-data.php --prod     # build/dist/app/: the app's sources, its gen/ on the prod manifest
+ *
+ * `--prod` is the production tree's half (docs/research/comms.md, m2): `cserve-static` built from
+ * `build/dist/app/` serves `build/dist/public/`, whose stylesheet and bundle have their own stamp and
+ * no preloads. The prod manifest is the same class as the debug one, so it is loaded before anything
+ * could load `src/`'s — and refused if something already did. Like the rest of `build/dist/`, the
+ * tree is derived and never committed; the committed `app/gen/` stays the debug one `diff.sh` holds
+ * to PHP.
  *
  * The PHP and the data files are the one source of all of it: a word, a release or a class name is
  * changed there and printed here, never edited in `app/gen/`. The output is deterministic,
@@ -105,7 +113,7 @@ final readonly class AppData implements Command
     /** @return string */
     public function usage(): string
     {
-        return '[--check]';
+        return '[--check | --prod]';
     }
 
     /** @return string */
@@ -133,16 +141,26 @@ final readonly class AppData implements Command
      */
     public function run(Input $input, Output $output): ExitCode
     {
-        $root  = dirname(__DIR__, 3);
+        $root = dirname(__DIR__, 3);
+        $prod = $input->has(AppDataOption::Prod);
+        if ($prod && $input->has(AppDataOption::Check)) {
+            $output->error("app-data: --check and --prod are two different runs\n");
+
+            return ExitCode::Usage;
+        }
+        if ($prod && !self::loadProdManifest($root, $output)) {
+            return ExitCode::Failure;
+        }
+        $gen   = $prod ? 'build/dist/app/gen' : 'app/gen';
         $files = [
-            'app/gen/texts.h'    => self::textsHeader(),
-            'app/gen/texts.c'    => self::texts(),
-            'app/gen/vocab.h'    => self::vocabHeader(),
-            'app/gen/vocab.c'    => self::vocab(),
-            'app/gen/site.h'     => self::siteHeader(),
-            'app/gen/site.c'     => self::site(),
-            'app/gen/releases.c' => self::releases(),
-            'app/gen/privacy.c'  => self::privacy(),
+            "$gen/texts.h"    => self::textsHeader(),
+            "$gen/texts.c"    => self::texts(),
+            "$gen/vocab.h"    => self::vocabHeader(),
+            "$gen/vocab.c"    => self::vocab(),
+            "$gen/site.h"     => self::siteHeader(),
+            "$gen/site.c"     => self::site(),
+            "$gen/releases.c" => self::releases(),
+            "$gen/privacy.c"  => self::privacy(),
         ];
 
         if ($input->has(AppDataOption::Check)) {
@@ -157,8 +175,12 @@ final readonly class AppData implements Command
             return $drifted === 0 ? ExitCode::Success : ExitCode::Failure;
         }
 
-        if (!is_dir("$root/app/gen")) {
-            mkdir("$root/app/gen", 0775, true);
+        if ($prod) {
+            self::copySources("$root/app", "$root/build/dist/app");
+            $output->error("  copied app/'s sources to build/dist/app/\n");
+        }
+        if (!is_dir("$root/$gen")) {
+            mkdir("$root/$gen", 0775, true);
         }
         foreach ($files as $path => $text) {
             file_put_contents("$root/$path", $text);
@@ -166,6 +188,57 @@ final readonly class AppData implements Command
         }
 
         return ExitCode::Success;
+    }
+
+    /**
+     * `build/dist/`'s manifest loaded as {@link AssetManifest}, before anything loads `src/`'s.
+     *
+     * @param string $root
+     * @param Output $output
+     * @return bool false, with why on stderr, when there is no prod build or the debug class won
+     */
+    private static function loadProdManifest(string $root, Output $output): bool
+    {
+        $manifest = "$root/build/dist/src/NeuroSYS/AssetManifest.php";
+        if (!is_file($manifest)) {
+            $output->error("app-data: no $manifest — run npm run build:prod\n");
+
+            return false;
+        }
+        if (class_exists(AssetManifest::class, false)) {
+            $output->error("app-data: src/'s AssetManifest was loaded before the prod one could be\n");
+
+            return false;
+        }
+        require $manifest;
+
+        return true;
+    }
+
+    /**
+     * Every `.c` and `.h` of the app's own (not `gen/`, which is printed) copied into `$to`, at the
+     * same relative path.
+     *
+     * @param string $from
+     * @param string $to
+     * @return void
+     */
+    private static function copySources(string $from, string $to): void
+    {
+        $files = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($from, \FilesystemIterator::SKIP_DOTS),
+        );
+        foreach ($files as $file) {
+            $relative = substr($file->getPathname(), strlen($from) + 1);
+            if (str_starts_with($relative, 'gen/') || !preg_match('/\.[ch]\z/', $relative)) {
+                continue;
+            }
+            $dir = dirname("$to/$relative");
+            if (!is_dir($dir)) {
+                mkdir($dir, 0775, true);
+            }
+            copy($file->getPathname(), "$to/$relative");
+        }
     }
 
     // ───────────────────────────── the catalogs ─────────────────────────────
