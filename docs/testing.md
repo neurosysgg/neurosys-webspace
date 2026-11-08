@@ -54,13 +54,18 @@ and the served custom tags, read against `Tag::cases()`.
 
 `test/cserve.sh` runs it against c-serve's host (`./c-serve`, else `~/Projects/c-serve`, or
 `CSERVE_DIR`) with the native app (`app/`) and nothing behind it: the files served natively, every
-route the app's, and what no route fits the app's own 404 or 405. The webroot is `public/`, since
-the app is printed against the debug manifest; the production layout natively waits for c6's static
-build.
+route the app's, and what no route fits the app's own 404 or 405. It runs twice: on `cserve`, the
+app `dlopen()`ed, and on `cserve-static`, the production host, the app linked in. The webroot is
+`public/`, since the app is printed against the debug manifest. The production tree natively
+waits for `app/gen/` printed from the prod manifest.
 
 `test/cserve/diff.sh` is the gate a route passes to go native. It runs two hosts on one staged
-tree, one handing everything to php-cgi (the site as Strato runs it) and one with the app alone,
-and compares 370 requests:
+tree and compares 370 requests:
+- `cserve-front`, the threaded CGI host kept for this, hands everything to php-cgi (the site as
+  Strato runs it);
+- `cserve` runs the app alone, with `--no-tarpit`, since PHP slows no wrong password down.
+
+It compares:
 status, every header in order, and the body byte for byte. The requests cover:
 - every page, in each language, as a document and as the SPA's fragment, and its 304;
 - the downloads and the language switch;
@@ -69,6 +74,15 @@ status, every header in order, and the body byte for byte. The requests cover:
 
 The addresses only PHP has — `/admin` and below, `/drop`, `/api` — are asked of the app alone, and
 each must answer exactly as its `/nope` does, the path in the 404 page's terminal aside.
+
+Last comes the app's own tarpit, on a third host with it on, in four checks:
+- a wrong password's 401 is held back about a second;
+- a guess sent alongside it gets a 429 with `Retry-After`;
+- no credentials at all is the plain challenge;
+- the right password gets in once the wait is over.
+
+That is 374 cases in all. The race is timed by one PBKDF2, measured first, so it holds under
+`SAN=1` too.
 
 It normalises only what is the host's own (`Date`, `Server`, `Connection`, the framing), the
 ETag's value, and php-cgi's default `text/html` on a redirect. It first asserts that the app

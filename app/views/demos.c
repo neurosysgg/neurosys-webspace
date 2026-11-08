@@ -6,6 +6,7 @@
 
 #include "file.h"
 #include "json.h"
+#include "login.h"
 #include "password.h"
 #include "reading.h"
 
@@ -154,9 +155,17 @@ void ns_demos_free(void) {
 
 /* DemoGate::enter(): the demo, when the request's credentials open it;
  * NULL with the 401 answered otherwise. Both comparisons run every time,
- * and a slug nobody has pays for a check against nothing. */
+ * and a slug nobody has pays for a check against nothing. A wrong try is
+ * slowed by the host's tarpit (login.h), the slug being the account --
+ * PHP has none, so diff.sh diffs the app run with --no-tarpit and checks
+ * the tarpit on a host of its own -- and a key
+ * still waiting gets a 429 before any PBKDF2 runs. */
 static const DEMO *enter(const CSERVE_HTTPD_REQ *r, CSERVE_ARENA *a,
                          const char *slug, CSERVE_HTTPD_REPLY *rep) {
+  const char *auth = cserve_httpd_header(r, "Authorization");
+  if (auth && cserve_login_check(r, slug, rep)) {
+    return NULL;
+  }
   const DEMO *d = NULL;
   for (int i = 0; i < g_ndemos; i++) {
     if (!strcmp(g_demos[i].slug, slug)) {
@@ -164,12 +173,12 @@ static const DEMO *enter(const CSERVE_HTTPD_REQ *r, CSERVE_ARENA *a,
     }
   }
   char user[256], pass[512];
-  cserve_basic_credentials(cserve_httpd_header(r, "Authorization"), user,
-                           sizeof user, pass, sizeof pass);
+  cserve_basic_credentials(auth, user, sizeof user, pass, sizeof pass);
   int user_ok = strcmp(user, NS_DEMO_USER) == 0;
   int pass_ok = cserve_password_matches(
       d ? d->password : cserve_password_unmatchable(), pass, strlen(pass));
   if (d && user_ok && pass_ok) {
+    cserve_login_pass(r, slug);
     return d;
   }
   char encoded[512];
@@ -180,6 +189,9 @@ static const DEMO *enter(const CSERVE_HTTPD_REQ *r, CSERVE_ARENA *a,
     ns_fail(rep);
   } else {
     cserve_httpd_text(rep, 401, "text/plain; charset=utf-8", "", 0);
+  }
+  if (auth) {
+    cserve_login_fail(r, slug, rep);
   }
   return NULL;
 }

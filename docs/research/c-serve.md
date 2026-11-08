@@ -1,9 +1,9 @@
 # Research — c-serve, the site's core in C
 
-> **Status: c0–c5 built (2026-11-07)**: the conformance suite, the extracted stack, its host, the
+> **Status: c0–c6 built (c6 2026-11-08)**: the conformance suite, the extracted stack, its host, the
 > toolkit an app is written in, checked case by case against Phpanta's own answers, and this site as
 > a native app (`app/`) that runs with no PHP behind it (`test/cserve.sh`: 113/113) and answers as
-> the PHP does (`test/cserve/diff.sh`: 370 cases, byte for byte). Recorded 2026-10-29. This takes neurosys.gg's
+> the PHP does (`test/cserve/diff.sh`: 370 cases, byte for byte), served from one epoll loop. Recorded 2026-10-29. This takes neurosys.gg's
 > runtime off PHP. A C web host serves the site, and the site is a first-class app compiled for it.
 > The host fuses Phpanta's `App` contract with ctui-wm's plugin architecture, on the HTTP/TLS
 > server that ctui-wm already has. It reverses "not a rewrite away from PHP" in
@@ -233,12 +233,32 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
     until the move to the box, and `diff.sh`'s PHP side is the reference for both.
   - `test/cserve.sh` runs the conformance suite against the app alone; its PHP-only runs went with
     the CGI.
-- **c6. Public-internet hardening**, needed before the box takes traffic. It is also
-  [comms.md](comms.md)'s m1, which adds the timer wheel, a PBKDF2 pool and the tarpit:
-  - replace thread-per-connection with one epoll loop;
-  - a gzip encoder, the access log and cert reload;
-  - mbedtls built with threading, or one TLS context per worker;
-  - the static production build, and `test/cserve.sh` against the production layout with it.
+- **c6. Public-internet hardening.** *Done* (2026-11-08), as [comms.md](comms.md)'s m1.
+  - **One epoll loop owns every socket** (`src/loop.c`), and every wait is a deadline in one heap
+    (`src/heap.c`). Every handler runs on a fixed pool (`src/pool.c`); a full queue is a 503.
+    Connections are capped in all and per network (an IPv4 address, an IPv6 /64), and one that
+    closes after its last reply lingers, so a reset never eats the reply's tail.
+  - **A body is pulled, not pushed** (ABI 2): the loop pulls a piece whenever the socket takes
+    one, so a slow reader holds no thread.
+  - **TLS is non-blocking and the loop's alone**, so mbedtls needs no threading and the process
+    lock goes uncontended.
+  - **The tarpit** (`src/tarpit.c`, `kit/login.h`) slows a wrong demo password: the 401 is held
+    back on the connection's timer, and a guess made while its key waits gets a 429. `diff.sh`
+    diffs the app with `--no-tarpit`, since PHP has none, and checks the tarpit on a host of its
+    own.
+  - **Compression is precompressed static files only** (`cserve-precompress`): nothing is
+    compressed per request, so no runtime encoder and no BREACH.
+  - **The access log** names method, path, status, bytes, time and address family, never an
+    address.
+  - **The host is the loop's alone**: `--cgi`, `--front`, `--env`, `--climb` and `--client-ca`
+    are gone, and a climbing path is the app's 404. `cserve-front` keeps the threaded CGI host as
+    `diff.sh`'s PHP reference, and it is never deployed.
+  - **The production link**: `test/cserve.sh` runs the conformance suite on `cserve-static`, the
+    app linked in, as well as on the dlopen host.
+  - **Left for the box (m2):**
+    - cert reload, with ACME;
+    - the production tree. `build/dist` needs `app/gen/` printed from the prod manifest (another
+      stamp, no preloads), and `tools/app-data.php` reads only the debug one.
 
 ## Open questions
 
@@ -246,8 +266,9 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
   `data/demos.json` are the source, read by PHP through its codecs and by the app (the demos at
   `init()`, the rest through `app/gen/`, which `tools/app-data.php` prints from them). The release
   and demo tooling writes the JSON itself, through the same codecs, and stays PHP for now.
-- **Concurrency model for c6 — answered.** One epoll loop with a timer wheel, and a small pool for
-  PBKDF2 only (2026-11-08, [comms.md](comms.md)); io_uring is never used, and the box disables it.
+- **Concurrency model for c6 — answered.** One epoll loop with its deadlines in a min-heap, and
+  every handler on a fixed pool (2026-11-08, [comms.md](comms.md)). io_uring is never used, and
+  the box disables it.
 - **The tooling.** About 18k lines of PHP import runtime classes (`Site`, `MusicalKey`, the API
   enums) and write JSON into `data/` through the site's codecs. Once the admin is gone, they need only the data format and
   the enums. Do they stay PHP against a thin model, or move?

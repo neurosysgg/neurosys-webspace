@@ -1,6 +1,6 @@
 # Research — comms, the friend group's platform on c-serve
 
-> **Status: planned (2026-11-08), nothing built.** This is the plan of record for replacing Discord
+> **Status: m1 built (2026-11-08); m2–m5 planned.** This is the plan of record for replacing Discord
 > among a small friend group (five people to start) with text, voice, video and screen share, and
 > later live streams and recorded sets of the user's own productions. Everything runs on the
 > dedicated box, as c-serve code. It follows [c-serve.md](c-serve.md)'s c6, and it keeps
@@ -37,8 +37,9 @@
 | HTTP | HTTP/1.1, c-serve | done | — | `conformance.sh`, `diff.sh` |
 | TLS | TLS 1.3 only, one P-256 cert per name, SNI in c-serve | the SNI callback | mbedtls | testssl.sh, the three browsers |
 | Certificates | ACME (RFC 8555) with HTTP-01, served by c-serve itself | the client: JWS, a JSON subset | mbedtls ECDSA | Pebble |
-| Concurrency | One epoll loop and a timer wheel; a small pool for PBKDF2 | the loop | — | slowloris-style abuse, ASan, TSan |
-| Throttling | A tarpit on the timer wheel (below) | the tarpit | — | its own unit tests, abuse scripts |
+| Concurrency | One epoll loop, every deadline in a min-heap; every handler on a fixed pool | the loop, the heap, the pool | — | `tools/abuse.py`, ASan, TSan; the heap against a sorted reference |
+| Throttling | A tarpit on the loop's deadlines (below) | the tarpit | SHA-256 for its keys | its own unit tests on an injected clock, abuse scripts |
+| Compression | Static files only, gzip copies made at deploy (`cserve-precompress`) | the tool, the choice of copy | zlib | the host test; never per request (BREACH) |
 | Login | Passkeys (WebAuthn) | the verifier, a CBOR subset | mbedtls ECDSA | `tools/authenticator.php` as a software peer |
 | Signalling and chat | SSE for server→client, POST for client→server | SSE framing | SQLite for history | the three browsers |
 | Media transport | ICE-lite and DTLS-SRTP on one UDP port; ICE-TCP as the fallback | STUN, the demux, the SRTP key derivation | mbedtls: DTLS-SRTP, AES-CTR, HMAC-SHA1 | RFC 5769 and RFC 3711 vectors; pion as a peer |
@@ -67,15 +68,24 @@ What the ways leave out, and why:
 Passkeys mean a failed login is a bad signature, not a guess, so the tarpit is a rate limit on the
 ceremony and the brake on the demo gate's passwords.
 
-- A failure parks the connection on the timer wheel; nothing spins or blocks the loop.
-- A request that arrives while its key is penalised gets an immediate `429` with `Retry-After` and
-  extends the penalty; only one connection per key is parked.
-- The penalty grows exponentially to a hard cap (five minutes) and decays.
-- The key is the account and the address together — never the account alone, which would let a
-  stranger lock a friend out. An IPv6 address counts as its /64.
-- Parked connections are capped per key and in total; the key table is fixed-size.
-- Success and failure take the same time. An unknown demo slug costs the same PBKDF2 as a wrong
-  password.
+- A failure's reply is held back on its connection's deadline; no worker waits, and nothing
+  spins or blocks the loop.
+- A request that arrives while its key waits gets an immediate `429` with `Retry-After`, before
+  any PBKDF2, and makes the wait a step longer. So a guesser who waits for each answer is slowed
+  exponentially, and guesses sent alongside are refused.
+- Only a try counts: a request with no credentials is the browser asking what to send.
+- The wait doubles from one second to a hard cap (five minutes), and a count drops by one per
+  ten quiet minutes. A success clears the account's count.
+- The key is the account and the address's network together — never the account alone, which
+  would let a stranger lock a friend out. An IPv6 address counts as its /64. The network alone is
+  a second key that waits only past eight failures, so guesses spread over accounts are slowed
+  too.
+- The key table is fixed-size. Its set is picked by a SHA-256 of a secret drawn at start, so keys
+  can't be aimed. A full set gives up the entry with the least wait left, never the oldest, so a
+  flood of junk keys can't wash a penalty away.
+- Held-back replies are capped in total (past the cap a connection is closed, never answered
+  early), and connections per network are capped by the loop.
+- A known and an unknown demo slug cost the same PBKDF2 and get the same 401.
 
 ## On the box
 
@@ -94,11 +104,21 @@ ceremony and the brake on the demo gate's passwords.
 
 Each phase ends when its gate is green, and each gate runs offline.
 
-- **m1 — the loop (c-serve's c6).** epoll and the timer wheel replace thread-per-connection; the
-  PBKDF2 pool; the tarpit; the rest of c6 (gzip, access log, cert reload, the static production
-  build). *Gate:* `test/cserve.sh` and `diff.sh` unchanged, plus abuse scripts — slow clients, floods,
-  parked-connection exhaustion — under ASan and TSan.
-- **m2 — on its own feet.** TLS 1.3 only, SNI, the ACME client. *Gate:* a full issuance and renewal
+- **m1 — the loop (c-serve's c6).** *Done* (2026-11-08; [c-serve.md](c-serve.md)'s c6 has the
+  detail). The parts:
+  - epoll, the deadline heap and the worker pool replace thread-per-connection;
+  - bodies are pulled;
+  - the tarpit;
+  - the access log, without addresses;
+  - precompressed static files;
+  - the production link (`cserve-static`).
+
+  *Gate:* `test/cserve.sh` 113/113 on both hosts; `diff.sh` 374 cases, under `SAN=1` too;
+  `make check`; `make abuse`. The abuse suite covers slowloris, slow-read, a per-network flood, a
+  connection flood, a pool flood and held-back replies, under ASan and TSan.
+- **m2 — on its own feet.** TLS 1.3 only, SNI, the ACME client, and cert reload with it. The
+  production tree too: `app/gen/` printed from the prod manifest, so `cserve-static` serves
+  `build/dist`. *Gate:* a full issuance and renewal
   against Pebble; testssl.sh clean. After m2, c-serve can run on the box alone and take neurosys.gg.
 - **m3 — text.** Passkey enrolment and login, sessions, SSE, chat rooms and history in SQLite.
   *Gate:* the software authenticator against every ceremony promise; fuzzed CBOR and SSE; the three
@@ -134,6 +154,12 @@ would bring a licence even for the user's own works. Checked with someone qualif
 public stream.
 
 ## Open questions
+
+- **Password floods and the pool.** Every handler shares one FIFO pool, so a flood of password
+  checks (PBKDF2 each) makes a page wait behind up to a queue's worth of them: about a second at
+  -O2 in the abuse suite, never unbounded. A lane for password checks, at most half the workers
+  and a quick 503 past that, would keep pages prompt under one. Decide before the box takes
+  traffic.
 
 - **Invitations.** Admin services are scrapped, so who mints the link a friend enrols a passkey
   with? The lean answer is an invite signed offline with a P-256 key whose public half the box

@@ -56,8 +56,9 @@ and `test/cserve/diff.sh` build it from here, else from `~/Projects/c-serve`, or
   manifest, the releases and the privacy policy as a tree. Change either, then rerun the command;
   never edit `app/gen/`, which the verify script fails on drift.
 - **A change to a page lands only when `bash test/cserve/diff.sh` is silent**: PHP (as Strato runs
-  it) and the app answer 370 requests byte for byte, and the addresses only PHP has answer
-  natively as `/nope` does.
+  it, behind c-serve's `cserve-front`) and the app (with `--no-tarpit`: PHP has none) answer 370
+  requests byte for byte, and the addresses only PHP has answer natively as `/nope` does. Its last
+  four cases are the app's own tarpit, on a host with it on.
 - **A capture is matched on the path as sent, then `rawurldecode`d**, as Phpanta's router does —
   `ns_match()`, never the host's decoded path.
 

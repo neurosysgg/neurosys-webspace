@@ -34,6 +34,7 @@ fi
 BIN="$CSERVE_DIR/build/O2${SAN:+-san}/bin"
 PORT_A=18083
 PORT_B=18084
+PORT_C=18086
 PASSWORD="open sesame"
 
 for tool in php-cgi curl; do
@@ -76,8 +77,8 @@ head -c 0 /dev/urandom > "$STAGE/data/demos/fixture/v1.ogg"
 
 # --- the two hosts ------------------------------------------------------------------------------
 start() {
-    local port="$1"; shift
-    "$BIN/cserve" --listen "127.0.0.1:$port" --root "$STAGE/public" --climb front \
+    local port="$1" bin="$2"; shift 2
+    "$BIN/$bin" --listen "127.0.0.1:$port" --root "$STAGE/public" \
         "$@" >"$STAGE/host-$port.log" 2>&1 &
     PIDS+=($!)
     for _ in $(seq 50); do
@@ -86,8 +87,11 @@ start() {
     done
     echo "ERROR: the host on :$port did not start:"; cat "$STAGE/host-$port.log"; exit 1
 }
-start "$PORT_A" --cgi php-cgi --env PHPANTA_ENVIRONMENT=development
-start "$PORT_B" --app "$BIN/apps/neurosys.so" --data "$STAGE/data"
+# PHP behind cserve-front, the threaded CGI host kept as the reference; the app on cserve's loop
+start "$PORT_A" cserve-front --cgi php-cgi --climb front --env PHPANTA_ENVIRONMENT=development
+# --no-tarpit: PHP slows no wrong password down, so neither may the app here (its own check is
+# test/cserve/tarpit.sh)
+start "$PORT_B" cserve --app "$BIN/apps/neurosys.so" --data "$STAGE/data" --no-tarpit
 
 # --- one answer, normalised ---------------------------------------------------------------------
 # PORT METHOD PATH [curl args...] into OUT.head and OUT.body; prints nothing
@@ -274,6 +278,44 @@ for path in /admin /admin/ /admin/update /admin/update/v1 /admin/update/v1/versi
     absent POST "$path" -H 'Authorization: NS1 x'
     absent OPTIONS "$path"
 done
+
+# --- the app's own: the tarpit, which PHP hasn't (B runs without it) ---------------------------
+echo "=== the app alone: a wrong password slowed, a guess beside it told to wait"
+start "$PORT_C" cserve --app "$BIN/apps/neurosys.so" --data "$STAGE/data"
+own() { # what's checked, then whether it held
+    CASES=$((CASES + 1))
+    if [[ "$2" == ok ]]; then
+        [[ -n "${VERBOSE:-}" ]] && echo "  ok    $1"
+        return 0
+    fi
+    DIFFS=$((DIFFS + 1))
+    echo "  FAIL  $1 ($2)"
+}
+url="http://127.0.0.1:$PORT_C/demos/fixture"
+t0=$(date +%s%N)
+code=$(curl -s -o /dev/null -w '%{http_code}' -u "demo:wrong" "$url")
+ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+[[ "$code" == 401 && "$ms" -ge 900 ]] && r=ok || r="$code after $ms ms"
+own "a wrong password: its 401 held back about a second" "$r"
+# the second guess must come once the first has failed: one PBKDF2 timed with the right password,
+# and twice that waited (under SAN=1 every check is slower)
+t0=$(date +%s%N)
+curl -s -o /dev/null -u "demo:$PASSWORD" "$url"
+check_ms=$(( ($(date +%s%N) - t0) / 1000000 ))
+curl -s -o /dev/null -u "demo:wrong" "$url" &
+first=$!
+sleep "$(( (2 * check_ms + 100) / 1000 )).$(printf '%03d' $(( (2 * check_ms + 100) % 1000 )))"
+head="$(curl -s -D - -o /dev/null -u "demo:wrong" "$url")"
+wait "$first"
+[[ "$head" == *" 429 "* && "$head" == *"Retry-After: "* ]] && r=ok || r="${head%%$'\r'*}"
+own "a guess sent alongside: 429 with Retry-After" "$r"
+code=$(curl -s -o /dev/null -w '%{http_code}' "$url")
+[[ "$code" == 401 ]] && r=ok || r="$code"
+own "no credentials at all: the plain challenge, whatever the wait" "$r"
+sleep 3
+code=$(curl -s -o /dev/null -w '%{http_code}' -u "demo:$PASSWORD" "$url")
+[[ "$code" == 200 ]] && r=ok || r="$code"
+own "the right password, once the wait is over: in" "$r"
 
 # a sanitizer that spoke without stopping its host (UBSan, by default) spoke into its log
 if grep -l "runtime error\|Sanitizer" "$STAGE"/host-*.log >/dev/null 2>&1; then

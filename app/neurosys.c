@@ -4,6 +4,7 @@
  * demos read before the first request, and what no route fits
  * (UnroutedController): the host runs it with no CGI front. */
 #include "app.h"
+#include "login.h"
 #include "views.h"
 
 #include <stdio.h>
@@ -85,6 +86,7 @@ static void not_found(const CSERVE_HTTPD_REQ *r, const char *body,
 }
 
 static int init(const CSERVE_APP_ENV *env, char *err, size_t err_cap) {
+  cserve_login_use(env->tarpit);
   if (cserve_texts_complete(ns_texts, ns_ntexts, ns_site.languages->n, err,
                             err_cap) != 0) {
     return -1;
