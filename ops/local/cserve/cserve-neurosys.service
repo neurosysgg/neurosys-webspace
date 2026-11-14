@@ -1,0 +1,60 @@
+# neurosys.localhost and neurosys.local on c-serve, the app linked in (cserve-static): what the box
+# will run, on this machine, in place of Apache + PHP. Installed by ops/local/cserve/install.sh.
+[Unit]
+Description=c-serve — neuro.SYS, the native app
+# 192.168.2.42 is bound by address, so the LAN has to be up first
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+# Bound to the machine's own addresses, never a wildcard: Apache's lan-only.conf kept the
+# global IPv6 addresses out, and cserve has no allowlist of its own.
+ExecStart=/usr/local/lib/cserve-neurosys/cserve-static \
+    --listen 127.0.0.1:80 --listen [::1]:80 --listen 192.168.2.42:80 \
+    --listen-tls 127.0.0.1:443 --listen-tls [::1]:443 --listen-tls 192.168.2.42:443 \
+    --certs /etc/cserve/certs \
+    --root /srv/http/neurosys/public --data /srv/http/neurosys/data \
+    --app neurosys -v
+# SIGHUP reads the certificates again; nothing else is reloaded
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=2
+LimitCORE=0
+
+User=cserve
+Group=cserve
+SupplementaryGroups=http
+
+# The filesystem: all of it read-only; the app only reads data/ at init()
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectProc=invisible
+ProcSubset=pid
+
+# The network: TCP alone, and the one privilege, ports below 1024
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+NoNewPrivileges=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RemoveIPC=yes
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+SystemCallFilter=~@privileged @mount @debug @reboot @module @swap @raw-io @cpu-emulation @obsolete
+SystemCallErrorNumber=EPERM
+
+[Install]
+WantedBy=multi-user.target

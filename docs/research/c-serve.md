@@ -260,6 +260,12 @@ Each phase stands alone, and the site keeps serving from PHP until the last one.
     - `cserve-acme`, which gets them by HTTP-01 in a process of its own;
     - the production tree: `php tools/app-data.php --prod` prints `build/dist/app/` against the prod
       manifest, and `test/cserve.sh` serves `build/dist/public/` from it.
+  - **Served locally on c-serve** (2026-11-14): `ops/local/cserve/` installs `cserve-static`, the
+    app linked in, as `cserve-neurosys.service` for `neurosys.localhost` and `neurosys.local`, on
+    :80 and :443, bound to the machine's own addresses. It runs as its own user and holds only
+    `CAP_NET_BIND_SERVICE`, and its certificates are P-256. Apache keeps `phpanta.localhost`
+    alone, on :8080 and :8444; `uninstall.sh` puts it all back. No reply names the server, as on
+    the box (c-serve's `--server` is off unless given).
 
 ## Open questions
 

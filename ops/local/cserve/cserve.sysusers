@@ -1,0 +1,3 @@
+# The user cserve-neurosys.service runs as: no login, no home, in http for data/'s group-readable files
+u cserve - "c-serve, neuro.SYS's host" - -
+m cserve http
